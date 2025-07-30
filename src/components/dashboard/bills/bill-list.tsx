@@ -45,15 +45,16 @@ import { Label } from "@/components/ui/label";
 import { PlusCircle, Pencil, Trash2, CalendarIcon, FileText, Repeat } from "lucide-react";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "@/lib/firebase";
-import { collection, addDoc, query, where, onSnapshot, doc, deleteDoc, updateDoc, orderBy } from "firebase/firestore";
+import { collection, addDoc, query, where, onSnapshot, doc, deleteDoc, updateDoc, orderBy, writeBatch, getDocs, limit } from "firebase/firestore";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { format, differenceInDays } from "date-fns";
+import { format, differenceInDays, addMonths, addQuarters, addYears } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { Bill } from "@/lib/data";
+import type { Bill, Account } from "@/lib/data";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
 
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-IN", {
@@ -64,24 +65,35 @@ const formatCurrency = (amount: number) => {
 
 export function BillList() {
     const [bills, setBills] = useState<Bill[]>([]);
+    const [accounts, setAccounts] = useState<Account[]>([]);
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
     const [date, setDate] = useState<Date | undefined>(new Date());
     const [editDate, setEditDate] = useState<Date | undefined>();
     const [user, loading] = useAuthState(auth);
+    const { toast } = useToast();
 
     useEffect(() => {
         if (user && db) {
-            const q = query(collection(db, "bills"), where("userId", "==", user.uid), orderBy("dueDate", "asc"));
-            const unsubscribe = onSnapshot(q, (querySnapshot) => {
+            const billsQuery = query(collection(db, "bills"), where("userId", "==", user.uid), orderBy("dueDate", "asc"));
+            const unsubscribeBills = onSnapshot(billsQuery, (querySnapshot) => {
                 const userBills: Bill[] = [];
                 querySnapshot.forEach((doc) => {
                     userBills.push({ id: doc.id, ...doc.data() } as Bill);
                 });
                 setBills(userBills);
             });
-            return () => unsubscribe();
+            
+            const accountsQuery = query(collection(db, "accounts"), where("userId", "==", user.uid), orderBy("order", "asc"));
+            const unsubscribeAccounts = onSnapshot(accountsQuery, (snapshot) => {
+                setAccounts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Account)));
+            });
+
+            return () => {
+              unsubscribeBills();
+              unsubscribeAccounts();
+            }
         }
     }, [user, db]);
 
@@ -147,10 +159,71 @@ export function BillList() {
 
     const handleTogglePaid = async (bill: Bill) => {
         if (!user) return;
+        if (bill.paid) { // If already paid, do nothing or maybe revert payment (not implemented)
+            return;
+        }
+
+        const primaryAccount = accounts.find(acc => acc.isPrimary);
+        if (!primaryAccount) {
+            toast({
+                variant: "destructive",
+                title: "No Primary Account",
+                description: "Please set a primary bank account to pay bills.",
+            });
+            return;
+        }
+        
         try {
+            const batch = writeBatch(db);
             const billRef = doc(db, "bills", bill.id);
-            await updateDoc(billRef, { paid: !bill.paid });
-        } catch (error) {
+
+            // 1. Create expense transaction
+            const newTransactionRef = doc(collection(db, "transactions"));
+            batch.set(newTransactionRef, {
+                userId: user.uid,
+                description: `Bill Payment: ${bill.title}`,
+                amount: bill.amount,
+                type: 'expense',
+                date: new Date().toISOString(),
+                category: 'Bills',
+                accountId: primaryAccount.id,
+                paymentMethod: 'online',
+            });
+
+            // 2. Update bill status and next due date if recurring
+            if (bill.recurrence !== 'none') {
+                let nextDueDate: Date;
+                const currentDueDate = new Date(bill.dueDate);
+
+                switch(bill.recurrence) {
+                    case 'monthly':
+                        nextDueDate = addMonths(currentDueDate, 1);
+                        break;
+                    case 'quarterly':
+                        nextDueDate = addQuarters(currentDueDate, 1);
+                        break;
+                    case 'yearly':
+                        nextDueDate = addYears(currentDueDate, 1);
+                        break;
+                    default:
+                        nextDueDate = currentDueDate;
+                }
+                batch.update(billRef, { dueDate: nextDueDate.toISOString() });
+            } else {
+                batch.update(billRef, { paid: true });
+            }
+
+            await batch.commit();
+            toast({
+                title: "Bill Paid",
+                description: `${bill.title} has been successfully paid.`,
+            });
+        } catch (error: any) {
+            toast({
+                variant: "destructive",
+                title: "Payment Failed",
+                description: error.message,
+            });
         }
     }
 
@@ -258,10 +331,11 @@ export function BillList() {
                         <TableBody>
                             {bills.map((bill) => {
                                 const daysUntilDue = differenceInDays(new Date(bill.dueDate), new Date());
+                                const isOverdue = daysUntilDue < 0 && !bill.paid;
                                 return (
                                 <TableRow key={bill.id} className={cn(bill.paid && "text-muted-foreground line-through")}>
                                     <TableCell>
-                                        <Button size="sm" variant={bill.paid ? "secondary" : "outline"} onClick={() => handleTogglePaid(bill)}>
+                                        <Button size="sm" variant={bill.paid ? "secondary" : "outline"} onClick={() => handleTogglePaid(bill)} disabled={bill.paid}>
                                             {bill.paid ? "Paid" : "Mark as Paid"}
                                         </Button>
                                     </TableCell>
@@ -278,8 +352,8 @@ export function BillList() {
                                     </TableCell>
                                     <TableCell>
                                         <div>{format(new Date(bill.dueDate), 'dd/MM/yyyy')}</div>
-                                        <div className={cn("text-xs", daysUntilDue < 0 && !bill.paid ? "text-red-500" : "text-muted-foreground")}>
-                                            {bill.paid ? " " : daysUntilDue < 0 ? `Overdue by ${-daysUntilDue} days` : `Due in ${daysUntilDue} days`}
+                                        <div className={cn("text-xs", isOverdue ? "text-red-500" : "text-muted-foreground")}>
+                                            {bill.paid ? " " : isOverdue ? `Overdue by ${-daysUntilDue} days` : `Due in ${daysUntilDue} days`}
                                         </div>
                                     </TableCell>
                                     <TableCell className="text-right font-mono">{formatCurrency(bill.amount)}</TableCell>
