@@ -117,10 +117,12 @@ export function Header() {
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>{user?.displayName || "My Account"}</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem>
-            <User className="mr-2" />
-            <span>Profile</span>
-          </DropdownMenuItem>
+          <Link href="/dashboard/profile">
+            <DropdownMenuItem>
+              <User className="mr-2" />
+              <span>Profile</span>
+            </DropdownMenuItem>
+          </Link>
           <DropdownMenuSeparator />
           <Link href="/">
             <DropdownMenuItem>
