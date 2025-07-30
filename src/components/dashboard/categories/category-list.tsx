@@ -374,8 +374,9 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank
             if (Array.isArray(data.subcategories)) {
                 subcategories = data.subcategories;
             } else { // Handle old object format for backward compatibility
+                const reservedFields = ['userId', 'name', 'icon', 'order', 'type'];
                 Object.keys(data).forEach(key => {
-                    if (typeof data[key] === 'object' && data[key] !== null && 'name' in data[key]) {
+                    if (!reservedFields.includes(key) && typeof data[key] === 'object' && data[key] !== null && 'name' in data[key]) {
                         subcategories.push({
                             id: key, // Use the field key as the ID
                             ...data[key]
@@ -391,7 +392,7 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank
                 icon: data.icon,
                 order: data.order,
                 type: data.type,
-                subcategories: subcategories,
+                subcategories: subcategories.sort((a,b) => (a.order || 0) - (b.order || 0)),
             });
           });
           setCategories(userCategories);
@@ -451,10 +452,12 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank
     if (!user || !selectedCategory) return;
 
     const formData = new FormData(event.currentTarget);
+    const existingSubcategories = selectedCategory.subcategories || [];
     const newSubCategory: SubCategory = {
       id: new Date().getTime().toString() + Math.random().toString(36).substring(2, 9), // simple unique id
       name: formData.get("name") as string,
       frequency: categoryType === 'expense' ? (formData.get("frequency") as 'monthly' | 'occasional' || 'occasional') : undefined,
+      order: existingSubcategories.length,
     }
     
     if (categoryType === 'expense') {
@@ -464,11 +467,10 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank
         }
     }
 
-
     try {
       const categoryRef = doc(db, "categories", selectedCategory.id);
       await updateDoc(categoryRef, {
-        subcategories: [...(selectedCategory.subcategories || []), newSubCategory],
+        subcategories: [...existingSubcategories, newSubCategory],
       });
       setIsSubCategoryDialogOpen(false);
       setSelectedCategory(null);
@@ -524,9 +526,10 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank
   
   const handleSubCategoryOrderChange = useCallback(async (category: Category, newSubcategories: SubCategory[]) => {
     if (!user) return;
+    const reorderedSubcategories = newSubcategories.map((sub, index) => ({...sub, order: index}));
     try {
         const categoryRef = doc(db, "categories", category.id);
-        await updateDoc(categoryRef, { subcategories: newSubcategories });
+        await updateDoc(categoryRef, { subcategories: reorderedSubcategories });
     } catch (error) {
     }
   }, [user]);
