@@ -321,10 +321,10 @@ export function BillList() {
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Status</TableHead>
                                 <TableHead>Title</TableHead>
                                 <TableHead>Due Date</TableHead>
                                 <TableHead className="text-right">Amount</TableHead>
+                                <TableHead>Status</TableHead>
                                 <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -334,11 +334,6 @@ export function BillList() {
                                 const isOverdue = daysUntilDue < 0 && !bill.paid;
                                 return (
                                 <TableRow key={bill.id} className={cn(bill.paid && "text-muted-foreground line-through")}>
-                                    <TableCell>
-                                        <Button size="sm" variant={bill.paid ? "secondary" : "outline"} onClick={() => handleTogglePaid(bill)} disabled={bill.paid}>
-                                            {bill.paid ? "Paid" : "Mark as Paid"}
-                                        </Button>
-                                    </TableCell>
                                     <TableCell className="font-medium">
                                         <div className="flex items-center gap-2">
                                             <span>{bill.title}</span>
@@ -357,6 +352,11 @@ export function BillList() {
                                         </div>
                                     </TableCell>
                                     <TableCell className="text-right font-mono">{formatCurrency(bill.amount)}</TableCell>
+                                    <TableCell>
+                                        <Button size="sm" variant={bill.paid ? "secondary" : "outline"} onClick={() => handleTogglePaid(bill)} disabled={bill.paid}>
+                                            {bill.paid ? "Paid" : "Mark as Paid"}
+                                        </Button>
+                                    </TableCell>
                                     <TableCell className="text-right">
                                         <Button variant="ghost" size="icon" onClick={() => openEditDialog(bill)} className="mr-2" disabled={bill.paid}>
                                             <Pencil className="h-4 w-4" />
