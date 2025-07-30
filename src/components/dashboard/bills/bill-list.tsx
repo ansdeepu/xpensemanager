@@ -42,13 +42,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PlusCircle, Pencil, Trash2, CalendarIcon, FileText, Repeat } from "lucide-react";
+import { PlusCircle, Pencil, Trash2, CalendarIcon, FileText, Repeat, Banknote } from "lucide-react";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "@/lib/firebase";
 import { collection, addDoc, query, where, onSnapshot, doc, deleteDoc, updateDoc, orderBy, writeBatch, getDocs, limit } from "firebase/firestore";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { format, differenceInDays, addMonths, addQuarters, addYears } from "date-fns";
+import { format, differenceInDays, addMonths, addQuarters, addYears, isPast } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Bill, Account } from "@/lib/data";
@@ -157,11 +157,8 @@ export function BillList() {
         }
     };
 
-    const handleTogglePaid = async (bill: Bill) => {
-        if (!user) return;
-        if (bill.paid) { // If already paid, do nothing or maybe revert payment (not implemented)
-            return;
-        }
+    const handlePayBill = async (bill: Bill) => {
+        if (!user || bill.paid) return;
 
         const primaryAccount = accounts.find(acc => acc.isPrimary);
         if (!primaryAccount) {
@@ -185,7 +182,8 @@ export function BillList() {
                 amount: bill.amount,
                 type: 'expense',
                 date: new Date().toISOString(),
-                category: 'Bills',
+                category: 'Bills', // This can be a fixed category or a more advanced mapping
+                subcategory: 'Bill Payments',
                 accountId: primaryAccount.id,
                 paymentMethod: 'online',
             });
@@ -208,8 +206,10 @@ export function BillList() {
                     default:
                         nextDueDate = currentDueDate;
                 }
+                // Instead of marking as paid, we just set the next due date.
                 batch.update(billRef, { dueDate: nextDueDate.toISOString() });
             } else {
+                // For non-recurring bills, we mark them as paid.
                 batch.update(billRef, { paid: true });
             }
 
@@ -231,6 +231,16 @@ export function BillList() {
         setSelectedBill(bill);
         setIsEditDialogOpen(true);
     };
+
+    const getStatusBadge = (bill: Bill) => {
+        if (bill.paid) {
+            return <Badge variant="secondary" className="border-green-500 text-green-700">Paid</Badge>;
+        }
+        if (isPast(new Date(bill.dueDate))) {
+            return <Badge variant="destructive">Overdue</Badge>;
+        }
+        return <Badge variant="outline">Upcoming</Badge>;
+    }
 
     if (loading) {
         return <Skeleton className="h-96 w-full" />
@@ -333,7 +343,7 @@ export function BillList() {
                                 const daysUntilDue = differenceInDays(new Date(bill.dueDate), new Date());
                                 const isOverdue = daysUntilDue < 0 && !bill.paid;
                                 return (
-                                <TableRow key={bill.id} className={cn(bill.paid && "text-muted-foreground line-through")}>
+                                <TableRow key={bill.id} className={cn(bill.paid && "text-muted-foreground")}>
                                     <TableCell className="font-medium">
                                         <div className="flex items-center gap-2">
                                             <span>{bill.title}</span>
@@ -352,12 +362,14 @@ export function BillList() {
                                         </div>
                                     </TableCell>
                                     <TableCell className="text-right font-mono">{formatCurrency(bill.amount)}</TableCell>
-                                    <TableCell>
-                                        <Button size="sm" variant={bill.paid ? "secondary" : "outline"} onClick={() => handleTogglePaid(bill)} disabled={bill.paid}>
-                                            {bill.paid ? "Paid" : "Mark as Paid"}
-                                        </Button>
-                                    </TableCell>
+                                    <TableCell>{getStatusBadge(bill)}</TableCell>
                                     <TableCell className="text-right">
+                                        {!bill.paid && (
+                                            <Button variant="outline" size="sm" onClick={() => handlePayBill(bill)}>
+                                                <Banknote className="mr-2 h-4 w-4" />
+                                                Pay
+                                            </Button>
+                                        )}
                                         <Button variant="ghost" size="icon" onClick={() => openEditDialog(bill)} className="mr-2" disabled={bill.paid}>
                                             <Pencil className="h-4 w-4" />
                                         </Button>
