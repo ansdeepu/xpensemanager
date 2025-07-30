@@ -24,9 +24,7 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased h-screen">
-        <SidebarProvider>
-          {children}
-        </SidebarProvider>
+        {children}
         <Toaster />
       </body>
     </html>
