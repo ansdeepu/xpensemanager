@@ -320,7 +320,7 @@ function SortableCategoryCard({
                                 </div>
                                 </>
                             )}
-                             {category.type !== 'expense' && category.subcategories?.length > 0 && (
+                             {(category.type !== 'expense' && category.subcategories?.length > 0) && (
                                 <div className="flex flex-col gap-2">
                                     {category.subcategories.map(renderSubcategory)}
                                 </div>
@@ -368,7 +368,7 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank
           const userCategories: Category[] = [];
           querySnapshot.forEach((doc) => {
             const data = doc.data();
-            userCategories.push({ id: doc.id, subcategories: [], ...data } as Category);
+            userCategories.push({ id: doc.id, ...data } as Category);
           });
           setCategories(userCategories);
         },
