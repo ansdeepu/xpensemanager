@@ -91,7 +91,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { restrictToWindowEdges, restrictToVerticalAxis, restrictToFirstScrollableAncestor } from '@dnd-kit/modifiers';
-import { badgeVariants } from "@/components/ui/badge";
+import { Badge, badgeVariants } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 // Map icon names to components
@@ -145,7 +145,7 @@ function SortableSubCategoryItem({ subCategory }: { subCategory: SubCategory }) 
         </div>
         <div className="flex items-center flex-shrink-0 pl-2">
             {subCategory.frequency === 'monthly' && subCategory.budget && subCategory.budget > 0 && <span className="text-xs font-mono text-muted-foreground mr-2">{formatCurrency(subCategory.budget)}</span>}
-             <Badge variant="outline" className="capitalize text-xs hidden sm:inline-flex">{subCategory.frequency}</Badge>
+             {subCategory.frequency && <Badge variant="outline" className="capitalize text-xs hidden sm:inline-flex">{subCategory.frequency}</Badge>}
         </div>
     </div>
   );
@@ -191,20 +191,21 @@ function SortableCategoryCard({
         if (active.id !== over?.id) {
             const oldIndex = category.subcategories.findIndex(s => s.id === active.id);
             const newIndex = category.subcategories.findIndex(s => s.id === over!.id);
+            if (oldIndex === -1 || newIndex === -1) return;
             const reorderedSubcategories = arrayMove(category.subcategories, oldIndex, newIndex);
             onSubCategoryOrderChange(category, reorderedSubcategories);
         }
     }
     
     const totalBudget = useMemo(() => {
-        if (category.type !== 'expense') return 0;
+        if (category.type !== 'expense' || !category.subcategories) return 0;
         return category.subcategories
             .filter(sub => sub.frequency === 'monthly' && sub.budget)
             .reduce((acc, sub) => acc + (sub.budget || 0), 0);
     }, [category]);
     
-    const monthlySubcategories = useMemo(() => category.subcategories.filter(s => s.frequency === 'monthly'), [category.subcategories]);
-    const occasionalSubcategories = useMemo(() => category.subcategories.filter(s => s.frequency === 'occasional'), [category.subcategories]);
+    const monthlySubcategories = useMemo(() => category.subcategories?.filter(s => s.frequency === 'monthly') || [], [category.subcategories]);
+    const occasionalSubcategories = useMemo(() => category.subcategories?.filter(s => s.frequency === 'occasional') || [], [category.subcategories]);
 
 
     const renderSubcategory = (sub: SubCategory) => (
@@ -302,7 +303,7 @@ function SortableCategoryCard({
                     modifiers={[restrictToVerticalAxis, restrictToFirstScrollableAncestor]}
                 >
                     <ScrollArea className="h-full max-h-48 pr-4">
-                        <SortableContext items={category.subcategories.map(s => s.id)} strategy={verticalListSortingStrategy}>
+                        <SortableContext items={category.subcategories?.map(s => s.id) || []} strategy={verticalListSortingStrategy}>
                             {category.type === 'expense' && monthlySubcategories.length > 0 && (
                                 <>
                                 <p className="text-xs font-semibold text-muted-foreground mb-1 mt-2">Monthly</p>
@@ -319,14 +320,14 @@ function SortableCategoryCard({
                                 </div>
                                 </>
                             )}
-                             {category.type !== 'expense' && category.subcategories.length > 0 && (
+                             {category.type !== 'expense' && category.subcategories?.length > 0 && (
                                 <div className="flex flex-col gap-2">
                                     {category.subcategories.map(renderSubcategory)}
                                 </div>
                             )}
 
                         </SortableContext>
-                         {category.subcategories.length === 0 && (
+                         {(!category.subcategories || category.subcategories.length === 0) && (
                             <p className="text-sm text-muted-foreground pt-2">No sub-categories yet.</p>
                         )}
                     </ScrollArea>
@@ -338,7 +339,7 @@ function SortableCategoryCard({
 }
 
 
-export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank' | 'income' }) {
+export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank' }) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
   const [isSubCategoryDialogOpen, setIsSubCategoryDialogOpen] = useState(false);
@@ -366,7 +367,8 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank
         (querySnapshot) => {
           const userCategories: Category[] = [];
           querySnapshot.forEach((doc) => {
-            userCategories.push({ id: doc.id, ...doc.data() } as Category);
+            const data = doc.data();
+            userCategories.push({ id: doc.id, subcategories: [], ...data } as Category);
           });
           setCategories(userCategories);
         },
@@ -442,7 +444,7 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank
     try {
       const categoryRef = doc(db, "categories", selectedCategory.id);
       await updateDoc(categoryRef, {
-        subcategories: [...selectedCategory.subcategories, newSubCategory],
+        subcategories: [...(selectedCategory.subcategories || []), newSubCategory],
       });
       setIsSubCategoryDialogOpen(false);
       setSelectedCategory(null);
@@ -456,7 +458,7 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank
 
     const formData = new FormData(event.currentTarget);
     
-    const newSubcategories = selectedCategory.subcategories.map(sub => {
+    const newSubcategories = (selectedCategory.subcategories || []).map(sub => {
         if (sub.id === selectedSubCategory.id) {
             const updatedSub: SubCategory = { 
                 ...sub,
@@ -490,7 +492,7 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank
      if (!user) return;
      try {
         const categoryRef = doc(db, "categories", category.id);
-        const newSubcategories = category.subcategories.filter(sub => sub.id !== subCategoryToDelete.id);
+        const newSubcategories = (category.subcategories || []).filter(sub => sub.id !== subCategoryToDelete.id);
         await updateDoc(categoryRef, { subcategories: newSubcategories });
      } catch (error) {
      }
@@ -524,10 +526,10 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (active.id !== over?.id) {
-      setCategories((items) => {
         const oldIndex = categoryIds.indexOf(active.id as string);
         const newIndex = categoryIds.indexOf(over!.id as string);
-        const reorderedItems = arrayMove(items, oldIndex, newIndex);
+        const reorderedItems = arrayMove(categories, oldIndex, newIndex);
+        setCategories(reorderedItems);
 
         const batch = writeBatch(db);
         reorderedItems.forEach((item, index) => {
@@ -535,9 +537,6 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank
           batch.update(docRef, { order: index });
         });
         batch.commit().catch(err => {});
-
-        return reorderedItems;
-      });
     }
   }
 
@@ -759,5 +758,3 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank
     </TooltipProvider>
   );
 }
-
-    
