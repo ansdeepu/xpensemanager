@@ -37,8 +37,10 @@ export type Transaction = {
 };
 
 export type SubCategory = {
+  id: string; // Unique ID for each subcategory
   name: string;
   budget?: number;
+  frequency?: 'monthly' | 'occasional';
 }
 
 export type Category = {
