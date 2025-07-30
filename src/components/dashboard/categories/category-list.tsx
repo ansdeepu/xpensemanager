@@ -380,7 +380,7 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank
                         subcategories.push({
                             id: key, // Use the field key as the ID
                             ...data[key]
-                        });
+                        } as SubCategory);
                     }
                 });
             }
