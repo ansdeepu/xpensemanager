@@ -368,7 +368,28 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank
           const userCategories: Category[] = [];
           querySnapshot.forEach((doc) => {
             const data = doc.data();
-            userCategories.push({ id: doc.id, ...data } as Category);
+            const subcategories: SubCategory[] = [];
+            // This logic parses the subcategories from the Firestore document
+            Object.keys(data).forEach(key => {
+              if (typeof data[key] === 'object' && data[key] !== null && 'name' in data[key]) {
+                subcategories.push({
+                  id: key, // Use the field key as the ID
+                  ...data[key]
+                });
+              }
+            });
+
+            // If a 'subcategories' field already exists as an array, use it instead.
+            // This maintains compatibility with the structure the app *tries* to create.
+            if (Array.isArray(data.subcategories)) {
+              userCategories.push({ id: doc.id, ...data } as Category);
+            } else {
+               userCategories.push({ 
+                 id: doc.id,
+                 ...data,
+                 subcategories: subcategories
+               } as Category);
+            }
           });
           setCategories(userCategories);
         },
@@ -758,3 +779,5 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank
     </TooltipProvider>
   );
 }
+
+    
