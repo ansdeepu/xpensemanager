@@ -370,17 +370,20 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank
             const data = doc.data();
 
             let subcategories: SubCategory[] = [];
-            // Handle new array format
+            // Handle modern array format
             if (Array.isArray(data.subcategories)) {
                 subcategories = data.subcategories;
-            } else { // Handle old object format for backward compatibility
-                const reservedFields = ['userId', 'name', 'icon', 'order', 'type'];
+            } else { // Handle legacy object format for backward compatibility
+                const reservedFields = ['userId', 'name', 'icon', 'order', 'type', 'subcategories'];
                 Object.keys(data).forEach(key => {
                     if (!reservedFields.includes(key) && typeof data[key] === 'object' && data[key] !== null && 'name' in data[key]) {
                         subcategories.push({
                             id: key, // Use the field key as the ID
-                            ...data[key]
-                        } as SubCategory);
+                            name: data[key].name,
+                            budget: data[key].budget,
+                            frequency: data[key].frequency,
+                            order: parseInt(key, 10) // Try to get order from key
+                        });
                     }
                 });
             }
