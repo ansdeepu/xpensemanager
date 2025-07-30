@@ -10,6 +10,7 @@ import {
   Wallet,
   Shapes,
   FileText,
+  HelpCircle,
 } from "lucide-react";
 
 import {
@@ -34,6 +35,7 @@ const menuItems = [
   { href: "/dashboard/bank-accounts", label: "Bank Accounts", icon: Landmark },
   { href: "/dashboard/categories", label: "Categories", icon: Shapes },
   { href: "/dashboard/bills", label: "Bills", icon: FileText },
+  { href: "/dashboard/help", label: "Help", icon: HelpCircle },
 ];
 
 export default function DashboardLayout({
