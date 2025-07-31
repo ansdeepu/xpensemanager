@@ -58,6 +58,7 @@ import {
   Banknote,
   Briefcase,
   Gift,
+  Upload,
 } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
 import {
@@ -71,6 +72,8 @@ import {
   deleteDoc,
   orderBy,
   writeBatch,
+  runTransaction,
+  getDocs,
 } from "firebase/firestore";
 import { useAuthState } from "react-firebase-hooks/auth";
 import type { Category, SubCategory } from "@/lib/data";
@@ -96,6 +99,8 @@ import { Badge, badgeVariants } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import * as XLSX from 'xlsx';
+import { useToast } from "@/hooks/use-toast";
 
 // Map icon names to components
 const iconComponents: { [key: string]: React.ComponentType<{ className?: string }> } = {
@@ -411,6 +416,8 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'inco
 
   const [user, loading] = useAuthState(auth);
   const sensors = useSensors(useSensor(PointerSensor));
+  const { toast } = useToast();
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const categoryIds = useMemo(() => categories.map(c => c.id), [categories]);
 
@@ -614,6 +621,84 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'inco
     }
   }
 
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!user) return;
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const data = e.target?.result;
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        
+        if (!json || json.length < 1) {
+          throw new Error("Excel file is empty or invalid.");
+        }
+
+        const categoryHeaders = (json[0] as string[]).filter(Boolean);
+        const subCategoryData: { [key: string]: string[] } = {};
+
+        categoryHeaders.forEach((header, colIndex) => {
+          subCategoryData[header] = [];
+          for (let rowIndex = 1; rowIndex < json.length; rowIndex++) {
+            const row = json[rowIndex] as string[];
+            if (row && row[colIndex]) {
+              subCategoryData[header].push(row[colIndex]);
+            }
+          }
+        });
+        
+        await runTransaction(db, async (transaction) => {
+            const categoriesQuery = query(collection(db, "categories"), where("userId", "==", user.uid), where("type", "==", categoryType));
+            const existingCategoriesSnapshot = await getDocs(categoriesQuery);
+            let currentOrder = existingCategoriesSnapshot.size;
+
+            for (const categoryName of categoryHeaders) {
+                const newSubcategories: SubCategory[] = subCategoryData[categoryName].map((subName, index) => ({
+                    id: new Date().getTime().toString() + Math.random().toString(36).substring(2, 9),
+                    name: subName,
+                    order: index,
+                    frequency: 'occasional',
+                }));
+
+                const newCategoryData = {
+                    userId: user.uid,
+                    name: categoryName,
+                    icon: getRandomIcon(),
+                    subcategories: newSubcategories,
+                    order: currentOrder++,
+                    type: categoryType,
+                };
+                
+                const newCategoryRef = doc(collection(db, "categories"));
+                transaction.set(newCategoryRef, newCategoryData);
+            }
+        });
+
+        toast({
+          title: "Import Successful",
+          description: `${categoryHeaders.length} categories have been imported.`,
+        });
+
+      } catch (error: any) {
+        toast({
+          variant: "destructive",
+          title: "Import Failed",
+          description: error.message || "An unexpected error occurred during import.",
+        });
+      } finally {
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
   const titleCase = (str: string) => str.charAt(0).toUpperCase() + str.slice(1);
 
 
@@ -629,7 +714,18 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'inco
 
   return (
     <TooltipProvider>
-      <div className="flex justify-end mb-6">
+      <div className="flex justify-end mb-6 gap-2">
+         <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleFileUpload} 
+            accept=".xlsx, .xls"
+            className="hidden" 
+          />
+        <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+            <Upload className="mr-2 h-4 w-4" />
+            Import from Excel
+        </Button>
         <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
           <DialogTrigger asChild>
             <Button>
