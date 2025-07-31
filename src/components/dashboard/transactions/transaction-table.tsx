@@ -82,7 +82,8 @@ export function TransactionTable({
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [user] = useAuthState(auth);
   const [activeTab, setActiveTab] = useState("expense");
-  const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
+  const [selectedExpenseCategory, setSelectedExpenseCategory] = useState<string | undefined>();
+  const [selectedIncomeCategory, setSelectedIncomeCategory] = useState<string | undefined>();
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [editDate, setEditDate] = useState<Date | undefined>(new Date());
   const [editCategory, setEditCategory] = useState<string | undefined>();
@@ -107,11 +108,18 @@ export function TransactionTable({
   }, [transactions]);
 
 
-  const subcategories = useMemo(() => {
-    if (!selectedCategory) return [];
-    const category = categories.find(c => c.id === selectedCategory);
+  const expenseSubcategories = useMemo(() => {
+    if (!selectedExpenseCategory) return [];
+    const category = expenseCategories.find(c => c.id === selectedExpenseCategory);
     return category?.subcategories || [];
-  }, [selectedCategory, categories]);
+  }, [selectedExpenseCategory, expenseCategories]);
+
+  const incomeSubcategories = useMemo(() => {
+    if (!selectedIncomeCategory) return [];
+    const category = incomeCategories.find(c => c.id === selectedIncomeCategory);
+    return category?.subcategories || [];
+  }, [selectedIncomeCategory, incomeCategories]);
+
 
   const editSubcategories = useMemo(() => {
     if (!editCategory) return [];
@@ -256,7 +264,8 @@ export function TransactionTable({
         }
         
         setIsAddDialogOpen(false);
-        setSelectedCategory(undefined);
+        setSelectedExpenseCategory(undefined);
+        setSelectedIncomeCategory(undefined);
         setDate(new Date());
     } catch (error) {
     }
@@ -381,7 +390,8 @@ export function TransactionTable({
         <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
           setIsAddDialogOpen(open);
           if (!open) {
-            setSelectedCategory(undefined);
+            setSelectedExpenseCategory(undefined);
+            setSelectedIncomeCategory(undefined);
             setDate(new Date());
           }
         }}>
@@ -440,7 +450,7 @@ export function TransactionTable({
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="expense-category">Category</Label>
-                            <Select name="expense-category" onValueChange={setSelectedCategory} value={selectedCategory}>
+                            <Select name="expense-category" onValueChange={setSelectedExpenseCategory} value={selectedExpenseCategory}>
                                 <SelectTrigger id="expense-category" className="h-auto">
                                     <SelectValue placeholder="Select category" className="whitespace-normal" />
                                 </SelectTrigger>
@@ -451,12 +461,12 @@ export function TransactionTable({
                         </div>
                          <div className="space-y-2">
                             <Label htmlFor="expense-subcategory">Sub-category</Label>
-                            <Select name="expense-subcategory" disabled={!selectedCategory || subcategories.length === 0}>
+                            <Select name="expense-subcategory" disabled={!selectedExpenseCategory || expenseSubcategories.length === 0}>
                                 <SelectTrigger id="expense-subcategory" className="h-auto">
                                     <SelectValue placeholder="Select sub-category" className="whitespace-normal" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {subcategories.map(sub => <SelectItem key={sub.name} value={sub.name}>{sub.name}</SelectItem>)}
+                                    {expenseSubcategories.map(sub => <SelectItem key={sub.name} value={sub.name}>{sub.name}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         </div>
@@ -513,7 +523,7 @@ export function TransactionTable({
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="income-category">Category</Label>
-                            <Select name="income-category" onValueChange={setSelectedCategory} value={selectedCategory}>
+                            <Select name="income-category" onValueChange={setSelectedIncomeCategory} value={selectedIncomeCategory}>
                                 <SelectTrigger id="income-category" className="h-auto">
                                     <SelectValue placeholder="Select category" className="whitespace-normal" />
                                 </SelectTrigger>
@@ -524,12 +534,12 @@ export function TransactionTable({
                         </div>
                          <div className="space-y-2">
                             <Label htmlFor="income-subcategory">Sub-category</Label>
-                            <Select name="income-subcategory" disabled={!selectedCategory || subcategories.length === 0}>
+                            <Select name="income-subcategory" disabled={!selectedIncomeCategory || incomeSubcategories.length === 0}>
                                 <SelectTrigger id="income-subcategory" className="h-auto">
                                     <SelectValue placeholder="Select sub-category" className="whitespace-normal" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {subcategories.map(sub => <SelectItem key={sub.name} value={sub.name}>{sub.name}</SelectItem>)}
+                                    {incomeSubcategories.map(sub => <SelectItem key={sub.name} value={sub.name}>{sub.name}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         </div>
