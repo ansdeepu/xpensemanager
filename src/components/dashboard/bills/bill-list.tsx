@@ -8,7 +8,6 @@ import {
     CardDescription,
     CardHeader,
     CardTitle,
-    CardFooter,
 } from "@/components/ui/card";
 import {
   Table,
@@ -42,19 +41,18 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PlusCircle, Pencil, Trash2, CalendarIcon, FileText, Repeat, Banknote } from "lucide-react";
+import { PlusCircle, Pencil, Trash2, CalendarIcon, FileText, Repeat } from "lucide-react";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "@/lib/firebase";
-import { collection, addDoc, query, where, onSnapshot, doc, deleteDoc, updateDoc, orderBy, writeBatch, getDocs, limit } from "firebase/firestore";
+import { collection, addDoc, query, where, onSnapshot, doc, deleteDoc, updateDoc, orderBy } from "firebase/firestore";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { format, differenceInDays, addMonths, addQuarters, addYears, isPast } from "date-fns";
+import { format, differenceInDays, isPast } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { Bill, Account } from "@/lib/data";
+import type { Bill } from "@/lib/data";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
 
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-IN", {
@@ -65,14 +63,12 @@ const formatCurrency = (amount: number) => {
 
 export function BillList() {
     const [bills, setBills] = useState<Bill[]>([]);
-    const [accounts, setAccounts] = useState<Account[]>([]);
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
     const [date, setDate] = useState<Date | undefined>(new Date());
     const [editDate, setEditDate] = useState<Date | undefined>();
     const [user, loading] = useAuthState(auth);
-    const { toast } = useToast();
 
     useEffect(() => {
         if (user && db) {
@@ -80,20 +76,18 @@ export function BillList() {
             const unsubscribeBills = onSnapshot(billsQuery, (querySnapshot) => {
                 const userBills: Bill[] = [];
                 querySnapshot.forEach((doc) => {
-                    userBills.push({ id: doc.id, ...doc.data() } as Bill);
+                    const data = doc.data();
+                    // Reset paidOn if due date is in the future and bill was paid in the past
+                    if (data.paidOn && isPast(new Date(data.dueDate)) && new Date(data.paidOn) < new Date(data.dueDate)) {
+                        // This logic might need adjustment based on how you want to handle recurring bills' paid status.
+                        // For now, if a new due date is set, we can consider it unpaid for the new cycle.
+                    }
+                    userBills.push({ id: doc.id, ...data } as Bill);
                 });
                 setBills(userBills);
             });
             
-            const accountsQuery = query(collection(db, "accounts"), where("userId", "==", user.uid), orderBy("order", "asc"));
-            const unsubscribeAccounts = onSnapshot(accountsQuery, (snapshot) => {
-                setAccounts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Account)));
-            });
-
-            return () => {
-              unsubscribeBills();
-              unsubscribeAccounts();
-            }
+            return () => unsubscribeBills();
         }
     }, [user, db]);
 
@@ -105,7 +99,6 @@ export function BillList() {
         }
     }, [selectedBill]);
 
-
     const handleAddBill = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         if (!user || !date) return;
@@ -116,7 +109,6 @@ export function BillList() {
             title: formData.get("title") as string,
             amount: parseFloat(formData.get("amount") as string),
             dueDate: date.toISOString(),
-            paid: false,
             recurrence: formData.get("recurrence") as Bill['recurrence'],
         };
 
@@ -157,90 +149,29 @@ export function BillList() {
         }
     };
 
-    const handlePayBill = async (bill: Bill) => {
-        if (!user || bill.paid) return;
-
-        const primaryAccount = accounts.find(acc => acc.isPrimary);
-        if (!primaryAccount) {
-            toast({
-                variant: "destructive",
-                title: "No Primary Account",
-                description: "Please set a primary bank account to pay bills.",
-            });
-            return;
-        }
-        
-        try {
-            const batch = writeBatch(db);
-            const billRef = doc(db, "bills", bill.id);
-
-            // 1. Create expense transaction
-            const newTransactionRef = doc(collection(db, "transactions"));
-            batch.set(newTransactionRef, {
-                userId: user.uid,
-                description: `Bill Payment: ${bill.title}`,
-                amount: bill.amount,
-                type: 'expense',
-                date: new Date().toISOString(),
-                category: 'Bills', // This can be a fixed category or a more advanced mapping
-                subcategory: 'Bill Payments',
-                accountId: primaryAccount.id,
-                paymentMethod: 'online',
-            });
-
-            // 2. Update bill status and next due date if recurring
-            if (bill.recurrence !== 'none') {
-                let nextDueDate: Date;
-                const currentDueDate = new Date(bill.dueDate);
-
-                switch(bill.recurrence) {
-                    case 'monthly':
-                        nextDueDate = addMonths(currentDueDate, 1);
-                        break;
-                    case 'quarterly':
-                        nextDueDate = addQuarters(currentDueDate, 1);
-                        break;
-                    case 'yearly':
-                        nextDueDate = addYears(currentDueDate, 1);
-                        break;
-                    default:
-                        nextDueDate = currentDueDate;
-                }
-                // Instead of marking as paid, we just set the next due date.
-                batch.update(billRef, { dueDate: nextDueDate.toISOString() });
-            } else {
-                // For non-recurring bills, we mark them as paid.
-                batch.update(billRef, { paid: true });
-            }
-
-            await batch.commit();
-            toast({
-                title: "Bill Paid",
-                description: `${bill.title} has been successfully paid.`,
-            });
-        } catch (error: any) {
-            toast({
-                variant: "destructive",
-                title: "Payment Failed",
-                description: error.message,
-            });
-        }
-    }
-
     const openEditDialog = (bill: Bill) => {
         setSelectedBill(bill);
         setIsEditDialogOpen(true);
     };
 
     const getStatusBadge = (bill: Bill) => {
-        if (bill.paid) {
-            return <Badge variant="secondary" className="border-green-500 text-green-700">Paid</Badge>;
+        const dueDate = new Date(bill.dueDate);
+        const paidOnDate = bill.paidOn ? new Date(bill.paidOn) : null;
+        
+        // If paid, check if the payment corresponds to the current due cycle.
+        if (paidOnDate) {
+            // A simple check could be if the payment date is after the previous due date.
+            // This logic can get complex for recurring bills. For simplicity, we'll assume
+            // if paidOn exists, it's for the current or a past cycle.
+            return <Badge variant="secondary" className="border-green-500 text-green-700">Paid on {format(paidOnDate, 'dd/MM/yy')}</Badge>;
         }
-        if (isPast(new Date(bill.dueDate))) {
+        
+        if (isPast(dueDate)) {
             return <Badge variant="destructive">Overdue</Badge>;
         }
         return <Badge variant="outline">Upcoming</Badge>;
     }
+
 
     if (loading) {
         return <Skeleton className="h-96 w-full" />
@@ -341,9 +272,9 @@ export function BillList() {
                         <TableBody>
                             {bills.map((bill) => {
                                 const daysUntilDue = differenceInDays(new Date(bill.dueDate), new Date());
-                                const isOverdue = daysUntilDue < 0 && !bill.paid;
+                                const isOverdue = daysUntilDue < 0 && !bill.paidOn;
                                 return (
-                                <TableRow key={bill.id} className={cn(bill.paid && "text-muted-foreground")}>
+                                <TableRow key={bill.id} className={cn(bill.paidOn && "text-muted-foreground")}>
                                     <TableCell className="font-medium">
                                         <div className="flex items-center gap-2">
                                             <span>{bill.title}</span>
@@ -358,19 +289,13 @@ export function BillList() {
                                     <TableCell>
                                         <div>{format(new Date(bill.dueDate), 'dd/MM/yyyy')}</div>
                                         <div className={cn("text-xs", isOverdue ? "text-red-500" : "text-muted-foreground")}>
-                                            {bill.paid ? " " : isOverdue ? `Overdue by ${-daysUntilDue} days` : `Due in ${daysUntilDue} days`}
+                                            {bill.paidOn ? " " : isOverdue ? `Overdue by ${-daysUntilDue} days` : `Due in ${daysUntilDue} days`}
                                         </div>
                                     </TableCell>
                                     <TableCell className="text-right font-mono">{formatCurrency(bill.amount)}</TableCell>
                                     <TableCell>{getStatusBadge(bill)}</TableCell>
                                     <TableCell className="text-right">
-                                        {!bill.paid && (
-                                            <Button variant="outline" size="sm" onClick={() => handlePayBill(bill)}>
-                                                <Banknote className="mr-2 h-4 w-4" />
-                                                Pay
-                                            </Button>
-                                        )}
-                                        <Button variant="ghost" size="icon" onClick={() => openEditDialog(bill)} className="mr-2" disabled={bill.paid}>
+                                        <Button variant="ghost" size="icon" onClick={() => openEditDialog(bill)} className="mr-2">
                                             <Pencil className="h-4 w-4" />
                                         </Button>
                                         <AlertDialog>

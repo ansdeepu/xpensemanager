@@ -17,12 +17,12 @@ export type Bill = {
   title: string;
   amount: number;
   dueDate: string;
-  paid: boolean;
+  paidOn?: string; // Date the bill was last paid
   recurrence: 'none' | 'monthly' | 'quarterly' | 'yearly';
 }
 
 export type Transaction = {
-  id: string;
+  id:string;
   userId: string;
   date: string;
   description: string;

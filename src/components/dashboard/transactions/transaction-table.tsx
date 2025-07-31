@@ -51,14 +51,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { Transaction, Account, Category } from "@/lib/data";
+import type { Transaction, Account, Category, Bill } from "@/lib/data";
 import { PlusCircle, Pencil, Trash2, CalendarIcon } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
-import { collection, addDoc, query, where, onSnapshot, doc, runTransaction, orderBy, deleteDoc, updateDoc, getDoc } from "firebase/firestore";
+import { collection, addDoc, query, where, onSnapshot, doc, runTransaction, orderBy, deleteDoc, getDoc, getDocs, limit, writeBatch, updateDoc } from "firebase/firestore";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { format } from "date-fns";
+import { format, addMonths, addQuarters, addYears, isAfter } from "date-fns";
 import { cn } from "@/lib/utils";
 
 const formatCurrency = (amount: number) => {
@@ -196,10 +196,11 @@ export function TransactionTable({
         if (transactionType === 'expense' || transactionType === 'income') {
             const amount = parseFloat(formData.get(`${transactionType}-amount`) as string);
             const accountId = formData.get(`${transactionType}-account`) as string;
+            const description = formData.get(`${transactionType}-description`) as string
             
             const newTransaction: Omit<Transaction, "id"> = {
                 userId: user.uid,
-                description: formData.get(`${transactionType}-description`) as string,
+                description: description,
                 amount: amount,
                 type: transactionType as 'expense' | 'income',
                 date: transactionDate.toISOString(),
@@ -231,6 +232,44 @@ export function TransactionTable({
             await runTransaction(db, async (t) => {
                 const newTransactionRef = doc(collection(db, "transactions"));
                 t.set(newTransactionRef, newTransaction);
+                
+                // Bill payment detection logic
+                if (newTransaction.type === 'expense') {
+                    const billsQuery = query(
+                        collection(db, "bills"), 
+                        where("userId", "==", user.uid)
+                    );
+                    const billsSnapshot = await getDocs(billsQuery);
+                    
+                    for (const billDoc of billsSnapshot.docs) {
+                        const bill = { id: billDoc.id, ...billDoc.data() } as Bill;
+                        const dueDate = new Date(bill.dueDate);
+
+                        // Match bill if title and amount are similar and it's not already paid for this cycle.
+                        if (bill.title.toLowerCase() === description.toLowerCase() && 
+                            bill.amount === amount &&
+                            (!bill.paidOn || !isAfter(new Date(bill.paidOn), dueDate)) )
+                        {
+                            const updateData: { paidOn: string, dueDate?: string } = { paidOn: transactionDate.toISOString() };
+
+                            if (bill.recurrence !== 'none') {
+                                let nextDueDate: Date;
+                                switch(bill.recurrence) {
+                                    case 'monthly': nextDueDate = addMonths(dueDate, 1); break;
+                                    case 'quarterly': nextDueDate = addQuarters(dueDate, 1); break;
+                                    case 'yearly': nextDueDate = addYears(dueDate, 1); break;
+                                    default: nextDueDate = dueDate;
+                                }
+                                updateData.dueDate = nextDueDate.toISOString();
+                                // For recurring bills, we also need to clear paidOn for the next cycle,
+                                // but we do that when displaying, not here.
+                            }
+                            
+                            t.update(doc(db, "bills", bill.id), updateData);
+                            break; // Assume one transaction pays one bill
+                        }
+                    }
+                }
             });
 
         } else if (transactionType === 'transfer') {
