@@ -200,7 +200,8 @@ function SortableSubCategoryItem({
 
 
 function SortableCategoryCard({ 
-  category, 
+  category,
+  categoryType,
   onAddSubCategory,
   onEditCategory,
   onDeleteCategory,
@@ -209,6 +210,7 @@ function SortableCategoryCard({
   onSubCategoryOrderChange,
 }: { 
   category: Category, 
+  categoryType: 'expense' | 'bank' | 'income',
   onAddSubCategory: (category: Category) => void,
   onEditCategory: (category: Category) => void,
   onDeleteCategory: (categoryId: string) => void,
@@ -255,8 +257,13 @@ function SortableCategoryCard({
     );
     
     const totalAmount = useMemo(() => {
+        if (categoryType === 'expense') {
+            return category.subcategories
+                .filter(sub => sub.frequency === 'monthly')
+                .reduce((total, sub) => total + (sub.amount || 0), 0);
+        }
         return category.subcategories.reduce((total, sub) => total + (sub.amount || 0), 0);
-    }, [category.subcategories]);
+    }, [category.subcategories, categoryType]);
 
 
     return (
@@ -630,6 +637,7 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank
                       <SortableCategoryCard 
                           key={category.id} 
                           category={category} 
+                          categoryType={categoryType}
                           onAddSubCategory={openSubCategoryDialog} 
                           onEditCategory={openEditCategoryDialog}
                           onDeleteCategory={handleDeleteCategory}
