@@ -72,7 +72,6 @@ export function TransactionTable({
   initialTransactions,
 }: {
   initialTransactions: Transaction[];
-  accounts: Account[];
 }) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);

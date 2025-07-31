@@ -18,6 +18,7 @@ export type Bill = {
   amount: number;
   dueDate: string;
   paidOn?: string; // Date the bill was last paid
+  paid?: boolean; // Legacy or for specific checks, paidOn is primary
   recurrence: 'none' | 'monthly' | 'quarterly' | 'yearly';
 }
 
@@ -42,6 +43,7 @@ export type SubCategory = {
   order?: number;
   amount?: number;
   frequency?: 'monthly' | 'occasional';
+  budget?: number; // Add budget field
 }
 
 export type Category = {

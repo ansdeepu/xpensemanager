@@ -84,12 +84,12 @@ export function Header() {
         <SidebarTrigger className="md:hidden" />
         <div>
             <h1 className="text-xl font-semibold">Dashboard</h1>
-            <p className="text-xs text-muted-foreground hidden md:block">{clientLoaded ? currentDateTime : ''}</p>
+            <p className="text-xs text-muted-foreground hidden md:block">{clientLoaded ? currentDateTime : <Skeleton className="h-4 w-48 mt-1" />}</p>
         </div>
       </div>
 
       <div className="hidden md:block">
-        <div className="text-sm font-medium text-muted-foreground">{clientLoaded ? currentMonthYear : ''}</div>
+        <div className="text-sm font-medium text-muted-foreground">{clientLoaded ? currentMonthYear : <Skeleton className="h-4 w-24" />}</div>
       </div>
 
       <DropdownMenu>
@@ -125,7 +125,7 @@ export function Header() {
           </Link>
           <DropdownMenuSeparator />
           <Link href="/">
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => auth.signOut()}>
               <LogOut className="mr-2" />
               <span>Log out</span>
             </DropdownMenuItem>
