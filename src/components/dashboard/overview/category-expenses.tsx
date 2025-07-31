@@ -18,6 +18,7 @@ import type { Transaction, Category } from "@/lib/data";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tag } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-IN", {
@@ -123,27 +124,29 @@ export function CategoryExpenses() {
                     <p>No expense categories or transactions found.</p>
                 </div>
             ) : (
-                <div className="space-y-6">
-                    {categoryStats.map(stat => {
-                        const IconComponent = iconComponents[stat.icon] || Tag;
-                        const percentage = stat.budget > 0 ? (stat.spent / stat.budget) * 100 : 0;
-                        return (
-                            <div key={stat.name} className="space-y-2">
-                                <div className="flex justify-between items-center">
-                                    <div className="flex items-center gap-2">
-                                        <IconComponent className="h-5 w-5 text-muted-foreground" />
-                                        <span className="font-medium">{stat.name}</span>
-                                    </div>
-                                    <div className="text-right">
-                                        <div className="font-medium">{formatCurrency(stat.spent)}</div>
-                                        {stat.budget > 0 && <div className="text-xs text-muted-foreground"> of {formatCurrency(stat.budget)}</div>}
-                                    </div>
-                                </div>
-                                {stat.budget > 0 && <Progress value={percentage} />}
-                            </div>
-                        )
-                    })}
-                </div>
+                <ScrollArea className="h-72 pr-4">
+                  <div className="space-y-6">
+                      {categoryStats.map(stat => {
+                          const IconComponent = iconComponents[stat.icon] || Tag;
+                          const percentage = stat.budget > 0 ? (stat.spent / stat.budget) * 100 : 0;
+                          return (
+                              <div key={stat.name} className="space-y-2">
+                                  <div className="flex justify-between items-center">
+                                      <div className="flex items-center gap-2">
+                                          <IconComponent className="h-5 w-5 text-muted-foreground" />
+                                          <span className="font-medium">{stat.name}</span>
+                                      </div>
+                                      <div className="text-right">
+                                          <div className="font-medium">{formatCurrency(stat.spent)}</div>
+                                          {stat.budget > 0 && <div className="text-xs text-muted-foreground"> of {formatCurrency(stat.budget)}</div>}
+                                      </div>
+                                  </div>
+                                  {stat.budget > 0 && <Progress value={percentage} />}
+                              </div>
+                          )
+                      })}
+                  </div>
+                </ScrollArea>
             )}
         </CardContent>
         {categoryStats.length > 0 && (

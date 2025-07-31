@@ -3,10 +3,11 @@
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Bell, FileText, BadgeCheck } from "lucide-react";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "@/lib/firebase";
-import { collection, query, where, onSnapshot, orderBy, limit } from "firebase/firestore";
+import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
 import type { Bill } from "@/lib/data";
 import { useState, useEffect } from "react";
 import { formatDistanceToNow } from "date-fns";
@@ -29,8 +30,7 @@ export function NoticeBoard() {
         collection(db, "bills"),
         where("userId", "==", user.uid),
         where("paid", "==", false),
-        orderBy("dueDate", "asc"),
-        limit(3)
+        orderBy("dueDate", "asc")
       );
       const unsubscribe = onSnapshot(q, (snapshot) => {
         setUpcomingPayments(snapshot.docs.map(doc => doc.data() as Bill));
@@ -48,26 +48,30 @@ export function NoticeBoard() {
           <span>Notice Board</span>
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent>
         {upcomingPayments.length > 0 ? (
-          upcomingPayments.map((payment, index) => {
-            return (
-              <Alert key={index}>
-                <FileText className="h-4 w-4" />
-                <AlertTitle className="flex justify-between">
-                  <span>{payment.title}</span>
-                  <span className="text-muted-foreground font-normal">
-                    Due {formatDistanceToNow(new Date(payment.dueDate), { addSuffix: true })}
-                  </span>
-                </AlertTitle>
-                <AlertDescription>
-                  Your payment of <span className="font-semibold">{formatCurrency(payment.amount)}</span> is due soon.
-                </AlertDescription>
-              </Alert>
-            );
-          })
+          <ScrollArea className="h-72 pr-4">
+            <div className="space-y-4">
+              {upcomingPayments.map((payment, index) => {
+                return (
+                  <Alert key={index}>
+                    <FileText className="h-4 w-4" />
+                    <AlertTitle className="flex justify-between">
+                      <span>{payment.title}</span>
+                      <span className="text-muted-foreground font-normal">
+                        Due {formatDistanceToNow(new Date(payment.dueDate), { addSuffix: true })}
+                      </span>
+                    </AlertTitle>
+                    <AlertDescription>
+                      Your payment of <span className="font-semibold">{formatCurrency(payment.amount)}</span> is due soon.
+                    </AlertDescription>
+                  </Alert>
+                );
+              })}
+            </div>
+          </ScrollArea>
         ) : (
-          <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-24">
+          <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-72">
             <BadgeCheck className="h-8 w-8 mb-2 text-green-500" />
             <p>No upcoming payment reminders. You're all caught up!</p>
           </div>
