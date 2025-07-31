@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
@@ -303,32 +304,34 @@ function SortableCategoryCard({
                 >
                     <ScrollArea className="h-full max-h-48 pr-4">
                         <SortableContext items={category.subcategories?.map(s => s.id) || []} strategy={verticalListSortingStrategy}>
-                            {category.type === 'expense' && monthlySubcategories.length > 0 && (
+                             {(category.subcategories && category.subcategories.length > 0) ? (
                                 <>
-                                <p className="text-xs font-semibold text-muted-foreground mb-1 mt-2">Monthly</p>
-                                <div className="flex flex-col gap-2">
-                                    {monthlySubcategories.map(renderSubcategory)}
-                                </div>
+                                    {category.type === 'expense' && monthlySubcategories.length > 0 && (
+                                        <>
+                                        <p className="text-xs font-semibold text-muted-foreground mb-1 mt-2">Monthly</p>
+                                        <div className="flex flex-col gap-2">
+                                            {monthlySubcategories.map(renderSubcategory)}
+                                        </div>
+                                        </>
+                                    )}
+                                    {category.type === 'expense' && occasionalSubcategories.length > 0 && (
+                                        <>
+                                        <p className="text-xs font-semibold text-muted-foreground mb-1 mt-2">Occasional</p>
+                                        <div className="flex flex-col gap-2">
+                                            {occasionalSubcategories.map(renderSubcategory)}
+                                        </div>
+                                        </>
+                                    )}
+                                     {(category.type !== 'expense' && category.subcategories?.length > 0) && (
+                                        <div className="flex flex-col gap-2">
+                                            {category.subcategories.map(renderSubcategory)}
+                                        </div>
+                                    )}
                                 </>
-                            )}
-                            {category.type === 'expense' && occasionalSubcategories.length > 0 && (
-                                <>
-                                <p className="text-xs font-semibold text-muted-foreground mb-1 mt-2">Occasional</p>
-                                <div className="flex flex-col gap-2">
-                                    {occasionalSubcategories.map(renderSubcategory)}
-                                </div>
-                                </>
-                            )}
-                             {(category.type !== 'expense' && category.subcategories?.length > 0) && (
-                                <div className="flex flex-col gap-2">
-                                    {category.subcategories.map(renderSubcategory)}
-                                </div>
-                            )}
-
+                             ) : (
+                                <p className="text-sm text-muted-foreground pt-2">No sub-categories yet.</p>
+                             )}
                         </SortableContext>
-                         {(!category.subcategories || category.subcategories.length === 0) && (
-                            <p className="text-sm text-muted-foreground pt-2">No sub-categories yet.</p>
-                        )}
                     </ScrollArea>
                 </DndContext>
               </CardContent>
@@ -367,18 +370,13 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank
           const userCategories: Category[] = [];
           querySnapshot.forEach((doc) => {
             const data = doc.data();
-            // Directly use the subcategories field if it's an array, otherwise default to an empty array.
             const subcategories = Array.isArray(data.subcategories) ? data.subcategories : [];
             
             userCategories.push({
                 id: doc.id,
-                userId: data.userId,
-                name: data.name,
-                icon: data.icon,
-                order: data.order,
-                type: data.type,
+                ...data,
                 subcategories: subcategories.sort((a: SubCategory,b: SubCategory) => (a.order || 0) - (b.order || 0)),
-            });
+            } as Category);
           });
           setCategories(userCategories);
         },
