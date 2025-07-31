@@ -36,7 +36,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 
 import { Input } from "@/components/ui/input";
@@ -240,7 +239,7 @@ function SortableCategoryCard({
 
     return (
         <div ref={setNodeRef} style={style}>
-            <Card className="flex flex-col h-full">
+            <Card>
                <CardHeader className="flex flex-row items-start justify-between">
                 <div className="flex items-start gap-3">
                   <IconComponent className="h-6 w-6 text-muted-foreground mt-1" />
@@ -295,44 +294,42 @@ function SortableCategoryCard({
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="flex-grow pt-0 overflow-hidden">
+              <CardContent>
                 <DndContext 
                     sensors={sensors} 
                     collisionDetection={closestCenter} 
                     onDragEnd={handleDragEnd}
                     modifiers={[restrictToVerticalAxis, restrictToFirstScrollableAncestor]}
                 >
-                    <ScrollArea className="h-full max-h-48 pr-4">
-                        <SortableContext items={category.subcategories?.map(s => s.id) || []} strategy={verticalListSortingStrategy}>
-                             {(category.subcategories && category.subcategories.length > 0) ? (
-                                <>
-                                    {category.type === 'expense' && monthlySubcategories.length > 0 && (
-                                        <>
+                    <SortableContext items={category.subcategories?.map(s => s.id) || []} strategy={verticalListSortingStrategy}>
+                         {(category.subcategories && category.subcategories.length > 0) ? (
+                            <div className="space-y-2">
+                                {category.type === 'expense' && monthlySubcategories.length > 0 && (
+                                    <div>
                                         <p className="text-xs font-semibold text-muted-foreground mb-1 mt-2">Monthly</p>
                                         <div className="flex flex-col gap-2">
                                             {monthlySubcategories.map(renderSubcategory)}
                                         </div>
-                                        </>
-                                    )}
-                                    {category.type === 'expense' && occasionalSubcategories.length > 0 && (
-                                        <>
+                                    </div>
+                                )}
+                                {category.type === 'expense' && occasionalSubcategories.length > 0 && (
+                                    <div>
                                         <p className="text-xs font-semibold text-muted-foreground mb-1 mt-2">Occasional</p>
                                         <div className="flex flex-col gap-2">
                                             {occasionalSubcategories.map(renderSubcategory)}
                                         </div>
-                                        </>
-                                    )}
-                                     {(category.type !== 'expense' && category.subcategories?.length > 0) && (
-                                        <div className="flex flex-col gap-2">
-                                            {category.subcategories.map(renderSubcategory)}
-                                        </div>
-                                    )}
-                                </>
-                             ) : (
-                                <p className="text-sm text-muted-foreground pt-2">No sub-categories yet.</p>
-                             )}
-                        </SortableContext>
-                    </ScrollArea>
+                                    </div>
+                                )}
+                                 {category.type !== 'expense' && category.subcategories?.length > 0 && (
+                                    <div className="flex flex-col gap-2">
+                                        {category.subcategories.map(renderSubcategory)}
+                                    </div>
+                                )}
+                            </div>
+                         ) : (
+                            <p className="text-sm text-muted-foreground">No sub-categories yet.</p>
+                         )}
+                    </SortableContext>
                 </DndContext>
               </CardContent>
             </Card>
@@ -369,7 +366,14 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank
         (querySnapshot) => {
           const userCategories: Category[] = querySnapshot.docs.map(doc => {
             const data = doc.data();
-            const subcategories = Array.isArray(data.subcategories) ? data.subcategories : [];
+            
+            // This handles both the old format (numeric keys) and the new format (subcategories array)
+            const subcategoriesFromData = Array.isArray(data.subcategories) 
+                ? data.subcategories 
+                : Object.keys(data)
+                    .filter(key => !isNaN(parseInt(key))) // Check if key is a number
+                    .map(key => ({ id: key, ...data[key] }))
+                    .filter(sub => sub.name); // Ensure it's a valid subcategory object
             
             return {
                 id: doc.id,
@@ -378,7 +382,7 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank
                 icon: data.icon,
                 order: data.order,
                 type: data.type,
-                subcategories: subcategories.sort((a: SubCategory, b: SubCategory) => (a.order || 0) - (b.order || 0)),
+                subcategories: subcategoriesFromData.sort((a: SubCategory, b: SubCategory) => (a.order || 0) - (b.order || 0)),
             };
           });
           setCategories(userCategories);
@@ -771,5 +775,3 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank
     </TooltipProvider>
   );
 }
-
-    
