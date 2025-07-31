@@ -89,7 +89,7 @@ export function TransactionTable({
   const [editCategory, setEditCategory] = useState<string | undefined>();
 
   const expenseCategories = useMemo(() => categories.filter(c => c.type === 'expense'), [categories]);
-  const incomeCategories = useMemo(() => categories.filter(c => c.type === 'income' || c.type === 'bank'), [categories]);
+  const incomeCategories = useMemo(() => categories.filter(c => c.type === 'income'), [categories]);
 
   const walletBalance = useMemo(() => {
     return transactions.reduce((balance, t) => {
@@ -752,7 +752,7 @@ export function TransactionTable({
                                         <SelectValue placeholder="Select category" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {categories.filter(c => c.type === selectedTransaction?.type || (selectedTransaction?.type === 'income' && c.type === 'bank')).map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
+                                        {categories.filter(c => c.type === selectedTransaction?.type).map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                             </div>

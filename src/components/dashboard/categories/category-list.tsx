@@ -213,7 +213,7 @@ function SortableCategoryCard({
   onSubCategoryOrderChange,
 }: { 
   category: Category, 
-  categoryType: 'expense' | 'bank' | 'income',
+  categoryType: 'expense' | 'income',
   onAddSubCategory: (category: Category) => void,
   onEditCategory: (category: Category) => void,
   onDeleteCategory: (categoryId: string) => void,
@@ -399,7 +399,7 @@ function SortableCategoryCard({
 }
 
 
-export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank' | 'income' }) {
+export function CategoryList({ categoryType }: { categoryType: 'expense' | 'income' }) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
   const [isSubCategoryDialogOpen, setIsSubCategoryDialogOpen] = useState(false);
@@ -835,5 +835,3 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank
     </TooltipProvider>
   );
 }
-
-    
