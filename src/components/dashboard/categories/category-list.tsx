@@ -124,11 +124,13 @@ const formatCurrency = (amount: number) => {
 
 function SortableSubCategoryItem({ 
   subCategory, 
+  index,
   onEditSubCategory,
   onDeleteSubCategory,
   categoryType
 }: { 
   subCategory: SubCategory,
+  index: number,
   onEditSubCategory: () => void,
   onDeleteSubCategory: () => void,
   categoryType: 'expense' | 'bank' | 'income'
@@ -152,22 +154,11 @@ function SortableSubCategoryItem({
         <div ref={setNodeRef} style={style} className={cn(badgeVariants({variant: "secondary"}), "group relative flex justify-between items-center h-auto py-1 px-2.5 touch-none w-full sm:w-auto")}>
             <div {...attributes} {...listeners} className="flex items-center gap-2 cursor-grab flex-1 overflow-hidden">
                 <GripVertical className="h-4 w-4 text-muted-foreground flex-shrink-0"/>
+                <span className="font-mono text-xs text-muted-foreground">{index + 1}.</span>
                 <span className="truncate" title={subCategory.name}>{subCategory.name}</span>
             </div>
 
             <div className="flex items-center flex-shrink-0 pl-2">
-                 {categoryType === 'expense' && subCategory.frequency && (
-                    <Tooltip>
-                        <TooltipTrigger>
-                             <Badge variant={subCategory.frequency === 'monthly' ? "default" : "outline"} className="capitalize text-xs w-6 h-6 p-0 flex items-center justify-center mr-2">
-                                {subCategory.frequency === 'monthly' ? 'M' : 'O'}
-                            </Badge>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            <p>{subCategory.frequency === 'monthly' ? 'Monthly' : 'Occasional'}</p>
-                        </TooltipContent>
-                    </Tooltip>
-                )}
                 {categoryType === 'expense' && subCategory.budget && subCategory.budget > 0 && <span className="text-xs font-mono text-muted-foreground mr-2">{formatCurrency(subCategory.budget)}</span>}
                 <div className="flex items-center">
                      <Tooltip>
@@ -260,14 +251,12 @@ function SortableCategoryCard({
             .filter(sub => sub.frequency === 'monthly' && sub.budget)
             .reduce((acc, sub) => acc + (sub.budget || 0), 0);
     }, [category]);
-    
-    const monthlySubcategories = useMemo(() => category.subcategories?.filter(s => s.frequency === 'monthly') || [], [category.subcategories]);
-    const occasionalSubcategories = useMemo(() => category.subcategories?.filter(s => s.frequency === 'occasional') || [], [category.subcategories]);
 
 
-    const renderSubcategory = (sub: SubCategory) => (
+    const renderSubcategory = (sub: SubCategory, index: number) => (
         <SortableSubCategoryItem 
             key={sub.id} 
+            index={index}
             subCategory={sub} 
             onEditSubCategory={() => onEditSubCategory(category, sub)}
             onDeleteSubCategory={() => onDeleteSubCategory(category, sub)}
@@ -333,28 +322,8 @@ function SortableCategoryCard({
                 >
                     <SortableContext items={category.subcategories?.map(s => s.id) || []} strategy={verticalListSortingStrategy}>
                          {(category.subcategories && category.subcategories.length > 0) ? (
-                            <div className="space-y-3">
-                                {category.type === 'expense' && monthlySubcategories.length > 0 && (
-                                    <div>
-                                        <p className="text-xs font-semibold text-muted-foreground mb-1.5 px-1">Monthly</p>
-                                        <div className="flex flex-wrap gap-2">
-                                            {monthlySubcategories.map(renderSubcategory)}
-                                        </div>
-                                    </div>
-                                )}
-                                {category.type === 'expense' && occasionalSubcategories.length > 0 && (
-                                    <div>
-                                        <p className="text-xs font-semibold text-muted-foreground mb-1.5 px-1">Occasional</p>
-                                        <div className="flex flex-wrap gap-2">
-                                            {occasionalSubcategories.map(renderSubcategory)}
-                                        </div>
-                                    </div>
-                                )}
-                                 {category.type !== 'expense' && category.subcategories?.length > 0 && (
-                                    <div className="flex flex-wrap gap-2">
-                                        {category.subcategories.map(renderSubcategory)}
-                                    </div>
-                                )}
+                            <div className="flex flex-wrap gap-2">
+                                {category.subcategories.map(renderSubcategory)}
                             </div>
                          ) : (
                             <p className="text-sm text-muted-foreground h-full flex items-center justify-center">No sub-categories yet.</p>
