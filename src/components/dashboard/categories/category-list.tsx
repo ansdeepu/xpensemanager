@@ -339,7 +339,7 @@ function SortableCategoryCard({
                                                 {monthlySubcategories.length > 0 && (
                                                     <div>
                                                         <h4 className="text-sm font-medium mb-2 text-muted-foreground">Monthly</h4>
-                                                        <div className="flex flex-wrap gap-2">
+                                                        <div className="flex flex-col gap-2">
                                                             {monthlySubcategories.map((sub, index) => (
                                                                 <SortableSubCategoryItem 
                                                                     key={sub.id}
@@ -355,7 +355,7 @@ function SortableCategoryCard({
                                                 {occasionalSubcategories.length > 0 && (
                                                     <div>
                                                          <h4 className="text-sm font-medium my-2 text-muted-foreground">Occasional</h4>
-                                                         <div className="flex flex-wrap gap-2">
+                                                         <div className="flex flex-col gap-2">
                                                             {occasionalSubcategories.map((sub, index) => (
                                                                 <SortableSubCategoryItem 
                                                                     key={sub.id}
@@ -370,7 +370,7 @@ function SortableCategoryCard({
                                                 )}
                                             </>
                                         ) : (
-                                            <div className="flex flex-wrap gap-2">
+                                            <div className="flex flex-col gap-2">
                                                 {category.subcategories.map((sub, index) => (
                                                     <SortableSubCategoryItem 
                                                         key={sub.id}
