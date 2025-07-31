@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   Card,
   CardContent,
@@ -417,7 +417,7 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'inco
   const [user, loading] = useAuthState(auth);
   const sensors = useSensors(useSensor(PointerSensor));
   const { toast } = useToast();
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const categoryIds = useMemo(() => categories.map(c => c.id), [categories]);
 
