@@ -98,7 +98,6 @@ import { restrictToWindowEdges, restrictToVerticalAxis, restrictToFirstScrollabl
 import { Badge, badgeVariants } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import * as XLSX from 'xlsx';
 import { useToast } from "@/hooks/use-toast";
 
@@ -415,6 +414,12 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'inco
   const [selectedSubCategory, setSelectedSubCategory] = useState<SubCategory | null>(null);
 
   const [user, loading] = useAuthState(auth);
+  const [clientLoaded, setClientLoaded] = useState(false);
+
+  useEffect(() => {
+    setClientLoaded(true);
+  }, []);
+
   const sensors = useSensors(useSensor(PointerSensor));
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -702,7 +707,7 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'inco
   const titleCase = (str: string) => str.charAt(0).toUpperCase() + str.slice(1);
 
 
-  if (loading) {
+  if (loading || !clientLoaded) {
     return (
       <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
         <Skeleton className="h-64 w-full" />
