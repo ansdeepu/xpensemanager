@@ -370,12 +370,13 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank
             const data = doc.data();
 
             let subcategories: SubCategory[] = [];
-            // Handle modern array format
+            // Handle modern array format first
             if (Array.isArray(data.subcategories)) {
                 subcategories = data.subcategories;
             } else { // Handle legacy object format for backward compatibility
                 const reservedFields = ['userId', 'name', 'icon', 'order', 'type', 'subcategories'];
                 Object.keys(data).forEach(key => {
+                    // Check if the key is not a reserved field and the value is a valid object
                     if (!reservedFields.includes(key) && typeof data[key] === 'object' && data[key] !== null && 'name' in data[key]) {
                         subcategories.push({
                             id: key, // Use the field key as the ID
