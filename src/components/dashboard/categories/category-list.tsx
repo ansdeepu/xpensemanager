@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
@@ -368,27 +367,9 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank
           const userCategories: Category[] = [];
           querySnapshot.forEach((doc) => {
             const data = doc.data();
-
-            let subcategories: SubCategory[] = [];
-            // Handle modern array format first
-            if (Array.isArray(data.subcategories)) {
-                subcategories = data.subcategories;
-            } else { // Handle legacy object format for backward compatibility
-                const reservedFields = ['userId', 'name', 'icon', 'order', 'type', 'subcategories'];
-                Object.keys(data).forEach(key => {
-                    // Check if the key is not a reserved field and the value is a valid object
-                    if (!reservedFields.includes(key) && typeof data[key] === 'object' && data[key] !== null && 'name' in data[key]) {
-                        subcategories.push({
-                            id: key, // Use the field key as the ID
-                            name: data[key].name,
-                            budget: data[key].budget,
-                            frequency: data[key].frequency,
-                            order: parseInt(key, 10) // Try to get order from key
-                        });
-                    }
-                });
-            }
-
+            // Directly use the subcategories field if it's an array, otherwise default to an empty array.
+            const subcategories = Array.isArray(data.subcategories) ? data.subcategories : [];
+            
             userCategories.push({
                 id: doc.id,
                 userId: data.userId,
@@ -396,7 +377,7 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank
                 icon: data.icon,
                 order: data.order,
                 type: data.type,
-                subcategories: subcategories.sort((a,b) => (a.order || 0) - (b.order || 0)),
+                subcategories: subcategories.sort((a: SubCategory,b: SubCategory) => (a.order || 0) - (b.order || 0)),
             });
           });
           setCategories(userCategories);
