@@ -7,6 +7,7 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -92,6 +93,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { restrictToWindowEdges, restrictToVerticalAxis, restrictToFirstScrollableAncestor } from '@dnd-kit/modifiers';
 import { Badge, badgeVariants } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { Separator } from "@/components/ui/separator";
 
 // Map icon names to components
 const iconComponents: { [key: string]: React.ComponentType<{ className?: string }> } = {
@@ -120,34 +122,90 @@ const formatCurrency = (amount: number) => {
 };
 
 
-function SortableSubCategoryItem({ subCategory }: { subCategory: SubCategory }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: subCategory.id });
+function SortableSubCategoryItem({ 
+  subCategory, 
+  onEditSubCategory,
+  onDeleteSubCategory,
+  categoryType
+}: { 
+  subCategory: SubCategory,
+  onEditSubCategory: () => void,
+  onDeleteSubCategory: () => void,
+  categoryType: 'expense' | 'bank' | 'income'
+}) {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging,
+    } = useSortable({id: subCategory.id});
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition: transition || 'none',
-    zIndex: isDragging ? 10 : 'auto',
-  };
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition: transition || 'none',
+        zIndex: isDragging ? 10 : 'auto',
+    };
 
-  return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners} className={cn(badgeVariants({ variant: "secondary" }), "group relative flex justify-between items-center h-auto py-1.5 px-2.5 touch-none")}>
-        <div className="flex-1 flex items-center overflow-hidden gap-2">
-            <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab"/>
-            <span className="truncate" title={subCategory.name}>{subCategory.name}</span>
+    return (
+        <div ref={setNodeRef} style={style} className={cn(badgeVariants({variant: "secondary"}), "group relative flex justify-between items-center h-auto py-1 px-2.5 touch-none w-full sm:w-auto")}>
+            <div {...attributes} {...listeners} className="flex items-center gap-2 cursor-grab flex-1 overflow-hidden">
+                <GripVertical className="h-4 w-4 text-muted-foreground flex-shrink-0"/>
+                <span className="truncate" title={subCategory.name}>{subCategory.name}</span>
+            </div>
+
+            <div className="flex items-center flex-shrink-0 pl-2">
+                 {categoryType === 'expense' && subCategory.frequency && (
+                    <Tooltip>
+                        <TooltipTrigger>
+                             <Badge variant={subCategory.frequency === 'monthly' ? "default" : "outline"} className="capitalize text-xs w-6 h-6 p-0 flex items-center justify-center mr-2">
+                                {subCategory.frequency === 'monthly' ? 'M' : 'O'}
+                            </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>{subCategory.frequency === 'monthly' ? 'Monthly' : 'Occasional'}</p>
+                        </TooltipContent>
+                    </Tooltip>
+                )}
+                {categoryType === 'expense' && subCategory.budget && subCategory.budget > 0 && <span className="text-xs font-mono text-muted-foreground mr-2">{formatCurrency(subCategory.budget)}</span>}
+                <div className="flex items-center">
+                     <Tooltip>
+                        <TooltipTrigger asChild>
+                            <button onClick={onEditSubCategory} className="p-0.5 hover:text-foreground rounded-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+                                <Pencil className="h-3.5 w-3.5"/>
+                            </button>
+                        </TooltipTrigger>
+                        <TooltipContent>Edit Sub-category</TooltipContent>
+                    </Tooltip>
+                    <AlertDialog>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <AlertDialogTrigger asChild>
+                                    <button className="p-0.5 hover:text-destructive rounded-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+                                        <Trash2 className="h-3.5 w-3.5"/>
+                                    </button>
+                                </AlertDialogTrigger>
+                            </TooltipTrigger>
+                             <TooltipContent>Delete Sub-category</TooltipContent>
+                        </Tooltip>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This will permanently delete the "{subCategory.name}" subcategory. This action cannot be undone.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={onDeleteSubCategory} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                </div>
+            </div>
         </div>
-        <div className="flex items-center flex-shrink-0 pl-2">
-            {subCategory.frequency === 'monthly' && subCategory.budget && subCategory.budget > 0 && <span className="text-xs font-mono text-muted-foreground mr-2">{formatCurrency(subCategory.budget)}</span>}
-             {subCategory.frequency && <Badge variant="outline" className="capitalize text-xs hidden sm:inline-flex">{subCategory.frequency}</Badge>}
-        </div>
-    </div>
-  );
+    );
 }
 
 
@@ -208,38 +266,18 @@ function SortableCategoryCard({
 
 
     const renderSubcategory = (sub: SubCategory) => (
-        <div key={sub.id} className="relative group/sub">
-            <SortableSubCategoryItem subCategory={sub} />
-            <div className="absolute right-0.5 top-1/2 -translate-y-1/2 flex items-center opacity-0 group-hover/sub:opacity-100 transition-opacity bg-secondary">
-                <button onClick={() => onEditSubCategory(category, sub)} className="p-0.5 hover:text-foreground">
-                    <Pencil className="h-3 w-3" />
-                </button>
-                <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                        <button className="p-0.5 hover:text-destructive">
-                            <X className="h-3 w-3" />
-                        </button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                This will permanently delete the "{sub.name}" subcategory. This action cannot be undone.
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => onDeleteSubCategory(category, sub)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
-            </div>
-        </div>
+        <SortableSubCategoryItem 
+            key={sub.id} 
+            subCategory={sub} 
+            onEditSubCategory={() => onEditSubCategory(category, sub)}
+            onDeleteSubCategory={() => onDeleteSubCategory(category, sub)}
+            categoryType={category.type}
+        />
     );
 
     return (
         <div ref={setNodeRef} style={style}>
-            <Card>
+            <Card className="flex flex-col h-full">
                <CardHeader className="flex flex-row items-start justify-between">
                 <div className="flex items-start gap-3">
                   <IconComponent className="h-6 w-6 text-muted-foreground mt-1" />
@@ -248,18 +286,10 @@ function SortableCategoryCard({
                     {totalBudget > 0 && <p className="text-sm font-medium text-primary">{formatCurrency(totalBudget)} / month</p>}
                   </div>
                 </div>
-                <div className="flex items-center gap-1 flex-shrink-0">
+                <div className="flex items-center gap-0.5 flex-shrink-0 border rounded-md p-0.5">
                    <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button variant="ghost" size="icon" onClick={() => onAddSubCategory(category)}>
-                          <Plus className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Add Sub-category</TooltipContent>
-                  </Tooltip>
-                   <Tooltip>
-                    <TooltipTrigger asChild>
-                       <Button variant="ghost" size="icon" onClick={() => onEditCategory(category)}>
+                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEditCategory(category)}>
                           <Pencil className="h-4 w-4" />
                       </Button>
                     </TooltipTrigger>
@@ -269,7 +299,7 @@ function SortableCategoryCard({
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                              <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-7 w-7">
                                   <Trash2 className="h-4 w-4" />
                               </Button>
                           </AlertDialogTrigger>
@@ -289,12 +319,12 @@ function SortableCategoryCard({
                           </AlertDialogFooter>
                       </AlertDialogContent>
                   </AlertDialog>
-                  <div {...attributes} {...listeners} className="touch-none p-2 cursor-grab text-muted-foreground hover:text-foreground">
+                  <div {...attributes} {...listeners} className="touch-none p-1.5 cursor-grab text-muted-foreground hover:text-foreground">
                       <GripVertical className="h-5 w-5" />
                   </div>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="flex-grow">
                 <DndContext 
                     sensors={sensors} 
                     collisionDetection={closestCenter} 
@@ -303,10 +333,10 @@ function SortableCategoryCard({
                 >
                     <SortableContext items={category.subcategories?.map(s => s.id) || []} strategy={verticalListSortingStrategy}>
                          {(category.subcategories && category.subcategories.length > 0) ? (
-                            <div className="space-y-2">
+                            <div className="space-y-3">
                                 {category.type === 'expense' && monthlySubcategories.length > 0 && (
                                     <div>
-                                        <p className="text-xs font-semibold text-muted-foreground mb-1 mt-2">Monthly</p>
+                                        <p className="text-xs font-semibold text-muted-foreground mb-1.5 px-1">Monthly</p>
                                         <div className="flex flex-wrap gap-2">
                                             {monthlySubcategories.map(renderSubcategory)}
                                         </div>
@@ -314,7 +344,7 @@ function SortableCategoryCard({
                                 )}
                                 {category.type === 'expense' && occasionalSubcategories.length > 0 && (
                                     <div>
-                                        <p className="text-xs font-semibold text-muted-foreground mb-1 mt-2">Occasional</p>
+                                        <p className="text-xs font-semibold text-muted-foreground mb-1.5 px-1">Occasional</p>
                                         <div className="flex flex-wrap gap-2">
                                             {occasionalSubcategories.map(renderSubcategory)}
                                         </div>
@@ -327,18 +357,24 @@ function SortableCategoryCard({
                                 )}
                             </div>
                          ) : (
-                            <p className="text-sm text-muted-foreground">No sub-categories yet.</p>
+                            <p className="text-sm text-muted-foreground h-full flex items-center justify-center">No sub-categories yet.</p>
                          )}
                     </SortableContext>
                 </DndContext>
               </CardContent>
+               <CardFooter className="pt-4 mt-auto">
+                    <Button variant="outline" className="w-full" onClick={() => onAddSubCategory(category)}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add Sub-category
+                  </Button>
+                </CardFooter>
             </Card>
         </div>
     );
 }
 
 
-export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank' }) {
+export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank' | 'income' }) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
   const [isSubCategoryDialogOpen, setIsSubCategoryDialogOpen] = useState(false);
@@ -367,13 +403,9 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank
           const userCategories: Category[] = querySnapshot.docs.map(doc => {
             const data = doc.data();
             
-            // This handles both the old format (numeric keys) and the new format (subcategories array)
             const subcategoriesFromData = Array.isArray(data.subcategories) 
                 ? data.subcategories 
-                : Object.keys(data)
-                    .filter(key => !isNaN(parseInt(key))) // Check if key is a number
-                    .map(key => ({ id: key, ...data[key] }))
-                    .filter(sub => sub.name); // Ensure it's a valid subcategory object
+                : [];
             
             return {
                 id: doc.id,
@@ -563,9 +595,9 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank
   if (loading) {
     return (
       <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-        <Skeleton className="h-48 w-full" />
-        <Skeleton className="h-48 w-full" />
-        <Skeleton className="h-48 w-full" />
+        <Skeleton className="h-64 w-full" />
+        <Skeleton className="h-64 w-full" />
+        <Skeleton className="h-64 w-full" />
       </div>
     );
   }
