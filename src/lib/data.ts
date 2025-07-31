@@ -40,7 +40,7 @@ export type SubCategory = {
   id: string; // Unique ID for each subcategory
   name: string;
   order?: number;
-  budget?: number;
+  amount?: number;
   frequency?: 'monthly' | 'occasional';
 }
 

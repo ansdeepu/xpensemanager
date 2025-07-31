@@ -7,6 +7,7 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  CardDescription,
   CardFooter,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -154,6 +155,9 @@ function SortableSubCategoryItem({
                 <GripVertical className="h-4 w-4 text-muted-foreground flex-shrink-0"/>
                 <span className="font-mono text-xs text-muted-foreground">{index + 1}.</span>
                 <span className="truncate" title={subCategory.name}>{subCategory.name}</span>
+                {subCategory.amount && subCategory.amount > 0 && (
+                  <span className="font-mono text-xs text-muted-foreground">{formatCurrency(subCategory.amount)}</span>
+                )}
             </div>
 
             <div className="flex items-center flex-shrink-0 pl-2">
@@ -249,6 +253,11 @@ function SortableCategoryCard({
             onDeleteSubCategory={() => onDeleteSubCategory(category, sub)}
         />
     );
+    
+    const totalAmount = useMemo(() => {
+        return category.subcategories.reduce((total, sub) => total + (sub.amount || 0), 0);
+    }, [category.subcategories]);
+
 
     return (
         <div ref={setNodeRef} style={style}>
@@ -258,6 +267,9 @@ function SortableCategoryCard({
                   <IconComponent className="h-6 w-6 text-muted-foreground mt-1" />
                   <div>
                     <CardTitle>{category.name}</CardTitle>
+                     {totalAmount > 0 && (
+                        <CardDescription>{formatCurrency(totalAmount)}</CardDescription>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-0.5 flex-shrink-0 border rounded-md p-0.5">
@@ -437,16 +449,18 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank
     const newSubCategory: SubCategory = {
       id: new Date().getTime().toString() + Math.random().toString(36).substring(2, 9), // simple unique id
       name: formData.get("name") as string,
-      frequency: categoryType === 'expense' ? (formData.get("frequency") as 'monthly' | 'occasional' || 'occasional') : undefined,
       order: existingSubcategories.length,
     }
     
     if (categoryType === 'expense') {
-        const budget = parseFloat(formData.get("budget") as string);
-        if (!isNaN(budget) && budget > 0) {
-            newSubCategory.budget = budget;
-        }
+        newSubCategory.frequency = formData.get("frequency") as 'monthly' | 'occasional' || 'occasional';
     }
+
+    const amount = parseFloat(formData.get("amount") as string);
+    if (!isNaN(amount) && amount > 0) {
+        newSubCategory.amount = amount;
+    }
+
 
     try {
       const categoryRef = doc(db, "categories", selectedCategory.id);
@@ -470,15 +484,16 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank
             const updatedSub: SubCategory = { 
                 ...sub,
                 name: formData.get("name") as string,
-                frequency: categoryType === 'expense' ? (formData.get("frequency") as 'monthly' | 'occasional' || 'occasional') : undefined,
             };
             if (categoryType === 'expense') {
-                const newBudget = parseFloat(formData.get("budget") as string);
-                if (!isNaN(newBudget) && newBudget > 0) {
-                    updatedSub.budget = newBudget;
-                } else {
-                    delete updatedSub.budget;
-                }
+                updatedSub.frequency = formData.get("frequency") as 'monthly' | 'occasional' || 'occasional';
+            }
+
+            const newAmount = parseFloat(formData.get("amount") as string);
+            if (!isNaN(newAmount) && newAmount > 0) {
+                updatedSub.amount = newAmount;
+            } else {
+                delete updatedSub.amount;
             }
             return updatedSub;
         }
@@ -499,7 +514,7 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank
      if (!user) return;
      try {
         const categoryRef = doc(db, "categories", category.id);
-        const newSubcategories = (category.subcategories || []).filter(sub => sub.id !== subCategoryToDelete.id);
+        const newSubcategories = (category.subcategories || []).filter(sub => sub.id !== subCategoryToDelete.id).map((sub, index) => ({...sub, order: index}));
         await updateDoc(categoryRef, { subcategories: newSubcategories });
      } catch (error) {
      }
@@ -655,26 +670,24 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank
                 <Input id="sub-name" name="name" placeholder="e.g. Internet Bill" required />
               </div>
                {categoryType === 'expense' && (
-                <>
-                    <div className="space-y-2">
-                        <Label>Frequency</Label>
-                        <RadioGroup name="frequency" defaultValue="monthly" className="flex gap-4">
-                            <div className="flex items-center space-x-2">
-                                <RadioGroupItem value="monthly" id="r-monthly" />
-                                <Label htmlFor="r-monthly">Monthly</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                                <RadioGroupItem value="occasional" id="r-occasional" />
-                                <Label htmlFor="r-occasional">Occasional</Label>
-                            </div>
-                        </RadioGroup>
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="budget">Monthly Budget (optional)</Label>
-                        <Input id="budget" name="budget" type="number" placeholder="e.g. 500" className="hide-number-arrows" />
-                    </div>
-                </>
+                  <div className="space-y-2">
+                      <Label>Frequency</Label>
+                      <RadioGroup name="frequency" defaultValue="monthly" className="flex gap-4">
+                          <div className="flex items-center space-x-2">
+                              <RadioGroupItem value="monthly" id="r-monthly" />
+                              <Label htmlFor="r-monthly">Monthly</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                              <RadioGroupItem value="occasional" id="r-occasional" />
+                              <Label htmlFor="r-occasional">Occasional</Label>
+                          </div>
+                      </RadioGroup>
+                  </div>
                )}
+                <div className="space-y-2">
+                    <Label htmlFor="amount">Amount (optional)</Label>
+                    <Input id="amount" name="amount" type="number" placeholder="e.g. 500" className="hide-number-arrows" />
+                </div>
             </div>
             <DialogFooter>
               <DialogClose asChild>
@@ -732,26 +745,24 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank
                     <Input id="edit-sub-name" name="name" defaultValue={selectedSubCategory?.name || ''} required />
                 </div>
                  {categoryType === 'expense' && (
-                    <>
-                         <div className="space-y-2">
-                            <Label>Frequency</Label>
-                             <RadioGroup name="frequency" defaultValue={selectedSubCategory?.frequency || 'monthly'} className="flex gap-4">
-                                <div className="flex items-center space-x-2">
-                                    <RadioGroupItem value="monthly" id="er-monthly" />
-                                    <Label htmlFor="er-monthly">Monthly</Label>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                    <RadioGroupItem value="occasional" id="er-occasional" />
-                                    <Label htmlFor="er-occasional">Occasional</Label>
-                                </div>
-                            </RadioGroup>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="edit-budget">Monthly Budget (optional)</Label>
-                            <Input id="edit-budget" name="budget" type="number" defaultValue={selectedSubCategory?.budget || ''} placeholder="e.g. 500" className="hide-number-arrows" />
-                        </div>
-                    </>
+                    <div className="space-y-2">
+                        <Label>Frequency</Label>
+                            <RadioGroup name="frequency" defaultValue={selectedSubCategory?.frequency || 'monthly'} className="flex gap-4">
+                            <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="monthly" id="er-monthly" />
+                                <Label htmlFor="er-monthly">Monthly</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="occasional" id="er-occasional" />
+                                <Label htmlFor="er-occasional">Occasional</Label>
+                            </div>
+                        </RadioGroup>
+                    </div>
                 )}
+                <div className="space-y-2">
+                    <Label htmlFor="edit-amount">Amount (optional)</Label>
+                    <Input id="edit-amount" name="amount" type="number" defaultValue={selectedSubCategory?.amount || ''} placeholder="e.g. 500" className="hide-number-arrows" />
+                </div>
             </div>
             <DialogFooter>
                  <DialogClose asChild>
