@@ -188,7 +188,7 @@ function SortableCategoryCard({
 
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
-        if (active.id !== over?.id) {
+        if (active.id !== over?.id && category.subcategories) {
             const oldIndex = category.subcategories.findIndex(s => s.id === active.id);
             const newIndex = category.subcategories.findIndex(s => s.id === over!.id);
             if (oldIndex === -1 || newIndex === -1) return;
@@ -367,16 +367,19 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank
       const unsubscribe = onSnapshot(
         q,
         (querySnapshot) => {
-          const userCategories: Category[] = [];
-          querySnapshot.forEach((doc) => {
+          const userCategories: Category[] = querySnapshot.docs.map(doc => {
             const data = doc.data();
             const subcategories = Array.isArray(data.subcategories) ? data.subcategories : [];
             
-            userCategories.push({
+            return {
                 id: doc.id,
-                ...data,
-                subcategories: subcategories.sort((a: SubCategory,b: SubCategory) => (a.order || 0) - (b.order || 0)),
-            } as Category);
+                userId: data.userId,
+                name: data.name,
+                icon: data.icon,
+                order: data.order,
+                type: data.type,
+                subcategories: subcategories.sort((a: SubCategory, b: SubCategory) => (a.order || 0) - (b.order || 0)),
+            };
           });
           setCategories(userCategories);
         },
@@ -768,3 +771,5 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank
     </TooltipProvider>
   );
 }
+
+    
