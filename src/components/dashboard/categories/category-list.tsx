@@ -137,7 +137,7 @@ function SortableSubCategoryItem({ subCategory }: { subCategory: SubCategory }) 
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners} className={cn(badgeVariants({ variant: "secondary" }), "group relative flex justify-between items-center w-full h-auto py-1.5 px-2.5 touch-none")}>
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners} className={cn(badgeVariants({ variant: "secondary" }), "group relative flex justify-between items-center h-auto py-1.5 px-2.5 touch-none")}>
         <div className="flex-1 flex items-center overflow-hidden gap-2">
             <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab"/>
             <span className="truncate" title={subCategory.name}>{subCategory.name}</span>
@@ -307,7 +307,7 @@ function SortableCategoryCard({
                                 {category.type === 'expense' && monthlySubcategories.length > 0 && (
                                     <div>
                                         <p className="text-xs font-semibold text-muted-foreground mb-1 mt-2">Monthly</p>
-                                        <div className="flex flex-col gap-2">
+                                        <div className="flex flex-wrap gap-2">
                                             {monthlySubcategories.map(renderSubcategory)}
                                         </div>
                                     </div>
@@ -315,13 +315,13 @@ function SortableCategoryCard({
                                 {category.type === 'expense' && occasionalSubcategories.length > 0 && (
                                     <div>
                                         <p className="text-xs font-semibold text-muted-foreground mb-1 mt-2">Occasional</p>
-                                        <div className="flex flex-col gap-2">
+                                        <div className="flex flex-wrap gap-2">
                                             {occasionalSubcategories.map(renderSubcategory)}
                                         </div>
                                     </div>
                                 )}
                                  {category.type !== 'expense' && category.subcategories?.length > 0 && (
-                                    <div className="flex flex-col gap-2">
+                                    <div className="flex flex-wrap gap-2">
                                         {category.subcategories.map(renderSubcategory)}
                                     </div>
                                 )}
