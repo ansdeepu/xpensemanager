@@ -252,7 +252,7 @@ function SortableCategoryCard({
 
     return (
         <div ref={setNodeRef} style={style}>
-            <Card className="flex flex-col h-full">
+            <Card className="flex flex-col">
                <CardHeader className="flex flex-row items-start justify-between">
                 <div className="flex items-start gap-3">
                   <IconComponent className="h-6 w-6 text-muted-foreground mt-1" />
@@ -298,25 +298,29 @@ function SortableCategoryCard({
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="flex-grow">
-                <DndContext 
-                    sensors={sensors} 
-                    collisionDetection={closestCenter} 
-                    onDragEnd={handleDragEnd}
-                    modifiers={[restrictToVerticalAxis, restrictToFirstScrollableAncestor]}
-                >
-                    <SortableContext items={category.subcategories?.map(s => s.id) || []} strategy={verticalListSortingStrategy}>
-                         {(category.subcategories && category.subcategories.length > 0) ? (
-                            <div className="flex flex-wrap gap-2">
-                                {category.subcategories.map(renderSubcategory)}
-                            </div>
-                         ) : (
-                            <p className="text-sm text-muted-foreground h-full flex items-center justify-center">No sub-categories yet.</p>
-                         )}
-                    </SortableContext>
-                </DndContext>
+              <CardContent className="p-0">
+                 <ScrollArea className="h-40 w-full p-6 pt-0">
+                    <DndContext 
+                        sensors={sensors} 
+                        collisionDetection={closestCenter} 
+                        onDragEnd={handleDragEnd}
+                        modifiers={[restrictToVerticalAxis, restrictToFirstScrollableAncestor]}
+                    >
+                        <SortableContext items={category.subcategories?.map(s => s.id) || []} strategy={verticalListSortingStrategy}>
+                            {(category.subcategories && category.subcategories.length > 0) ? (
+                                <div className="flex flex-wrap gap-2">
+                                    {category.subcategories.map(renderSubcategory)}
+                                </div>
+                            ) : (
+                                <div className="h-20 flex items-center justify-center">
+                                    <p className="text-sm text-muted-foreground">No sub-categories yet.</p>
+                                </div>
+                            )}
+                        </SortableContext>
+                    </DndContext>
+                 </ScrollArea>
               </CardContent>
-               <CardFooter className="pt-4 mt-auto">
+               <CardFooter className="pt-4">
                     <Button variant="outline" className="w-full" onClick={() => onAddSubCategory(category)}>
                       <Plus className="mr-2 h-4 w-4" />
                       Add Sub-category
