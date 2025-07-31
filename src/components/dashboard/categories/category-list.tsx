@@ -94,6 +94,7 @@ import { restrictToWindowEdges, restrictToVerticalAxis, restrictToFirstScrollabl
 import { Badge, badgeVariants } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 // Map icon names to components
 const iconComponents: { [key: string]: React.ComponentType<{ className?: string }> } = {
@@ -615,29 +616,31 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank
           </DialogContent>
         </Dialog>
       </div>
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
-        modifiers={[restrictToWindowEdges]}
-      >
-        <SortableContext items={categoryIds} strategy={rectSortingStrategy}>
-            <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 pt-6">
-                {categories.map((category) => (
-                    <SortableCategoryCard 
-                        key={category.id} 
-                        category={category} 
-                        onAddSubCategory={openSubCategoryDialog} 
-                        onEditCategory={openEditCategoryDialog}
-                        onDeleteCategory={handleDeleteCategory}
-                        onEditSubCategory={openEditSubCategoryDialog}
-                        onDeleteSubCategory={handleDeleteSubCategory}
-                        onSubCategoryOrderChange={handleSubCategoryOrderChange}
-                    />
-                ))}
-            </div>
-        </SortableContext>
-      </DndContext>
+      <ScrollArea className="h-[calc(100vh-220px)] pr-4 mt-6">
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+          modifiers={[restrictToWindowEdges]}
+        >
+          <SortableContext items={categoryIds} strategy={rectSortingStrategy}>
+              <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                  {categories.map((category) => (
+                      <SortableCategoryCard 
+                          key={category.id} 
+                          category={category} 
+                          onAddSubCategory={openSubCategoryDialog} 
+                          onEditCategory={openEditCategoryDialog}
+                          onDeleteCategory={handleDeleteCategory}
+                          onEditSubCategory={openEditSubCategoryDialog}
+                          onDeleteSubCategory={handleDeleteSubCategory}
+                          onSubCategoryOrderChange={handleSubCategoryOrderChange}
+                      />
+                  ))}
+              </div>
+          </SortableContext>
+        </DndContext>
+      </ScrollArea>
       
       {categories.length === 0 && !loading && (
         <div className="md:col-span-2 lg:col-span-3 flex flex-col items-center justify-center text-center text-muted-foreground h-40 border-2 border-dashed rounded-lg mt-6">
