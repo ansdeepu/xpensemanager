@@ -373,7 +373,6 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank
           const userCategories: Category[] = querySnapshot.docs.map(doc => {
             const data = doc.data();
             
-            // This correctly reads the subcategories array
             const subcategoriesFromData = Array.isArray(data.subcategories) 
                 ? data.subcategories.sort((a: SubCategory, b: SubCategory) => (a.order || 0) - (b.order || 0))
                 : [];
@@ -454,13 +453,11 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank
     
     if (categoryType === 'expense') {
         newSubCategory.frequency = formData.get("frequency") as 'monthly' | 'occasional' || 'occasional';
+        const amount = parseFloat(formData.get("amount") as string);
+        if (!isNaN(amount) && amount > 0) {
+            newSubCategory.amount = amount;
+        }
     }
-
-    const amount = parseFloat(formData.get("amount") as string);
-    if (!isNaN(amount) && amount > 0) {
-        newSubCategory.amount = amount;
-    }
-
 
     try {
       const categoryRef = doc(db, "categories", selectedCategory.id);
@@ -487,13 +484,12 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank
             };
             if (categoryType === 'expense') {
                 updatedSub.frequency = formData.get("frequency") as 'monthly' | 'occasional' || 'occasional';
-            }
-
-            const newAmount = parseFloat(formData.get("amount") as string);
-            if (!isNaN(newAmount) && newAmount > 0) {
-                updatedSub.amount = newAmount;
-            } else {
-                delete updatedSub.amount;
+                const newAmount = parseFloat(formData.get("amount") as string);
+                if (!isNaN(newAmount) && newAmount > 0) {
+                    updatedSub.amount = newAmount;
+                } else {
+                    delete updatedSub.amount;
+                }
             }
             return updatedSub;
         }
@@ -670,6 +666,7 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank
                 <Input id="sub-name" name="name" placeholder="e.g. Internet Bill" required />
               </div>
                {categoryType === 'expense' && (
+                <>
                   <div className="space-y-2">
                       <Label>Frequency</Label>
                       <RadioGroup name="frequency" defaultValue="monthly" className="flex gap-4">
@@ -683,11 +680,12 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank
                           </div>
                       </RadioGroup>
                   </div>
+                   <div className="space-y-2">
+                      <Label htmlFor="amount">Amount (optional)</Label>
+                      <Input id="amount" name="amount" type="number" placeholder="e.g. 500" className="hide-number-arrows" />
+                  </div>
+                </>
                )}
-                <div className="space-y-2">
-                    <Label htmlFor="amount">Amount (optional)</Label>
-                    <Input id="amount" name="amount" type="number" placeholder="e.g. 500" className="hide-number-arrows" />
-                </div>
             </div>
             <DialogFooter>
               <DialogClose asChild>
@@ -745,6 +743,7 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank
                     <Input id="edit-sub-name" name="name" defaultValue={selectedSubCategory?.name || ''} required />
                 </div>
                  {categoryType === 'expense' && (
+                  <>
                     <div className="space-y-2">
                         <Label>Frequency</Label>
                             <RadioGroup name="frequency" defaultValue={selectedSubCategory?.frequency || 'monthly'} className="flex gap-4">
@@ -758,11 +757,12 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'bank
                             </div>
                         </RadioGroup>
                     </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-amount">Amount (optional)</Label>
+                      <Input id="edit-amount" name="amount" type="number" defaultValue={selectedSubCategory?.amount || ''} placeholder="e.g. 500" className="hide-number-arrows" />
+                    </div>
+                  </>
                 )}
-                <div className="space-y-2">
-                    <Label htmlFor="edit-amount">Amount (optional)</Label>
-                    <Input id="edit-amount" name="amount" type="number" defaultValue={selectedSubCategory?.amount || ''} placeholder="e.g. 500" className="hide-number-arrows" />
-                </div>
             </div>
             <DialogFooter>
                  <DialogClose asChild>
