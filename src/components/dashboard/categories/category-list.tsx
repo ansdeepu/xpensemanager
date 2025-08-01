@@ -161,7 +161,7 @@ function SortableSubCategoryItem({
                     <GripVertical className="h-4 w-4"/>
                 </div>
                 <div className="flex-grow min-w-0">
-                  <span className="break-words">{subCategory.name}</span>
+                    <p className="break-words whitespace-normal">{subCategory.name}</p>
                    {subCategory.frequency === 'occasional' && subCategory.selectedMonths && subCategory.selectedMonths.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-1">
                           {subCategory.selectedMonths.map(month => (
@@ -1011,5 +1011,3 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'inco
     </TooltipProvider>
   );
 }
-
-    
