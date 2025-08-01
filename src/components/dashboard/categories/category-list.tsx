@@ -127,6 +127,8 @@ const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
+const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
 
 function SortableSubCategoryItem({ 
   subCategory, 
@@ -163,6 +165,13 @@ function SortableSubCategoryItem({
                 <div className="flex-grow min-w-0">
                   <span className="font-mono text-xs text-muted-foreground mr-1">{index + 1}.</span>
                   <span className="break-words" title={subCategory.name}>{subCategory.name}</span>
+                   {subCategory.frequency === 'occasional' && subCategory.selectedMonths && subCategory.selectedMonths.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                          {subCategory.selectedMonths.map(month => (
+                              <Badge key={month} variant="outline" className="text-xs">{month}</Badge>
+                          ))}
+                      </div>
+                  )}
                 </div>
             </div>
             
@@ -414,6 +423,27 @@ function SortableCategoryCard({
 }
 
 
+function MonthSelector({ selectedMonths, onMonthToggle }: { selectedMonths: string[], onMonthToggle: (month: string) => void }) {
+    return (
+        <div className="space-y-2">
+            <Label>Select Months</Label>
+            <div className="grid grid-cols-4 gap-2">
+                {months.map(month => (
+                    <Button
+                        key={month}
+                        type="button"
+                        variant={selectedMonths.includes(month) ? "default" : "outline"}
+                        onClick={() => onMonthToggle(month)}
+                        className="h-8 text-xs"
+                    >
+                        {month}
+                    </Button>
+                ))}
+            </div>
+        </div>
+    );
+}
+
 export function CategoryList({ categoryType }: { categoryType: 'expense' | 'income' }) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
@@ -423,6 +453,15 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'inco
   
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [selectedSubCategory, setSelectedSubCategory] = useState<SubCategory | null>(null);
+  
+  // State for Add dialog
+  const [addFrequency, setAddFrequency] = useState<'monthly' | 'occasional'>('monthly');
+  const [addSelectedMonths, setAddSelectedMonths] = useState<string[]>([]);
+
+  // State for Edit dialog
+  const [editFrequency, setEditFrequency] = useState<'monthly' | 'occasional'>('monthly');
+  const [editSelectedMonths, setEditSelectedMonths] = useState<string[]>([]);
+
 
   const [user, loading] = useAuthState(auth);
   const [clientLoaded, setClientLoaded] = useState(false);
@@ -473,6 +512,19 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'inco
       return () => unsubscribe();
     }
   }, [user, categoryType, db]);
+
+  useEffect(() => {
+    if (isEditSubCategoryDialogOpen && selectedSubCategory) {
+        setEditFrequency(selectedSubCategory.frequency || 'monthly');
+        setEditSelectedMonths(selectedSubCategory.selectedMonths || []);
+    }
+  }, [isEditSubCategoryDialogOpen, selectedSubCategory]);
+
+  const handleMonthToggle = (month: string, setMonths: React.Dispatch<React.SetStateAction<string[]>>) => {
+    setMonths(prev => 
+        prev.includes(month) ? prev.filter(m => m !== month) : [...prev, month]
+    );
+  };
 
   const handleAddCategory = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -530,7 +582,10 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'inco
     }
     
     if (categoryType === 'expense') {
-        newSubCategory.frequency = formData.get("frequency") as 'monthly' | 'occasional' || 'occasional';
+        newSubCategory.frequency = addFrequency;
+        if (addFrequency === 'occasional') {
+            newSubCategory.selectedMonths = addSelectedMonths;
+        }
         const amount = parseFloat(formData.get("amount") as string);
         if (!isNaN(amount) && amount >= 0) {
             newSubCategory.amount = amount;
@@ -561,7 +616,12 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'inco
                 name: formData.get("name") as string,
             };
             if (categoryType === 'expense') {
-                updatedSub.frequency = formData.get("frequency") as 'monthly' | 'occasional' || 'occasional';
+                updatedSub.frequency = editFrequency;
+                if (editFrequency === 'occasional') {
+                    updatedSub.selectedMonths = editSelectedMonths;
+                } else {
+                    delete updatedSub.selectedMonths;
+                }
                 const newAmount = parseFloat(formData.get("amount") as string);
                 if (!isNaN(newAmount) && newAmount >= 0) {
                     updatedSub.amount = newAmount;
@@ -606,6 +666,8 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'inco
 
   const openSubCategoryDialog = (category: Category) => {
     setSelectedCategory(category);
+    setAddFrequency('monthly');
+    setAddSelectedMonths([]);
     setIsSubCategoryDialogOpen(true);
   };
 
@@ -837,7 +899,7 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'inco
                 <>
                   <div className="space-y-2">
                       <Label>Frequency</Label>
-                      <RadioGroup name="frequency" defaultValue="monthly" className="flex gap-4">
+                      <RadioGroup name="frequency" value={addFrequency} onValueChange={(value) => setAddFrequency(value as 'monthly' | 'occasional')} className="flex gap-4">
                           <div className="flex items-center space-x-2">
                               <RadioGroupItem value="monthly" id="r-monthly" />
                               <Label htmlFor="r-monthly">Monthly</Label>
@@ -848,6 +910,9 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'inco
                           </div>
                       </RadioGroup>
                   </div>
+                  {addFrequency === 'occasional' && (
+                      <MonthSelector selectedMonths={addSelectedMonths} onMonthToggle={(month) => handleMonthToggle(month, setAddSelectedMonths)} />
+                  )}
                    <div className="space-y-2">
                       <Label htmlFor="amount">Amount (optional)</Label>
                       <Input id="amount" name="amount" type="number" placeholder="e.g. 500" className="hide-number-arrows" />
@@ -914,7 +979,7 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'inco
                   <>
                     <div className="space-y-2">
                         <Label>Frequency</Label>
-                            <RadioGroup name="frequency" defaultValue={selectedSubCategory?.frequency || 'monthly'} className="flex gap-4">
+                            <RadioGroup name="frequency" value={editFrequency} onValueChange={(value) => setEditFrequency(value as 'monthly' | 'occasional')} className="flex gap-4">
                             <div className="flex items-center space-x-2">
                                 <RadioGroupItem value="monthly" id="er-monthly" />
                                 <Label htmlFor="er-monthly">Monthly</Label>
@@ -925,6 +990,9 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'inco
                             </div>
                         </RadioGroup>
                     </div>
+                    {editFrequency === 'occasional' && (
+                        <MonthSelector selectedMonths={editSelectedMonths} onMonthToggle={(month) => handleMonthToggle(month, setEditSelectedMonths)} />
+                    )}
                     <div className="space-y-2">
                       <Label htmlFor="edit-amount">Amount (optional)</Label>
                       <Input id="edit-amount" name="amount" type="number" defaultValue={selectedSubCategory?.amount || ''} placeholder="e.g. 500" className="hide-number-arrows" />

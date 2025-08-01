@@ -44,6 +44,7 @@ export type SubCategory = {
   amount?: number;
   frequency?: 'monthly' | 'occasional';
   budget?: number; // Add budget field
+  selectedMonths?: string[];
 }
 
 export type Category = {
