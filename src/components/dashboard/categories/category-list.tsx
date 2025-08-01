@@ -155,7 +155,7 @@ function SortableSubCategoryItem({
     };
 
     return (
-        <div ref={setNodeRef} style={style} className={cn(badgeVariants({variant: "secondary"}), "group relative flex items-start justify-between h-auto py-1 px-2.5 touch-none w-full gap-2")}>
+        <div ref={setNodeRef} style={style} className={cn(badgeVariants({variant: "secondary"}), "relative flex justify-between items-start h-auto py-1 px-2.5 touch-none w-full gap-2")}>
             <div className="flex items-start gap-2 flex-1 min-w-0">
                 <div {...attributes} {...listeners} className="cursor-grab text-muted-foreground flex-shrink-0 pt-0.5">
                     <GripVertical className="h-4 w-4"/>
@@ -281,9 +281,14 @@ function SortableCategoryCard({
                <CardHeader>
                     <div className="flex items-start gap-3 w-full min-w-0">
                         <IconComponent className="h-6 w-6 text-muted-foreground mt-1 flex-shrink-0" />
-                        <CardTitle className="text-xl font-semibold leading-none tracking-tight flex-1 truncate" title={category.name}>
-                            {category.name}
-                        </CardTitle>
+                        <div className="flex-1 min-w-0">
+                           <div className="flex items-center gap-2">
+                             <CardTitle className="text-xl font-semibold leading-none tracking-tight truncate" title={category.name}>
+                                {category.name}
+                            </CardTitle>
+                             <Badge variant="outline">{category.subcategories.length}</Badge>
+                           </div>
+                        </div>
                     </div>
                     <div className="flex items-center justify-between w-full pt-2">
                         {totalAmount > 0 && (
