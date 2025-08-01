@@ -6,7 +6,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Shapes, Landmark, ArrowRightLeft, ListChecks, Upload } from "lucide-react";
+import { Shapes, Landmark, ArrowRightLeft, ListChecks, Upload, Printer, MousePointerClick } from "lucide-react";
 
 export default function HelpPage() {
   return (
@@ -38,15 +38,19 @@ export default function HelpPage() {
               <AccordionContent className="pl-8 space-y-4">
                 <div>
                   <p className="mb-4">
-                    Categories help you organize your financial activities. You can add them manually or import them from an Excel file.
+                    Categories help you organize your financial activities. You can add them manually or import them from an Excel file. Each sub-category is automatically assigned a serial number for easy tracking.
                   </p>
                   <h4 className="font-semibold mb-2">Manually Creating Categories:</h4>
-                  <ol className="list-decimal list-inside space-y-2">
+                  <ol className="list-decimal list-inside space-y-2 mb-4">
                     <li>Navigate to the <strong>Categories</strong> page from the sidebar.</li>
                     <li>You will see two tabs: <strong>Expense Categories</strong> and <strong>Income Categories</strong>.</li>
                     <li>In each tab, click the "Add... Category" button to create main categories (e.g., "Food", "Transport", "Salary").</li>
-                    <li>Once a category is created, you can add sub-categories to it (e.g., "Groceries", "Restaurants" under "Food").</li>
+                    <li>Once a category is created, you can add sub-categories to it.</li>
                   </ol>
+                  <h4 className="font-semibold mb-2">Monthly vs. Occasional Expenses:</h4>
+                   <p className="text-sm text-muted-foreground mb-4">
+                        For expense categories, you can define sub-categories as either monthly (recurring every month) or occasional (occurring only in specific months). This helps in calculating a more accurate monthly budget total, which is displayed on the category card. The total reflects all monthly expenses plus any occasional expenses planned for the current month.
+                    </p>
                 </div>
 
                 <div className="pt-4 border-t">
@@ -57,7 +61,7 @@ export default function HelpPage() {
                         <li>Select your `.xlsx` or `.xls` file.</li>
                     </ol>
                     <p className="mb-2 font-medium">Excel File Format:</p>
-                    <p className="text-sm text-muted-foreground mb-4">The file must be structured correctly. The first row contains your main category names. All rows below the first in a column contain the sub-categories for that main category.</p>
+                    <p className="text-sm text-muted-foreground mb-4">The file must be structured correctly. The first row contains your main category names. All rows below the first in a column contain the sub-categories for that main category. Imported expenses are set as "occasional" by default.</p>
                     <div className="rounded-md border bg-muted p-4">
                         <table className="w-full text-sm">
                             <thead>
@@ -93,7 +97,7 @@ export default function HelpPage() {
               <AccordionTrigger>
                 <div className="flex items-center gap-3">
                   <Landmark className="h-5 w-5 text-primary" />
-                  <span>Step 2: Add Bank Accounts</span>
+                  <span>Step 2: Add & View Bank Accounts</span>
                 </div>
               </AccordionTrigger>
               <AccordionContent className="pl-8">
@@ -102,9 +106,11 @@ export default function HelpPage() {
                 </p>
                  <ol className="list-decimal list-inside space-y-2">
                   <li>Go to the <strong>Bank Accounts</strong> page.</li>
-                  <li>Click the "Add Account" button.</li>
-                  <li>Fill in the details for your account, such as the name (e.g., "Main Savings") and its purpose.</li>
-                  <li>The first account you add will be set as your primary account by default.</li>
+                  <li>Click the "Add Account" button and fill in the details. The first account is set as primary by default.</li>
+                  <li className="flex items-start gap-2">
+                    <MousePointerClick className="h-5 w-5 mt-1 text-primary flex-shrink-0" />
+                    <span>To see a detailed breakdown of an account's balance, simply click on the account card. A dialog will appear showing all income, expense, and transfer transactions affecting that balance.</span>
+                  </li>
                 </ol>
               </AccordionContent>
             </AccordionItem>
@@ -112,7 +118,7 @@ export default function HelpPage() {
               <AccordionTrigger>
                 <div className="flex items-center gap-3">
                   <ArrowRightLeft className="h-5 w-5 text-primary" />
-                  <span>Step 3: Record Daily Transactions</span>
+                  <span>Step 3: Record & Print Transactions</span>
                 </div>
               </AccordionTrigger>
               <AccordionContent className="pl-8">
@@ -124,13 +130,16 @@ export default function HelpPage() {
                   <li>Click on "Add Transaction".</li>
                   <li>You can add three types of transactions:
                     <ul className="list-disc list-inside pl-6 mt-2 space-y-1">
-                      <li><strong>Income:</strong> Any money you receive. Select the bank account where the money was deposited.</li>
-                      <li><strong>Expense:</strong> Any money you spend. Choose whether you paid from a bank account or your cash "Wallet".</li>
-                      <li><strong>Transfer:</strong> Moving money between your own accounts (e.g., from a bank account to your Wallet).</li>
+                      <li><strong>Income:</strong> Any money you receive.</li>
+                      <li><strong>Expense:</strong> Any money you spend.</li>
+                      <li><strong>Transfer:</strong> Moving money between your own accounts.</li>
                     </ul>
                   </li>
-                   <li>Fill in the description, amount, date, and assign it to a category and sub-category.</li>
-                   <li>Your account balances and financial summaries will update automatically.</li>
+                   <li>Fill in the details and assign it to a category. Your balances will update automatically.</li>
+                   <li className="flex items-start gap-2">
+                     <Printer className="h-5 w-5 mt-1 text-primary flex-shrink-0" />
+                    <span>To print a report, use the date range picker at the top to filter the transactions you want, then click the "Print" button.</span>
+                  </li>
                 </ol>
               </AccordionContent>
             </AccordionItem>
