@@ -160,8 +160,10 @@ function SortableSubCategoryItem({
                 <div {...attributes} {...listeners} className="cursor-grab text-muted-foreground flex-shrink-0 pt-0.5">
                     <GripVertical className="h-4 w-4"/>
                 </div>
-                <span className="font-mono text-xs text-muted-foreground flex-shrink-0 pt-1">{index + 1}.</span>
-                <span className="whitespace-normal break-words flex-1" title={subCategory.name}>{subCategory.name}</span>
+                <div className="flex-1 min-w-0">
+                  <span className="font-mono text-xs text-muted-foreground mr-1">{index + 1}.</span>
+                  <span className="whitespace-normal break-words" title={subCategory.name}>{subCategory.name}</span>
+                </div>
             </div>
             
              <div className="flex items-center gap-2 flex-shrink-0 pl-2 pt-0.5">
