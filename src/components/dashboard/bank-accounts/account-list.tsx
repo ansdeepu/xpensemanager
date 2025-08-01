@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -20,6 +21,14 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { Account, Transaction } from "@/lib/data";
@@ -45,6 +54,8 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { restrictToWindowEdges } from '@dnd-kit/modifiers';
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-IN", {
@@ -67,7 +78,7 @@ const getRandomIcon = () => {
   return { name: iconName, component: iconComponents[iconName] };
 }
 
-function SortableAccountCard({ account, onSetPrimary, onEdit }: { account: Account, onSetPrimary: (id: string) => void, onEdit: (account: Account) => void }) {
+function SortableAccountCard({ account, onSetPrimary, onEdit, onSelect }: { account: Account, onSetPrimary: (id: string) => void, onEdit: (account: Account) => void, onSelect: (account: Account) => void }) {
     const {
         attributes,
         listeners,
@@ -85,8 +96,8 @@ function SortableAccountCard({ account, onSetPrimary, onEdit }: { account: Accou
 
     return (
         <div ref={setNodeRef} style={style} className="relative">
-            <Card className="flex flex-col justify-between h-full">
-                <div>
+            <Card className="flex flex-col justify-between h-full group">
+                <div onClick={() => onSelect(account)} className="cursor-pointer">
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                         <CardTitle className="text-xl font-bold">
                             {account.name}
@@ -125,13 +136,91 @@ function SortableAccountCard({ account, onSetPrimary, onEdit }: { account: Accou
     );
 }
 
+function AccountDetailsDialog({ account, transactions, isOpen, onOpenChange }: { account: Account | null, transactions: Transaction[], isOpen: boolean, onOpenChange: (open: boolean) => void }) {
+    const relevantTransactions = useMemo(() => {
+        if (!account) return [];
+        return transactions
+            .filter(t => 
+                (t.accountId === account.id && (t.type === 'income' || t.type === 'expense')) ||
+                t.fromAccountId === account.id ||
+                t.toAccountId === account.id
+            )
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    }, [account, transactions]);
+
+    const getTransactionAmount = (transaction: Transaction) => {
+        if (transaction.type === 'income' && transaction.accountId === account?.id) {
+            return { amount: transaction.amount, className: 'text-green-600' };
+        }
+        if (transaction.type === 'expense' && transaction.accountId === account?.id) {
+            return { amount: -transaction.amount, className: 'text-red-600' };
+        }
+        if (transaction.type === 'transfer') {
+            if (transaction.fromAccountId === account?.id) {
+                return { amount: -transaction.amount, className: 'text-red-600' };
+            }
+            if (transaction.toAccountId === account?.id) {
+                return { amount: transaction.amount, className: 'text-green-600' };
+            }
+        }
+        return { amount: 0, className: '' };
+    };
+
+    if (!account) return null;
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-2xl">
+                <DialogHeader>
+                    <DialogTitle>{account.name} - Balance Details</DialogTitle>
+                    <DialogDescription>
+                        A detailed breakdown of transactions affecting this account's balance, which is currently {formatCurrency(account.balance)}.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="max-h-[60vh] overflow-y-auto">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Date</TableHead>
+                                <TableHead>Description</TableHead>
+                                <TableHead className="text-right">Amount</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {relevantTransactions.map(t => {
+                                const { amount, className } = getTransactionAmount(t);
+                                return (
+                                    <TableRow key={t.id}>
+                                        <TableCell>{format(new Date(t.date), 'dd/MM/yyyy')}</TableCell>
+                                        <TableCell className="font-medium">{t.description}</TableCell>
+                                        <TableCell className={cn("text-right font-mono", className)}>
+                                            {formatCurrency(amount)}
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            })}
+                        </TableBody>
+                    </Table>
+                </div>
+                <DialogFooter>
+                    <DialogClose asChild>
+                        <Button type="button">Close</Button>
+                    </DialogClose>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
 
 export function AccountList({ initialAccounts }: { initialAccounts: Omit<Account, 'id' | 'userId'>[] }) {
   const [rawAccounts, setRawAccounts] = useState<Omit<Account, 'balance'>[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
+  const [detailsAccount, setDetailsAccount] = useState<Account | null>(null);
   const [user, loading] = useAuthState(auth);
   const sensors = useSensors(useSensor(PointerSensor));
 
@@ -279,6 +368,11 @@ export function AccountList({ initialAccounts }: { initialAccounts: Omit<Account
     setIsEditDialogOpen(true);
   }
 
+  const openDetailsDialog = (account: Account) => {
+    setDetailsAccount(account);
+    setIsDetailsDialogOpen(true);
+  }
+
 
   if (loading) {
     return (
@@ -354,7 +448,7 @@ export function AccountList({ initialAccounts }: { initialAccounts: Omit<Account
           <SortableContext items={accountIds} strategy={rectSortingStrategy}>
             <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2">
               {accounts.map((account) => (
-                <SortableAccountCard key={account.id} account={account} onSetPrimary={handleSetPrimary} onEdit={openEditDialog} />
+                <SortableAccountCard key={account.id} account={account} onSetPrimary={handleSetPrimary} onEdit={openEditDialog} onSelect={openDetailsDialog} />
               ))}
             </div>
           </SortableContext>
@@ -401,6 +495,14 @@ export function AccountList({ initialAccounts }: { initialAccounts: Omit<Account
             </form>
         </DialogContent>
     </Dialog>
+    
+    {/* Account Details Dialog */}
+    <AccountDetailsDialog 
+        account={detailsAccount}
+        transactions={transactions}
+        isOpen={isDetailsDialogOpen}
+        onOpenChange={setIsDetailsDialogOpen}
+    />
     </>
   );
 }
