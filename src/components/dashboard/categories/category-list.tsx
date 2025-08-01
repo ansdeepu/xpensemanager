@@ -277,9 +277,9 @@ function SortableCategoryCard({
         <div ref={setNodeRef} style={style}>
             <Card className="flex flex-col">
                <CardHeader>
-                    <div className="flex items-center gap-3 w-full">
+                    <div className="flex items-center gap-3 w-full min-w-0">
                         <IconComponent className="h-6 w-6 text-muted-foreground mt-1 flex-shrink-0" />
-                        <CardTitle className="text-xl font-semibold leading-none tracking-tight flex-1 min-w-0" title={category.name}>
+                        <CardTitle className="text-xl font-semibold leading-none tracking-tight flex-1 truncate" title={category.name}>
                             {category.name}
                         </CardTitle>
                     </div>
