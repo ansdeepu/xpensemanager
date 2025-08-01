@@ -97,7 +97,6 @@ import { CSS } from '@dnd-kit/utilities';
 import { restrictToWindowEdges, restrictToVerticalAxis, restrictToFirstScrollableAncestor } from '@dnd-kit/modifiers';
 import { Badge, badgeVariants } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import * as XLSX from 'xlsx';
 import { useToast } from "@/hooks/use-toast";
 
@@ -255,13 +254,6 @@ function SortableCategoryCard({
     
     const IconComponent = iconComponents[category.icon] || Tag;
     const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
-
-    const subCategoryMap = useMemo(() => {
-        return category.subcategories.reduce((acc, sub, index) => {
-            acc[sub.id] = index;
-            return acc;
-        }, {} as Record<string, number>);
-    }, [category.subcategories]);
     
     const currentMonthName = months[new Date().getMonth()];
 
@@ -378,11 +370,11 @@ function SortableCategoryCard({
                                                 <div>
                                                     <h4 className="text-sm font-medium mb-2 text-muted-foreground">Monthly</h4>
                                                     <div className="flex flex-col gap-2">
-                                                        {monthlySubcategories.map((sub) => (
+                                                        {monthlySubcategories.map((sub, index) => (
                                                             <SortableSubCategoryItem 
                                                                 key={sub.id}
                                                                 subCategory={sub} 
-                                                                serialNumber={subCategoryMap[sub.id] + 1}
+                                                                serialNumber={index + 1}
                                                                 onEditSubCategory={() => onEditSubCategory(category, sub)}
                                                                 onDeleteSubCategory={() => onDeleteSubCategory(category, sub)}
                                                             />
@@ -394,11 +386,11 @@ function SortableCategoryCard({
                                                 <div>
                                                     <h4 className="text-sm font-medium my-2 text-muted-foreground">Occasional</h4>
                                                     <div className="flex flex-col gap-2">
-                                                        {occasionalSubcategories.map((sub) => (
+                                                        {occasionalSubcategories.map((sub, index) => (
                                                             <SortableSubCategoryItem 
                                                                 key={sub.id}
                                                                 subCategory={sub} 
-                                                                serialNumber={subCategoryMap[sub.id] + 1}
+                                                                serialNumber={monthlySubcategories.length + index + 1}
                                                                 onEditSubCategory={() => onEditSubCategory(category, sub)}
                                                                 onDeleteSubCategory={() => onDeleteSubCategory(category, sub)}
                                                             />
