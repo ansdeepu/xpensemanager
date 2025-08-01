@@ -156,13 +156,13 @@ function SortableSubCategoryItem({
 
     return (
         <div ref={setNodeRef} style={style} className={cn(badgeVariants({variant: "secondary"}), "relative flex justify-between items-start h-auto py-1 px-2.5 touch-none w-full gap-2")}>
-            <div className="flex items-start gap-2 flex-1 min-w-0">
+            <div className="flex items-start gap-2 flex-shrink min-w-0">
                 <div {...attributes} {...listeners} className="cursor-grab text-muted-foreground flex-shrink-0 pt-0.5">
                     <GripVertical className="h-4 w-4"/>
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className="flex-grow min-w-0">
                   <span className="font-mono text-xs text-muted-foreground mr-1">{index + 1}.</span>
-                  <span className="whitespace-normal break-words" title={subCategory.name}>{subCategory.name}</span>
+                  <span className="break-words" title={subCategory.name}>{subCategory.name}</span>
                 </div>
             </div>
             
