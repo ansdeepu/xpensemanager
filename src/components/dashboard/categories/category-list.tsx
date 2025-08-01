@@ -356,75 +356,73 @@ function SortableCategoryCard({
                     </div>
               </CardHeader>
               <CardContent className="p-6 pt-0">
-                <ScrollArea className="h-48">
-                    <div className="pr-4">
-                        <DndContext 
-                            sensors={sensors} 
-                            collisionDetection={closestCenter} 
-                            onDragEnd={handleDragEnd}
-                            modifiers={[restrictToVerticalAxis, restrictToFirstScrollableAncestor]}
-                        >
-                            <SortableContext items={allSubcategoryIds} strategy={verticalListSortingStrategy}>
-                                {category.subcategories.length > 0 ? (
-                                    <div className="space-y-4">
-                                        {categoryType === 'expense' ? (
-                                            <>
-                                                {monthlySubcategories.length > 0 && (
-                                                    <div>
-                                                        <h4 className="text-sm font-medium mb-2 text-muted-foreground">Monthly</h4>
-                                                        <div className="flex flex-col gap-2">
-                                                            {monthlySubcategories.map((sub) => (
-                                                                <SortableSubCategoryItem 
-                                                                    key={sub.id}
-                                                                    subCategory={sub} 
-                                                                    serialNumber={subCategoryMap[sub.id] + 1}
-                                                                    onEditSubCategory={() => onEditSubCategory(category, sub)}
-                                                                    onDeleteSubCategory={() => onDeleteSubCategory(category, sub)}
-                                                                />
-                                                            ))}
-                                                        </div>
+                <div className="h-48 overflow-y-auto pr-4">
+                    <DndContext 
+                        sensors={sensors} 
+                        collisionDetection={closestCenter} 
+                        onDragEnd={handleDragEnd}
+                        modifiers={[restrictToVerticalAxis, restrictToFirstScrollableAncestor]}
+                    >
+                        <SortableContext items={allSubcategoryIds} strategy={verticalListSortingStrategy}>
+                            {category.subcategories.length > 0 ? (
+                                <div className="space-y-4">
+                                    {categoryType === 'expense' ? (
+                                        <>
+                                            {monthlySubcategories.length > 0 && (
+                                                <div>
+                                                    <h4 className="text-sm font-medium mb-2 text-muted-foreground">Monthly</h4>
+                                                    <div className="flex flex-col gap-2">
+                                                        {monthlySubcategories.map((sub) => (
+                                                            <SortableSubCategoryItem 
+                                                                key={sub.id}
+                                                                subCategory={sub} 
+                                                                serialNumber={subCategoryMap[sub.id] + 1}
+                                                                onEditSubCategory={() => onEditSubCategory(category, sub)}
+                                                                onDeleteSubCategory={() => onDeleteSubCategory(category, sub)}
+                                                            />
+                                                        ))}
                                                     </div>
-                                                )}
-                                                {occasionalSubcategories.length > 0 && (
-                                                    <div>
-                                                        <h4 className="text-sm font-medium my-2 text-muted-foreground">Occasional</h4>
-                                                        <div className="flex flex-col gap-2">
-                                                            {occasionalSubcategories.map((sub) => (
-                                                                <SortableSubCategoryItem 
-                                                                    key={sub.id}
-                                                                    subCategory={sub} 
-                                                                    serialNumber={subCategoryMap[sub.id] + 1}
-                                                                    onEditSubCategory={() => onEditSubCategory(category, sub)}
-                                                                    onDeleteSubCategory={() => onDeleteSubCategory(category, sub)}
-                                                                />
-                                                            ))}
-                                                        </div>
+                                                </div>
+                                            )}
+                                            {occasionalSubcategories.length > 0 && (
+                                                <div>
+                                                    <h4 className="text-sm font-medium my-2 text-muted-foreground">Occasional</h4>
+                                                    <div className="flex flex-col gap-2">
+                                                        {occasionalSubcategories.map((sub) => (
+                                                            <SortableSubCategoryItem 
+                                                                key={sub.id}
+                                                                subCategory={sub} 
+                                                                serialNumber={subCategoryMap[sub.id] + 1}
+                                                                onEditSubCategory={() => onEditSubCategory(category, sub)}
+                                                                onDeleteSubCategory={() => onDeleteSubCategory(category, sub)}
+                                                            />
+                                                        ))}
                                                     </div>
-                                                )}
-                                            </>
-                                        ) : (
-                                            <div className="flex flex-col gap-2">
-                                                {category.subcategories.map((sub, index) => (
-                                                    <SortableSubCategoryItem 
-                                                        key={sub.id}
-                                                        subCategory={sub} 
-                                                        serialNumber={index + 1}
-                                                        onEditSubCategory={() => onEditSubCategory(category, sub)}
-                                                        onDeleteSubCategory={() => onDeleteSubCategory(category, sub)}
-                                                    />
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                ) : (
-                                    <div className="h-full flex items-center justify-center">
-                                        <p className="text-sm text-muted-foreground">No sub-categories yet.</p>
-                                    </div>
-                                )}
-                            </SortableContext>
-                        </DndContext>
-                      </div>
-                </ScrollArea>
+                                                </div>
+                                            )}
+                                        </>
+                                    ) : (
+                                        <div className="flex flex-col gap-2">
+                                            {category.subcategories.map((sub, index) => (
+                                                <SortableSubCategoryItem 
+                                                    key={sub.id}
+                                                    subCategory={sub} 
+                                                    serialNumber={index + 1}
+                                                    onEditSubCategory={() => onEditSubCategory(category, sub)}
+                                                    onDeleteSubCategory={() => onDeleteSubCategory(category, sub)}
+                                                />
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="h-full flex items-center justify-center">
+                                    <p className="text-sm text-muted-foreground">No sub-categories yet.</p>
+                                </div>
+                            )}
+                        </SortableContext>
+                    </DndContext>
+                  </div>
                 </CardContent>
                <CardFooter className="pt-4 border-t mt-auto">
                     <Button variant="outline" className="w-full" onClick={() => onAddSubCategory(category)}>
