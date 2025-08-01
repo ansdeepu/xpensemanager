@@ -164,42 +164,44 @@ function SortableSubCategoryItem({
                 <span className="truncate flex-1" title={subCategory.name}>{subCategory.name}</span>
             </div>
             
-            <div className="flex items-center flex-shrink-0 pl-2">
+             <div className="flex items-center gap-2 flex-shrink-0 pl-2">
                 {subCategory.amount !== undefined && (
-                  <span className="font-mono text-xs text-muted-foreground mr-2">{formatCurrency(subCategory.amount)}</span>
+                  <span className="font-mono text-xs text-muted-foreground">{formatCurrency(subCategory.amount)}</span>
                 )}
-                 <Tooltip>
-                    <TooltipTrigger asChild>
-                        <button onClick={onEditSubCategory} className="p-0.5 hover:text-foreground rounded-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-                            <Pencil className="h-3.5 w-3.5"/>
-                        </button>
-                    </TooltipTrigger>
-                    <TooltipContent>Edit Sub-category</TooltipContent>
-                </Tooltip>
-                <AlertDialog>
+                <div className="flex items-center">
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <AlertDialogTrigger asChild>
-                                <button className="p-0.5 hover:text-destructive rounded-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-                                    <Trash2 className="h-3.5 w-3.5"/>
-                                </button>
-                            </AlertDialogTrigger>
+                            <button onClick={onEditSubCategory} className="p-0.5 hover:text-foreground rounded-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+                                <Pencil className="h-3.5 w-3.5"/>
+                            </button>
                         </TooltipTrigger>
-                         <TooltipContent>Delete Sub-category</TooltipContent>
+                        <TooltipContent>Edit Sub-category</TooltipContent>
                     </Tooltip>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                This will permanently delete the "{subCategory.name}" subcategory. This action cannot be undone.
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={onDeleteSubCategory} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
+                    <AlertDialog>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <AlertDialogTrigger asChild>
+                                    <button className="p-0.5 hover:text-destructive rounded-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+                                        <Trash2 className="h-3.5 w-3.5"/>
+                                    </button>
+                                </AlertDialogTrigger>
+                            </TooltipTrigger>
+                            <TooltipContent>Delete Sub-category</TooltipContent>
+                        </Tooltip>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This will permanently delete the "{subCategory.name}" subcategory. This action cannot be undone.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={onDeleteSubCategory} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                </div>
             </div>
         </div>
     );
@@ -275,52 +277,54 @@ function SortableCategoryCard({
         <div ref={setNodeRef} style={style}>
             <Card className="flex flex-col">
                <CardHeader>
-                <div className="flex items-start gap-3 w-full">
-                  <IconComponent className="h-6 w-6 text-muted-foreground mt-1 flex-shrink-0" />
-                  <CardTitle className="truncate flex-1" title={category.name}>{category.name}</CardTitle>
-                </div>
-                <div className="flex items-center justify-between w-full pt-2">
-                    {totalAmount > 0 && (
-                        <CardDescription>{formatCurrency(totalAmount)}</CardDescription>
-                    )}
-                    <div className="flex items-center gap-0.5 flex-shrink-0 border rounded-md p-0.5 ml-auto">
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEditCategory(category)}>
-                                <Pencil className="h-4 w-4" />
-                            </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Edit Category</TooltipContent>
-                        </Tooltip>
-                        <AlertDialog>
+                    <div className="flex items-start gap-3 w-full">
+                        <IconComponent className="h-6 w-6 text-muted-foreground mt-1 flex-shrink-0" />
+                        <CardTitle className="text-xl font-semibold leading-none tracking-tight flex-1 min-w-0" title={category.name}>
+                            {category.name}
+                        </CardTitle>
+                    </div>
+                    <div className="flex items-center justify-between w-full pt-2">
+                        {totalAmount > 0 && (
+                            <CardDescription>{formatCurrency(totalAmount)}</CardDescription>
+                        )}
+                        <div className="flex items-center gap-0.5 flex-shrink-0 border rounded-md p-0.5 ml-auto">
                             <Tooltip>
                                 <TooltipTrigger asChild>
-                                <AlertDialogTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-7 w-7">
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                </AlertDialogTrigger>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEditCategory(category)}>
+                                    <Pencil className="h-4 w-4" />
+                                </Button>
                                 </TooltipTrigger>
-                                <TooltipContent>Delete Category</TooltipContent>
+                                <TooltipContent>Edit Category</TooltipContent>
                             </Tooltip>
-                            <AlertDialogContent>
-                                <AlertDialogHeader>
-                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                    This will permanently delete the "{category.name}" category and all its subcategories. This action cannot be undone.
-                                </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => onDeleteCategory(category.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                                </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
-                        <div {...attributes} {...listeners} className="touch-none p-1.5 cursor-grab text-muted-foreground hover:text-foreground">
-                            <GripVertical className="h-5 w-5" />
+                            <AlertDialog>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                    <AlertDialogTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-7 w-7">
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Delete Category</TooltipContent>
+                                </Tooltip>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        This will permanently delete the "{category.name}" category and all its subcategories. This action cannot be undone.
+                                    </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => onDeleteCategory(category.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                            <div {...attributes} {...listeners} className="touch-none p-1.5 cursor-grab text-muted-foreground hover:text-foreground">
+                                <GripVertical className="h-5 w-5" />
+                            </div>
                         </div>
                     </div>
-                </div>
               </CardHeader>
                 <CardContent className="p-0">
                     <ScrollArea className="h-48 w-full p-6 pt-0">
