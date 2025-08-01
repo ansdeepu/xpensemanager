@@ -139,14 +139,9 @@ export function TransactionTable({
 
    useEffect(() => {
     if (user && db) {
-      const accountsQuery = query(collection(db, "accounts"), where("userId", "==", user.uid));
+      const accountsQuery = query(collection(db, "accounts"), where("userId", "==", user.uid), orderBy("order", "asc"));
       const unsubscribeAccounts = onSnapshot(accountsQuery, (snapshot) => {
         const userAccounts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Account));
-        userAccounts.sort((a, b) => {
-          if (a.isPrimary && !b.isPrimary) return -1;
-          if (!a.isPrimary && b.isPrimary) return 1;
-          return 0;
-        });
         setAccounts(userAccounts);
       });
 
@@ -389,8 +384,6 @@ export function TransactionTable({
     setIsEditDialogOpen(true);
   };
   
-  const uniqueAccounts = [...new Map(accounts.map(item => [item.id, item])).values()];
-
   const getBadgeVariant = (type: Transaction['type']) => {
     switch (type) {
       case 'income':
@@ -428,6 +421,8 @@ export function TransactionTable({
   const handlePrint = () => {
     window.print();
   }
+
+  const primaryAccount = useMemo(() => accounts.find(a => a.isPrimary), [accounts]);
 
   return (
     <>
@@ -567,13 +562,13 @@ export function TransactionTable({
                       <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
                             <Label htmlFor="expense-account">Payment Method</Label>
-                            <Select name="expense-account" required defaultValue={accounts.find(a => a.isPrimary)?.id}>
+                            <Select name="expense-account" required defaultValue={primaryAccount?.id}>
                               <SelectTrigger id="expense-account">
                                 <SelectValue placeholder="Select account" />
                               </SelectTrigger>
                               <SelectContent>
                                   <SelectItem value="wallet">Wallet ({formatCurrency(walletBalance)})</SelectItem>
-                                  {uniqueAccounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
+                                  {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
                               </SelectContent>
                             </Select>
                           </div>
@@ -640,12 +635,12 @@ export function TransactionTable({
                       <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
                             <Label htmlFor="income-account">Bank Account</Label>
-                            <Select name="income-account" required defaultValue={accounts.find(a => a.isPrimary)?.id}>
+                            <Select name="income-account" required defaultValue={primaryAccount?.id}>
                               <SelectTrigger id="income-account">
                                 <SelectValue placeholder="Select account" />
                               </SelectTrigger>
                               <SelectContent>
-                                {uniqueAccounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
+                                {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
                               </SelectContent>
                             </Select>
                           </div>
@@ -688,13 +683,13 @@ export function TransactionTable({
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor="transfer-from">From Account</Label>
-                                <Select name="transfer-from" required defaultValue={accounts.find(a => a.isPrimary)?.id}>
+                                <Select name="transfer-from" required defaultValue={primaryAccount?.id}>
                                     <SelectTrigger id="transfer-from">
                                         <SelectValue placeholder="Select account" />
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="wallet">Wallet ({formatCurrency(walletBalance)})</SelectItem>
-                                        {uniqueAccounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
+                                        {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -706,7 +701,7 @@ export function TransactionTable({
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="wallet">Wallet</SelectItem>
-                                        {uniqueAccounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
+                                        {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -875,7 +870,7 @@ export function TransactionTable({
                                 </SelectTrigger>
                                 <SelectContent>
                                     {selectedTransaction?.type === 'expense' && <SelectItem value="wallet">Wallet ({formatCurrency(walletBalance)})</SelectItem>}
-                                    {uniqueAccounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
+                                    {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         </div>
@@ -889,7 +884,7 @@ export function TransactionTable({
                                     <SelectTrigger id="edit-from-account"><SelectValue /></SelectTrigger>
                                     <SelectContent>
                                       <SelectItem value="wallet">Wallet ({formatCurrency(walletBalance)})</SelectItem>
-                                      {uniqueAccounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
+                                      {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -899,7 +894,7 @@ export function TransactionTable({
                                     <SelectTrigger id="edit-to-account"><SelectValue /></SelectTrigger>
                                     <SelectContent>
                                       <SelectItem value="wallet">Wallet</SelectItem>
-                                      {uniqueAccounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
+                                      {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                             </div>
