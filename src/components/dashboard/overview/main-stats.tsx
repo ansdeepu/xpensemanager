@@ -23,6 +23,7 @@ import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
 import type { Transaction, Account } from "@/lib/data";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const formatCurrency = (amount: number) => {
     // Return 0 if the amount is not a number or is 0, to avoid displaying "-₹0.00"
@@ -124,6 +125,24 @@ export function MainStats() {
         return acc;
     }, { income: 0, expenses: 0, balance: 0 });
   }, [accountStats]);
+
+  if (loading) {
+    return (
+        <Card className="lg:col-span-3">
+             <CardHeader>
+                <CardTitle>Financial Summary</CardTitle>
+                <CardDescription>A summary of your income, expenses and current balance for each account.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="space-y-4">
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                </div>
+            </CardContent>
+        </Card>
+    )
+  }
 
   return (
     <Card className="lg:col-span-3">

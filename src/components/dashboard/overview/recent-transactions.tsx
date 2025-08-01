@@ -16,11 +16,13 @@ import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, orderBy, limit } from "firebase/firestore";
 import type { Transaction, Account } from "@/lib/data";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function RecentTransactions() {
   const [user] = useAuthState(auth);
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (user && db) {
@@ -37,12 +39,15 @@ export function RecentTransactions() {
       );
       const unsubscribeTransactions = onSnapshot(transactionsQuery, (snapshot) => {
         setRecentTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction)));
+        setLoading(false);
       });
 
       return () => {
         unsubscribeAccounts();
         unsubscribeTransactions();
       };
+    } else if (!user) {
+        setLoading(false);
     }
   }, [user, db]);
 
@@ -70,6 +75,33 @@ export function RecentTransactions() {
       return <TrendingUp className={cn(iconClass, "text-green-500")} />;
     }
     return <TrendingDown className={cn(iconClass, "text-red-500")} />;
+  }
+
+  if (loading) {
+    return (
+        <Card className="lg:col-span-3">
+             <CardHeader>
+                <CardTitle>Recent Transactions</CardTitle>
+                <CardDescription>
+                    A quick look at your latest financial activities.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="space-y-4">
+                    {[...Array(5)].map((_, i) => (
+                        <div key={i} className="flex items-center gap-4">
+                            <Skeleton className="h-9 w-9 rounded-full" />
+                            <div className="flex-1 space-y-2">
+                                <Skeleton className="h-4 w-3/4" />
+                                <Skeleton className="h-3 w-1/2" />
+                            </div>
+                            <Skeleton className="h-5 w-1/4" />
+                        </div>
+                    ))}
+                </div>
+            </CardContent>
+        </Card>
+    );
   }
 
   return (
