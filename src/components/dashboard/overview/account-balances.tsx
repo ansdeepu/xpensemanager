@@ -15,12 +15,15 @@ import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
 import type { Account, Transaction } from "@/lib/data";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AccountDetailsDialog } from "@/components/dashboard/account-details-dialog";
 
 export function AccountBalances() {
   const [user] = useAuthState(auth);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const [selectedAccountForDetails, setSelectedAccountForDetails] = useState<Account | { id: 'wallet', name: string, balance: number } | null>(null);
 
   useEffect(() => {
     if (user && db) {
@@ -44,26 +47,26 @@ export function AccountBalances() {
     }
   }, [user, db]);
 
-    const walletBalance = useMemo(() => {
-        const income = transactions
-            .filter(t => t.type === 'transfer' && t.toAccountId === 'wallet')
-            .reduce((sum, t) => sum + t.amount, 0);
+  const walletBalance = useMemo(() => {
+    const income = transactions
+        .filter(t => t.type === 'transfer' && t.toAccountId === 'wallet')
+        .reduce((sum, t) => sum + t.amount, 0);
 
-        const expenses = transactions
-            .filter(t => t.type === 'expense' && t.paymentMethod === 'wallet')
-            .reduce((sum, t) => sum + t.amount, 0);
-            
-        const transfersOut = transactions
-            .filter(t => t.type === 'transfer' && t.fromAccountId === 'wallet')
-            .reduce((sum, t) => sum + t.amount, 0);
+    const expenses = transactions
+        .filter(t => t.type === 'expense' && t.paymentMethod === 'wallet')
+        .reduce((sum, t) => sum + t.amount, 0);
+        
+    const transfersOut = transactions
+        .filter(t => t.type === 'transfer' && t.fromAccountId === 'wallet')
+        .reduce((sum, t) => sum + t.amount, 0);
 
-        return income - expenses - transfersOut;
-    }, [transactions]);
+    return income - expenses - transfersOut;
+  }, [transactions]);
 
   const calculatedBalances = useMemo(() => {
     const balances: { [key: string]: number } = {};
     accounts.forEach(acc => {
-        balances[acc.id] = 0; // Start with 0
+        balances[acc.id] = 0;
     });
 
     transactions.forEach(t => {
@@ -91,6 +94,22 @@ export function AccountBalances() {
     }).format(amount);
   };
 
+  const handleAccountClick = (account: Account | 'wallet') => {
+    if (account === 'wallet') {
+        setSelectedAccountForDetails({
+            id: 'wallet',
+            name: 'Wallet',
+            balance: walletBalance
+        });
+    } else {
+         setSelectedAccountForDetails({
+            ...account,
+            balance: calculatedBalances[account.id] ?? 0
+        });
+    }
+    setIsDetailsDialogOpen(true);
+  };
+
   if (loading) {
       return (
           <Card>
@@ -110,14 +129,15 @@ export function AccountBalances() {
   }
 
   return (
+    <>
     <Card>
         <CardHeader>
             <CardTitle>Account Balances</CardTitle>
-            <CardDescription>Your current balance across all your accounts and wallet.</CardDescription>
+            <CardDescription>Click any account to see a detailed balance breakdown.</CardDescription>
         </CardHeader>
         <CardContent>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-                 <div className="flex items-center gap-4 rounded-lg border p-4">
+                 <div className="flex items-center gap-4 rounded-lg border p-4 cursor-pointer hover:bg-muted/50" onClick={() => handleAccountClick('wallet')}>
                     <Wallet className="h-8 w-8 text-muted-foreground" />
                     <div>
                         <div className="font-medium">Wallet</div>
@@ -125,7 +145,7 @@ export function AccountBalances() {
                     </div>
                 </div>
                 {accounts.map(account => (
-                    <div key={account.id} className="flex items-center gap-4 rounded-lg border p-4">
+                    <div key={account.id} className="flex items-center gap-4 rounded-lg border p-4 cursor-pointer hover:bg-muted/50" onClick={() => handleAccountClick(account)}>
                         <Landmark className="h-8 w-8 text-muted-foreground" />
                         <div>
                             <div className="font-medium">{account.name}</div>
@@ -136,5 +156,13 @@ export function AccountBalances() {
             </div>
         </CardContent>
     </Card>
+
+    <AccountDetailsDialog
+        account={selectedAccountForDetails}
+        transactions={transactions}
+        isOpen={isDetailsDialogOpen}
+        onOpenChange={setIsDetailsDialogOpen}
+    />
+    </>
   );
 }
