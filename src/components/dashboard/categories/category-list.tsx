@@ -155,19 +155,19 @@ function SortableSubCategoryItem({
     };
 
     return (
-        <div ref={setNodeRef} style={style} className={cn(badgeVariants({variant: "secondary"}), "group relative flex justify-between items-center h-auto py-1 px-2.5 touch-none w-full")}>
+        <div ref={setNodeRef} style={style} className={cn(badgeVariants({variant: "secondary"}), "group relative flex items-center h-auto py-1 px-2.5 touch-none w-full")}>
             <div className="flex items-center gap-2 flex-1 min-w-0">
                 <div {...attributes} {...listeners} className="cursor-grab text-muted-foreground flex-shrink-0">
                     <GripVertical className="h-4 w-4"/>
                 </div>
                 <span className="font-mono text-xs text-muted-foreground flex-shrink-0">{index + 1}.</span>
-                <span className="truncate" title={subCategory.name}>{subCategory.name}</span>
-                {subCategory.amount !== undefined && (
-                  <span className="font-mono text-xs text-muted-foreground ml-auto pl-2 flex-shrink-0">{formatCurrency(subCategory.amount)}</span>
-                )}
+                <span className="truncate flex-1" title={subCategory.name}>{subCategory.name}</span>
             </div>
-
+            
             <div className="flex items-center flex-shrink-0 pl-2">
+                {subCategory.amount !== undefined && (
+                  <span className="font-mono text-xs text-muted-foreground mr-2">{formatCurrency(subCategory.amount)}</span>
+                )}
                  <Tooltip>
                     <TooltipTrigger asChild>
                         <button onClick={onEditSubCategory} className="p-0.5 hover:text-foreground rounded-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
