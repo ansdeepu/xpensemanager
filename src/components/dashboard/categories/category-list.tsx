@@ -877,7 +877,7 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'inco
           modifiers={[restrictToWindowEdges]}
         >
           <SortableContext items={categoryIds} strategy={rectSortingStrategy}>
-              <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2">
                   {categories.map((category) => (
                       <SortableCategoryCard 
                           key={category.id} 
