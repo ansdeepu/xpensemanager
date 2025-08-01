@@ -305,7 +305,7 @@ function SortableCategoryCard({
                          <div className="flex items-start gap-3 flex-1 min-w-0">
                             <IconComponent className="h-6 w-6 text-muted-foreground mt-1 flex-shrink-0" />
                             <div className="flex-1 min-w-0">
-                                <CardTitle className="text-xl font-semibold leading-none tracking-tight break-all">
+                                <CardTitle className="text-xl font-semibold leading-none tracking-tight break-words">
                                     {category.name}
                                 </CardTitle>
                             </div>
