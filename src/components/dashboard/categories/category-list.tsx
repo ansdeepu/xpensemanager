@@ -132,12 +132,10 @@ const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 
 function SortableSubCategoryItem({ 
   subCategory, 
-  index,
   onEditSubCategory,
   onDeleteSubCategory
 }: { 
   subCategory: SubCategory,
-  index: number,
   onEditSubCategory: () => void,
   onDeleteSubCategory: () => void
 }) {
@@ -157,14 +155,14 @@ function SortableSubCategoryItem({
     };
 
     return (
-        <div ref={setNodeRef} style={style} className={cn(badgeVariants({variant: "secondary"}), "relative flex justify-between items-start h-auto py-1 px-2.5 touch-none w-full gap-2")}>
-            <div className="flex items-start gap-2 flex-shrink min-w-0">
+        <div ref={setNodeRef} style={style} className={cn(badgeVariants({variant: "secondary"}), "relative flex justify-between items-start h-auto py-1.5 px-2.5 touch-none w-full gap-2")}>
+            {/* Left side: Drag Handle & Name */}
+            <div className="flex items-start gap-2 flex-1 min-w-0">
                 <div {...attributes} {...listeners} className="cursor-grab text-muted-foreground flex-shrink-0 pt-0.5">
                     <GripVertical className="h-4 w-4"/>
                 </div>
                 <div className="flex-grow min-w-0">
-                  <span className="font-mono text-xs text-muted-foreground mr-1">{index + 1}.</span>
-                  <span className="break-words" title={subCategory.name}>{subCategory.name}</span>
+                  <span className="break-words">{subCategory.name}</span>
                    {subCategory.frequency === 'occasional' && subCategory.selectedMonths && subCategory.selectedMonths.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-1">
                           {subCategory.selectedMonths.map(month => (
@@ -175,9 +173,10 @@ function SortableSubCategoryItem({
                 </div>
             </div>
             
-             <div className="flex items-center gap-2 flex-shrink-0 pl-2 pt-0.5">
+            {/* Right side: Amount & Buttons */}
+            <div className="flex items-center gap-2 flex-shrink-0 pl-2 pt-0.5">
                 {subCategory.amount !== undefined && (
-                  <span className="font-mono text-xs text-muted-foreground">{formatCurrency(subCategory.amount)}</span>
+                  <span className="font-mono text-xs text-muted-foreground whitespace-nowrap">{formatCurrency(subCategory.amount)}</span>
                 )}
                 <div className="flex items-center">
                     <Tooltip>
@@ -359,10 +358,9 @@ function SortableCategoryCard({
                                                     <div>
                                                         <h4 className="text-sm font-medium mb-2 text-muted-foreground">Monthly</h4>
                                                         <div className="flex flex-col gap-2">
-                                                            {monthlySubcategories.map((sub, index) => (
+                                                            {monthlySubcategories.map((sub) => (
                                                                 <SortableSubCategoryItem 
                                                                     key={sub.id}
-                                                                    index={index}
                                                                     subCategory={sub} 
                                                                     onEditSubCategory={() => onEditSubCategory(category, sub)}
                                                                     onDeleteSubCategory={() => onDeleteSubCategory(category, sub)}
@@ -375,10 +373,9 @@ function SortableCategoryCard({
                                                     <div>
                                                          <h4 className="text-sm font-medium my-2 text-muted-foreground">Occasional</h4>
                                                          <div className="flex flex-col gap-2">
-                                                            {occasionalSubcategories.map((sub, index) => (
+                                                            {occasionalSubcategories.map((sub) => (
                                                                 <SortableSubCategoryItem 
                                                                     key={sub.id}
-                                                                    index={monthlySubcategories.length + index}
                                                                     subCategory={sub} 
                                                                     onEditSubCategory={() => onEditSubCategory(category, sub)}
                                                                     onDeleteSubCategory={() => onDeleteSubCategory(category, sub)}
@@ -390,10 +387,9 @@ function SortableCategoryCard({
                                             </>
                                         ) : (
                                             <div className="flex flex-col gap-2">
-                                                {category.subcategories.map((sub, index) => (
+                                                {category.subcategories.map((sub) => (
                                                     <SortableSubCategoryItem 
                                                         key={sub.id}
-                                                        index={index}
                                                         subCategory={sub} 
                                                         onEditSubCategory={() => onEditSubCategory(category, sub)}
                                                         onDeleteSubCategory={() => onDeleteSubCategory(category, sub)}
@@ -585,6 +581,8 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'inco
         newSubCategory.frequency = addFrequency;
         if (addFrequency === 'occasional') {
             newSubCategory.selectedMonths = addSelectedMonths;
+        } else {
+            delete newSubCategory.selectedMonths;
         }
         const amount = parseFloat(formData.get("amount") as string);
         if (!isNaN(amount) && amount >= 0) {
