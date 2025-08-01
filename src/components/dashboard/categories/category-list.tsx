@@ -669,7 +669,9 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'inco
      if (!user) return;
      try {
         const categoryRef = doc(db, "categories", category.id);
-        const newSubcategories = (category.subcategories || []).filter(sub => sub.id !== subCategoryToDelete.id).map((sub, index) => ({...sub, order: index}));
+        const newSubcategories = (category.subcategories || [])
+            .filter(sub => sub.id !== subCategoryToDelete.id)
+            .map((sub, index) => ({...sub, order: index})); // Re-assign order
         await updateDoc(categoryRef, { subcategories: newSubcategories });
      } catch (error) {
      }
