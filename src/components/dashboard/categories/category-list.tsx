@@ -155,15 +155,15 @@ function SortableSubCategoryItem({
     };
 
     return (
-        <div ref={setNodeRef} style={style} className={cn(badgeVariants({variant: "secondary"}), "group relative flex justify-between items-center h-auto py-1 px-2.5 touch-none w-full sm:w-auto")}>
-            <div className="flex items-center gap-2 flex-1 overflow-hidden">
-                <div {...attributes} {...listeners} className="cursor-grab text-muted-foreground">
-                    <GripVertical className="h-4 w-4 flex-shrink-0"/>
+        <div ref={setNodeRef} style={style} className={cn(badgeVariants({variant: "secondary"}), "group relative flex justify-between items-center h-auto py-1 px-2.5 touch-none w-full")}>
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+                <div {...attributes} {...listeners} className="cursor-grab text-muted-foreground flex-shrink-0">
+                    <GripVertical className="h-4 w-4"/>
                 </div>
-                <span className="font-mono text-xs text-muted-foreground">{index + 1}.</span>
+                <span className="font-mono text-xs text-muted-foreground flex-shrink-0">{index + 1}.</span>
                 <span className="truncate" title={subCategory.name}>{subCategory.name}</span>
-                {subCategory.amount && subCategory.amount > 0 && (
-                  <span className="font-mono text-xs text-muted-foreground">{formatCurrency(subCategory.amount)}</span>
+                {subCategory.amount !== undefined && (
+                  <span className="font-mono text-xs text-muted-foreground ml-auto pl-2 flex-shrink-0">{formatCurrency(subCategory.amount)}</span>
                 )}
             </div>
 
@@ -521,7 +521,7 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'inco
     if (categoryType === 'expense') {
         newSubCategory.frequency = formData.get("frequency") as 'monthly' | 'occasional' || 'occasional';
         const amount = parseFloat(formData.get("amount") as string);
-        if (!isNaN(amount) && amount > 0) {
+        if (!isNaN(amount) && amount >= 0) {
             newSubCategory.amount = amount;
         }
     }
@@ -552,7 +552,7 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'inco
             if (categoryType === 'expense') {
                 updatedSub.frequency = formData.get("frequency") as 'monthly' | 'occasional' || 'occasional';
                 const newAmount = parseFloat(formData.get("amount") as string);
-                if (!isNaN(newAmount) && newAmount > 0) {
+                if (!isNaN(newAmount) && newAmount >= 0) {
                     updatedSub.amount = newAmount;
                 } else {
                     delete updatedSub.amount;
