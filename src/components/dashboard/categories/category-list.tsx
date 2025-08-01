@@ -339,8 +339,8 @@ function SortableCategoryCard({
                         </div>
                     </div>
               </CardHeader>
-                <CardContent className="p-0">
-                    <ScrollArea className="h-48 w-full p-6 pt-0">
+                <CardContent className="p-6 pt-0">
+                    <div className="h-48 overflow-y-auto pr-2">
                          <DndContext 
                             sensors={sensors} 
                             collisionDetection={closestCenter} 
@@ -397,13 +397,13 @@ function SortableCategoryCard({
                                         )}
                                     </div>
                                 ) : (
-                                    <div className="h-20 flex items-center justify-center">
+                                    <div className="h-full flex items-center justify-center">
                                         <p className="text-sm text-muted-foreground">No sub-categories yet.</p>
                                     </div>
                                 )}
                             </SortableContext>
                          </DndContext>
-                    </ScrollArea>
+                    </div>
                 </CardContent>
                <CardFooter className="pt-4 border-t mt-auto">
                     <Button variant="outline" className="w-full" onClick={() => onAddSubCategory(category)}>
