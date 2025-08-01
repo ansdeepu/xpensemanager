@@ -262,15 +262,22 @@ function SortableCategoryCard({
             return acc;
         }, {} as Record<string, number>);
     }, [category.subcategories]);
+    
+    const currentMonthName = months[new Date().getMonth()];
 
-    const monthlySubcategories = useMemo(
-        () => category.subcategories.filter(s => s.frequency === 'monthly'), 
-        [category.subcategories]
-    );
-    const occasionalSubcategories = useMemo(
-        () => category.subcategories.filter(s => s.frequency !== 'monthly'), 
-        [category.subcategories]
-    );
+    const monthlySubcategories = useMemo(() => {
+        return category.subcategories.filter(s => 
+            s.frequency === 'monthly' || 
+            (s.frequency === 'occasional' && s.selectedMonths?.includes(currentMonthName))
+        );
+    }, [category.subcategories, currentMonthName]);
+
+    const occasionalSubcategories = useMemo(() => {
+        return category.subcategories.filter(s => 
+            s.frequency === 'occasional' && !s.selectedMonths?.includes(currentMonthName)
+        );
+    }, [category.subcategories, currentMonthName]);
+
     const allSubcategoryIds = useMemo(() => category.subcategories.map(s => s.id), [category.subcategories]);
 
     const handleDragEnd = (event: DragEndEvent) => {
@@ -285,7 +292,6 @@ function SortableCategoryCard({
     }
     
     const totalAmount = useMemo(() => {
-        const currentMonthName = months[new Date().getMonth()];
         if (categoryType === 'expense') {
             return category.subcategories
                 .filter(sub => 
@@ -295,7 +301,7 @@ function SortableCategoryCard({
                 .reduce((total, sub) => total + (sub.amount || 0), 0);
         }
         return category.subcategories.reduce((total, sub) => total + (sub.amount || 0), 0);
-    }, [category.subcategories, categoryType]);
+    }, [category.subcategories, categoryType, currentMonthName]);
 
     return (
         <div ref={setNodeRef} style={style}>
