@@ -155,7 +155,7 @@ function SortableSubCategoryItem({
     };
 
     return (
-        <div ref={setNodeRef} style={style} className={cn(badgeVariants({variant: "secondary"}), "group relative flex items-center h-auto py-1 px-2.5 touch-none w-full")}>
+        <div ref={setNodeRef} style={style} className={cn(badgeVariants({variant: "secondary"}), "group relative flex items-center justify-between h-auto py-1 px-2.5 touch-none w-full")}>
             <div className="flex items-center gap-2 flex-1 min-w-0">
                 <div {...attributes} {...listeners} className="cursor-grab text-muted-foreground flex-shrink-0">
                     <GripVertical className="h-4 w-4"/>
@@ -274,52 +274,52 @@ function SortableCategoryCard({
     return (
         <div ref={setNodeRef} style={style}>
             <Card className="flex flex-col">
-               <CardHeader className="flex flex-row items-start justify-between">
-                <div className="flex items-start gap-3 flex-1 min-w-0">
+               <CardHeader>
+                <div className="flex items-start gap-3 w-full">
                   <IconComponent className="h-6 w-6 text-muted-foreground mt-1 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <CardTitle className="truncate" title={category.name}>{category.name}</CardTitle>
-                     {totalAmount > 0 && (
+                  <CardTitle className="truncate flex-1" title={category.name}>{category.name}</CardTitle>
+                </div>
+                <div className="flex items-center justify-between w-full pt-2">
+                    {totalAmount > 0 && (
                         <CardDescription>{formatCurrency(totalAmount)}</CardDescription>
                     )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-0.5 flex-shrink-0 border rounded-md p-0.5 ml-2">
-                   <Tooltip>
-                    <TooltipTrigger asChild>
-                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEditCategory(category)}>
-                          <Pencil className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Edit Category</TooltipContent>
-                  </Tooltip>
-                  <AlertDialog>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-7 w-7">
-                                  <Trash2 className="h-4 w-4" />
-                              </Button>
-                          </AlertDialogTrigger>
-                        </TooltipTrigger>
-                        <TooltipContent>Delete Category</TooltipContent>
-                      </Tooltip>
-                      <AlertDialogContent>
-                          <AlertDialogHeader>
-                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                              This will permanently delete the "{category.name}" category and all its subcategories. This action cannot be undone.
-                          </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => onDeleteCategory(category.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                          </AlertDialogFooter>
-                      </AlertDialogContent>
-                  </AlertDialog>
-                  <div {...attributes} {...listeners} className="touch-none p-1.5 cursor-grab text-muted-foreground hover:text-foreground">
-                      <GripVertical className="h-5 w-5" />
-                  </div>
+                    <div className="flex items-center gap-0.5 flex-shrink-0 border rounded-md p-0.5 ml-auto">
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEditCategory(category)}>
+                                <Pencil className="h-4 w-4" />
+                            </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Edit Category</TooltipContent>
+                        </Tooltip>
+                        <AlertDialog>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-7 w-7">
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </AlertDialogTrigger>
+                                </TooltipTrigger>
+                                <TooltipContent>Delete Category</TooltipContent>
+                            </Tooltip>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This will permanently delete the "{category.name}" category and all its subcategories. This action cannot be undone.
+                                </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => onDeleteCategory(category.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                        <div {...attributes} {...listeners} className="touch-none p-1.5 cursor-grab text-muted-foreground hover:text-foreground">
+                            <GripVertical className="h-5 w-5" />
+                        </div>
+                    </div>
                 </div>
               </CardHeader>
                 <CardContent className="p-0">
