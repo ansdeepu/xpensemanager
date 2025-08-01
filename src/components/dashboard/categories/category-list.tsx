@@ -273,9 +273,13 @@ function SortableCategoryCard({
     }
     
     const totalAmount = useMemo(() => {
+        const currentMonthName = months[new Date().getMonth()];
         if (categoryType === 'expense') {
             return category.subcategories
-                .filter(sub => sub.frequency === 'monthly')
+                .filter(sub => 
+                    sub.frequency === 'monthly' || 
+                    (sub.frequency === 'occasional' && sub.selectedMonths?.includes(currentMonthName))
+                )
                 .reduce((total, sub) => total + (sub.amount || 0), 0);
         }
         return category.subcategories.reduce((total, sub) => total + (sub.amount || 0), 0);
@@ -1011,5 +1015,3 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'inco
     </TooltipProvider>
   );
 }
-
-    
