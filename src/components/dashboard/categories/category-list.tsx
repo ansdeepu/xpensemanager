@@ -155,16 +155,16 @@ function SortableSubCategoryItem({
     };
 
     return (
-        <div ref={setNodeRef} style={style} className={cn(badgeVariants({variant: "secondary"}), "group relative flex items-center justify-between h-auto py-1 px-2.5 touch-none w-full")}>
-            <div className="flex items-center gap-2 flex-1 min-w-0">
-                <div {...attributes} {...listeners} className="cursor-grab text-muted-foreground flex-shrink-0">
+        <div ref={setNodeRef} style={style} className={cn(badgeVariants({variant: "secondary"}), "group relative flex items-start justify-between h-auto py-1 px-2.5 touch-none w-full gap-2")}>
+            <div className="flex items-start gap-2 flex-1 min-w-0">
+                <div {...attributes} {...listeners} className="cursor-grab text-muted-foreground flex-shrink-0 pt-0.5">
                     <GripVertical className="h-4 w-4"/>
                 </div>
-                <span className="font-mono text-xs text-muted-foreground flex-shrink-0">{index + 1}.</span>
-                <span className="truncate flex-1" title={subCategory.name}>{subCategory.name}</span>
+                <span className="font-mono text-xs text-muted-foreground flex-shrink-0 pt-1">{index + 1}.</span>
+                <span className="whitespace-normal break-words flex-1" title={subCategory.name}>{subCategory.name}</span>
             </div>
             
-             <div className="flex items-center gap-2 flex-shrink-0 pl-2">
+             <div className="flex items-center gap-2 flex-shrink-0 pl-2 pt-0.5">
                 {subCategory.amount !== undefined && (
                   <span className="font-mono text-xs text-muted-foreground">{formatCurrency(subCategory.amount)}</span>
                 )}
@@ -277,7 +277,7 @@ function SortableCategoryCard({
         <div ref={setNodeRef} style={style}>
             <Card className="flex flex-col">
                <CardHeader>
-                    <div className="flex items-start gap-3 w-full">
+                    <div className="flex items-center gap-3 w-full">
                         <IconComponent className="h-6 w-6 text-muted-foreground mt-1 flex-shrink-0" />
                         <CardTitle className="text-xl font-semibold leading-none tracking-tight flex-1 min-w-0" title={category.name}>
                             {category.name}
