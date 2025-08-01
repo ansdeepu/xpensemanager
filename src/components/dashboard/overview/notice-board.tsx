@@ -50,7 +50,7 @@ export function NoticeBoard() {
       </CardHeader>
       <CardContent>
         {upcomingPayments.length > 0 ? (
-          <ScrollArea className="h-72 pr-4">
+          <ScrollArea className="h-96 pr-4">
             <div className="space-y-4">
               {upcomingPayments.map((payment, index) => {
                 return (
@@ -71,7 +71,7 @@ export function NoticeBoard() {
             </div>
           </ScrollArea>
         ) : (
-          <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-72">
+          <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-96">
             <BadgeCheck className="h-8 w-8 mb-2 text-green-500" />
             <p>No upcoming payment reminders. You're all caught up!</p>
           </div>
