@@ -275,16 +275,16 @@ function SortableCategoryCard({
         <div ref={setNodeRef} style={style}>
             <Card className="flex flex-col">
                <CardHeader className="flex flex-row items-start justify-between">
-                <div className="flex items-start gap-3">
-                  <IconComponent className="h-6 w-6 text-muted-foreground mt-1" />
-                  <div>
-                    <CardTitle>{category.name}</CardTitle>
+                <div className="flex items-start gap-3 flex-1 min-w-0">
+                  <IconComponent className="h-6 w-6 text-muted-foreground mt-1 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <CardTitle className="truncate" title={category.name}>{category.name}</CardTitle>
                      {totalAmount > 0 && (
                         <CardDescription>{formatCurrency(totalAmount)}</CardDescription>
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-0.5 flex-shrink-0 border rounded-md p-0.5">
+                <div className="flex items-center gap-0.5 flex-shrink-0 border rounded-md p-0.5 ml-2">
                    <Tooltip>
                     <TooltipTrigger asChild>
                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEditCategory(category)}>
