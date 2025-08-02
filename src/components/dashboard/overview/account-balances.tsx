@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   Card,
   CardContent,
@@ -12,17 +12,20 @@ import {
 import { Landmark, Wallet, Coins } from "lucide-react";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "@/lib/firebase";
-import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
+import { collection, query, where, onSnapshot, orderBy, doc, updateDoc } from "firebase/firestore";
 import type { Account, Transaction } from "@/lib/data";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AccountDetailsDialog } from "@/components/dashboard/account-details-dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 type WalletType = 'cash-wallet' | 'digital-wallet';
 type AccountForDetails = (Omit<Account, 'balance'> & { balance: number }) | { id: WalletType, name: string, balance: number };
 
 export function AccountBalances() {
   const [user] = useAuthState(auth);
-  const [accounts, setAccounts] = useState<Omit<Account, 'balance'>[]>([]);
+  const [rawAccounts, setRawAccounts] = useState<Omit<Account, 'balance'>[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
@@ -34,11 +37,10 @@ export function AccountBalances() {
       const unsubscribeAccounts = onSnapshot(accountsQuery, (snapshot) => {
         const userAccounts: Omit<Account, 'balance'>[] = [];
         snapshot.forEach((doc) => {
-          // Destructure to remove balance if it exists in Firestore data
           const { balance, ...data } = doc.data();
           userAccounts.push({ id: doc.id, ...data } as Omit<Account, 'balance'>);
         });
-        setAccounts(userAccounts);
+        setRawAccounts(userAccounts);
         setLoading(false);
       });
 
@@ -58,7 +60,7 @@ export function AccountBalances() {
 
   const { cashWalletBalance, digitalWalletBalance, accountBalances } = useMemo(() => {
     const calculatedAccountBalances: { [key: string]: number } = {};
-    accounts.forEach(acc => {
+    rawAccounts.forEach(acc => {
         calculatedAccountBalances[acc.id] = 0; // Start with 0
     });
 
@@ -93,7 +95,14 @@ export function AccountBalances() {
     });
 
     return { cashWalletBalance: calculatedCashWalletBalance, digitalWalletBalance: calculatedDigitalWalletBalance, accountBalances: calculatedAccountBalances };
-  }, [accounts, transactions]);
+  }, [rawAccounts, transactions]);
+  
+  const accounts = useMemo(() => {
+    return rawAccounts.map(acc => ({
+        ...acc,
+        balance: accountBalances[acc.id] ?? 0,
+    }));
+  }, [rawAccounts, accountBalances]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-IN", {
@@ -101,6 +110,23 @@ export function AccountBalances() {
       currency: "INR",
     }).format(amount);
   };
+
+  const useDebounce = (callback: Function, delay: number) => {
+    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+    return (...args: any) => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(() => {
+        callback(...args);
+      }, delay);
+    };
+  };
+
+  const debouncedUpdateBalance = useCallback(useDebounce(async (accountId: string, value: number) => {
+        if (!user || isNaN(value)) return;
+        const accountRef = doc(db, "accounts", accountId);
+        await updateDoc(accountRef, { actualBalance: value });
+    }, 500), [user]);
+
 
   const handleAccountClick = (accountOrWallet: Omit<Account, 'balance'> | WalletType) => {
     if (accountOrWallet === 'cash-wallet') {
@@ -145,7 +171,7 @@ export function AccountBalances() {
     <Card>
         <CardHeader>
             <CardTitle>Account Balances</CardTitle>
-            <CardDescription>Click any account to see a detailed balance breakdown.</CardDescription>
+            <CardDescription>Click any account to see a detailed balance breakdown. Enter actual balances to reconcile.</CardDescription>
         </CardHeader>
         <CardContent>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
@@ -167,17 +193,44 @@ export function AccountBalances() {
                         <div className="text-2xl font-bold">{formatCurrency(digitalWalletBalance)}</div>
                     </CardContent>
                 </Card>
-                {accounts.map(account => (
-                     <Card key={account.id} className="cursor-pointer hover:bg-muted/50" onClick={() => handleAccountClick(account)}>
-                         <CardHeader className="flex flex-row items-center justify-between pb-2">
-                           <CardTitle className="text-sm font-medium">{account.name}</CardTitle>
-                           <Landmark className="h-4 w-4 text-muted-foreground" />
-                         </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{formatCurrency(accountBalances[account.id] ?? 0)}</div>
+                {accounts.map(account => {
+                    const balanceDifference = account.actualBalance !== undefined ? account.balance - account.actualBalance : null;
+                    return (
+                     <Card key={account.id}>
+                        <div className="cursor-pointer hover:bg-muted/50" onClick={() => handleAccountClick(account)}>
+                            <CardHeader className="flex flex-row items-center justify-between pb-2">
+                            <CardTitle className="text-sm font-medium">{account.name}</CardTitle>
+                            <Landmark className="h-4 w-4 text-muted-foreground" />
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold">{formatCurrency(account.balance)}</div>
+                            </CardContent>
+                        </div>
+                        <CardContent className="pt-2">
+                            <div className="space-y-2">
+                                <Label htmlFor={`actual-balance-${account.id}`} className="text-xs">Actual Balance</Label>
+                                <Input
+                                    id={`actual-balance-${account.id}`}
+                                    type="number"
+                                    placeholder="Enter balance"
+                                    className="hide-number-arrows h-8"
+                                    defaultValue={account.actualBalance}
+                                    onChange={(e) => debouncedUpdateBalance(account.id, parseFloat(e.target.value))}
+                                    onClick={(e) => e.stopPropagation()}
+                                />
+                                {balanceDifference !== null && (
+                                    <p className={cn(
+                                        "text-xs font-medium",
+                                        balanceDifference === 0 && "text-green-600",
+                                        balanceDifference !== 0 && "text-red-600"
+                                    )}>
+                                        Diff: {formatCurrency(balanceDifference)}
+                                    </p>
+                                )}
+                            </div>
                         </CardContent>
                     </Card>
-                ))}
+                )})}
             </div>
         </CardContent>
     </Card>
@@ -191,5 +244,3 @@ export function AccountBalances() {
     </>
   );
 }
-
-    
