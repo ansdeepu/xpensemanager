@@ -1,3 +1,4 @@
+
 {
   "indexes": [
     {
@@ -56,6 +57,20 @@
         },
         {
           "fieldPath": "order",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "bills",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "userId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "dueDate",
           "order": "ASCENDING"
         }
       ]
