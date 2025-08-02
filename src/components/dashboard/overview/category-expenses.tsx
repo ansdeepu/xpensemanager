@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { addMonths, subMonths, format, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-IN", {
@@ -198,17 +199,26 @@ export function CategoryExpenses() {
                         <h3 className="font-semibold">{selectedCategory?.name} Details</h3>
                     </div>
                     <ScrollArea className="flex-1 pr-4">
-                        <div className="space-y-4">
-                            {subCategoryStats.map(stat => (
-                                <div key={stat.name}>
-                                    <div className="flex justify-between text-sm">
-                                        <span>{stat.name}</span>
-                                        <span className="font-mono">{formatCurrency(stat.spent)} / {formatCurrency(stat.budget)}</span>
-                                    </div>
-                                    <Progress value={stat.budget > 0 ? (stat.spent / stat.budget) * 100 : 0} className="h-2 mt-1" />
-                                </div>
-                            ))}
-                        </div>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Sl. No.</TableHead>
+                                    <TableHead>Sub-category</TableHead>
+                                    <TableHead className="text-right">Spent</TableHead>
+                                    <TableHead className="text-right">Budget</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {subCategoryStats.map((stat, index) => (
+                                    <TableRow key={stat.name}>
+                                        <TableCell>{index + 1}</TableCell>
+                                        <TableCell>{stat.name}</TableCell>
+                                        <TableCell className="text-right">{formatCurrency(stat.spent)}</TableCell>
+                                        <TableCell className="text-right">{formatCurrency(stat.budget)}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
                     </ScrollArea>
                      <div className="pt-4 border-t mt-4 space-y-2">
                         <div className="flex justify-between w-full font-medium">
@@ -233,17 +243,26 @@ export function CategoryExpenses() {
                         <h3 className="font-semibold">Total Expenses Breakdown</h3>
                     </div>
                     <ScrollArea className="flex-1 pr-4">
-                        <div className="space-y-4">
-                             {categoryStats.map(stat => (
-                                <div key={stat.id}>
-                                    <div className="flex justify-between text-sm">
-                                        <span>{stat.name}</span>
-                                        <span className="font-mono">{formatCurrency(stat.spent)} / {formatCurrency(stat.budget)}</span>
-                                    </div>
-                                    <Progress value={stat.budget > 0 ? (stat.spent / stat.budget) * 100 : 0} className="h-2 mt-1" />
-                                </div>
-                            ))}
-                        </div>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Sl. No.</TableHead>
+                                    <TableHead>Category</TableHead>
+                                    <TableHead className="text-right">Spent</TableHead>
+                                    <TableHead className="text-right">Budget</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                             <TableBody>
+                                {categoryStats.map((stat, index) => (
+                                    <TableRow key={stat.id}>
+                                        <TableCell>{index + 1}</TableCell>
+                                        <TableCell>{stat.name}</TableCell>
+                                        <TableCell className="text-right">{formatCurrency(stat.spent)}</TableCell>
+                                        <TableCell className="text-right">{formatCurrency(stat.budget)}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
                     </ScrollArea>
                 </div>
             );

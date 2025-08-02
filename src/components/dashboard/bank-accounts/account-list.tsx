@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Card,
   CardContent,
@@ -60,6 +60,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { restrictToWindowEdges } from '@dnd-kit/modifiers';
 import { AccountDetailsDialog } from "@/components/dashboard/account-details-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 
 const formatCurrency = (amount: number) => {
@@ -87,7 +88,7 @@ type WalletType = 'cash-wallet' | 'digital-wallet';
 type AccountForDetails = (Omit<Account, 'balance'> & { balance: number }) | { id: WalletType, name: string, balance: number };
 
 
-function SortableAccountCard({ account, onSetPrimary, onEdit, onDelete, onOpenDetails }: { account: Account, onSetPrimary: (id: string) => void, onEdit: (account: Account) => void, onDelete: (accountId: string) => void, onOpenDetails: (account: Account) => void }) {
+function SortableAccountCard({ account, onSetPrimary, onEdit, onDelete, onOpenDetails, onActualBalanceChange }: { account: Account, onSetPrimary: (id: string) => void, onEdit: (account: Account) => void, onDelete: (accountId: string) => void, onOpenDetails: (account: Account) => void, onActualBalanceChange: (id: string, value: number) => void }) {
     const {
         attributes,
         listeners,
@@ -102,11 +103,13 @@ function SortableAccountCard({ account, onSetPrimary, onEdit, onDelete, onOpenDe
     };
     
     const IconComponent = iconComponents[account.icon] || Landmark;
+    const balanceDifference = account.actualBalance !== undefined ? account.balance - account.actualBalance : null;
+
 
     return (
         <div ref={setNodeRef} style={style} className="relative">
-            <Card className="flex flex-col justify-between h-full group cursor-pointer" onClick={() => onOpenDetails(account)}>
-                <div>
+            <Card className="flex flex-col justify-between h-full group">
+                <div onClick={() => onOpenDetails(account)} className="cursor-pointer">
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                         <CardTitle className="text-xl font-bold">
                             {account.name}
@@ -123,6 +126,29 @@ function SortableAccountCard({ account, onSetPrimary, onEdit, onDelete, onOpenDe
                         <p className="text-sm text-muted-foreground">{account.purpose}</p>
                     </CardContent>
                 </div>
+                 <CardContent className="pt-2">
+                    <div className="space-y-2">
+                        <Label htmlFor={`actual-balance-${account.id}`}>Actual Balance</Label>
+                        <Input
+                            id={`actual-balance-${account.id}`}
+                            type="number"
+                            placeholder="Enter actual balance"
+                            className="hide-number-arrows"
+                            defaultValue={account.actualBalance}
+                            onChange={(e) => onActualBalanceChange(account.id, parseFloat(e.target.value))}
+                            onClick={(e) => e.stopPropagation()}
+                        />
+                         {balanceDifference !== null && (
+                            <p className={cn(
+                                "text-sm font-medium",
+                                balanceDifference === 0 && "text-green-600",
+                                balanceDifference !== 0 && "text-red-600"
+                            )}>
+                                Difference: {formatCurrency(balanceDifference)}
+                            </p>
+                        )}
+                    </div>
+                </CardContent>
                 <CardFooter className="flex items-center justify-between">
                     <div className="flex gap-2">
                         {!account.isPrimary && (
@@ -272,6 +298,7 @@ export function AccountList({ initialAccounts }: { initialAccounts: Omit<Account
       icon: iconName,
       isPrimary: isFirstAccount,
       order: accounts.length,
+      actualBalance: parseFloat(formData.get("balance") as string) || 0,
     };
 
     try {
@@ -444,6 +471,23 @@ export function AccountList({ initialAccounts }: { initialAccounts: Omit<Account
     setIsDetailsDialogOpen(true);
   };
 
+  const useDebounce = (callback: Function, delay: number) => {
+    const timeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+    return (...args: any) => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(() => {
+        callback(...args);
+      }, delay);
+    };
+  };
+
+  const debouncedUpdateBalance = useCallback(useDebounce(async (accountId: string, value: number) => {
+        if (!user || isNaN(value)) return;
+        const accountRef = doc(db, "accounts", accountId);
+        await updateDoc(accountRef, { actualBalance: value });
+    }, 500), [user]);
+
+
 
   if (loading) {
     return (
@@ -498,6 +542,12 @@ export function AccountList({ initialAccounts }: { initialAccounts: Omit<Account
                     Purpose
                   </Label>
                   <Input id="purpose" name="purpose" placeholder="e.g. Salary Account" className="col-span-3" required />
+                </div>
+                 <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="balance" className="text-right">
+                    Actual Balance
+                  </Label>
+                  <Input id="balance" name="balance" type="number" placeholder="e.g. 50000" className="col-span-3" />
                 </div>
               </div>
               <DialogFooter>
@@ -560,7 +610,7 @@ export function AccountList({ initialAccounts }: { initialAccounts: Omit<Account
             >
               <SortableContext items={accountIds} strategy={rectSortingStrategy}>
                   {accounts.map((account) => (
-                    <SortableAccountCard key={account.id} account={account} onSetPrimary={handleSetPrimary} onEdit={openEditDialog} onDelete={handleDeleteAccount} onOpenDetails={handleOpenDetails} />
+                    <SortableAccountCard key={account.id} account={account} onSetPrimary={handleSetPrimary} onEdit={openEditDialog} onDelete={handleDeleteAccount} onOpenDetails={handleOpenDetails} onActualBalanceChange={debouncedUpdateBalance} />
                   ))}
               </SortableContext>
             </DndContext>
@@ -620,3 +670,4 @@ export function AccountList({ initialAccounts }: { initialAccounts: Omit<Account
     
 
     
+

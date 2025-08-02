@@ -10,6 +10,7 @@ export type Account = {
   purpose: string;
   isPrimary?: boolean;
   order: number;
+  actualBalance?: number;
 };
 
 export type Bill = {

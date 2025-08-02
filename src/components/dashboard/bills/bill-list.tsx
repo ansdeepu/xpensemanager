@@ -294,6 +294,7 @@ export function BillList() {
                     <Table>
                         <TableHeader>
                             <TableRow>
+                                <TableHead>Sl. No.</TableHead>
                                 <TableHead>Title</TableHead>
                                 <TableHead>Due Date</TableHead>
                                 <TableHead className="text-right">Amount</TableHead>
@@ -302,11 +303,12 @@ export function BillList() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {bills.map((bill) => {
+                            {bills.map((bill, index) => {
                                 const daysUntilDue = differenceInDays(new Date(bill.dueDate), new Date());
                                 const isOverdue = bill.type === 'bill' && daysUntilDue < 0 && !bill.paidOn;
                                 return (
                                 <TableRow key={bill.id} className={cn(bill.type === 'bill' && bill.paidOn && "text-muted-foreground")}>
+                                    <TableCell>{index + 1}</TableCell>
                                     <TableCell className="font-medium">
                                         <div className="flex items-center gap-2">
                                             {bill.type === 'special_day' ? <Gift className="h-4 w-4 text-amber-500" /> : <FileText className="h-4 w-4" />}
