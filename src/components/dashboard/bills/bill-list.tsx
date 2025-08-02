@@ -71,6 +71,11 @@ export function BillList() {
     const [addEventType, setAddEventType] = useState<Bill['type']>('bill');
     const [editEventType, setEditEventType] = useState<Bill['type']>('bill');
     const [user, loading] = useAuthState(auth);
+    const [clientLoaded, setClientLoaded] = useState(false);
+
+    useEffect(() => {
+        setClientLoaded(true);
+    }, []);
 
     useEffect(() => {
         if (user && db) {
@@ -187,7 +192,7 @@ export function BillList() {
     }
 
 
-    if (loading) {
+    if (loading || !clientLoaded) {
         return <Skeleton className="h-96 w-full" />
     }
 
