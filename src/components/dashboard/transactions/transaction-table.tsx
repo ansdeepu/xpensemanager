@@ -148,11 +148,16 @@ export function TransactionTable({
     if (isPrimaryView) {
       const primaryAndWallets = [accountId, 'cash-wallet', 'digital-wallet'];
       relevantTransactions = transactions.filter(t => {
-        const involvedAccounts = [t.accountId, t.fromAccountId, t.toAccountId].filter(Boolean);
         const isWalletTransaction = t.paymentMethod === 'cash' || t.paymentMethod === 'digital';
         if (isWalletTransaction) return true;
+        
+        // Handle transfers between wallets and other accounts correctly
+        if (t.type === 'transfer') {
+           return primaryAndWallets.includes(t.fromAccountId!) || primaryAndWallets.includes(t.toAccountId!);
+        }
 
-        return involvedAccounts.some(accId => primaryAndWallets.includes(accId!));
+        // Handle income/expense for primary account
+        return t.accountId === accountId;
       });
     } else {
       // For other account views, only show transactions for that specific account.
@@ -798,7 +803,7 @@ export function TransactionTable({
                 <TableRow>
                 <TableHead>Sl.</TableHead>
                 <TableHead>Date</TableHead>
-                <TableHead className="w-[30%]">Description</TableHead>
+                <TableHead className="w-[25%]">Description</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Account</TableHead>
                 <TableHead>Category</TableHead>
@@ -811,7 +816,7 @@ export function TransactionTable({
                 {pagedTransactions.map((t, index) => (
                     <TableRow key={t.id}>
                         <TableCell className="font-medium">{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
-                        <TableCell>{format(new Date(t.date), 'dd/MM/yyyy')}</TableCell>
+                        <TableCell>{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
                         <TableCell className="font-medium break-words whitespace-pre-wrap">{t.description}</TableCell>
                         <TableCell>
                         <Badge 
