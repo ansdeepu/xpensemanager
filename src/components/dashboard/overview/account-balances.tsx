@@ -19,7 +19,7 @@ import { AccountDetailsDialog } from "@/components/dashboard/account-details-dia
 
 export function AccountBalances() {
   const [user] = useAuthState(auth);
-  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [accounts, setAccounts] = useState<Omit<Account, 'balance'>[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
@@ -29,7 +29,13 @@ export function AccountBalances() {
     if (user && db) {
       const accountsQuery = query(collection(db, "accounts"), where("userId", "==", user.uid), orderBy("order", "asc"));
       const unsubscribeAccounts = onSnapshot(accountsQuery, (snapshot) => {
-        setAccounts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Account)));
+        const userAccounts: Omit<Account, 'balance'>[] = [];
+        snapshot.forEach((doc) => {
+          // Destructure to remove balance if it exists in Firestore data
+          const { balance, ...data } = doc.data();
+          userAccounts.push({ id: doc.id, ...data } as Omit<Account, 'balance'>);
+        });
+        setAccounts(userAccounts);
         setLoading(false);
       });
 
@@ -47,45 +53,40 @@ export function AccountBalances() {
     }
   }, [user, db]);
 
-  const walletBalance = useMemo(() => {
-    const income = transactions
-        .filter(t => t.type === 'transfer' && t.toAccountId === 'wallet')
-        .reduce((sum, t) => sum + t.amount, 0);
-
-    const expenses = transactions
-        .filter(t => t.type === 'expense' && t.paymentMethod === 'wallet')
-        .reduce((sum, t) => sum + t.amount, 0);
-        
-    const transfersOut = transactions
-        .filter(t => t.type === 'transfer' && t.fromAccountId === 'wallet')
-        .reduce((sum, t) => sum + t.amount, 0);
-
-    return income - expenses - transfersOut;
-  }, [transactions]);
-
-  const calculatedBalances = useMemo(() => {
-    const balances: { [key: string]: number } = {};
+  const { walletBalance, accountBalances } = useMemo(() => {
+    const calculatedAccountBalances: { [key: string]: number } = {};
     accounts.forEach(acc => {
-        balances[acc.id] = 0;
+        calculatedAccountBalances[acc.id] = 0; // Start with 0
     });
 
+    let calculatedWalletBalance = 0;
+
     transactions.forEach(t => {
-        if (t.type === 'income' && t.accountId && balances[t.accountId] !== undefined) {
-            balances[t.accountId] += t.amount;
-        } else if (t.type === 'expense' && t.accountId && t.paymentMethod === 'online' && balances[t.accountId] !== undefined) {
-            balances[t.accountId] -= t.amount;
+        // Wallet balance calculation
+        if (t.type === 'transfer') {
+            if (t.toAccountId === 'wallet') calculatedWalletBalance += t.amount;
+            if (t.fromAccountId === 'wallet') calculatedWalletBalance -= t.amount;
+        } else if (t.type === 'expense' && t.paymentMethod === 'wallet') {
+            calculatedWalletBalance -= t.amount;
+        }
+
+        // Bank account balance calculation
+        if (t.type === 'income' && t.accountId && calculatedAccountBalances[t.accountId] !== undefined) {
+            calculatedAccountBalances[t.accountId] += t.amount;
+        } else if (t.type === 'expense' && t.accountId && t.paymentMethod !== 'wallet' && calculatedAccountBalances[t.accountId] !== undefined) {
+            calculatedAccountBalances[t.accountId] -= t.amount;
         } else if (t.type === 'transfer') {
-            if (t.fromAccountId && balances[t.fromAccountId] !== undefined) {
-                balances[t.fromAccountId] -= t.amount;
+            if (t.fromAccountId && calculatedAccountBalances[t.fromAccountId] !== undefined) {
+                calculatedAccountBalances[t.fromAccountId] -= t.amount;
             }
-            if (t.toAccountId && balances[t.toAccountId] !== undefined) {
-                balances[t.toAccountId] += t.amount;
+            if (t.toAccountId && calculatedAccountBalances[t.toAccountId] !== undefined) {
+                calculatedAccountBalances[t.toAccountId] += t.amount;
             }
         }
     });
-    return balances;
-  }, [accounts, transactions]);
 
+    return { walletBalance: calculatedWalletBalance, accountBalances: calculatedAccountBalances };
+  }, [accounts, transactions]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-IN", {
@@ -94,18 +95,17 @@ export function AccountBalances() {
     }).format(amount);
   };
 
-  const handleAccountClick = (account: Account | 'wallet') => {
+  const handleAccountClick = (account: Omit<Account, 'balance'> | 'wallet') => {
     if (account === 'wallet') {
         setSelectedAccountForDetails({
             id: 'wallet',
-            name: 'Wallet',
+            name: 'Digital Wallet',
             balance: walletBalance
         });
     } else {
-        const { balance, ...rest } = account;
         setSelectedAccountForDetails({
-            ...rest,
-            balance: calculatedBalances[account.id] ?? 0
+            ...account,
+            balance: accountBalances[account.id] ?? 0
         });
     }
     setIsDetailsDialogOpen(true);
@@ -119,11 +119,9 @@ export function AccountBalances() {
                   <Skeleton className="h-4 w-1/2" />
               </CardHeader>
               <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-                  <Skeleton className="h-20 w-full" />
-                  <Skeleton className="h-20 w-full" />
-                  <Skeleton className="h-20 w-full" />
-                  <Skeleton className="h-20 w-full" />
-                  <Skeleton className="h-20 w-full" />
+                  <Skeleton className="h-24 w-full" />
+                  <Skeleton className="h-24 w-full" />
+                  <Skeleton className="h-24 w-full" />
               </CardContent>
           </Card>
       )
@@ -138,21 +136,25 @@ export function AccountBalances() {
         </CardHeader>
         <CardContent>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-                 <div className="flex items-center gap-4 rounded-lg border p-4 cursor-pointer hover:bg-muted/50" onClick={() => handleAccountClick('wallet')}>
-                    <Wallet className="h-8 w-8 text-muted-foreground" />
-                    <div>
-                        <div className="font-medium">Wallet</div>
+                 <Card className="cursor-pointer hover:bg-muted/50" onClick={() => handleAccountClick('wallet')}>
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                       <CardTitle className="text-sm font-medium">Digital Wallet</CardTitle>
+                       <Wallet className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
                         <div className="text-2xl font-bold">{formatCurrency(walletBalance)}</div>
-                    </div>
-                </div>
+                    </CardContent>
+                </Card>
                 {accounts.map(account => (
-                    <div key={account.id} className="flex items-center gap-4 rounded-lg border p-4 cursor-pointer hover:bg-muted/50" onClick={() => handleAccountClick(account)}>
-                        <Landmark className="h-8 w-8 text-muted-foreground" />
-                        <div>
-                            <div className="font-medium">{account.name}</div>
-                            <div className="text-2xl font-bold">{formatCurrency(calculatedBalances[account.id] ?? 0)}</div>
-                        </div>
-                    </div>
+                     <Card key={account.id} className="cursor-pointer hover:bg-muted/50" onClick={() => handleAccountClick(account)}>
+                         <CardHeader className="flex flex-row items-center justify-between pb-2">
+                           <CardTitle className="text-sm font-medium">{account.name}</CardTitle>
+                           <Landmark className="h-4 w-4 text-muted-foreground" />
+                         </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{formatCurrency(accountBalances[account.id] ?? 0)}</div>
+                        </CardContent>
+                    </Card>
                 ))}
             </div>
         </CardContent>
