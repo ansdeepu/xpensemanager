@@ -544,7 +544,7 @@ export function AccountList({ initialAccounts }: { initialAccounts: Omit<Account
       </CardHeader>
       <CardContent>
         <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2">
-            <Card className="flex flex-col justify-between h-full group cursor-pointer" onClick={() => handleOpenDetails('cash-wallet')}>
+            <Card className="flex flex-col justify-between h-full group">
                 <div>
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                         <CardTitle className="text-xl font-bold">
@@ -564,7 +564,7 @@ export function AccountList({ initialAccounts }: { initialAccounts: Omit<Account
                 </CardFooter>
             </Card>
 
-            <Card className="flex flex-col justify-between h-full group cursor-pointer" onClick={() => handleOpenDetails('digital-wallet')}>
+            <Card className="flex flex-col justify-between h-full group">
                 <div>
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                         <CardTitle className="text-xl font-bold">
