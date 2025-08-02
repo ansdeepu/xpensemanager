@@ -6,7 +6,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Shapes, Landmark, ArrowRightLeft, ListChecks, Upload, Printer, MousePointerClick } from "lucide-react";
+import { Shapes, Landmark, ArrowRightLeft, ListChecks, Upload, Printer, MousePointerClick, Wallet, Coins } from "lucide-react";
 
 export default function HelpPage() {
   return (
@@ -102,14 +102,21 @@ export default function HelpPage() {
               </AccordionTrigger>
               <AccordionContent className="pl-8">
                  <p className="mb-4">
-                  Add all your financial accounts to keep track of your balances in one place.
+                  Add all your financial accounts to keep track of your balances in one place. You can add your bank accounts and also use the built-in wallets for cash and digital payments.
                 </p>
                  <ol className="list-decimal list-inside space-y-2">
-                  <li>Go to the <strong>Bank Accounts</strong> page.</li>
-                  <li>Click the "Add Account" button and fill in the details. The first account is set as primary by default.</li>
+                  <li>Go to the <strong>Bank Accounts</strong> page to manage your accounts.</li>
+                  <li>Click the "Add Account" button to add a new bank account. The first account you create is set as your primary account by default.</li>
+                  <li className="flex items-start gap-2">
+                    <div className="flex-shrink-0 mt-1 flex items-center gap-2">
+                        <Coins className="h-5 w-5 text-primary" />
+                        <Wallet className="h-5 w-5 text-primary" />
+                    </div>
+                    <span>The <strong>Cash Wallet</strong> and <strong>Digital Wallet</strong> are built-in for tracking non-bank transactions. Their balances update automatically based on the transactions you log. For instance, an expense with "cash" as the payment method will be deducted from your Cash Wallet.</span>
+                  </li>
                   <li className="flex items-start gap-2">
                     <MousePointerClick className="h-5 w-5 mt-1 text-primary flex-shrink-0" />
-                    <span>To see a detailed breakdown of an account's balance, simply click on the account card. A dialog will appear showing all income, expense, and transfer transactions affecting that balance.</span>
+                    <span>To see a detailed breakdown of any account's balance (including wallets), go to the <strong>Dashboard</strong> and click on the desired account card. A dialog will appear showing all transactions affecting that balance.</span>
                   </li>
                 </ol>
               </AccordionContent>
@@ -131,8 +138,8 @@ export default function HelpPage() {
                   <li>You can add three types of transactions:
                     <ul className="list-disc list-inside pl-6 mt-2 space-y-1">
                       <li><strong>Income:</strong> Any money you receive.</li>
-                      <li><strong>Expense:</strong> Any money you spend.</li>
-                      <li><strong>Transfer:</strong> Moving money between your own accounts.</li>
+                      <li><strong>Expense:</strong> Any money you spend. You can specify if it was paid via a bank account (online), cash, or a digital wallet.</li>
+                      <li><strong>Transfer:</strong> Moving money between your own accounts (including wallets).</li>
                     </ul>
                   </li>
                    <li>Fill in the details and assign it to a category. Your balances will update automatically.</li>
