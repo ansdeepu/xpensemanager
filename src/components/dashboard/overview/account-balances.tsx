@@ -173,7 +173,7 @@ export function AccountBalances() {
                   <Skeleton className="h-6 w-1/4" />
                   <Skeleton className="h-4 w-1/2" />
               </CardHeader>
-              <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+              <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   <Skeleton className="h-24 w-full" />
                   <Skeleton className="h-24 w-full" />
                   <Skeleton className="h-24 w-full" />
@@ -194,7 +194,7 @@ export function AccountBalances() {
             <CardDescription>Click any account to see a detailed balance breakdown. Enter actual balances to reconcile.</CardDescription>
         </CardHeader>
         <CardContent>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                  <Card>
                     <div className="cursor-pointer hover:bg-muted/50" onClick={() => handleAccountClick('cash-wallet')}>
                         <CardHeader className="flex flex-row items-center justify-between pb-2">
