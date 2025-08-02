@@ -83,7 +83,6 @@ export function Header() {
       <div className="flex items-center gap-2">
         <SidebarTrigger className="md:hidden" />
         <div>
-            <h1 className="text-xl font-semibold">Dashboard</h1>
              <div className="text-xs text-muted-foreground hidden md:block">
               {clientLoaded ? currentDateTime : <Skeleton className="h-4 w-48 mt-1" />}
             </div>
