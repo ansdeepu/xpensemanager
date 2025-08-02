@@ -147,14 +147,11 @@ export function TransactionTable({
 
     if (isPrimaryView) {
       // For the primary view, show all transactions from the primary account AND both wallets.
-      relevantTransactions = transactions.filter(t =>
-        // Primary account transactions (income, expense, transfers)
-        (t.accountId === accountId || t.fromAccountId === accountId || t.toAccountId === accountId) ||
-        // Wallet transactions (expenses paid by wallet, transfers to/from wallet)
-        t.paymentMethod === 'cash' || t.paymentMethod === 'digital' ||
-        t.fromAccountId === 'cash-wallet' || t.toAccountId === 'cash-wallet' ||
-        t.fromAccountId === 'digital-wallet' || t.toAccountId === 'digital-wallet'
-      );
+      relevantTransactions = transactions.filter(t => {
+        const involvedAccounts = [t.accountId, t.fromAccountId, t.toAccountId, t.paymentMethod === 'cash' ? 'cash-wallet' : undefined, t.paymentMethod === 'digital' ? 'digital-wallet' : undefined].filter(Boolean);
+        const relevantToPrimaryView = (id: string) => id === accountId || id === 'cash-wallet' || id === 'digital-wallet';
+        return involvedAccounts.some(accId => relevantToPrimaryView(accId!));
+      });
     } else {
       // For other account views, only show transactions for that specific account.
       relevantTransactions = transactions.filter(t =>
@@ -479,6 +476,33 @@ export function TransactionTable({
   }
 
   const primaryAccount = useMemo(() => accounts.find(a => a.isPrimary), [accounts]);
+
+  const getCreditAmount = (t: Transaction) => {
+    if (t.type === 'income') return t.amount;
+    if (t.type === 'transfer') {
+        const relevantId = isPrimaryView ? accountId : t.accountId;
+        if (isPrimaryView) {
+            const primaryAndWallets = [accountId, 'cash-wallet', 'digital-wallet'];
+            if (primaryAndWallets.includes(t.toAccountId!)) return t.amount;
+        } else {
+            if (t.toAccountId === accountId) return t.amount;
+        }
+    }
+    return null;
+  }
+
+  const getDebitAmount = (t: Transaction) => {
+    if (t.type === 'expense') return t.amount;
+    if (t.type === 'transfer') {
+        if (isPrimaryView) {
+            const primaryAndWallets = [accountId, 'cash-wallet', 'digital-wallet'];
+            if (primaryAndWallets.includes(t.fromAccountId!)) return t.amount;
+        } else {
+             if (t.fromAccountId === accountId) return t.amount;
+        }
+    }
+    return null;
+  }
 
   return (
     <>
@@ -809,56 +833,60 @@ export function TransactionTable({
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {pagedTransactions.map((t, index) => (
-                <TableRow key={t.id}>
-                    <TableCell className="font-medium">{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
-                    <TableCell>{format(new Date(t.date), 'dd/MM/yyyy')}</TableCell>
-                    <TableCell className="font-medium break-words whitespace-pre-wrap">{t.description}</TableCell>
-                    <TableCell>
-                    <Badge 
-                        variant={getBadgeVariant(t.type)}
-                        className="capitalize"
-                        >
-                        {t.type}
-                    </Badge>
-                    </TableCell>
-                    <TableCell className="break-words">{t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} -> ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod)}</TableCell>
-                    <TableCell className="break-words">
-                        <div>{t.category}</div>
-                        {t.subcategory && <div className="text-sm text-muted-foreground">{t.subcategory}</div>}
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-green-600">
-                    {t.type === 'income' ? formatCurrency(t.amount) : null}
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-red-600">
-                    {t.type === 'expense' ? formatCurrency(t.amount) : null}
-                    </TableCell>
-                    <TableCell className="text-right print-hide">
-                        <Button variant="ghost" size="icon" onClick={() => openEditDialog(t)} className="mr-2">
-                            <Pencil className="h-4 w-4" />
-                        </Button>
-                        <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
-                                    <Trash2 className="h-4 w-4" />
+                {pagedTransactions.map((t, index) => {
+                    const creditAmount = getCreditAmount(t);
+                    const debitAmount = getDebitAmount(t);
+                    return (
+                        <TableRow key={t.id}>
+                            <TableCell className="font-medium">{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
+                            <TableCell>{format(new Date(t.date), 'dd/MM/yyyy')}</TableCell>
+                            <TableCell className="font-medium break-words whitespace-pre-wrap">{t.description}</TableCell>
+                            <TableCell>
+                            <Badge 
+                                variant={getBadgeVariant(t.type)}
+                                className="capitalize"
+                                >
+                                {t.type}
+                            </Badge>
+                            </TableCell>
+                            <TableCell className="break-words">{t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} -> ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod)}</TableCell>
+                            <TableCell className="break-words">
+                                <div>{t.category}</div>
+                                {t.subcategory && <div className="text-sm text-muted-foreground">{t.subcategory}</div>}
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-green-600">
+                                {creditAmount !== null ? formatCurrency(creditAmount) : null}
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-red-600">
+                                {debitAmount !== null ? formatCurrency(debitAmount) : null}
+                            </TableCell>
+                            <TableCell className="text-right print-hide">
+                                <Button variant="ghost" size="icon" onClick={() => openEditDialog(t)} className="mr-2">
+                                    <Pencil className="h-4 w-4" />
                                 </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                                <AlertDialogHeader>
-                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        This will permanently delete the transaction. This action cannot be undone and will update account balances.
-                                    </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleDeleteTransaction(t)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                                </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
-                    </TableCell>
-                </TableRow>
-                ))}
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                This will permanently delete the transaction. This action cannot be undone and will update account balances.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => handleDeleteTransaction(t)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </TableCell>
+                        </TableRow>
+                    )
+                })}
             </TableBody>
             </Table>
         </div>
