@@ -21,7 +21,7 @@ import {
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
-import type { Transaction } from "@/lib/data";
+import type { Transaction, Category } from "@/lib/data";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
@@ -53,6 +53,7 @@ const formatCurrency = (amount: number) => {
 export function OverviewChart() {
   const [user] = useAuthState(auth);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [isPickerOpen, setIsPickerOpen] = useState(false);
 
@@ -74,7 +75,26 @@ export function OverviewChart() {
           );
         }
       );
-      return () => unsubscribeTransactions();
+      
+      const categoriesQuery = query(
+        collection(db, "categories"),
+        where("userId", "==", user.uid)
+      );
+      const unsubscribeCategories = onSnapshot(
+        categoriesQuery,
+        (snapshot) => {
+          setCategories(
+            snapshot.docs.map(
+              (doc) => ({ id: doc.id, ...doc.data() } as Category)
+            )
+          );
+        }
+      );
+
+      return () => {
+        unsubscribeTransactions();
+        unsubscribeCategories();
+      };
     }
   }, [user, db]);
 
@@ -103,7 +123,13 @@ export function OverviewChart() {
     const currentYear = getYear(new Date());
     const monthlyTotals = Array.from({ length: 12 }, (_, i) => ({ month: format(new Date(currentYear, i), 'MMM'), total: 0 }));
 
-    transactions.forEach(t => {
+    const expenseCategoryIds = new Set(
+        categories.filter(c => c.type === 'expense').map(c => c.id)
+    );
+
+    const expenseTransactions = transactions.filter(t => t.categoryId && expenseCategoryIds.has(t.categoryId));
+
+    expenseTransactions.forEach(t => {
       const transactionDate = new Date(t.date);
       if (getYear(transactionDate) === currentYear) {
         const monthIndex = getMonth(transactionDate);
@@ -112,7 +138,7 @@ export function OverviewChart() {
     });
 
     return monthlyTotals;
-  }, [transactions]);
+  }, [transactions, categories]);
 
   const DayWithTooltip = ({
     date,
