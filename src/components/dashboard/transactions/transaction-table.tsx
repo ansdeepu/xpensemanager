@@ -161,7 +161,8 @@ export function TransactionTable({
     } else {
       // For other account views, only show transactions for that specific account.
       relevantTransactions = transactions.filter(t =>
-          t.accountId === accountId || t.fromAccountId === accountId || t.toAccountId === accountId
+          (t.type !== 'transfer' && t.accountId === accountId) ||
+          (t.type === 'transfer' && (t.fromAccountId === accountId || t.toAccountId === accountId))
       );
     }
 
@@ -289,10 +290,10 @@ export function TransactionTable({
             if (transactionType === 'expense') {
                 if (accountId === 'cash-wallet') {
                     newTransaction.paymentMethod = 'cash';
-                    delete newTransaction.accountId;
+                    delete (newTransaction as Partial<Transaction>).accountId;
                 } else if (accountId === 'digital-wallet') {
                     newTransaction.paymentMethod = 'digital';
-                    delete newTransaction.accountId;
+                    delete (newTransaction as Partial<Transaction>).accountId;
                 } else {
                     newTransaction.paymentMethod = 'online';
                     newTransaction.accountId = accountId;
@@ -1045,5 +1046,3 @@ export function TransactionTable({
     </>
   );
 }
-
-    
