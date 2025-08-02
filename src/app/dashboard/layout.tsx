@@ -34,7 +34,7 @@ const menuItems = [
   },
   { href: "/dashboard/bank-accounts", label: "Bank Accounts", icon: Landmark },
   { href: "/dashboard/categories", label: "Categories", icon: Shapes },
-  { href: "/dashboard/bills", label: "Bills & Events", icon: FileText },
+  { href: "/dashboard/bills-and-events", label: "Bills & Events", icon: FileText },
   { href: "/dashboard/help", label: "Help", icon: HelpCircle },
 ];
 
