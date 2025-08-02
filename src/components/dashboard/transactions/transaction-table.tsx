@@ -732,73 +732,75 @@ export function TransactionTable({
         </div>
       </CardHeader>
       <CardContent>
-        <Table className="table-fixed">
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[5%]">Sl. No.</TableHead>
-              <TableHead className="w-[10%]">Date</TableHead>
-              <TableHead className="w-[18%]">Description</TableHead>
-              <TableHead className="w-[8%]">Type</TableHead>
-              <TableHead className="w-[15%]">Account</TableHead>
-              <TableHead className="w-[15%]">Category</TableHead>
-              <TableHead className="w-[10%] text-right">Credit</TableHead>
-              <TableHead className="w-[10%] text-right">Debit</TableHead>
-              <TableHead className="w-[9%] text-right print-hide">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredTransactions.map((t, index) => (
-              <TableRow key={t.id}>
-                <TableCell className="font-medium">{index + 1}</TableCell>
-                <TableCell>{format(new Date(t.date), 'dd/MM/yyyy')}</TableCell>
-                <TableCell className="font-medium break-words">{t.description}</TableCell>
-                <TableCell>
-                  <Badge 
-                    variant={getBadgeVariant(t.type)}
-                    className="capitalize"
-                    >
-                    {t.type}
-                  </Badge>
-                </TableCell>
-                <TableCell className="break-words">{t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} -> ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod)}</TableCell>
-                 <TableCell className="break-words">
-                    <div>{t.category}</div>
-                    {t.subcategory && <div className="text-sm text-muted-foreground">{t.subcategory}</div>}
-                </TableCell>
-                <TableCell className="text-right font-mono text-green-600">
-                  {t.type === 'income' ? formatCurrency(t.amount) : null}
-                </TableCell>
-                <TableCell className="text-right font-mono text-red-600">
-                  {t.type === 'expense' ? formatCurrency(t.amount) : null}
-                </TableCell>
-                <TableCell className="text-right print-hide">
-                    <Button variant="ghost" size="icon" onClick={() => openEditDialog(t)} className="mr-2">
-                        <Pencil className="h-4 w-4" />
-                    </Button>
-                    <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
-                                <Trash2 className="h-4 w-4" />
-                            </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                            <AlertDialogHeader>
-                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                    This will permanently delete the transaction. This action cannot be undone and will update account balances.
-                                </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleDeleteTransaction(t)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                            </AlertDialogFooter>
-                        </AlertDialogContent>
-                    </AlertDialog>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <div className="overflow-x-auto">
+            <Table>
+            <TableHeader>
+                <TableRow>
+                <TableHead className="w-[4%]">Sl.</TableHead>
+                <TableHead className="w-[9%]">Date</TableHead>
+                <TableHead className="w-[25%]">Description</TableHead>
+                <TableHead className="w-[8%]">Type</TableHead>
+                <TableHead className="w-[12%]">Account</TableHead>
+                <TableHead className="w-[14%]">Category</TableHead>
+                <TableHead className="w-[9%] text-right">Credit</TableHead>
+                <TableHead className="w-[9%] text-right">Debit</TableHead>
+                <TableHead className="w-[10%] text-right print-hide">Actions</TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {filteredTransactions.map((t, index) => (
+                <TableRow key={t.id}>
+                    <TableCell className="font-medium">{index + 1}</TableCell>
+                    <TableCell>{format(new Date(t.date), 'dd/MM/yyyy')}</TableCell>
+                    <TableCell className="font-medium break-words">{t.description}</TableCell>
+                    <TableCell>
+                    <Badge 
+                        variant={getBadgeVariant(t.type)}
+                        className="capitalize"
+                        >
+                        {t.type}
+                    </Badge>
+                    </TableCell>
+                    <TableCell className="break-words">{t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} -> ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod)}</TableCell>
+                    <TableCell className="break-words">
+                        <div>{t.category}</div>
+                        {t.subcategory && <div className="text-sm text-muted-foreground">{t.subcategory}</div>}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-green-600">
+                    {t.type === 'income' ? formatCurrency(t.amount) : null}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-red-600">
+                    {t.type === 'expense' ? formatCurrency(t.amount) : null}
+                    </TableCell>
+                    <TableCell className="text-right print-hide">
+                        <Button variant="ghost" size="icon" onClick={() => openEditDialog(t)} className="mr-2">
+                            <Pencil className="h-4 w-4" />
+                        </Button>
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        This will permanently delete the transaction. This action cannot be undone and will update account balances.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleDeleteTransaction(t)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    </TableCell>
+                </TableRow>
+                ))}
+            </TableBody>
+            </Table>
+        </div>
       </CardContent>
     </Card>
 

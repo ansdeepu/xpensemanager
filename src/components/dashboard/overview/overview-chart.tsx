@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -8,6 +9,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
@@ -19,8 +28,15 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Bar, BarChart, XAxis, YAxis } from "recharts";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
 import { cn } from "@/lib/utils";
-import { format, startOfDay } from "date-fns";
+import { format, startOfDay, getYear, getMonth, isSameDay } from "date-fns";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-IN", {
@@ -32,6 +48,7 @@ const formatCurrency = (amount: number) => {
 export function OverviewChart() {
   const [user] = useAuthState(auth);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
 
   useEffect(() => {
     if (user && db) {
@@ -48,8 +65,6 @@ export function OverviewChart() {
               (doc) => ({ id: doc.id, ...doc.data() } as Transaction)
             )
           );
-        },
-        (error) => {
         }
       );
       return () => unsubscribeTransactions();
@@ -65,6 +80,26 @@ export function OverviewChart() {
       acc[date] += t.amount;
       return acc;
     }, {} as Record<string, number>);
+  }, [transactions]);
+
+  const transactionsOnSelectedDate = useMemo(() => {
+    if (!selectedDate) return [];
+    return transactions.filter(t => isSameDay(new Date(t.date), selectedDate));
+  }, [transactions, selectedDate]);
+
+  const monthlyChartData = useMemo(() => {
+    const currentYear = getYear(new Date());
+    const monthlyTotals = Array.from({ length: 12 }, (_, i) => ({ month: format(new Date(currentYear, i), 'MMM'), total: 0 }));
+
+    transactions.forEach(t => {
+      const transactionDate = new Date(t.date);
+      if (getYear(transactionDate) === currentYear) {
+        const monthIndex = getMonth(transactionDate);
+        monthlyTotals[monthIndex].total += t.amount;
+      }
+    });
+
+    return monthlyTotals;
   }, [transactions]);
 
   const DayWithTooltip = ({
@@ -103,14 +138,17 @@ export function OverviewChart() {
   return (
     <Card className="lg:col-span-4">
       <CardHeader>
-        <CardTitle>Daily Expense Overview</CardTitle>
+        <CardTitle>Daily & Monthly Expense Overview</CardTitle>
         <CardDescription>
-          Hover over a highlighted day to see total expenses.
+          Select a day to see detailed expenses below the calendar.
         </CardDescription>
       </CardHeader>
-      <CardContent className="flex justify-center">
+      <CardContent className="flex flex-col items-center gap-6">
         <TooltipProvider>
           <Calendar
+            mode="single"
+            selected={selectedDate}
+            onSelect={setSelectedDate}
             modifiers={{
               withExpenses: (date) => {
                 const dateString = format(startOfDay(date), "yyyy-MM-dd");
@@ -125,6 +163,48 @@ export function OverviewChart() {
             }}
           />
         </TooltipProvider>
+
+        {transactionsOnSelectedDate.length > 0 && (
+           <div className="w-full">
+                <h3 className="text-md font-medium mb-2 text-center">
+                    Expenses for {format(selectedDate!, "MMMM dd, yyyy")}
+                </h3>
+                <ScrollArea className="h-40 w-full">
+                     <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Description</TableHead>
+                                <TableHead className="text-right">Amount</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {transactionsOnSelectedDate.map(t => (
+                                <TableRow key={t.id}>
+                                    <TableCell>{t.description}</TableCell>
+                                    <TableCell className="text-right font-mono">{formatCurrency(t.amount)}</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </ScrollArea>
+           </div>
+        )}
+
+        <div className="w-full">
+            <h3 className="text-md font-medium mb-4 text-center">
+                Monthly Expenses for {getYear(new Date())}
+            </h3>
+            <ChartContainer config={{}} className="h-[200px] w-full">
+                <BarChart accessibilityLayer data={monthlyChartData}>
+                    <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} />
+                    <ChartTooltip 
+                      cursor={false}
+                      content={<ChartTooltipContent formatter={(value) => formatCurrency(value as number)} />}
+                    />
+                    <Bar dataKey="total" fill="var(--color-chart-1)" radius={4} />
+                </BarChart>
+            </ChartContainer>
+        </div>
       </CardContent>
     </Card>
   );
