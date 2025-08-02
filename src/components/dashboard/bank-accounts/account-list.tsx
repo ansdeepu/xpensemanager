@@ -21,12 +21,24 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { Account, Transaction } from "@/lib/data";
-import { PlusCircle, Landmark, PiggyBank, CreditCard, Wallet, Star, GripVertical, Pencil, Coins } from "lucide-react";
+import { PlusCircle, Landmark, PiggyBank, CreditCard, Wallet, Star, GripVertical, Pencil, Coins, Trash2 } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
-import { collection, addDoc, query, where, onSnapshot, writeBatch, doc, orderBy, updateDoc } from "firebase/firestore";
+import { collection, addDoc, query, where, onSnapshot, writeBatch, doc, orderBy, updateDoc, deleteDoc, getDocs } from "firebase/firestore";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -47,6 +59,8 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { restrictToWindowEdges } from '@dnd-kit/modifiers';
 import { AccountDetailsDialog } from "@/components/dashboard/account-details-dialog";
+import { useToast } from "@/hooks/use-toast";
+
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-IN", {
@@ -73,7 +87,7 @@ type WalletType = 'cash-wallet' | 'digital-wallet';
 type AccountForDetails = (Omit<Account, 'balance'> & { balance: number }) | { id: WalletType, name: string, balance: number };
 
 
-function SortableAccountCard({ account, onSetPrimary, onEdit, onOpenDetails }: { account: Account, onSetPrimary: (id: string) => void, onEdit: (account: Account) => void, onOpenDetails: (account: Account) => void }) {
+function SortableAccountCard({ account, onSetPrimary, onEdit, onDelete, onOpenDetails }: { account: Account, onSetPrimary: (id: string) => void, onEdit: (account: Account) => void, onDelete: (accountId: string) => void, onOpenDetails: (account: Account) => void }) {
     const {
         attributes,
         listeners,
@@ -121,6 +135,29 @@ function SortableAccountCard({ account, onSetPrimary, onEdit, onOpenDetails }: {
                             <Pencil className="mr-2 h-4 w-4" />
                             Edit
                         </Button>
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="destructive" size="sm" onClick={(e) => e.stopPropagation()}>
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Delete
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        This will permanently delete the "{account.name}" account. All transactions associated with this account will be re-assigned to your primary account. This action cannot be undone.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => onDelete(account.id)} className="bg-destructive hover:bg-destructive/90">
+                                        Delete
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+
                     </div>
                     <div {...attributes} {...listeners} className="touch-none p-2 cursor-grab ml-auto text-muted-foreground hover:text-foreground">
                         <GripVertical className="h-5 w-5" />
@@ -142,6 +179,7 @@ export function AccountList({ initialAccounts }: { initialAccounts: Omit<Account
 
   const [user, loading] = useAuthState(auth);
   const sensors = useSensors(useSensor(PointerSensor));
+  const { toast } = useToast();
 
 
   useEffect(() => {
@@ -259,6 +297,85 @@ export function AccountList({ initialAccounts }: { initialAccounts: Omit<Account
       setIsEditDialogOpen(false);
       setSelectedAccount(null);
     } catch (error) {
+    }
+  };
+
+  const handleDeleteAccount = async (accountId: string) => {
+    if (!user) return;
+    const accountToDelete = accounts.find(acc => acc.id === accountId);
+    if (!accountToDelete) return;
+    if (accountToDelete.isPrimary) {
+      toast({
+        variant: "destructive",
+        title: "Deletion Failed",
+        description: "You cannot delete your primary account. Please set another account as primary first.",
+      });
+      return;
+    }
+
+    const primaryAccount = accounts.find(acc => acc.isPrimary);
+    if (!primaryAccount) {
+         toast({
+            variant: "destructive",
+            title: "Deletion Failed",
+            description: "No primary account found to re-assign transactions to.",
+        });
+        return;
+    }
+
+    try {
+      // Start a batch write
+      const batch = writeBatch(db);
+
+      // Query for all transactions associated with the account to be deleted
+      const transactionsQuery = query(collection(db, "transactions"), where("userId", "==", user.uid));
+      const transactionsSnapshot = await getDocs(transactionsQuery);
+
+      let updatedCount = 0;
+      transactionsSnapshot.forEach(transactionDoc => {
+        const transaction = { id: transactionDoc.id, ...transactionDoc.data() } as Transaction;
+        let needsUpdate = false;
+        const updateData: Partial<Transaction> = {};
+        
+        // Re-assign accountId for income/expenses
+        if (transaction.accountId === accountId) {
+          updateData.accountId = primaryAccount.id;
+          needsUpdate = true;
+        }
+        // Re-assign fromAccountId for transfers
+        if (transaction.fromAccountId === accountId) {
+          updateData.fromAccountId = primaryAccount.id;
+           needsUpdate = true;
+        }
+        // Re-assign toAccountId for transfers
+        if (transaction.toAccountId === accountId) {
+          updateData.toAccountId = primaryAccount.id;
+           needsUpdate = true;
+        }
+
+        if (needsUpdate) {
+          batch.update(transactionDoc.ref, updateData);
+          updatedCount++;
+        }
+      });
+      
+      // Delete the account
+      const accountRef = doc(db, "accounts", accountId);
+      batch.delete(accountRef);
+
+      // Commit the batch
+      await batch.commit();
+
+      toast({
+        title: "Account Deleted",
+        description: `Successfully deleted the account and re-assigned ${updatedCount} transaction(s).`,
+      });
+    } catch (error: any) {
+       toast({
+        variant: "destructive",
+        title: "Deletion Failed",
+        description: error.message || "An error occurred while deleting the account.",
+      });
     }
   };
 
@@ -443,7 +560,7 @@ export function AccountList({ initialAccounts }: { initialAccounts: Omit<Account
             >
               <SortableContext items={accountIds} strategy={rectSortingStrategy}>
                   {accounts.map((account) => (
-                    <SortableAccountCard key={account.id} account={account} onSetPrimary={handleSetPrimary} onEdit={openEditDialog} onOpenDetails={handleOpenDetails} />
+                    <SortableAccountCard key={account.id} account={account} onSetPrimary={handleSetPrimary} onEdit={openEditDialog} onDelete={handleDeleteAccount} onOpenDetails={handleOpenDetails} />
                   ))}
               </SortableContext>
             </DndContext>
