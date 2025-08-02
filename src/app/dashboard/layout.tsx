@@ -45,8 +45,6 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const pageTitle = menuItems.find((item) => item.href === pathname)?.label || "Dashboard";
-
 
   return (
     <SidebarProvider>
@@ -79,7 +77,7 @@ export default function DashboardLayout({
           </SidebarContent>
         </Sidebar>
         <SidebarInset>
-          <Header pageTitle={pageTitle} />
+          <Header />
           <main className="flex-1 p-4 md:p-6">{children}</main>
         </SidebarInset>
       </div>

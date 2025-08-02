@@ -58,7 +58,6 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { restrictToWindowEdges } from '@dnd-kit/modifiers';
-import { AccountDetailsDialog } from "@/components/dashboard/account-details-dialog";
 import { useToast } from "@/hooks/use-toast";
 
 const formatCurrency = (amount: number) => {
@@ -81,10 +80,6 @@ const getRandomIcon = () => {
   const iconName = icons[Math.floor(Math.random() * icons.length)] as keyof typeof iconComponents;
   return { name: iconName, component: iconComponents[iconName] };
 }
-
-type WalletType = 'cash-wallet' | 'digital-wallet';
-type AccountForDetails = (Omit<Account, 'balance'> & { balance: number }) | { id: WalletType, name: string, balance: number };
-
 
 function SortableAccountCard({ account, onSetPrimary, onEdit, onDelete }: { account: Account, onSetPrimary: (id: string) => void, onEdit: (account: Account) => void, onDelete: (accountId: string) => void }) {
     const {
@@ -168,15 +163,12 @@ function SortableAccountCard({ account, onSetPrimary, onEdit, onDelete }: { acco
     );
 }
 
-export function AccountList({ initialAccounts }: { initialAccounts: Omit<Account, 'id' | 'userId'>[] }) {
+export function AccountList() {
   const [rawAccounts, setRawAccounts] = useState<Omit<Account, 'balance'>[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
-  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
-  const [selectedAccountForDetails, setSelectedAccountForDetails] = useState<AccountForDetails | null>(null);
-  const [walletPreferences, setWalletPreferences] = useState<{ cash?: number, digital?: number }>({});
 
   const [user, loading] = useAuthState(auth);
   const sensors = useSensors(useSensor(PointerSensor));
@@ -201,18 +193,9 @@ export function AccountList({ initialAccounts }: { initialAccounts: Omit<Account
           setTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction)));
       });
 
-      const preferencesDocRef = doc(db, "user_preferences", user.uid);
-      const unsubscribePreferences = onSnapshot(preferencesDocRef, (doc) => {
-        if (doc.exists()) {
-          setWalletPreferences(doc.data().wallets || {});
-        }
-      });
-
-
       return () => {
           unsubscribeAccounts();
           unsubscribeTransactions();
-          unsubscribePreferences();
       }
     }
   }, [user, db]);
@@ -432,45 +415,6 @@ export function AccountList({ initialAccounts }: { initialAccounts: Omit<Account
     setIsEditDialogOpen(true);
   }
 
-  const useDebounce = (callback: Function, delay: number) => {
-    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-    return (...args: any) => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      timeoutRef.current = setTimeout(() => {
-        callback(...args);
-      }, delay);
-    };
-  };
-
-  const debouncedUpdateWalletBalance = useDebounce(async (walletType: 'cash' | 'digital', value: number) => {
-    if (!user || isNaN(value)) return;
-    const prefRef = doc(db, "user_preferences", user.uid);
-    await setDoc(prefRef, { wallets: { ...walletPreferences, [walletType]: value } }, { merge: true });
-  }, 500);
-
-  const handleOpenDetails = (accountOrWallet: Account | WalletType) => {
-    if (accountOrWallet === 'cash-wallet') {
-      setSelectedAccountForDetails({
-        id: 'cash-wallet',
-        name: 'Cash Wallet',
-        balance: cashWalletBalance,
-      });
-    } else if (accountOrWallet === 'digital-wallet') {
-      setSelectedAccountForDetails({
-        id: 'digital-wallet',
-        name: 'Digital Wallet',
-        balance: digitalWalletBalance,
-      });
-    } else {
-      setSelectedAccountForDetails({
-        ...accountOrWallet,
-        balance: accountOrWallet.balance,
-      });
-    }
-    setIsDetailsDialogOpen(true);
-  };
-
-
   if (loading) {
     return (
         <Card>
@@ -639,12 +583,6 @@ export function AccountList({ initialAccounts }: { initialAccounts: Omit<Account
             </form>
         </DialogContent>
     </Dialog>
-     <AccountDetailsDialog
-        account={selectedAccountForDetails}
-        transactions={transactions}
-        isOpen={isDetailsDialogOpen}
-        onOpenChange={setIsDetailsDialogOpen}
-    />
     </>
   );
 }
