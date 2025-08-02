@@ -66,7 +66,7 @@ export function Header({ pageTitle }: { pageTitle: string }) {
         <div>
             <h1 className="text-xl font-semibold">{pageTitle}</h1>
             {currentDateTime ? (
-                <p className="text-xs text-muted-foreground">{format(currentDateTime, "EEEE, MMMM do, yyyy, h:mm a")}</p>
+                <p className="text-xs text-muted-foreground">{format(currentDateTime, "EEEE, dd MMMM, yyyy, hh:mm a")}</p>
             ) : (
                 <Skeleton className="h-4 w-48 mt-1" />
             )}
