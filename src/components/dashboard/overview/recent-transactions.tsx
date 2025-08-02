@@ -60,10 +60,15 @@ export function RecentTransactions() {
 
   const getAccountName = (transaction: Transaction) => {
     if (transaction.type === 'transfer') {
-        return `Transfer`;
+      const fromName = accounts.find(a => a.id === transaction.fromAccountId)?.name || transaction.fromAccountId?.replace('-',' ') || 'N/A';
+      const toName = accounts.find(a => a.id === transaction.toAccountId)?.name || transaction.toAccountId?.replace('-',' ') || 'N/A';
+      return `${fromName} -> ${toName}`;
     }
-    if (transaction.paymentMethod === 'wallet') {
-        return "Wallet";
+    if (transaction.paymentMethod === 'cash') {
+        return "Cash Wallet";
+    }
+    if (transaction.paymentMethod === 'digital') {
+        return "Digital Wallet";
     }
     if (!transaction.accountId) return "N/A";
     return accounts.find((a) => a.id === transaction.accountId)?.name || "N/A";
@@ -125,7 +130,7 @@ export function RecentTransactions() {
                 <p className="text-sm font-medium leading-none">
                   {transaction.description}
                 </p>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-muted-foreground capitalize">
                   {getAccountName(transaction)}
                 </p>
               </div>
