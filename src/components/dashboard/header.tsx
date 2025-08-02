@@ -34,7 +34,7 @@ const generateColor = (str: string) => {
 }
 
 
-export function Header() {
+export function Header({ pageTitle }: { pageTitle: string }) {
   const [user, loading] = useAuthState(auth);
   const [currentDateTime, setCurrentDateTime] = useState("");
   const [currentMonthYear, setCurrentMonthYear] = useState("");
@@ -83,6 +83,7 @@ export function Header() {
       <div className="flex items-center gap-2">
         <SidebarTrigger className="md:hidden" />
         <div>
+             <h1 className="text-xl font-semibold hidden md:block">{pageTitle}</h1>
              <div className="text-xs text-muted-foreground hidden md:block">
               {clientLoaded ? currentDateTime : <Skeleton className="h-4 w-48 mt-1" />}
             </div>

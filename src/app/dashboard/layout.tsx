@@ -36,6 +36,7 @@ const menuItems = [
   { href: "/dashboard/categories", label: "Categories", icon: Shapes },
   { href: "/dashboard/bills-and-events", label: "Bills & Events", icon: FileText },
   { href: "/dashboard/help", label: "Help", icon: HelpCircle },
+  { href: "/dashboard/profile", label: "User Profile", icon: Wallet },
 ];
 
 export default function DashboardLayout({
@@ -44,6 +45,8 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const pageTitle = menuItems.find((item) => item.href === pathname)?.label || "Dashboard";
+
 
   return (
     <SidebarProvider>
@@ -58,6 +61,7 @@ export default function DashboardLayout({
           <SidebarContent>
             <SidebarMenu>
               {menuItems.map((item) => (
+                item.href !== "/dashboard/profile" &&
                 <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton
                     asChild
@@ -75,7 +79,7 @@ export default function DashboardLayout({
           </SidebarContent>
         </Sidebar>
         <SidebarInset>
-          <Header />
+          <Header pageTitle={pageTitle} />
           <main className="flex-1 p-4 md:p-6">{children}</main>
         </SidebarInset>
       </div>
