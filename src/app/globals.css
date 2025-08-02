@@ -116,6 +116,24 @@ body {
   .dark .text-blue-600 {
     color: hsl(210 90% 60%);
   }
+
+  .animate-scroll {
+    animation: scroll var(--animation-duration, 20s) linear infinite;
+  }
+
+  .animation-pause {
+      animation-play-state: paused;
+  }
+
+  @keyframes scroll {
+    0% {
+      transform: translateY(0);
+    }
+    100% {
+      transform: translateY(-50%);
+    }
+  }
+
 }
 
 @media print {
