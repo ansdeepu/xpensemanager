@@ -16,6 +16,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableFooter,
 } from "@/components/ui/table";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "@/lib/firebase";
@@ -92,6 +93,11 @@ export function OverviewChart() {
     if (!selectedDate) return [];
     return transactions.filter(t => isSameDay(new Date(t.date), selectedDate));
   }, [transactions, selectedDate]);
+
+  const totalForSelectedDate = useMemo(() => {
+    return transactionsOnSelectedDate.reduce((total, t) => total + t.amount, 0);
+  }, [transactionsOnSelectedDate]);
+
 
   const monthlyChartData = useMemo(() => {
     const currentYear = getYear(new Date());
@@ -211,6 +217,12 @@ export function OverviewChart() {
                                 </TableRow>
                             ))}
                         </TableBody>
+                         <TableFooter>
+                            <TableRow>
+                                <TableCell className="font-bold">Total</TableCell>
+                                <TableCell className="text-right font-bold font-mono">{formatCurrency(totalForSelectedDate)}</TableCell>
+                            </TableRow>
+                        </TableFooter>
                     </Table>
                 </ScrollArea>
            </div>
