@@ -12,7 +12,7 @@ import {
 import { Landmark, Wallet, Coins } from "lucide-react";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "@/lib/firebase";
-import { collection, query, where, onSnapshot, orderBy, doc, updateDoc } from "firebase/firestore";
+import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, getDoc, setDoc } from "firebase/firestore";
 import type { Account, Transaction } from "@/lib/data";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AccountDetailsDialog } from "@/components/dashboard/account-details-dialog";
@@ -27,6 +27,7 @@ export function AccountBalances() {
   const [user] = useAuthState(auth);
   const [rawAccounts, setRawAccounts] = useState<Omit<Account, 'balance'>[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [walletPreferences, setWalletPreferences] = useState<{ cash?: number, digital?: number }>({});
   const [loading, setLoading] = useState(true);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [selectedAccountForDetails, setSelectedAccountForDetails] = useState<AccountForDetails | null>(null);
@@ -41,22 +42,31 @@ export function AccountBalances() {
           userAccounts.push({ id: doc.id, ...data } as Omit<Account, 'balance'>);
         });
         setRawAccounts(userAccounts);
-        setLoading(false);
+        if(loading) setLoading(false);
       });
 
       const transactionsQuery = query(collection(db, "transactions"), where("userId", "==", user.uid));
       const unsubscribeTransactions = onSnapshot(transactionsQuery, (snapshot) => {
         setTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction)));
       });
+      
+      const preferencesDocRef = doc(db, "user_preferences", user.uid);
+      const unsubscribePreferences = onSnapshot(preferencesDocRef, (doc) => {
+        if (doc.exists()) {
+          setWalletPreferences(doc.data().wallets || {});
+        }
+      });
+
 
       return () => {
         unsubscribeAccounts();
         unsubscribeTransactions();
+        unsubscribePreferences();
       };
-    } else if (!user) {
+    } else if (!user && loading) {
         setLoading(false);
     }
-  }, [user, db]);
+  }, [user, db, loading]);
 
   const { cashWalletBalance, digitalWalletBalance, accountBalances } = useMemo(() => {
     const calculatedAccountBalances: { [key: string]: number } = {};
@@ -126,6 +136,12 @@ export function AccountBalances() {
         const accountRef = doc(db, "accounts", accountId);
         await updateDoc(accountRef, { actualBalance: value });
     }, 500), [user]);
+    
+  const debouncedUpdateWalletBalance = useCallback(useDebounce(async (walletType: 'cash' | 'digital', value: number) => {
+    if (!user || isNaN(value)) return;
+    const prefRef = doc(db, "user_preferences", user.uid);
+    await setDoc(prefRef, { wallets: { [walletType]: value } }, { merge: true });
+  }, 500), [user]);
 
 
   const handleAccountClick = (accountOrWallet: Omit<Account, 'balance'> | WalletType) => {
@@ -166,6 +182,10 @@ export function AccountBalances() {
       )
   }
 
+  const cashBalanceDifference = walletPreferences.cash !== undefined ? cashWalletBalance - walletPreferences.cash : null;
+  const digitalBalanceDifference = walletPreferences.digital !== undefined ? digitalWalletBalance - walletPreferences.digital : null;
+
+
   return (
     <>
     <Card>
@@ -175,22 +195,72 @@ export function AccountBalances() {
         </CardHeader>
         <CardContent>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-                 <Card className="cursor-pointer hover:bg-muted/50" onClick={() => handleAccountClick('cash-wallet')}>
-                    <CardHeader className="flex flex-row items-center justify-between pb-2">
-                       <CardTitle className="text-sm font-medium">Cash Wallet</CardTitle>
-                       <Coins className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{formatCurrency(cashWalletBalance)}</div>
+                 <Card>
+                    <div className="cursor-pointer hover:bg-muted/50" onClick={() => handleAccountClick('cash-wallet')}>
+                        <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-sm font-medium">Cash Wallet</CardTitle>
+                        <Coins className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{formatCurrency(cashWalletBalance)}</div>
+                        </CardContent>
+                    </div>
+                     <CardContent className="pt-2">
+                        <div className="space-y-2">
+                            <Label htmlFor="actual-balance-cash" className="text-xs">Actual Balance</Label>
+                            <Input
+                                id="actual-balance-cash"
+                                type="number"
+                                placeholder="Enter balance"
+                                className="hide-number-arrows h-8"
+                                defaultValue={walletPreferences.cash}
+                                onChange={(e) => debouncedUpdateWalletBalance('cash', parseFloat(e.target.value))}
+                                onClick={(e) => e.stopPropagation()}
+                            />
+                            {cashBalanceDifference !== null && (
+                                <p className={cn(
+                                    "text-xs font-medium",
+                                    cashBalanceDifference === 0 && "text-green-600",
+                                    cashBalanceDifference !== 0 && "text-red-600"
+                                )}>
+                                    Diff: {formatCurrency(cashBalanceDifference)}
+                                </p>
+                            )}
+                        </div>
                     </CardContent>
                 </Card>
-                 <Card className="cursor-pointer hover:bg-muted/50" onClick={() => handleAccountClick('digital-wallet')}>
-                    <CardHeader className="flex flex-row items-center justify-between pb-2">
-                       <CardTitle className="text-sm font-medium">Digital Wallet</CardTitle>
-                       <Wallet className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{formatCurrency(digitalWalletBalance)}</div>
+                 <Card>
+                    <div className="cursor-pointer hover:bg-muted/50" onClick={() => handleAccountClick('digital-wallet')}>
+                        <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-sm font-medium">Digital Wallet</CardTitle>
+                        <Wallet className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{formatCurrency(digitalWalletBalance)}</div>
+                        </CardContent>
+                    </div>
+                     <CardContent className="pt-2">
+                        <div className="space-y-2">
+                            <Label htmlFor="actual-balance-digital" className="text-xs">Actual Balance</Label>
+                            <Input
+                                id="actual-balance-digital"
+                                type="number"
+                                placeholder="Enter balance"
+                                className="hide-number-arrows h-8"
+                                defaultValue={walletPreferences.digital}
+                                onChange={(e) => debouncedUpdateWalletBalance('digital', parseFloat(e.target.value))}
+                                onClick={(e) => e.stopPropagation()}
+                            />
+                            {digitalBalanceDifference !== null && (
+                                <p className={cn(
+                                    "text-xs font-medium",
+                                    digitalBalanceDifference === 0 && "text-green-600",
+                                    digitalBalanceDifference !== 0 && "text-red-600"
+                                )}>
+                                    Diff: {formatCurrency(digitalBalanceDifference)}
+                                </p>
+                            )}
+                        </div>
                     </CardContent>
                 </Card>
                 {accounts.map(account => {

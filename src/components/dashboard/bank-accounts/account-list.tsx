@@ -86,7 +86,7 @@ type WalletType = 'cash-wallet' | 'digital-wallet';
 type AccountForDetails = (Omit<Account, 'balance'> & { balance: number }) | { id: WalletType, name: string, balance: number };
 
 
-function SortableAccountCard({ account, onSetPrimary, onEdit, onDelete, onOpenDetails }: { account: Account, onSetPrimary: (id: string) => void, onEdit: (account: Account) => void, onDelete: (accountId: string) => void, onOpenDetails: (account: Account) => void }) {
+function SortableAccountCard({ account, onSetPrimary, onEdit, onDelete }: { account: Account, onSetPrimary: (id: string) => void, onEdit: (account: Account) => void, onDelete: (accountId: string) => void }) {
     const {
         attributes,
         listeners,
@@ -567,7 +567,7 @@ export function AccountList({ initialAccounts }: { initialAccounts: Omit<Account
             >
               <SortableContext items={accountIds} strategy={rectSortingStrategy}>
                   {accounts.map((account) => (
-                    <SortableAccountCard key={account.id} account={account} onSetPrimary={handleSetPrimary} onEdit={openEditDialog} onDelete={handleDeleteAccount} onOpenDetails={handleOpenDetails} />
+                    <SortableAccountCard key={account.id} account={account} onSetPrimary={handleSetPrimary} onEdit={openEditDialog} onDelete={handleDeleteAccount} />
                   ))}
               </SortableContext>
             </DndContext>
