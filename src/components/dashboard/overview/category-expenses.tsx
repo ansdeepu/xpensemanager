@@ -109,6 +109,11 @@ export function CategoryExpenses() {
   const totalBudget = useMemo(() => {
     return categoryStats.reduce((sum, stat) => sum + stat.budget, 0);
   }, [categoryStats]);
+  
+  const totalProgress = useMemo(() => {
+    if (totalBudget === 0) return 0;
+    return (totalExpenses / totalBudget) * 100;
+  }, [totalExpenses, totalBudget]);
 
 
   if (loading) {
@@ -187,13 +192,20 @@ export function CategoryExpenses() {
         </CardContent>
         {categoryStats.length > 0 && (
              <CardFooter className="flex flex-col items-start pt-4 border-t gap-2">
-                <div className="flex justify-between w-full font-medium">
-                    <span>Total Expenses</span>
-                    <span>{formatCurrency(totalExpenses)}</span>
-                </div>
-                <div className="flex justify-between w-full font-medium">
-                     <span>Total Budget</span>
-                    <span>{formatCurrency(totalBudget)}</span>
+                <div className="w-full space-y-2">
+                    <div className="flex justify-between w-full font-medium">
+                        <span>Total Expenses</span>
+                        <span>{formatCurrency(totalExpenses)}</span>
+                    </div>
+                     {totalBudget > 0 && (
+                        <>
+                          <Progress value={totalProgress} />
+                          <div className="flex justify-between w-full text-sm text-muted-foreground">
+                              <span>Budget</span>
+                              <span>{formatCurrency(totalBudget)}</span>
+                          </div>
+                        </>
+                    )}
                 </div>
             </CardFooter>
         )}
