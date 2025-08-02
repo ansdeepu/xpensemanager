@@ -83,7 +83,7 @@ export function Header({ pageTitle }: { pageTitle: string }) {
       <div className="flex items-center gap-2">
         <SidebarTrigger className="md:hidden" />
         <div>
-             <h1 className="text-xl font-semibold hidden md:block">{pageTitle}</h1>
+             <div className="text-xl font-semibold hidden md:block">{pageTitle}</div>
              <div className="text-xs text-muted-foreground hidden md:block">
               {clientLoaded ? currentDateTime : <Skeleton className="h-4 w-48 mt-1" />}
             </div>

@@ -11,10 +11,6 @@ import { Shapes, Landmark, ArrowRightLeft, ListChecks, Upload, Printer, MousePoi
 export default function HelpPage() {
   return (
     <div className="space-y-6">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-bold">How to Use Expense Manager</h1>
-      </div>
-
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
