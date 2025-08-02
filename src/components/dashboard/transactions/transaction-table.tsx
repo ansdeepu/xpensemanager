@@ -186,7 +186,7 @@ export function TransactionTable({
     if (selectedTransaction) {
       setEditDate(new Date(selectedTransaction.date));
       if (selectedTransaction.type === 'expense' || selectedTransaction.type === 'income') {
-        const categoryDoc = categories.find(c => c.name === selectedTransaction.category);
+        const categoryDoc = categories.find(c => c.id === selectedTransaction.categoryId);
         setEditCategory(categoryDoc?.id);
       }
     } else {
@@ -214,7 +214,8 @@ export function TransactionTable({
             const amount = parseFloat(formData.get(`${transactionType}-amount`) as string);
             const accountId = formData.get(`${transactionType}-account`) as string;
             const description = formData.get(`${transactionType}-description`) as string
-            
+            const categoryId = formData.get(`${transactionType}-category`) as string;
+
             const newTransaction: Omit<Transaction, "id"> = {
                 userId: user.uid,
                 description: description,
@@ -222,6 +223,7 @@ export function TransactionTable({
                 type: transactionType as 'expense' | 'income',
                 date: transactionDate.toISOString(),
                 category: "Uncategorized",
+                categoryId: categoryId,
                 paymentMethod: 'online',
             };
 
@@ -237,7 +239,6 @@ export function TransactionTable({
             }
 
             if (transactionType === 'expense' || transactionType === 'income') {
-              const categoryId = formData.get(`${transactionType}-category`) as string;
               const subcategory = formData.get(`${transactionType}-subcategory`) as string;
               const categoryDoc = categories.find(c => c.id === categoryId);
               newTransaction.category = categoryDoc?.name || 'Uncategorized';
@@ -359,6 +360,7 @@ export function TransactionTable({
             const subcategory = formData.get('subcategory') as string;
             const categoryDoc = categories.find(c => c.id === categoryId);
             updatedData.category = categoryDoc?.name || 'Uncategorized';
+            updatedData.categoryId = categoryId;
             updatedData.subcategory = subcategory || "";
           }
         } else if (selectedTransaction.type === 'transfer') {
@@ -730,10 +732,10 @@ export function TransactionTable({
             <TableRow>
               <TableHead className="w-[5%]">Sl. No.</TableHead>
               <TableHead className="w-[10%]">Date</TableHead>
-              <TableHead className="w-[18%]">Description</TableHead>
+              <TableHead className="w-[20%]">Description</TableHead>
               <TableHead className="w-[8%]">Type</TableHead>
-              <TableHead className="w-[16%]">Account</TableHead>
-              <TableHead className="w-[18%]">Category</TableHead>
+              <TableHead className="w-[17%]">Account</TableHead>
+              <TableHead className="w-[15%]">Category</TableHead>
               <TableHead className="w-[10%] text-right">Credit</TableHead>
               <TableHead className="w-[10%] text-right">Debit</TableHead>
               <TableHead className="w-[5%] text-right print-hide">Actions</TableHead>

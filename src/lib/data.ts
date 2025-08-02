@@ -34,6 +34,7 @@ export type Transaction = {
   fromAccountId?: string;
   toAccountId?: string;
   category: string;
+  categoryId?: string;
   subcategory?: string;
 };
 
@@ -43,7 +44,6 @@ export type SubCategory = {
   order?: number;
   amount?: number;
   frequency?: 'monthly' | 'occasional';
-  budget?: number; // Add budget field
   selectedMonths?: string[];
 }
 

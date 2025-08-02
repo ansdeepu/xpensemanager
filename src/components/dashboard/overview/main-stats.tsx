@@ -128,7 +128,7 @@ export function MainStats() {
 
   if (loading) {
     return (
-        <Card className="lg:col-span-3">
+        <Card>
              <CardHeader>
                 <CardTitle>Financial Summary</CardTitle>
                 <CardDescription>A summary of your income, expenses and current balance for each account.</CardDescription>
@@ -145,7 +145,7 @@ export function MainStats() {
   }
 
   return (
-    <Card className="lg:col-span-3">
+    <Card>
         <CardHeader>
           <CardTitle>Financial Summary</CardTitle>
           <CardDescription>A summary of your income, expenses and current balance for each account.</CardDescription>
