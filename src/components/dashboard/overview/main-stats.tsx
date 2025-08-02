@@ -16,7 +16,6 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  TableFooter
 } from "@/components/ui/table";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "@/lib/firebase";
@@ -117,14 +116,6 @@ export function MainStats() {
 
   }, [accounts, transactions]);
   
-  const totals = useMemo(() => {
-    return accountStats.reduce((acc, stat) => {
-        acc.income += stat.income;
-        acc.expenses += stat.expenses;
-        acc.balance += stat.balance;
-        return acc;
-    }, { income: 0, expenses: 0, balance: 0 });
-  }, [accountStats]);
 
   if (loading) {
     return (
@@ -174,15 +165,6 @@ export function MainStats() {
                         </TableRow>
                     )})}
                 </TableBody>
-                <TableFooter>
-                    <TableRow className="bg-muted/50 hover:bg-muted/50">
-                        <TableHead className="font-bold">Total</TableHead>
-                        <TableHead className="text-right font-bold text-green-600">{formatCurrency(totals.income)}</TableHead>
-                        <TableHead></TableHead>
-                        <TableHead className="text-right font-bold text-red-600">{formatCurrency(-totals.expenses)}</TableHead>
-                        <TableHead className={cn("text-right font-bold", totals.balance >= 0 ? 'text-foreground' : 'text-red-600')}>{formatCurrency(totals.balance)}</TableHead>
-                    </TableRow>
-                </TableFooter>
             </Table>
         </CardContent>
     </Card>
