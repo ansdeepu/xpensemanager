@@ -140,8 +140,8 @@ export function AccountBalances() {
   const debouncedUpdateWalletBalance = useCallback(useDebounce(async (walletType: 'cash' | 'digital', value: number) => {
     if (!user || isNaN(value)) return;
     const prefRef = doc(db, "user_preferences", user.uid);
-    await setDoc(prefRef, { wallets: { [walletType]: value } }, { merge: true });
-  }, 500), [user]);
+    await setDoc(prefRef, { wallets: { ...walletPreferences, [walletType]: value } }, { merge: true });
+  }, 500), [user, walletPreferences]);
 
 
   const handleAccountClick = (accountOrWallet: Omit<Account, 'balance'> | WalletType) => {
@@ -213,8 +213,12 @@ export function AccountBalances() {
                                 type="number"
                                 placeholder="Enter balance"
                                 className="hide-number-arrows h-8"
-                                defaultValue={walletPreferences.cash}
-                                onChange={(e) => debouncedUpdateWalletBalance('cash', parseFloat(e.target.value))}
+                                value={walletPreferences.cash ?? ''}
+                                onChange={(e) => {
+                                    const value = e.target.value === '' ? undefined : parseFloat(e.target.value)
+                                    setWalletPreferences(prev => ({...prev, cash: value}))
+                                    if(value !== undefined) debouncedUpdateWalletBalance('cash', value)
+                                }}
                                 onClick={(e) => e.stopPropagation()}
                             />
                             {cashBalanceDifference !== null && (
@@ -247,8 +251,12 @@ export function AccountBalances() {
                                 type="number"
                                 placeholder="Enter balance"
                                 className="hide-number-arrows h-8"
-                                defaultValue={walletPreferences.digital}
-                                onChange={(e) => debouncedUpdateWalletBalance('digital', parseFloat(e.target.value))}
+                                value={walletPreferences.digital ?? ''}
+                                onChange={(e) => {
+                                    const value = e.target.value === '' ? undefined : parseFloat(e.target.value)
+                                    setWalletPreferences(prev => ({...prev, digital: value}))
+                                    if(value !== undefined) debouncedUpdateWalletBalance('digital', value)
+                                }}
                                 onClick={(e) => e.stopPropagation()}
                             />
                             {digitalBalanceDifference !== null && (
@@ -284,8 +292,12 @@ export function AccountBalances() {
                                     type="number"
                                     placeholder="Enter balance"
                                     className="hide-number-arrows h-8"
-                                    defaultValue={account.actualBalance}
-                                    onChange={(e) => debouncedUpdateBalance(account.id, parseFloat(e.target.value))}
+                                    value={account.actualBalance ?? ''}
+                                    onChange={(e) => {
+                                        const value = e.target.value === '' ? undefined : parseFloat(e.target.value)
+                                        setRawAccounts(prev => prev.map(a => a.id === account.id ? {...a, actualBalance: value} : a))
+                                        if (value !== undefined) debouncedUpdateBalance(account.id, value);
+                                    }}
                                     onClick={(e) => e.stopPropagation()}
                                 />
                                 {balanceDifference !== null && (
@@ -314,3 +326,5 @@ export function AccountBalances() {
     </>
   );
 }
+
+    
