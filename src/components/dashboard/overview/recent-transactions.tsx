@@ -60,8 +60,8 @@ export function RecentTransactions() {
 
   const getAccountName = (transaction: Transaction) => {
     if (transaction.type === 'transfer') {
-      const fromName = accounts.find(a => a.id === transaction.fromAccountId)?.name || transaction.fromAccountId?.replace('-',' ') || 'N/A';
-      const toName = accounts.find(a => a.id === transaction.toAccountId)?.name || transaction.toAccountId?.replace('-',' ') || 'N/A';
+      const fromName = accounts.find(a => a.id === transaction.fromAccountId)?.name || (transaction.fromAccountId ? transaction.fromAccountId.replace('-', ' ') : 'N/A');
+      const toName = accounts.find(a => a.id === transaction.toAccountId)?.name || (transaction.toAccountId ? transaction.toAccountId.replace('-', ' ') : 'N/A');
       return `${fromName} -> ${toName}`;
     }
     if (transaction.paymentMethod === 'cash') {
