@@ -356,12 +356,14 @@ function getPayloadConfigFromPayload(
     : config[key as keyof typeof config]
 }
 
+type BarProps = React.ComponentProps<typeof RechartsPrimitive.Bar>;
 const Bar = React.forwardRef<
   React.ElementRef<typeof RechartsPrimitive.Bar>,
-  React.ComponentProps<typeof RechartsPrimitive.Bar>
+  BarProps
 >(({ ...props }, ref) => {
-  return <RechartsPrimitive.Bar ref={ref} {...props} />
+  return <RechartsPrimitive.Bar ref={ref as React.Ref<any>} {...props} />
 })
+Bar.displayName = "Bar"
 
 const XAxis = React.forwardRef<
   React.ElementRef<typeof RechartsPrimitive.XAxis>,
