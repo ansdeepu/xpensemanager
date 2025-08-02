@@ -728,15 +728,15 @@ export function TransactionTable({
         <Table className="table-fixed">
           <TableHeader>
             <TableRow>
-              <TableHead className="w-16">Sl. No.</TableHead>
-              <TableHead className="w-32">Date</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead className="w-28">Type</TableHead>
-              <TableHead>Account</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead className="w-40 text-right">Credit</TableHead>
-              <TableHead className="w-40 text-right">Debit</TableHead>
-              <TableHead className="w-24 text-right print-hide">Actions</TableHead>
+              <TableHead className="w-[5%]">Sl. No.</TableHead>
+              <TableHead className="w-[10%]">Date</TableHead>
+              <TableHead className="w-[25%]">Description</TableHead>
+              <TableHead className="w-[10%]">Type</TableHead>
+              <TableHead className="w-[15%]">Account</TableHead>
+              <TableHead className="w-[15%]">Category</TableHead>
+              <TableHead className="w-[10%] text-right">Credit</TableHead>
+              <TableHead className="w-[10%] text-right">Debit</TableHead>
+              <TableHead className="w-[10%] text-right print-hide">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
