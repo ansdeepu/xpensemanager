@@ -47,7 +47,7 @@ export default function TransactionsPage() {
       <Tabs defaultValue={primaryAccount?.id || "all"} className="w-full">
         <TabsList className="grid w-full grid-cols-1 md:grid-cols-3 lg:grid-cols-5">
           {primaryAccount && (
-            <TabsTrigger value={primaryAccount.id}>Primary Account</TabsTrigger>
+            <TabsTrigger value={primaryAccount.id}>Primary Account ({primaryAccount.name})</TabsTrigger>
           )}
           {accounts.map(account => (
             !account.isPrimary && <TabsTrigger key={account.id} value={account.id}>{account.name}</TabsTrigger>

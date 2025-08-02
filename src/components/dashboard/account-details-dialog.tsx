@@ -42,8 +42,10 @@ export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChan
         const relevantTransactions = transactions
             .filter(t => {
                 if (account.id === 'wallet') {
+                    // Include expenses paid from wallet, and transfers to/from wallet
                     return t.paymentMethod === 'wallet' || t.fromAccountId === 'wallet' || t.toAccountId === 'wallet';
                 }
+                // For regular accounts, include their income/expenses and transfers
                 return (t.accountId === account.id && (t.type === 'income' || t.type === 'expense')) ||
                        t.fromAccountId === account.id ||
                        t.toAccountId === account.id;
@@ -55,18 +57,26 @@ export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChan
             let credit = 0;
             let debit = 0;
 
-            if (t.type === 'income' && t.accountId === account.id) {
-                credit = t.amount;
-            } else if (t.type === 'expense') {
-                 if ((account.id === 'wallet' && t.paymentMethod === 'wallet') || (t.accountId === account.id && t.paymentMethod === 'online')) {
+            if (account.id === 'wallet') {
+                if (t.type === 'transfer' && t.toAccountId === 'wallet') {
+                    credit = t.amount;
+                } else if (t.type === 'transfer' && t.fromAccountId === 'wallet') {
                     debit = t.amount;
-                 }
-            } else if (t.type === 'transfer') {
-                if (t.fromAccountId === account.id) {
+                } else if (t.type === 'expense' && t.paymentMethod === 'wallet') {
                     debit = t.amount;
                 }
-                if (t.toAccountId === account.id) {
+            } else { // Regular bank account logic
+                if (t.type === 'income' && t.accountId === account.id) {
                     credit = t.amount;
+                } else if (t.type === 'expense' && t.accountId === account.id && t.paymentMethod !== 'wallet') {
+                    debit = t.amount;
+                } else if (t.type === 'transfer') {
+                    if (t.fromAccountId === account.id) {
+                        debit = t.amount;
+                    }
+                    if (t.toAccountId === account.id) {
+                        credit = t.amount;
+                    }
                 }
             }
 

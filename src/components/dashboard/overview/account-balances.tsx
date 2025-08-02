@@ -23,7 +23,7 @@ export function AccountBalances() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
-  const [selectedAccountForDetails, setSelectedAccountForDetails] = useState<Account | { id: 'wallet', name: string, balance: number } | null>(null);
+  const [selectedAccountForDetails, setSelectedAccountForDetails] = useState<(Omit<Account, 'balance'> & { balance: number }) | { id: 'wallet', name: string, balance: number } | null>(null);
 
   useEffect(() => {
     if (user && db) {
@@ -102,8 +102,9 @@ export function AccountBalances() {
             balance: walletBalance
         });
     } else {
-         setSelectedAccountForDetails({
-            ...account,
+        const { balance, ...rest } = account;
+        setSelectedAccountForDetails({
+            ...rest,
             balance: calculatedBalances[account.id] ?? 0
         });
     }

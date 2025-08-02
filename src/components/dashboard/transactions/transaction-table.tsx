@@ -143,10 +143,14 @@ export function TransactionTable({
     let relevantTransactions = transactions;
 
     if (isPrimaryView) {
-      relevantTransactions = transactions.filter(t => 
-        t.type === 'expense' || (t.accountId === accountId || t.fromAccountId === accountId || t.toAccountId === accountId)
-      );
+      // Primary view: show primary account's activity AND all expenses (including wallet)
+      relevantTransactions = transactions.filter(t => {
+        const isRelatedToPrimary = t.accountId === accountId || t.fromAccountId === accountId || t.toAccountId === accountId;
+        const isAnyExpense = t.type === 'expense';
+        return isRelatedToPrimary || isAnyExpense;
+      });
     } else {
+      // Specific account view
       relevantTransactions = transactions.filter(t =>
         t.accountId === accountId || t.fromAccountId === accountId || t.toAccountId === accountId
       );
