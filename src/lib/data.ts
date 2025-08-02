@@ -54,7 +54,7 @@ export type Category = {
   icon: string;
   subcategories: SubCategory[];
   order: number;
-  type: 'expense' | 'income';
+  type: 'expense' | 'income' | 'bank-expense';
 };
 
 

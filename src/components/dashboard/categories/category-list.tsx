@@ -231,7 +231,7 @@ function SortableCategoryCard({
   onSubCategoryOrderChange,
 }: { 
   category: Category, 
-  categoryType: 'expense' | 'income',
+  categoryType: 'expense' | 'income' | 'bank-expense',
   onAddSubCategory: (category: Category) => void,
   onEditCategory: (category: Category) => void,
   onDeleteCategory: (categoryId: string) => void,
@@ -284,7 +284,7 @@ function SortableCategoryCard({
     }
     
     const totalAmount = useMemo(() => {
-        if (categoryType === 'expense') {
+        if (categoryType === 'expense' || categoryType === 'bank-expense') {
             return category.subcategories
                 .filter(sub => 
                     sub.frequency === 'monthly' || 
@@ -364,7 +364,7 @@ function SortableCategoryCard({
                         <SortableContext items={allSubcategoryIds} strategy={verticalListSortingStrategy}>
                             {category.subcategories.length > 0 ? (
                                 <div className="space-y-4">
-                                    {categoryType === 'expense' ? (
+                                    {categoryType === 'expense' || categoryType === 'bank-expense' ? (
                                         <>
                                             {monthlySubcategories.length > 0 && (
                                                 <div>
@@ -455,7 +455,7 @@ function MonthSelector({ selectedMonths, onMonthToggle }: { selectedMonths: stri
     );
 }
 
-export function CategoryList({ categoryType }: { categoryType: 'expense' | 'income' }) {
+export function CategoryList({ categoryType }: { categoryType: 'expense' | 'income' | 'bank-expense' }) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
   const [isSubCategoryDialogOpen, setIsSubCategoryDialogOpen] = useState(false);
@@ -592,7 +592,7 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'inco
       order: existingSubcategories.length,
     }
     
-    if (categoryType === 'expense') {
+    if (categoryType === 'expense' || categoryType === 'bank-expense') {
         newSubCategory.frequency = addFrequency;
         if (addFrequency === 'occasional') {
             newSubCategory.selectedMonths = addSelectedMonths;
@@ -628,7 +628,7 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'inco
                 ...sub,
                 name: formData.get("name") as string,
             };
-            if (categoryType === 'expense') {
+            if (categoryType === 'expense' || categoryType === 'bank-expense') {
                 updatedSub.frequency = editFrequency;
                 if (editFrequency === 'occasional') {
                     updatedSub.selectedMonths = editSelectedMonths;
@@ -792,7 +792,10 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'inco
     reader.readAsArrayBuffer(file);
   };
 
-  const titleCase = (str: string) => str.charAt(0).toUpperCase() + str.slice(1);
+  const titleCase = (str: string) => {
+    if (str === 'bank-expense') return 'Bank Expense';
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  }
 
 
   if (loading || !clientLoaded) {
@@ -831,7 +834,7 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'inco
               <DialogHeader>
                 <DialogTitle>Add New {titleCase(categoryType)} Category</DialogTitle>
                 <DialogDescription>
-                  Enter a name for your new {categoryType} category.
+                  Enter a name for your new {categoryType.replace('-', ' ')} category.
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
@@ -869,7 +872,7 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'inco
           modifiers={[restrictToWindowEdges]}
         >
           <SortableContext items={categoryIds} strategy={rectSortingStrategy}>
-              <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2">
+              <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                   {categories.map((category) => (
                       <SortableCategoryCard 
                           key={category.id} 
@@ -889,7 +892,7 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'inco
          {categories.length === 0 && !loading && (
             <div className="col-span-full flex flex-col items-center justify-center text-center text-muted-foreground h-40 border-2 border-dashed rounded-lg mt-6">
                 <Tag className="h-10 w-10 mb-2"/>
-                <p>No {categoryType} categories found. Click "Add {titleCase(categoryType)} Category" to create your first one.</p>
+                <p>No {categoryType.replace('-', ' ')} categories found. Click "Add {titleCase(categoryType)} Category" to create your first one.</p>
             </div>
         )}
       </div>
@@ -910,7 +913,7 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'inco
                 <Label htmlFor="sub-name">Name</Label>
                 <Input id="sub-name" name="name" placeholder="e.g. Internet Bill" required />
               </div>
-               {categoryType === 'expense' && (
+               {(categoryType === 'expense' || categoryType === 'bank-expense') && (
                 <>
                   <div className="space-y-2">
                       <Label>Frequency</Label>
@@ -990,7 +993,7 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'inco
                     <Label htmlFor="edit-sub-name">Name</Label>
                     <Input id="edit-sub-name" name="name" defaultValue={selectedSubCategory?.name || ''} required />
                 </div>
-                 {categoryType === 'expense' && (
+                 {(categoryType === 'expense' || categoryType === 'bank-expense') && (
                   <>
                     <div className="space-y-2">
                         <Label>Frequency</Label>
