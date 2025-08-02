@@ -168,7 +168,7 @@ export function CategoryExpenses() {
 
   if (loading) {
       return (
-          <Card className="lg:col-span-4 h-[300px]">
+          <Card className="lg:col-span-4 h-[1200px]">
               <CardHeader>
                   <Skeleton className="h-6 w-1/4" />
                   <Skeleton className="h-4 w-1/2" />
@@ -274,7 +274,7 @@ export function CategoryExpenses() {
 
 
   return (
-    <Card className="lg:col-span-4 h-[300px] flex flex-col">
+    <Card className="lg:col-span-4 h-[1200px] flex flex-col">
         <CardHeader>
             <CardTitle>Category Expenses</CardTitle>
             <div className="flex justify-between items-center">

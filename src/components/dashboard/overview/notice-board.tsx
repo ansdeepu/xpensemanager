@@ -74,7 +74,7 @@ export function NoticeBoard() {
   });
 
   return (
-    <Card className="lg:col-span-3 h-[300px] flex flex-col">
+    <Card className="lg:col-span-3 h-[1200px] flex flex-col">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Bell className="h-6 w-6" />
