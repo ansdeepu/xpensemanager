@@ -73,21 +73,31 @@ export function MainStats() {
         stats[acc.id] = { income: 0, expenses: 0, transfersIn: 0, transfersOut: 0, balance: 0, name: acc.name };
     });
 
-    stats['wallet'] = {
+    stats['cash-wallet'] = {
         income: 0,
         expenses: 0,
         transfersIn: 0,
         transfersOut: 0,
         balance: 0,
-        name: "Wallet"
+        name: "Cash Wallet"
+    };
+    stats['digital-wallet'] = {
+        income: 0,
+        expenses: 0,
+        transfersIn: 0,
+        transfersOut: 0,
+        balance: 0,
+        name: "Digital Wallet"
     };
 
     transactions.forEach(t => {
         if (t.type === 'income' && t.accountId && stats[t.accountId]) {
             stats[t.accountId].income += t.amount;
         } else if (t.type === 'expense') {
-             if (t.paymentMethod === 'wallet') {
-                stats['wallet'].expenses += t.amount;
+             if (t.paymentMethod === 'cash') {
+                stats['cash-wallet'].expenses += t.amount;
+             } else if (t.paymentMethod === 'digital') {
+                stats['digital-wallet'].expenses += t.amount;
              } else if (t.accountId && stats[t.accountId]) {
                 stats[t.accountId].expenses += t.amount;
              }
@@ -105,7 +115,10 @@ export function MainStats() {
        stats[key].balance = stats[key].income - stats[key].expenses + stats[key].transfersIn - stats[key].transfersOut;
     });
 
-    const orderedStats = [{ id: 'wallet', ...stats['wallet'] }];
+    const orderedStats = [
+        { id: 'cash-wallet', ...stats['cash-wallet'] },
+        { id: 'digital-wallet', ...stats['digital-wallet'] }
+    ];
     accounts.forEach(acc => {
         if (stats[acc.id]) {
             orderedStats.push({ id: acc.id, ...stats[acc.id] });
@@ -170,3 +183,5 @@ export function MainStats() {
     </Card>
   );
 }
+
+    

@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Landmark, Wallet } from "lucide-react";
+import { Landmark, Wallet, Coins } from "lucide-react";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
@@ -17,13 +17,16 @@ import type { Account, Transaction } from "@/lib/data";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AccountDetailsDialog } from "@/components/dashboard/account-details-dialog";
 
+type WalletType = 'cash-wallet' | 'digital-wallet';
+type AccountForDetails = (Omit<Account, 'balance'> & { balance: number }) | { id: WalletType, name: string, balance: number };
+
 export function AccountBalances() {
   const [user] = useAuthState(auth);
   const [accounts, setAccounts] = useState<Omit<Account, 'balance'>[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
-  const [selectedAccountForDetails, setSelectedAccountForDetails] = useState<(Omit<Account, 'balance'> & { balance: number }) | { id: 'wallet', name: string, balance: number } | null>(null);
+  const [selectedAccountForDetails, setSelectedAccountForDetails] = useState<AccountForDetails | null>(null);
 
   useEffect(() => {
     if (user && db) {
@@ -53,27 +56,31 @@ export function AccountBalances() {
     }
   }, [user, db]);
 
-  const { walletBalance, accountBalances } = useMemo(() => {
+  const { cashWalletBalance, digitalWalletBalance, accountBalances } = useMemo(() => {
     const calculatedAccountBalances: { [key: string]: number } = {};
     accounts.forEach(acc => {
         calculatedAccountBalances[acc.id] = 0; // Start with 0
     });
 
-    let calculatedWalletBalance = 0;
+    let calculatedCashWalletBalance = 0;
+    let calculatedDigitalWalletBalance = 0;
 
     transactions.forEach(t => {
-        // Wallet balance calculation
-        if (t.type === 'transfer') {
-            if (t.toAccountId === 'wallet') calculatedWalletBalance += t.amount;
-            if (t.fromAccountId === 'wallet') calculatedWalletBalance -= t.amount;
-        } else if (t.type === 'expense' && t.paymentMethod === 'wallet') {
-            calculatedWalletBalance -= t.amount;
-        }
+      // Wallet balance calculation
+      if (t.type === 'transfer') {
+        if (t.toAccountId === 'cash-wallet') calculatedCashWalletBalance += t.amount;
+        if (t.fromAccountId === 'cash-wallet') calculatedCashWalletBalance -= t.amount;
+        if (t.toAccountId === 'digital-wallet') calculatedDigitalWalletBalance += t.amount;
+        if (t.fromAccountId === 'digital-wallet') calculatedDigitalWalletBalance -= t.amount;
+      } else if (t.type === 'expense') {
+        if (t.paymentMethod === 'cash') calculatedCashWalletBalance -= t.amount;
+        if (t.paymentMethod === 'digital') calculatedDigitalWalletBalance -= t.amount;
+      }
 
         // Bank account balance calculation
         if (t.type === 'income' && t.accountId && calculatedAccountBalances[t.accountId] !== undefined) {
             calculatedAccountBalances[t.accountId] += t.amount;
-        } else if (t.type === 'expense' && t.accountId && t.paymentMethod !== 'wallet' && calculatedAccountBalances[t.accountId] !== undefined) {
+        } else if (t.type === 'expense' && t.accountId && t.paymentMethod === 'online' && calculatedAccountBalances[t.accountId] !== undefined) {
             calculatedAccountBalances[t.accountId] -= t.amount;
         } else if (t.type === 'transfer') {
             if (t.fromAccountId && calculatedAccountBalances[t.fromAccountId] !== undefined) {
@@ -85,7 +92,7 @@ export function AccountBalances() {
         }
     });
 
-    return { walletBalance: calculatedWalletBalance, accountBalances: calculatedAccountBalances };
+    return { cashWalletBalance: calculatedCashWalletBalance, digitalWalletBalance: calculatedDigitalWalletBalance, accountBalances: calculatedAccountBalances };
   }, [accounts, transactions]);
 
   const formatCurrency = (amount: number) => {
@@ -95,18 +102,24 @@ export function AccountBalances() {
     }).format(amount);
   };
 
-  const handleAccountClick = (account: Omit<Account, 'balance'> | 'wallet') => {
-    if (account === 'wallet') {
-        setSelectedAccountForDetails({
-            id: 'wallet',
-            name: 'Digital Wallet',
-            balance: walletBalance
-        });
+  const handleAccountClick = (accountOrWallet: Omit<Account, 'balance'> | WalletType) => {
+    if (accountOrWallet === 'cash-wallet') {
+      setSelectedAccountForDetails({
+        id: 'cash-wallet',
+        name: 'Cash Wallet',
+        balance: cashWalletBalance
+      });
+    } else if (accountOrWallet === 'digital-wallet') {
+      setSelectedAccountForDetails({
+        id: 'digital-wallet',
+        name: 'Digital Wallet',
+        balance: digitalWalletBalance
+      });
     } else {
-        setSelectedAccountForDetails({
-            ...account,
-            balance: accountBalances[account.id] ?? 0
-        });
+      setSelectedAccountForDetails({
+        ...accountOrWallet,
+        balance: accountBalances[accountOrWallet.id] ?? 0
+      });
     }
     setIsDetailsDialogOpen(true);
   };
@@ -136,13 +149,22 @@ export function AccountBalances() {
         </CardHeader>
         <CardContent>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-                 <Card className="cursor-pointer hover:bg-muted/50" onClick={() => handleAccountClick('wallet')}>
+                 <Card className="cursor-pointer hover:bg-muted/50" onClick={() => handleAccountClick('cash-wallet')}>
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                       <CardTitle className="text-sm font-medium">Cash Wallet</CardTitle>
+                       <Coins className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{formatCurrency(cashWalletBalance)}</div>
+                    </CardContent>
+                </Card>
+                 <Card className="cursor-pointer hover:bg-muted/50" onClick={() => handleAccountClick('digital-wallet')}>
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                        <CardTitle className="text-sm font-medium">Digital Wallet</CardTitle>
                        <Wallet className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{formatCurrency(walletBalance)}</div>
+                        <div className="text-2xl font-bold">{formatCurrency(digitalWalletBalance)}</div>
                     </CardContent>
                 </Card>
                 {accounts.map(account => (
@@ -169,3 +191,5 @@ export function AccountBalances() {
     </>
   );
 }
+
+    

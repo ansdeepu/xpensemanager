@@ -32,7 +32,9 @@ const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
-type AccountForDetails = (Omit<Account, 'balance'> & { balance: number }) | { id: 'wallet', name: string, balance: number };
+type WalletType = 'cash-wallet' | 'digital-wallet';
+type AccountForDetails = (Omit<Account, 'balance'> & { balance: number }) | { id: WalletType, name: string, balance: number };
+
 
 export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChange }: { account: AccountForDetails | null, transactions: Transaction[], isOpen: boolean, onOpenChange: (open: boolean) => void }) {
 
@@ -41,9 +43,11 @@ export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChan
         
         const relevantTransactions = transactions
             .filter(t => {
-                if (account.id === 'wallet') {
-                    // Include expenses paid from wallet, and transfers to/from wallet
-                    return t.paymentMethod === 'wallet' || t.fromAccountId === 'wallet' || t.toAccountId === 'wallet';
+                if (account.id === 'cash-wallet') {
+                    return t.paymentMethod === 'cash' || t.fromAccountId === 'cash-wallet' || t.toAccountId === 'cash-wallet';
+                }
+                 if (account.id === 'digital-wallet') {
+                    return t.paymentMethod === 'digital' || t.fromAccountId === 'digital-wallet' || t.toAccountId === 'digital-wallet';
                 }
                 // For regular accounts, include their income/expenses and transfers
                 return (t.accountId === account.id && (t.type === 'income' || t.type === 'expense')) ||
@@ -57,18 +61,26 @@ export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChan
             let credit = 0;
             let debit = 0;
 
-            if (account.id === 'wallet') {
-                if (t.type === 'transfer' && t.toAccountId === 'wallet') {
+            if (account.id === 'cash-wallet') {
+                if (t.type === 'transfer' && t.toAccountId === 'cash-wallet') {
                     credit = t.amount;
-                } else if (t.type === 'transfer' && t.fromAccountId === 'wallet') {
+                } else if (t.type === 'transfer' && t.fromAccountId === 'cash-wallet') {
                     debit = t.amount;
-                } else if (t.type === 'expense' && t.paymentMethod === 'wallet') {
+                } else if (t.type === 'expense' && t.paymentMethod === 'cash') {
+                    debit = t.amount;
+                }
+            } else if (account.id === 'digital-wallet') {
+                 if (t.type === 'transfer' && t.toAccountId === 'digital-wallet') {
+                    credit = t.amount;
+                } else if (t.type === 'transfer' && t.fromAccountId === 'digital-wallet') {
+                    debit = t.amount;
+                } else if (t.type === 'expense' && t.paymentMethod === 'digital') {
                     debit = t.amount;
                 }
             } else { // Regular bank account logic
                 if (t.type === 'income' && t.accountId === account.id) {
                     credit = t.amount;
-                } else if (t.type === 'expense' && t.accountId === account.id && t.paymentMethod !== 'wallet') {
+                } else if (t.type === 'expense' && t.accountId === account.id && t.paymentMethod === 'online') {
                     debit = t.amount;
                 } else if (t.type === 'transfer') {
                     if (t.fromAccountId === account.id) {
@@ -155,3 +167,5 @@ export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChan
         </Dialog>
     )
 }
+
+    

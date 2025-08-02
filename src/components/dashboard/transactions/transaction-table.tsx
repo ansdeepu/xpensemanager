@@ -105,20 +105,21 @@ export function TransactionTable({
 
   const incomeCategories = useMemo(() => categories.filter(c => c.type === 'income'), [categories]);
 
-  const walletBalance = useMemo(() => {
-    return transactions.reduce((balance, t) => {
-        if (t.type === 'transfer') {
-            if (t.toAccountId === 'wallet') {
-                return balance + t.amount;
-            }
-            if (t.fromAccountId === 'wallet') {
-                return balance - t.amount;
-            }
-        } else if (t.type === 'expense' && t.paymentMethod === 'wallet') {
-            return balance - t.amount;
-        }
-        return balance;
-    }, 0);
+  const { cashWalletBalance, digitalWalletBalance } = useMemo(() => {
+    let cash = 0;
+    let digital = 0;
+    transactions.forEach((t) => {
+      if (t.type === 'transfer') {
+        if (t.toAccountId === 'cash-wallet') cash += t.amount;
+        if (t.fromAccountId === 'cash-wallet') cash -= t.amount;
+        if (t.toAccountId === 'digital-wallet') digital += t.amount;
+        if (t.fromAccountId === 'digital-wallet') digital -= t.amount;
+      } else if (t.type === 'expense') {
+        if (t.paymentMethod === 'cash') cash -= t.amount;
+        if (t.paymentMethod === 'digital') digital -= t.amount;
+      }
+    });
+    return { cashWalletBalance: cash, digitalWalletBalance: digital };
   }, [transactions]);
 
 
@@ -226,8 +227,9 @@ export function TransactionTable({
     setCurrentPage(1);
    }, [dateRange, searchQuery, accountId]);
 
-  const getAccountName = (accountId?: string, paymentMethod?: 'wallet' | 'online') => {
-    if (accountId === 'wallet' || paymentMethod === 'wallet') return "Wallet";
+  const getAccountName = (accountId?: string, paymentMethod?: Transaction['paymentMethod']) => {
+    if (accountId === 'cash-wallet' || paymentMethod === 'cash') return "Cash Wallet";
+    if (accountId === 'digital-wallet' || paymentMethod === 'digital') return "Digital Wallet";
     if (!accountId) return "-";
     return accounts.find((a) => a.id === accountId)?.name || "N/A";
   };
@@ -255,17 +257,21 @@ export function TransactionTable({
                 date: transactionDate.toISOString(),
                 category: "Uncategorized",
                 categoryId: categoryId,
-                paymentMethod: 'online',
+                paymentMethod: 'online', // Default
             };
 
             if (transactionType === 'expense') {
-                if (accountId === 'wallet') {
-                    newTransaction.paymentMethod = 'wallet';
+                if (accountId === 'cash-wallet') {
+                    newTransaction.paymentMethod = 'cash';
+                    newTransaction.accountId = undefined;
+                } else if (accountId === 'digital-wallet') {
+                    newTransaction.paymentMethod = 'digital';
                     newTransaction.accountId = undefined;
                 } else {
+                    newTransaction.paymentMethod = 'online';
                     newTransaction.accountId = accountId;
                 }
-            } else {
+            } else { // Income
                  newTransaction.accountId = accountId;
             }
 
@@ -383,13 +389,22 @@ export function TransactionTable({
         
         if (selectedTransaction.type === 'income' || selectedTransaction.type === 'expense') {
           const newAccountId = formData.get("account") as string;
-          if (newAccountId === 'wallet' && selectedTransaction.type === 'expense') {
-            updatedData.paymentMethod = 'wallet';
-            updatedData.accountId = undefined;
-          } else {
-            updatedData.paymentMethod = 'online';
-            updatedData.accountId = newAccountId;
-          }
+          
+           if (selectedTransaction.type === 'expense') {
+              if (newAccountId === 'cash-wallet') {
+                updatedData.paymentMethod = 'cash';
+                updatedData.accountId = undefined;
+              } else if (newAccountId === 'digital-wallet') {
+                updatedData.paymentMethod = 'digital';
+                updatedData.accountId = undefined;
+              } else {
+                updatedData.paymentMethod = 'online';
+                updatedData.accountId = newAccountId;
+              }
+            } else { // Income
+              updatedData.paymentMethod = 'online';
+              updatedData.accountId = newAccountId;
+            }
   
           if (selectedTransaction.type === 'expense' || selectedTransaction.type === 'income') {
             const categoryId = formData.get('category') as string;
@@ -606,7 +621,8 @@ export function TransactionTable({
                                 <SelectValue placeholder="Select account" />
                               </SelectTrigger>
                               <SelectContent>
-                                  <SelectItem value="wallet">Wallet ({formatCurrency(walletBalance)})</SelectItem>
+                                  <SelectItem value="cash-wallet">Cash Wallet ({formatCurrency(cashWalletBalance)})</SelectItem>
+                                  <SelectItem value="digital-wallet">Digital Wallet ({formatCurrency(digitalWalletBalance)})</SelectItem>
                                   {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
                               </SelectContent>
                             </Select>
@@ -727,7 +743,8 @@ export function TransactionTable({
                                         <SelectValue placeholder="Select account" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="wallet">Wallet ({formatCurrency(walletBalance)})</SelectItem>
+                                        <SelectItem value="cash-wallet">Cash Wallet ({formatCurrency(cashWalletBalance)})</SelectItem>
+                                        <SelectItem value="digital-wallet">Digital Wallet ({formatCurrency(digitalWalletBalance)})</SelectItem>
                                         {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
@@ -739,7 +756,8 @@ export function TransactionTable({
                                         <SelectValue placeholder="Select account" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="wallet">Wallet</SelectItem>
+                                        <SelectItem value="cash-wallet">Cash Wallet</SelectItem>
+                                        <SelectItem value="digital-wallet">Digital Wallet</SelectItem>
                                         {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
@@ -937,12 +955,17 @@ export function TransactionTable({
                             <Label htmlFor="edit-account">
                                 {selectedTransaction?.type === 'expense' ? 'Payment Method' : 'Bank Account'}
                             </Label>
-                            <Select name="account" required defaultValue={selectedTransaction?.paymentMethod === 'wallet' ? 'wallet' : selectedTransaction?.accountId}>
+                            <Select name="account" required defaultValue={selectedTransaction?.paymentMethod === 'cash' ? 'cash-wallet' : selectedTransaction?.paymentMethod === 'digital' ? 'digital-wallet' : selectedTransaction?.accountId}>
                                 <SelectTrigger id="edit-account">
                                     <SelectValue placeholder="Select account" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {selectedTransaction?.type === 'expense' && <SelectItem value="wallet">Wallet ({formatCurrency(walletBalance)})</SelectItem>}
+                                    {selectedTransaction?.type === 'expense' && (
+                                    <>
+                                        <SelectItem value="cash-wallet">Cash Wallet ({formatCurrency(cashWalletBalance)})</SelectItem>
+                                        <SelectItem value="digital-wallet">Digital Wallet ({formatCurrency(digitalWalletBalance)})</SelectItem>
+                                    </>
+                                    )}
                                     {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
                                 </SelectContent>
                             </Select>
@@ -956,7 +979,8 @@ export function TransactionTable({
                                 <Select name="fromAccount" required defaultValue={selectedTransaction.fromAccountId}>
                                     <SelectTrigger id="edit-from-account"><SelectValue /></SelectTrigger>
                                     <SelectContent>
-                                      <SelectItem value="wallet">Wallet ({formatCurrency(walletBalance)})</SelectItem>
+                                      <SelectItem value="cash-wallet">Cash Wallet ({formatCurrency(cashWalletBalance)})</SelectItem>
+                                      <SelectItem value="digital-wallet">Digital Wallet ({formatCurrency(digitalWalletBalance)})</SelectItem>
                                       {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
@@ -966,7 +990,8 @@ export function TransactionTable({
                                 <Select name="toAccount" required defaultValue={selectedTransaction.toAccountId}>
                                     <SelectTrigger id="edit-to-account"><SelectValue /></SelectTrigger>
                                     <SelectContent>
-                                      <SelectItem value="wallet">Wallet</SelectItem>
+                                      <SelectItem value="cash-wallet">Cash Wallet</SelectItem>
+                                      <SelectItem value="digital-wallet">Digital Wallet</SelectItem>
                                       {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
@@ -989,3 +1014,5 @@ export function TransactionTable({
     </>
   );
 }
+
+    

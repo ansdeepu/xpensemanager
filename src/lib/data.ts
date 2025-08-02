@@ -1,3 +1,4 @@
+
 import type { LucideIcon } from 'lucide-react';
 
 export type Account = {
@@ -29,7 +30,7 @@ export type Transaction = {
   description: string;
   amount: number;
   type: "income" | "expense" | "transfer";
-  paymentMethod?: "wallet" | "online";
+  paymentMethod?: "cash" | "digital" | "online";
   accountId?: string;
   fromAccountId?: string;
   toAccountId?: string;
@@ -65,3 +66,5 @@ export const accounts: Account[] = [];
 export const transactions: Transaction[] = [];
 
 export const categories: Category[] = [];
+
+    

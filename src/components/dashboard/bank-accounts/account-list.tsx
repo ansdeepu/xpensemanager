@@ -24,7 +24,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { Account, Transaction } from "@/lib/data";
-import { PlusCircle, Landmark, PiggyBank, CreditCard, Wallet, Star, GripVertical, Pencil } from "lucide-react";
+import { PlusCircle, Landmark, PiggyBank, CreditCard, Wallet, Star, GripVertical, Pencil, Coins } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
 import { collection, addDoc, query, where, onSnapshot, writeBatch, doc, orderBy, updateDoc } from "firebase/firestore";
 import { useAuthState } from "react-firebase-hooks/auth";
@@ -68,6 +68,10 @@ const getRandomIcon = () => {
   const iconName = icons[Math.floor(Math.random() * icons.length)] as keyof typeof iconComponents;
   return { name: iconName, component: iconComponents[iconName] };
 }
+
+type WalletType = 'cash-wallet' | 'digital-wallet';
+type AccountForDetails = (Omit<Account, 'balance'> & { balance: number }) | { id: WalletType, name: string, balance: number };
+
 
 function SortableAccountCard({ account, onSetPrimary, onEdit, onOpenDetails }: { account: Account, onSetPrimary: (id: string) => void, onEdit: (account: Account) => void, onOpenDetails: (account: Account) => void }) {
     const {
@@ -134,7 +138,7 @@ export function AccountList({ initialAccounts }: { initialAccounts: Omit<Account
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
-  const [selectedAccountForDetails, setSelectedAccountForDetails] = useState<(Omit<Account, 'balance'> & { balance: number }) | { id: 'wallet', name: string, balance: number } | null>(null);
+  const [selectedAccountForDetails, setSelectedAccountForDetails] = useState<AccountForDetails | null>(null);
 
   const [user, loading] = useAuthState(auth);
   const sensors = useSensors(useSensor(PointerSensor));
@@ -166,16 +170,21 @@ export function AccountList({ initialAccounts }: { initialAccounts: Omit<Account
     }
   }, [user, db]);
 
-  const walletBalance = useMemo(() => {
-    return transactions.reduce((balance, t) => {
-        if (t.type === 'transfer') {
-            if (t.toAccountId === 'wallet') return balance + t.amount;
-            if (t.fromAccountId === 'wallet') return balance - t.amount;
-        } else if (t.type === 'expense' && t.paymentMethod === 'wallet') {
-            return balance - t.amount;
-        }
-        return balance;
-    }, 0);
+  const { cashWalletBalance, digitalWalletBalance } = useMemo(() => {
+    let cash = 0;
+    let digital = 0;
+    transactions.forEach((t) => {
+      if (t.type === 'transfer') {
+        if (t.toAccountId === 'cash-wallet') cash += t.amount;
+        if (t.fromAccountId === 'cash-wallet') cash -= t.amount;
+        if (t.toAccountId === 'digital-wallet') digital += t.amount;
+        if (t.fromAccountId === 'digital-wallet') digital -= t.amount;
+      } else if (t.type === 'expense') {
+        if (t.paymentMethod === 'cash') cash -= t.amount;
+        if (t.paymentMethod === 'digital') digital -= t.amount;
+      }
+    });
+    return { cashWalletBalance: cash, digitalWalletBalance: digital };
   }, [transactions]);
 
 
@@ -188,7 +197,7 @@ export function AccountList({ initialAccounts }: { initialAccounts: Omit<Account
     transactions.forEach(t => {
         if (t.type === 'income' && t.accountId && balances[t.accountId] !== undefined) {
             balances[t.accountId] += t.amount;
-        } else if (t.type === 'expense' && t.accountId && t.paymentMethod !== 'wallet' && balances[t.accountId] !== undefined) {
+        } else if (t.type === 'expense' && t.accountId && t.paymentMethod === 'online' && balances[t.accountId] !== undefined) {
             balances[t.accountId] -= t.amount;
         } else if (t.type === 'transfer') {
             if (t.fromAccountId && balances[t.fromAccountId] !== undefined) {
@@ -296,21 +305,28 @@ export function AccountList({ initialAccounts }: { initialAccounts: Omit<Account
     setIsEditDialogOpen(true);
   }
 
-   const handleOpenDetails = (account: Account | 'wallet') => {
-    if (account === 'wallet') {
-        setSelectedAccountForDetails({
-            id: 'wallet',
-            name: 'Digital Wallet',
-            balance: walletBalance
-        });
+  const handleOpenDetails = (accountOrWallet: Account | WalletType) => {
+    if (accountOrWallet === 'cash-wallet') {
+      setSelectedAccountForDetails({
+        id: 'cash-wallet',
+        name: 'Cash Wallet',
+        balance: cashWalletBalance,
+      });
+    } else if (accountOrWallet === 'digital-wallet') {
+      setSelectedAccountForDetails({
+        id: 'digital-wallet',
+        name: 'Digital Wallet',
+        balance: digitalWalletBalance,
+      });
     } else {
-        setSelectedAccountForDetails({
-            ...account,
-            balance: account.balance
-        });
+      setSelectedAccountForDetails({
+        ...accountOrWallet,
+        balance: accountOrWallet.balance,
+      });
     }
     setIsDetailsDialogOpen(true);
   };
+
 
   if (loading) {
     return (
@@ -335,7 +351,7 @@ export function AccountList({ initialAccounts }: { initialAccounts: Omit<Account
         <div>
           <CardTitle>Your Financial Accounts</CardTitle>
           <CardDescription>
-            Manage your bank accounts and view your digital wallet.
+            Manage your bank accounts and view your wallets.
           </CardDescription>
         </div>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
@@ -379,7 +395,27 @@ export function AccountList({ initialAccounts }: { initialAccounts: Omit<Account
       </CardHeader>
       <CardContent>
         <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2">
-            <Card className="flex flex-col justify-between h-full group cursor-pointer" onClick={() => handleOpenDetails('wallet')}>
+            <Card className="flex flex-col justify-between h-full group cursor-pointer" onClick={() => handleOpenDetails('cash-wallet')}>
+                <div>
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-xl font-bold">
+                            Cash Wallet
+                        </CardTitle>
+                        <Coins className="h-6 w-6 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-3xl font-bold">
+                            {formatCurrency(cashWalletBalance)}
+                        </div>
+                        <p className="text-sm text-muted-foreground">For cash in hand</p>
+                    </CardContent>
+                </div>
+                <CardFooter>
+                    <Badge variant="outline">Built-in</Badge>
+                </CardFooter>
+            </Card>
+
+            <Card className="flex flex-col justify-between h-full group cursor-pointer" onClick={() => handleOpenDetails('digital-wallet')}>
                 <div>
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                         <CardTitle className="text-xl font-bold">
@@ -389,9 +425,9 @@ export function AccountList({ initialAccounts }: { initialAccounts: Omit<Account
                     </CardHeader>
                     <CardContent>
                         <div className="text-3xl font-bold">
-                            {formatCurrency(walletBalance)}
+                            {formatCurrency(digitalWalletBalance)}
                         </div>
-                        <p className="text-sm text-muted-foreground">For cash & online payments</p>
+                        <p className="text-sm text-muted-foreground">For e-wallet payments</p>
                     </CardContent>
                 </div>
                 <CardFooter>
@@ -463,5 +499,7 @@ export function AccountList({ initialAccounts }: { initialAccounts: Omit<Account
     </>
   );
 }
+
+    
 
     
