@@ -21,7 +21,7 @@ import {
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
-import type { Transaction, Category } from "@/lib/data";
+import type { Transaction, Category, Account } from "@/lib/data";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
@@ -54,6 +54,7 @@ export function OverviewChart() {
   const [user] = useAuthState(auth);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [isPickerOpen, setIsPickerOpen] = useState(false);
 
@@ -91,15 +92,31 @@ export function OverviewChart() {
         }
       );
 
+      const accountsQuery = query(
+        collection(db, "accounts"),
+        where("userId", "==", user.uid)
+      );
+      const unsubscribeAccounts = onSnapshot(accountsQuery, (snapshot) => {
+        setAccounts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Account)));
+      });
+
       return () => {
         unsubscribeTransactions();
         unsubscribeCategories();
+        unsubscribeAccounts();
       };
     }
   }, [user, db]);
+  
+  const primaryAccountId = useMemo(() => {
+    const primaryAccount = accounts.find(acc => acc.isPrimary);
+    return primaryAccount?.id;
+  }, [accounts]);
 
   const dailyExpenses = useMemo(() => {
-    return transactions.reduce((acc, t) => {
+    const primaryAccountExpenses = transactions.filter(t => t.accountId === primaryAccountId);
+
+    return primaryAccountExpenses.reduce((acc, t) => {
       const date = format(startOfDay(new Date(t.date)), "yyyy-MM-dd");
       if (!acc[date]) {
         acc[date] = 0;
@@ -107,12 +124,15 @@ export function OverviewChart() {
       acc[date] += t.amount;
       return acc;
     }, {} as Record<string, number>);
-  }, [transactions]);
+  }, [transactions, primaryAccountId]);
 
   const transactionsOnSelectedDate = useMemo(() => {
-    if (!selectedDate) return [];
-    return transactions.filter(t => isSameDay(new Date(t.date), selectedDate));
-  }, [transactions, selectedDate]);
+    if (!selectedDate || !primaryAccountId) return [];
+    return transactions.filter(t => 
+        isSameDay(new Date(t.date), selectedDate) &&
+        t.accountId === primaryAccountId
+    );
+  }, [transactions, selectedDate, primaryAccountId]);
 
   const totalForSelectedDate = useMemo(() => {
     return transactionsOnSelectedDate.reduce((total, t) => total + t.amount, 0);
@@ -127,7 +147,9 @@ export function OverviewChart() {
         categories.filter(c => c.type === 'expense').map(c => c.id)
     );
 
-    const expenseTransactions = transactions.filter(t => t.categoryId && expenseCategoryIds.has(t.categoryId));
+    const expenseTransactions = transactions.filter(t => 
+        t.categoryId && expenseCategoryIds.has(t.categoryId) && t.accountId === primaryAccountId
+    );
 
     expenseTransactions.forEach(t => {
       const transactionDate = new Date(t.date);
@@ -138,7 +160,7 @@ export function OverviewChart() {
     });
 
     return monthlyTotals;
-  }, [transactions, categories]);
+  }, [transactions, categories, primaryAccountId]);
 
   const DayWithTooltip = ({
     date,
@@ -178,7 +200,7 @@ export function OverviewChart() {
       <CardHeader>
         <CardTitle>Daily & Monthly Expense Overview</CardTitle>
         <CardDescription>
-          Select a day to see detailed expenses for that date.
+          Select a day to see detailed expenses for that date from your primary account.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col items-center gap-6">
@@ -274,3 +296,4 @@ export function OverviewChart() {
     </Card>
   );
 }
+
