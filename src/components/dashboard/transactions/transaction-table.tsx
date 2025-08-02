@@ -275,7 +275,7 @@ export function TransactionTable({
                 }
             }
 
-            const newTransaction: Omit<Transaction, "id"> = {
+            const newTransaction: Partial<Omit<Transaction, "id">> & { userId: string, type: 'expense' | 'income' } = {
                 userId: user.uid,
                 description: description,
                 amount: amount,
@@ -289,10 +289,10 @@ export function TransactionTable({
             if (transactionType === 'expense') {
                 if (accountId === 'cash-wallet') {
                     newTransaction.paymentMethod = 'cash';
-                    newTransaction.accountId = undefined;
+                    delete newTransaction.accountId;
                 } else if (accountId === 'digital-wallet') {
                     newTransaction.paymentMethod = 'digital';
-                    newTransaction.accountId = undefined;
+                    delete newTransaction.accountId;
                 } else {
                     newTransaction.paymentMethod = 'online';
                     newTransaction.accountId = accountId;
@@ -424,10 +424,10 @@ export function TransactionTable({
            if (selectedTransaction.type === 'expense') {
               if (newAccountId === 'cash-wallet') {
                 updatedData.paymentMethod = 'cash';
-                updatedData.accountId = undefined;
+                delete updatedData.accountId;
               } else if (newAccountId === 'digital-wallet') {
                 updatedData.paymentMethod = 'digital';
-                updatedData.accountId = undefined;
+                delete updatedData.accountId;
               } else {
                 updatedData.paymentMethod = 'online';
                 updatedData.accountId = newAccountId;
@@ -1045,3 +1045,5 @@ export function TransactionTable({
     </>
   );
 }
+
+    
