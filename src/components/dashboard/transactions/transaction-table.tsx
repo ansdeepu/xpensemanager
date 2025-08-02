@@ -144,19 +144,10 @@ export function TransactionTable({
   const filteredTransactions = useMemo(() => {
     let relevantTransactions = transactions;
 
-    if (isPrimaryView) {
-      // Primary view: show primary account's activity AND all expenses (including wallet)
-      relevantTransactions = transactions.filter(t => {
-        const isRelatedToPrimary = t.accountId === accountId || t.fromAccountId === accountId || t.toAccountId === accountId;
-        const isAnyExpense = t.type === 'expense';
-        return isRelatedToPrimary || isAnyExpense;
-      });
-    } else {
-      // Specific account view
-      relevantTransactions = transactions.filter(t =>
+    // The filtering should be the same for primary and other account views now
+    relevantTransactions = transactions.filter(t =>
         t.accountId === accountId || t.fromAccountId === accountId || t.toAccountId === accountId
-      );
-    }
+    );
 
     let filtered = [...relevantTransactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
@@ -175,7 +166,8 @@ export function TransactionTable({
     }
     
     return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [transactions, accountId, isPrimaryView, dateRange, searchQuery]);
+  }, [transactions, accountId, dateRange, searchQuery]);
+
 
   const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
 
