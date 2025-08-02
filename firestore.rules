@@ -1,21 +1,28 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper function to check if the requesting user is the owner of the document.
+    
     function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
+      return request.auth.uid == userId;
     }
 
-    // Rules for collections where documents contain a `userId` field.
-    // This applies to 'accounts', 'bills', 'categories', and 'transactions'.
-    match /{collection}/{docId} {
-      allow read, create, update, delete: if isOwner(resource.data.userId);
+    match /accounts/{docId} {
+      allow read, write: if isOwner(resource.data.userId);
     }
 
-    // Specific rule for the 'user_preferences' collection where the document ID
-    // is the user's UID.
+    match /transactions/{docId} {
+      allow read, write: if isOwner(resource.data.userId);
+    }
+    
+    match /categories/{docId} {
+        allow read, write: if isOwner(resource.data.userId);
+    }
+
+    match /bills/{docId} {
+        allow read, write: if isOwner(resource.data.userId);
+    }
+
     match /user_preferences/{userId} {
       allow read, write: if isOwner(userId);
     }
