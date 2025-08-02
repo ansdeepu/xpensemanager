@@ -135,7 +135,7 @@ export function TransactionTable({
     }, [editCategory, categories]);
 
   const filteredTransactions = useMemo(() => {
-    let filtered = transactions;
+    let filtered = [...transactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     if (dateRange?.from && dateRange?.to) {
         const interval = { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to) };
@@ -736,15 +736,15 @@ export function TransactionTable({
             <Table>
             <TableHeader>
                 <TableRow>
-                <TableHead className="w-[4%]">Sl.</TableHead>
-                <TableHead className="w-[9%]">Date</TableHead>
-                <TableHead className="w-[25%]">Description</TableHead>
-                <TableHead className="w-[8%]">Type</TableHead>
-                <TableHead className="w-[12%]">Account</TableHead>
-                <TableHead className="w-[14%]">Category</TableHead>
-                <TableHead className="w-[9%] text-right">Credit</TableHead>
-                <TableHead className="w-[9%] text-right">Debit</TableHead>
-                <TableHead className="w-[10%] text-right print-hide">Actions</TableHead>
+                <TableHead>Sl.</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Account</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead className="text-right">Credit</TableHead>
+                <TableHead className="text-right">Debit</TableHead>
+                <TableHead className="text-right print-hide">Actions</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
