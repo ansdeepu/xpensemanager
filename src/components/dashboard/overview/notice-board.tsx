@@ -2,8 +2,8 @@
 "use client";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Bell, FileText, BadgeCheck } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Bell, FileText, BadgeCheck, Gift } from "lucide-react";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
@@ -22,7 +22,7 @@ const formatCurrency = (amount: number) => {
 
 export function NoticeBoard() {
   const [user] = useAuthState(auth);
-  const [upcomingPayments, setUpcomingPayments] = useState<Bill[]>([]);
+  const [upcomingEvents, setUpcomingEvents] = useState<Bill[]>([]);
   const [isHovered, setIsHovered] = useState(false);
 
   useEffect(() => {
@@ -30,28 +30,35 @@ export function NoticeBoard() {
       const q = query(
         collection(db, "bills"),
         where("userId", "==", user.uid),
-        where("paid", "==", false),
         orderBy("dueDate", "asc")
       );
       const unsubscribe = onSnapshot(q, (snapshot) => {
-        setUpcomingPayments(snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Bill)));
+        const events = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Bill))
+        .filter(event => {
+            // Filter out paid bills, but keep all special days
+            if (event.type === 'special_day') return true;
+            return !event.paidOn;
+        });
+        setUpcomingEvents(events);
       });
       return () => unsubscribe();
     }
   }, [user, db]);
 
-  const noticeBoardContent = upcomingPayments.map((payment, index) => {
+  const noticeBoardContent = upcomingEvents.map((event, index) => {
     return (
-      <Alert key={`${payment.id}-${index}`}>
-        <FileText className="h-4 w-4" />
+      <Alert key={`${event.id}-${index}`}>
+        {event.type === 'special_day' ? <Gift className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
         <AlertTitle className="flex justify-between">
-          <span>{payment.title}</span>
+          <span>{event.title}</span>
           <span className="text-muted-foreground font-normal">
-            Due {formatDistanceToNow(new Date(payment.dueDate), { addSuffix: true })}
+            {formatDistanceToNow(new Date(event.dueDate), { addSuffix: true })}
           </span>
         </AlertTitle>
         <AlertDescription>
-          Your payment of <span className="font-semibold">{formatCurrency(payment.amount)}</span> is due soon.
+          {event.type === 'bill' 
+            ? `Your payment of ${formatCurrency(event.amount)} is due soon.`
+            : `This special day is coming up!`}
         </AlertDescription>
       </Alert>
     );
@@ -64,11 +71,12 @@ export function NoticeBoard() {
           <Bell className="h-6 w-6" />
           <span>Notice Board</span>
         </CardTitle>
+        <CardDescription>A feed of your upcoming bills and special events.</CardDescription>
       </CardHeader>
       <CardContent>
-        {upcomingPayments.length > 0 ? (
+        {upcomingEvents.length > 0 ? (
            <div 
-              className="h-96 overflow-hidden relative"
+              className="h-48 overflow-hidden relative"
               onMouseEnter={() => setIsHovered(true)}
               onMouseLeave={() => setIsHovered(false)}
            >
@@ -77,7 +85,7 @@ export function NoticeBoard() {
                   "space-y-4 absolute top-0 left-0 animate-scroll",
                   isHovered && "animation-pause"
                 )}
-                style={{ '--animation-duration': `${upcomingPayments.length * 5}s` } as React.CSSProperties}
+                style={{ '--animation-duration': `${upcomingEvents.length * 5}s` } as React.CSSProperties}
               >
                   {/* Render items twice for seamless scrolling */}
                   {noticeBoardContent}
@@ -85,9 +93,9 @@ export function NoticeBoard() {
               </div>
            </div>
         ) : (
-          <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-96">
+          <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-48">
             <BadgeCheck className="h-8 w-8 mb-2 text-green-500" />
-            <p>No upcoming payment reminders. You're all caught up!</p>
+            <p>No upcoming reminders. You're all caught up!</p>
           </div>
         )}
       </CardContent>

@@ -16,7 +16,7 @@ import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
 import type { Transaction, Category } from "@/lib/data";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tag } from "lucide-react";
+import { Tag, ShoppingBasket, Car, Home, Heart, BookOpen, Banknote, Briefcase, Gift } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -30,14 +30,14 @@ const formatCurrency = (amount: number) => {
 // Map icon names to components
 const iconComponents: { [key: string]: React.ComponentType<{ className?: string }> } = {
   Tag,
-  ShoppingBasket: (props) => <svg {...props} />, // Placeholder, will be replaced by actual icons if needed
-  Car: (props) => <svg {...props} />,
-  Home: (props) => <svg {...props} />,
-  Heart: (props) => <svg {...props} />,
-  BookOpen: (props) => <svg {...props} />,
-  Banknote: (props) => <svg {...props} />,
-  Briefcase: (props) => <svg {...props} />,
-  Gift: (props) => <svg {...props} />,
+  ShoppingBasket,
+  Car,
+  Home,
+  Heart,
+  BookOpen,
+  Banknote,
+  Briefcase,
+  Gift,
 };
 
 export function CategoryExpenses() {

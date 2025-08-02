@@ -17,8 +17,8 @@ export type Bill = {
   title: string;
   amount: number;
   dueDate: string;
-  paidOn?: string; // Date the bill was last paid
-  paid?: boolean; // Legacy or for specific checks, paidOn is primary
+  paidOn?: string;
+  type: 'bill' | 'special_day';
   recurrence: 'none' | 'monthly' | 'quarterly' | 'yearly';
 }
 

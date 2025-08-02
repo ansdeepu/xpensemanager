@@ -9,14 +9,14 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col gap-6">
       <AccountBalances />
-      <div className="grid gap-6 md:grid-cols-2">
-        <CategoryExpenses />
-        <NoticeBoard />
-      </div>
+      <NoticeBoard />
       <MainStats />
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
         <OverviewChart />
         <RecentTransactions />
+      </div>
+       <div className="grid gap-6 md:grid-cols-2">
+         <CategoryExpenses />
       </div>
     </div>
   );
