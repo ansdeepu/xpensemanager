@@ -62,6 +62,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { format, addMonths, addQuarters, addYears, isAfter, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { DateRange } from "react-day-picker";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-IN", {
@@ -94,6 +95,7 @@ export function TransactionTable({
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 100;
+  const { toast } = useToast();
 
   const expenseCategories = useMemo(() => {
     const regularExpenses = categories.filter(c => c.type === 'expense');
@@ -172,7 +174,7 @@ export function TransactionTable({
         );
     }
     
-    return filtered;
+    return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [transactions, accountId, isPrimaryView, dateRange, searchQuery]);
 
   const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
@@ -334,6 +336,11 @@ export function TransactionTable({
             const description = formData.get("transfer-description") as string;
 
             if (fromAccountId === toAccountId) {
+                toast({
+                    variant: "destructive",
+                    title: "Invalid Transfer",
+                    description: "You cannot transfer funds to and from the same account.",
+                });
                 return;
             }
 
