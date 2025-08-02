@@ -88,7 +88,7 @@ export default function ProfilePage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold">User Profile</h1>
+        <h1 className="text-2xl font-bold text-red-600">User Profile</h1>
         <Card className="w-full max-w-2xl">
             <CardHeader>
             <Skeleton className="h-8 w-1/3" />
@@ -114,7 +114,7 @@ export default function ProfilePage() {
 
   return (
     <div className="space-y-6">
-        <h1 className="text-2xl font-bold">User Profile</h1>
+        <h1 className="text-2xl font-bold text-red-600">User Profile</h1>
         <Card className="w-full max-w-2xl">
             <form onSubmit={handleUpdateProfile}>
                 <CardHeader>

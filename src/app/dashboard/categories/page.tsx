@@ -8,10 +8,7 @@ export default function CategoriesPage() {
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <h1 className="text-2xl font-bold">Categories</h1>
-        <p className="text-muted-foreground">
-          Organize your spending and income by creating custom categories.
-        </p>
+        <h1 className="text-2xl font-bold text-red-600">Categories</h1>
       </div>
       <Tabs defaultValue="expense" className="w-full">
         <TabsList className="grid w-full grid-cols-3">

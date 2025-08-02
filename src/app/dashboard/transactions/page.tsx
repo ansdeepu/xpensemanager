@@ -43,7 +43,7 @@ export default function TransactionsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Transactions</h1>
+      <h1 className="text-2xl font-bold text-red-600">Transactions</h1>
       <Tabs defaultValue={primaryAccount?.id || "all"} className="w-full">
         <TabsList className="grid w-full grid-cols-1 md:grid-cols-3 lg:grid-cols-5">
           {primaryAccount && (
