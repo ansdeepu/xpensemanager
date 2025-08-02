@@ -148,16 +148,15 @@ export function TransactionTable({
     if (isPrimaryView) {
       const primaryAndWallets = [accountId, 'cash-wallet', 'digital-wallet'];
       relevantTransactions = transactions.filter(t => {
-        const isWalletTransaction = t.paymentMethod === 'cash' || t.paymentMethod === 'digital';
-        if (isWalletTransaction) return true;
-        
-        // Handle transfers between wallets and other accounts correctly
+        // Direct income/expense for the primary account
+        if (t.accountId === accountId) return true;
+        // Expenses paid via wallets
+        if (t.paymentMethod === 'cash' || t.paymentMethod === 'digital') return true;
+        // Transfers involving any of the primary group
         if (t.type === 'transfer') {
            return primaryAndWallets.includes(t.fromAccountId!) || primaryAndWallets.includes(t.toAccountId!);
         }
-
-        // Handle income/expense for primary account
-        return t.accountId === accountId;
+        return false;
       });
     } else {
       // For other account views, only show transactions for that specific account.
@@ -264,6 +263,17 @@ export function TransactionTable({
             const accountId = formData.get(`${transactionType}-account`) as string;
             const description = formData.get(`${transactionType}-description`) as string
             const categoryId = formData.get(`${transactionType}-category`) as string;
+
+            if (transactionType === 'expense') {
+                if (accountId === 'cash-wallet' && amount > cashWalletBalance) {
+                    toast({ variant: "destructive", title: "Insufficient Balance", description: "Insufficient balance in Cash Wallet." });
+                    return;
+                }
+                if (accountId === 'digital-wallet' && amount > digitalWalletBalance) {
+                    toast({ variant: "destructive", title: "Insufficient Balance", description: "Insufficient balance in Digital Wallet." });
+                    return;
+                }
+            }
 
             const newTransaction: Omit<Transaction, "id"> = {
                 userId: user.uid,
@@ -382,7 +392,12 @@ export function TransactionTable({
         setSelectedExpenseCategory(undefined);
         setSelectedIncomeCategory(undefined);
         setDate(new Date());
-    } catch (error) {
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Transaction Failed",
+        description: error.message || "An unexpected error occurred."
+      })
     }
   }
 
