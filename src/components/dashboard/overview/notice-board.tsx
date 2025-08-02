@@ -9,7 +9,7 @@ import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
 import type { Bill } from "@/lib/data";
 import { useState, useEffect } from "react";
-import { formatDistanceToNow, isAfter, subDays, isWithinInterval, startOfToday, endOfDay } from "date-fns";
+import { formatDistanceToNow, isAfter, subDays, isWithinInterval, startOfToday, endOfDay, addDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -30,8 +30,9 @@ export function NoticeBoard() {
 
   useEffect(() => {
     if (user && db) {
-      const fiveDaysFromNow = subDays(new Date(), -5);
       const today = startOfToday();
+      const fiveDaysFromNow = addDays(today, 5);
+      const tenDaysFromNow = addDays(today, 10);
 
       const q = query(
         collection(db, "bills"),
@@ -49,7 +50,8 @@ export function NoticeBoard() {
 
         const bills = allEvents.filter(event => {
             if (event.type !== 'bill' || event.paidOn) return false;
-            return true;
+            // Only show bills due within the next 10 days
+            return isWithinInterval(new Date(event.dueDate), { start: today, end: tenDaysFromNow });
         });
 
         setSpecialEvents(events);
@@ -131,7 +133,7 @@ export function NoticeBoard() {
                 ) : (
                     <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-full">
                         <BadgeCheck className="h-8 w-8 mb-2 text-green-500" />
-                        <p>No upcoming bills. You're all caught up!</p>
+                        <p>No upcoming bills in the next 10 days. You're all caught up!</p>
                     </div>
                 )}
             </div>
