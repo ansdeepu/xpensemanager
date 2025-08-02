@@ -409,28 +409,6 @@ export function TransactionTable({
     }
   }
 
-  const getAmountClass = (type: Transaction['type']) => {
-    switch (type) {
-      case 'income':
-        return 'text-green-600';
-      case 'expense':
-        return 'text-red-600';
-      default:
-        return '';
-    }
-  }
-  
-  const getAmountPrefix = (type: Transaction['type']) => {
-    switch (type) {
-        case 'income':
-            return '+';
-        case 'expense':
-            return '-';
-        default:
-            return '';
-    }
-  }
-
   const handlePrint = () => {
     window.print();
   }
@@ -440,14 +418,14 @@ export function TransactionTable({
   return (
     <>
     <Card id="printable-area">
-      <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="flex-1">
+      <CardHeader className="flex flex-col gap-4">
+         <div className="flex-1">
           <CardTitle>Transaction History</CardTitle>
           <CardDescription>
             A detailed record of your financial activities.
           </CardDescription>
         </div>
-        <div className="flex flex-col md:flex-row items-center gap-2 w-full md:w-auto print-hide">
+        <div className="flex flex-col md:flex-row items-center gap-2 w-full print-hide">
           <div className="relative flex-1 md:grow-0">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
@@ -747,17 +725,18 @@ export function TransactionTable({
         </div>
       </CardHeader>
       <CardContent>
-        <Table>
+        <Table className="table-fixed">
           <TableHeader>
             <TableRow>
-              <TableHead>Sl. No.</TableHead>
-              <TableHead>Date</TableHead>
+              <TableHead className="w-16">Sl. No.</TableHead>
+              <TableHead className="w-32">Date</TableHead>
               <TableHead>Description</TableHead>
-              <TableHead>Type</TableHead>
+              <TableHead className="w-28">Type</TableHead>
               <TableHead>Account</TableHead>
               <TableHead>Category</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
-              <TableHead className="text-right print-hide">Actions</TableHead>
+              <TableHead className="w-40 text-right">Credit</TableHead>
+              <TableHead className="w-40 text-right">Debit</TableHead>
+              <TableHead className="w-24 text-right print-hide">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -765,7 +744,7 @@ export function TransactionTable({
               <TableRow key={t.id}>
                 <TableCell className="font-medium">{index + 1}</TableCell>
                 <TableCell>{format(new Date(t.date), 'dd/MM/yyyy')}</TableCell>
-                <TableCell className="font-medium">{t.description}</TableCell>
+                <TableCell className="font-medium break-words">{t.description}</TableCell>
                 <TableCell>
                   <Badge 
                     variant={getBadgeVariant(t.type)}
@@ -774,13 +753,16 @@ export function TransactionTable({
                     {t.type}
                   </Badge>
                 </TableCell>
-                <TableCell>{t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} -> ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod)}</TableCell>
-                 <TableCell>
+                <TableCell className="break-words">{t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} -> ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod)}</TableCell>
+                 <TableCell className="break-words">
                     <div>{t.category}</div>
                     {t.subcategory && <div className="text-sm text-muted-foreground">{t.subcategory}</div>}
                 </TableCell>
-                <TableCell className={cn("text-right font-mono", getAmountClass(t.type))}>
-                  {getAmountPrefix(t.type)}{formatCurrency(t.amount)}
+                <TableCell className="text-right font-mono text-green-600">
+                  {t.type === 'income' ? formatCurrency(t.amount) : null}
+                </TableCell>
+                <TableCell className="text-right font-mono text-red-600">
+                  {t.type === 'expense' ? formatCurrency(t.amount) : null}
                 </TableCell>
                 <TableCell className="text-right print-hide">
                     <Button variant="ghost" size="icon" onClick={() => openEditDialog(t)} className="mr-2">
