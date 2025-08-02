@@ -90,7 +90,12 @@ export function TransactionTable({
   const [editCategory, setEditCategory] = useState<string | undefined>();
   const [searchQuery, setSearchQuery] = useState("");
 
-  const expenseCategories = useMemo(() => categories.filter(c => c.type === 'expense' || c.type === 'bank-expense'), [categories]);
+  const expenseCategories = useMemo(() => {
+    const regularExpenses = categories.filter(c => c.type === 'expense');
+    const bankExpenses = categories.filter(c => c.type === 'bank-expense');
+    return [...regularExpenses, ...bankExpenses];
+  }, [categories]);
+
   const incomeCategories = useMemo(() => categories.filter(c => c.type === 'income'), [categories]);
 
   const walletBalance = useMemo(() => {
