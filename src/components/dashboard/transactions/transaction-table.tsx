@@ -381,6 +381,7 @@ export function TransactionTable({
                 type: 'transfer',
                 date: transactionDate.toISOString(),
                 category: 'Transfer',
+                paymentMethod: 'online',
             };
 
             await runTransaction(db, async (t) => {
