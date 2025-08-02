@@ -480,10 +480,11 @@ export function TransactionTable({
   const getCreditAmount = (t: Transaction) => {
     if (t.type === 'income') return t.amount;
     if (t.type === 'transfer') {
-        const relevantId = isPrimaryView ? accountId : t.accountId;
+        const primaryAndWallets = [accountId, 'cash-wallet', 'digital-wallet'];
         if (isPrimaryView) {
-            const primaryAndWallets = [accountId, 'cash-wallet', 'digital-wallet'];
-            if (primaryAndWallets.includes(t.toAccountId!)) return t.amount;
+            if (primaryAndWallets.includes(t.toAccountId!)) {
+                return t.amount;
+            }
         } else {
             if (t.toAccountId === accountId) return t.amount;
         }
@@ -494,9 +495,11 @@ export function TransactionTable({
   const getDebitAmount = (t: Transaction) => {
     if (t.type === 'expense') return t.amount;
     if (t.type === 'transfer') {
+        const primaryAndWallets = [accountId, 'cash-wallet', 'digital-wallet'];
         if (isPrimaryView) {
-            const primaryAndWallets = [accountId, 'cash-wallet', 'digital-wallet'];
-            if (primaryAndWallets.includes(t.fromAccountId!)) return t.amount;
+            if (primaryAndWallets.includes(t.fromAccountId!)) {
+                return t.amount;
+            }
         } else {
              if (t.fromAccountId === accountId) return t.amount;
         }
@@ -1054,5 +1057,3 @@ export function TransactionTable({
     </>
   );
 }
-
-    
