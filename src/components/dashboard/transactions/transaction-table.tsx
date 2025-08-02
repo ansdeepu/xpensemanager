@@ -16,6 +16,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -89,6 +90,8 @@ export function TransactionTable({
   const [editDate, setEditDate] = useState<Date | undefined>(new Date());
   const [editCategory, setEditCategory] = useState<string | undefined>();
   const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 100;
 
   const expenseCategories = useMemo(() => {
     const regularExpenses = categories.filter(c => c.type === 'expense');
@@ -154,6 +157,13 @@ export function TransactionTable({
     return filtered;
   }, [transactions, dateRange, searchQuery]);
 
+  const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
+
+  const pagedTransactions = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredTransactions.slice(startIndex, endIndex);
+  }, [filteredTransactions, currentPage, itemsPerPage]);
 
    useEffect(() => {
     if (user && db) {
@@ -199,6 +209,10 @@ export function TransactionTable({
         setEditCategory(undefined);
     }
    }, [selectedTransaction, categories]);
+
+   useEffect(() => {
+    setCurrentPage(1);
+   }, [dateRange, searchQuery]);
 
   const getAccountName = (accountId?: string, paymentMethod?: 'wallet' | 'online') => {
     if (accountId === 'wallet' || paymentMethod === 'wallet') return "Wallet";
@@ -738,7 +752,7 @@ export function TransactionTable({
                 <TableRow>
                 <TableHead>Sl.</TableHead>
                 <TableHead>Date</TableHead>
-                <TableHead>Description</TableHead>
+                <TableHead className="w-[30%]">Description</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Account</TableHead>
                 <TableHead>Category</TableHead>
@@ -748,11 +762,11 @@ export function TransactionTable({
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {filteredTransactions.map((t, index) => (
+                {pagedTransactions.map((t, index) => (
                 <TableRow key={t.id}>
-                    <TableCell className="font-medium">{index + 1}</TableCell>
+                    <TableCell className="font-medium">{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
                     <TableCell>{format(new Date(t.date), 'dd/MM/yyyy')}</TableCell>
-                    <TableCell className="font-medium break-words">{t.description}</TableCell>
+                    <TableCell className="font-medium break-words whitespace-pre-wrap">{t.description}</TableCell>
                     <TableCell>
                     <Badge 
                         variant={getBadgeVariant(t.type)}
@@ -802,6 +816,27 @@ export function TransactionTable({
             </Table>
         </div>
       </CardContent>
+      {totalPages > 1 && (
+        <CardFooter className="flex justify-center items-center gap-4 print-hide">
+            <Button 
+                onClick={() => setCurrentPage(prev => prev - 1)} 
+                disabled={currentPage === 1}
+                variant="outline"
+            >
+                Previous
+            </Button>
+            <span className="text-sm text-muted-foreground">
+                Page {currentPage} of {totalPages}
+            </span>
+            <Button 
+                onClick={() => setCurrentPage(prev => prev + 1)} 
+                disabled={currentPage === totalPages}
+                variant="outline"
+            >
+                Next
+            </Button>
+        </CardFooter>
+      )}
     </Card>
 
     {/* Edit Transaction Dialog */}
