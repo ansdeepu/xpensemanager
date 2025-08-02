@@ -52,7 +52,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Transaction, Account, Category, Bill } from "@/lib/data";
-import { PlusCircle, Pencil, Trash2, CalendarIcon, Printer } from "lucide-react";
+import { PlusCircle, Pencil, Trash2, CalendarIcon, Printer, Search } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
 import { collection, addDoc, query, where, onSnapshot, doc, runTransaction, orderBy, deleteDoc, getDoc, getDocs, limit, writeBatch, updateDoc } from "firebase/firestore";
 import { useAuthState } from "react-firebase-hooks/auth";
@@ -88,6 +88,7 @@ export function TransactionTable({
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [editDate, setEditDate] = useState<Date | undefined>(new Date());
   const [editCategory, setEditCategory] = useState<string | undefined>();
+  const [searchQuery, setSearchQuery] = useState("");
 
   const expenseCategories = useMemo(() => categories.filter(c => c.type === 'expense'), [categories]);
   const incomeCategories = useMemo(() => categories.filter(c => c.type === 'income'), [categories]);
@@ -122,19 +123,31 @@ export function TransactionTable({
   }, [selectedIncomeCategory, incomeCategories]);
 
 
-  const editSubcategories = useMemo(() => {
+   const editSubcategories = useMemo(() => {
     if (!editCategory) return [];
     const category = categories.find(c => c.id === editCategory);
     return category?.subcategories || [];
     }, [editCategory, categories]);
 
   const filteredTransactions = useMemo(() => {
-    if (!dateRange?.from || !dateRange?.to) {
-        return transactions;
+    let filtered = transactions;
+
+    if (dateRange?.from && dateRange?.to) {
+        const interval = { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to) };
+        filtered = filtered.filter(t => isWithinInterval(new Date(t.date), interval));
     }
-    const interval = { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to) };
-    return transactions.filter(t => isWithinInterval(new Date(t.date), interval));
-  }, [transactions, dateRange]);
+
+    if (searchQuery) {
+        const lowercasedQuery = searchQuery.toLowerCase();
+        filtered = filtered.filter(t => 
+            t.description.toLowerCase().includes(lowercasedQuery) ||
+            t.category.toLowerCase().includes(lowercasedQuery) ||
+            (t.subcategory && t.subcategory.toLowerCase().includes(lowercasedQuery))
+        );
+    }
+    
+    return filtered;
+  }, [transactions, dateRange, searchQuery]);
 
 
    useEffect(() => {
@@ -435,6 +448,16 @@ export function TransactionTable({
           </CardDescription>
         </div>
         <div className="flex flex-col md:flex-row items-center gap-2 w-full md:w-auto print-hide">
+          <div className="relative flex-1 md:grow-0">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Search transactions..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[320px]"
+            />
+          </div>
           <Popover>
             <PopoverTrigger asChild>
                 <Button
