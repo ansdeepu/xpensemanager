@@ -71,9 +71,11 @@ const formatCurrency = (amount: number) => {
 };
 
 export function TransactionTable({
-  initialTransactions,
+  accountId,
+  isPrimaryView,
 }: {
-  initialTransactions: Transaction[];
+  accountId: string;
+  isPrimaryView: boolean;
 }) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -138,7 +140,19 @@ export function TransactionTable({
     }, [editCategory, categories]);
 
   const filteredTransactions = useMemo(() => {
-    let filtered = [...transactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    let relevantTransactions = transactions;
+
+    if (isPrimaryView) {
+      relevantTransactions = transactions.filter(t => 
+        t.type === 'expense' || (t.accountId === accountId || t.fromAccountId === accountId || t.toAccountId === accountId)
+      );
+    } else {
+      relevantTransactions = transactions.filter(t =>
+        t.accountId === accountId || t.fromAccountId === accountId || t.toAccountId === accountId
+      );
+    }
+
+    let filtered = [...relevantTransactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     if (dateRange?.from && dateRange?.to) {
         const interval = { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to) };
@@ -155,7 +169,7 @@ export function TransactionTable({
     }
     
     return filtered;
-  }, [transactions, dateRange, searchQuery]);
+  }, [transactions, accountId, isPrimaryView, dateRange, searchQuery]);
 
   const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
 
@@ -212,7 +226,7 @@ export function TransactionTable({
 
    useEffect(() => {
     setCurrentPage(1);
-   }, [dateRange, searchQuery]);
+   }, [dateRange, searchQuery, accountId]);
 
   const getAccountName = (accountId?: string, paymentMethod?: 'wallet' | 'online') => {
     if (accountId === 'wallet' || paymentMethod === 'wallet') return "Wallet";
