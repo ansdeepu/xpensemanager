@@ -730,13 +730,13 @@ export function TransactionTable({
             <TableRow>
               <TableHead className="w-[5%]">Sl. No.</TableHead>
               <TableHead className="w-[10%]">Date</TableHead>
-              <TableHead className="w-[25%]">Description</TableHead>
+              <TableHead className="w-[20%]">Description</TableHead>
               <TableHead className="w-[8%]">Type</TableHead>
-              <TableHead className="w-[15%]">Account</TableHead>
+              <TableHead className="w-[17%]">Account</TableHead>
               <TableHead className="w-[15%]">Category</TableHead>
               <TableHead className="w-[10%] text-right">Credit</TableHead>
               <TableHead className="w-[10%] text-right">Debit</TableHead>
-              <TableHead className="w-[10%] text-right print-hide">Actions</TableHead>
+              <TableHead className="w-[5%] text-right print-hide">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
