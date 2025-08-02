@@ -46,6 +46,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { restrictToWindowEdges } from '@dnd-kit/modifiers';
+import { AccountDetailsDialog } from "@/components/dashboard/account-details-dialog";
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-IN", {
@@ -68,7 +69,7 @@ const getRandomIcon = () => {
   return { name: iconName, component: iconComponents[iconName] };
 }
 
-function SortableAccountCard({ account, onSetPrimary, onEdit }: { account: Account, onSetPrimary: (id: string) => void, onEdit: (account: Account) => void }) {
+function SortableAccountCard({ account, onSetPrimary, onEdit, onOpenDetails }: { account: Account, onSetPrimary: (id: string) => void, onEdit: (account: Account) => void, onOpenDetails: (account: Account) => void }) {
     const {
         attributes,
         listeners,
@@ -86,7 +87,7 @@ function SortableAccountCard({ account, onSetPrimary, onEdit }: { account: Accou
 
     return (
         <div ref={setNodeRef} style={style} className="relative">
-            <Card className="flex flex-col justify-between h-full group">
+            <Card className="flex flex-col justify-between h-full group cursor-pointer" onClick={() => onOpenDetails(account)}>
                 <div>
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                         <CardTitle className="text-xl font-bold">
@@ -107,12 +108,12 @@ function SortableAccountCard({ account, onSetPrimary, onEdit }: { account: Accou
                 <CardFooter className="flex items-center justify-between">
                     <div className="flex gap-2">
                         {!account.isPrimary && (
-                            <Button variant="outline" size="sm" onClick={() => onSetPrimary(account.id)}>
+                            <Button variant="outline" size="sm" onClick={(e) => {e.stopPropagation(); onSetPrimary(account.id)}}>
                                 <Star className="mr-2 h-4 w-4" />
                                 Set as Primary
                             </Button>
                         )}
-                         <Button variant="outline" size="sm" onClick={() => onEdit(account)}>
+                         <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); onEdit(account)}}>
                             <Pencil className="mr-2 h-4 w-4" />
                             Edit
                         </Button>
@@ -132,6 +133,9 @@ export function AccountList({ initialAccounts }: { initialAccounts: Omit<Account
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const [selectedAccountForDetails, setSelectedAccountForDetails] = useState<(Omit<Account, 'balance'> & { balance: number }) | { id: 'wallet', name: string, balance: number } | null>(null);
+
   const [user, loading] = useAuthState(auth);
   const sensors = useSensors(useSensor(PointerSensor));
 
@@ -162,6 +166,19 @@ export function AccountList({ initialAccounts }: { initialAccounts: Omit<Account
     }
   }, [user, db]);
 
+  const walletBalance = useMemo(() => {
+    return transactions.reduce((balance, t) => {
+        if (t.type === 'transfer') {
+            if (t.toAccountId === 'wallet') return balance + t.amount;
+            if (t.fromAccountId === 'wallet') return balance - t.amount;
+        } else if (t.type === 'expense' && t.paymentMethod === 'wallet') {
+            return balance - t.amount;
+        }
+        return balance;
+    }, 0);
+  }, [transactions]);
+
+
   const accounts = useMemo(() => {
     const balances: { [key: string]: number } = {};
     rawAccounts.forEach(acc => {
@@ -171,7 +188,7 @@ export function AccountList({ initialAccounts }: { initialAccounts: Omit<Account
     transactions.forEach(t => {
         if (t.type === 'income' && t.accountId && balances[t.accountId] !== undefined) {
             balances[t.accountId] += t.amount;
-        } else if (t.type === 'expense' && t.accountId && t.paymentMethod === 'online' && balances[t.accountId] !== undefined) {
+        } else if (t.type === 'expense' && t.accountId && t.paymentMethod !== 'wallet' && balances[t.accountId] !== undefined) {
             balances[t.accountId] -= t.amount;
         } else if (t.type === 'transfer') {
             if (t.fromAccountId && balances[t.fromAccountId] !== undefined) {
@@ -279,6 +296,22 @@ export function AccountList({ initialAccounts }: { initialAccounts: Omit<Account
     setIsEditDialogOpen(true);
   }
 
+   const handleOpenDetails = (account: Account | 'wallet') => {
+    if (account === 'wallet') {
+        setSelectedAccountForDetails({
+            id: 'wallet',
+            name: 'Digital Wallet',
+            balance: walletBalance
+        });
+    } else {
+        setSelectedAccountForDetails({
+            ...account,
+            balance: account.balance
+        });
+    }
+    setIsDetailsDialogOpen(true);
+  };
+
   if (loading) {
     return (
         <Card>
@@ -287,6 +320,7 @@ export function AccountList({ initialAccounts }: { initialAccounts: Omit<Account
                 <Skeleton className="h-4 w-3/4" />
             </CardHeader>
             <CardContent className="grid gap-6 sm:grid-cols-1 md:grid-cols-2">
+                <Skeleton className="h-48 w-full" />
                 <Skeleton className="h-48 w-full" />
                 <Skeleton className="h-48 w-full" />
             </CardContent>
@@ -299,9 +333,9 @@ export function AccountList({ initialAccounts }: { initialAccounts: Omit<Account
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
-          <CardTitle>Your Bank Accounts</CardTitle>
+          <CardTitle>Your Financial Accounts</CardTitle>
           <CardDescription>
-            Drag and drop to reorder your financial accounts.
+            Manage your bank accounts and view your digital wallet.
           </CardDescription>
         </div>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
@@ -344,24 +378,44 @@ export function AccountList({ initialAccounts }: { initialAccounts: Omit<Account
         </Dialog>
       </CardHeader>
       <CardContent>
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-          modifiers={[restrictToWindowEdges]}
-        >
-          <SortableContext items={accountIds} strategy={rectSortingStrategy}>
-            <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2">
-              {accounts.map((account) => (
-                <SortableAccountCard key={account.id} account={account} onSetPrimary={handleSetPrimary} onEdit={openEditDialog} />
-              ))}
-            </div>
-          </SortableContext>
-        </DndContext>
+        <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2">
+            <Card className="flex flex-col justify-between h-full group cursor-pointer" onClick={() => handleOpenDetails('wallet')}>
+                <div>
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-xl font-bold">
+                            Digital Wallet
+                        </CardTitle>
+                        <Wallet className="h-6 w-6 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-3xl font-bold">
+                            {formatCurrency(walletBalance)}
+                        </div>
+                        <p className="text-sm text-muted-foreground">For cash & online payments</p>
+                    </CardContent>
+                </div>
+                <CardFooter>
+                    <Badge variant="outline">Built-in</Badge>
+                </CardFooter>
+            </Card>
+
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+              modifiers={[restrictToWindowEdges]}
+            >
+              <SortableContext items={accountIds} strategy={rectSortingStrategy}>
+                  {accounts.map((account) => (
+                    <SortableAccountCard key={account.id} account={account} onSetPrimary={handleSetPrimary} onEdit={openEditDialog} onOpenDetails={handleOpenDetails} />
+                  ))}
+              </SortableContext>
+            </DndContext>
+        </div>
         {accounts.length === 0 && (
           <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-40">
             <Landmark className="h-10 w-10 mb-2"/>
-            <p>No accounts yet. Click "Add Account" to get started.</p>
+            <p>No bank accounts yet. Click "Add Account" to get started.</p>
           </div>
         )}
       </CardContent>
@@ -400,6 +454,14 @@ export function AccountList({ initialAccounts }: { initialAccounts: Omit<Account
             </form>
         </DialogContent>
     </Dialog>
+     <AccountDetailsDialog
+        account={selectedAccountForDetails}
+        transactions={transactions}
+        isOpen={isDetailsDialogOpen}
+        onOpenChange={setIsDetailsDialogOpen}
+    />
     </>
   );
 }
+
+    
