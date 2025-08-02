@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   Card,
   CardContent,
@@ -38,7 +38,7 @@ import { Label } from "@/components/ui/label";
 import type { Account, Transaction } from "@/lib/data";
 import { PlusCircle, Landmark, PiggyBank, CreditCard, Wallet, Star, GripVertical, Pencil, Coins, Trash2 } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
-import { collection, addDoc, query, where, onSnapshot, writeBatch, doc, orderBy, updateDoc, deleteDoc, getDocs } from "firebase/firestore";
+import { collection, addDoc, query, where, onSnapshot, writeBatch, doc, orderBy, updateDoc, deleteDoc, getDocs, setDoc } from "firebase/firestore";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -176,6 +176,7 @@ export function AccountList({ initialAccounts }: { initialAccounts: Omit<Account
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [selectedAccountForDetails, setSelectedAccountForDetails] = useState<AccountForDetails | null>(null);
+  const [walletPreferences, setWalletPreferences] = useState<{ cash?: number, digital?: number }>({});
 
   const [user, loading] = useAuthState(auth);
   const sensors = useSensors(useSensor(PointerSensor));
@@ -200,10 +201,18 @@ export function AccountList({ initialAccounts }: { initialAccounts: Omit<Account
           setTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction)));
       });
 
+      const preferencesDocRef = doc(db, "user_preferences", user.uid);
+      const unsubscribePreferences = onSnapshot(preferencesDocRef, (doc) => {
+        if (doc.exists()) {
+          setWalletPreferences(doc.data().wallets || {});
+        }
+      });
+
 
       return () => {
           unsubscribeAccounts();
           unsubscribeTransactions();
+          unsubscribePreferences();
       }
     }
   }, [user, db]);
@@ -422,6 +431,22 @@ export function AccountList({ initialAccounts }: { initialAccounts: Omit<Account
     setSelectedAccount(account);
     setIsEditDialogOpen(true);
   }
+
+  const useDebounce = (callback: Function, delay: number) => {
+    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+    return (...args: any) => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(() => {
+        callback(...args);
+      }, delay);
+    };
+  };
+
+  const debouncedUpdateWalletBalance = useDebounce(async (walletType: 'cash' | 'digital', value: number) => {
+    if (!user || isNaN(value)) return;
+    const prefRef = doc(db, "user_preferences", user.uid);
+    await setDoc(prefRef, { wallets: { ...walletPreferences, [walletType]: value } }, { merge: true });
+  }, 500);
 
   const handleOpenDetails = (accountOrWallet: Account | WalletType) => {
     if (accountOrWallet === 'cash-wallet') {
