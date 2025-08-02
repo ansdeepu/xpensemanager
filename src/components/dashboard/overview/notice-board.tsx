@@ -9,7 +9,7 @@ import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
 import type { Bill } from "@/lib/data";
 import { useState, useEffect } from "react";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, isAfter, subDays } from "date-fns";
 import { cn } from "@/lib/utils";
 
 const formatCurrency = (amount: number) => {
@@ -27,17 +27,26 @@ export function NoticeBoard() {
 
   useEffect(() => {
     if (user && db) {
+      const fiveDaysFromNow = new Date();
+      const yesterday = subDays(new Date(), 1); // To include today's events
+
       const q = query(
         collection(db, "bills"),
         where("userId", "==", user.uid),
+        where("dueDate", ">", yesterday.toISOString()),
         orderBy("dueDate", "asc")
       );
       const unsubscribe = onSnapshot(q, (snapshot) => {
         const events = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Bill))
         .filter(event => {
-            // Filter out paid bills, but keep all special days
-            if (event.type === 'special_day') return true;
-            return !event.paidOn;
+            const dueDate = new Date(event.dueDate);
+            // Filter out paid bills
+            if (event.type === 'bill' && event.paidOn) return false;
+            // Filter special days to be within 5 days
+            if (event.type === 'special_day' && isAfter(dueDate, subDays(fiveDaysFromNow, -5))) {
+              return false;
+            }
+            return true;
         });
         setUpcomingEvents(events);
       });
@@ -65,7 +74,7 @@ export function NoticeBoard() {
   });
 
   return (
-    <Card className="lg:col-span-3">
+    <Card className="lg:col-span-3 h-[300px] flex flex-col">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Bell className="h-6 w-6" />
@@ -73,10 +82,10 @@ export function NoticeBoard() {
         </CardTitle>
         <CardDescription>A feed of your upcoming bills and special events.</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-1 min-h-0">
         {upcomingEvents.length > 0 ? (
            <div 
-              className="h-48 overflow-hidden relative"
+              className="h-full overflow-hidden relative"
               onMouseEnter={() => setIsHovered(true)}
               onMouseLeave={() => setIsHovered(false)}
            >
@@ -85,7 +94,7 @@ export function NoticeBoard() {
                   "space-y-4 absolute top-0 left-0 animate-scroll",
                   isHovered && "animation-pause"
                 )}
-                style={{ '--animation-duration': `${upcomingEvents.length * 5}s` } as React.CSSProperties}
+                style={{ '--animation-duration': `${Math.max(upcomingEvents.length, 5) * 5}s` } as React.CSSProperties}
               >
                   {/* Render items twice for seamless scrolling */}
                   {noticeBoardContent}
@@ -93,7 +102,7 @@ export function NoticeBoard() {
               </div>
            </div>
         ) : (
-          <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-48">
+          <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-full">
             <BadgeCheck className="h-8 w-8 mb-2 text-green-500" />
             <p>No upcoming reminders. You're all caught up!</p>
           </div>
