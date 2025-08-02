@@ -2,25 +2,54 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    match /accounts/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == request.resource.data.userId;
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
     }
 
-    match /transactions/{document=**} {
-     allow read, write: if request.auth != null && request.auth.uid == request.resource.data.userId;
+    match /accounts/{docId} {
+      allow read: if isOwner(resource.data.userId);
+      allow create: if isOwner(request.resource.data.userId)
+                    && request.resource.data.name is string
+                    && request.resource.data.name.size() > 0
+                    && request.resource.data.order is number;
+      allow update: if isOwner(resource.data.userId);
+      allow delete: if isOwner(resource.data.userId);
     }
 
-    match /categories/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == request.resource.data.userId;
+    match /transactions/{docId} {
+      allow read: if isOwner(resource.data.userId);
+      allow create: if isOwner(request.resource.data.userId)
+                    && request.resource.data.amount is number
+                    && request.resource.data.date is string
+                    && request.resource.data.description is string
+                    && request.resource.data.type is string
+                    && request.resource.data.type in ['income', 'expense', 'transfer'];
+      allow update: if isOwner(resource.data.userId);
+      allow delete: if isOwner(resource.data.userId);
     }
 
-    match /bills/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == request.resource.data.userId;
+    match /categories/{docId} {
+      allow read: if isOwner(resource.data.userId);
+      allow create: if isOwner(request.resource.data.userId)
+                    && request.resource.data.name is string
+                    && request.resource.data.type is string
+                    && request.resource.data.type in ['expense', 'income', 'bank-expense'];
+      allow update: if isOwner(resource.data.userId);
+      allow delete: if isOwner(resource.data.userId);
+    }
+
+    match /bills/{docId} {
+      allow read: if isOwner(resource.data.userId);
+      allow create: if isOwner(request.resource.data.userId)
+                    && request.resource.data.title is string
+                    && request.resource.data.dueDate is string;
+      allow update: if isOwner(resource.data.userId);
+      allow delete: if isOwner(resource.data.userId);
     }
 
     match /user_preferences/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if isOwner(userId);
     }
   }
 }
