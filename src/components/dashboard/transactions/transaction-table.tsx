@@ -143,14 +143,26 @@ export function TransactionTable({
     }, [editCategory, categories]);
 
   const filteredTransactions = useMemo(() => {
-    let relevantTransactions = transactions;
+    let relevantTransactions;
 
-    // The filtering should be the same for primary and other account views now
-    relevantTransactions = transactions.filter(t =>
-        t.accountId === accountId || t.fromAccountId === accountId || t.toAccountId === accountId
-    );
+    if (isPrimaryView) {
+      // For the primary view, show all transactions from the primary account AND both wallets.
+      relevantTransactions = transactions.filter(t =>
+        // Primary account transactions (income, expense, transfers)
+        (t.accountId === accountId || t.fromAccountId === accountId || t.toAccountId === accountId) ||
+        // Wallet transactions (expenses paid by wallet, transfers to/from wallet)
+        t.paymentMethod === 'cash' || t.paymentMethod === 'digital' ||
+        t.fromAccountId === 'cash-wallet' || t.toAccountId === 'cash-wallet' ||
+        t.fromAccountId === 'digital-wallet' || t.toAccountId === 'digital-wallet'
+      );
+    } else {
+      // For other account views, only show transactions for that specific account.
+      relevantTransactions = transactions.filter(t =>
+          t.accountId === accountId || t.fromAccountId === accountId || t.toAccountId === accountId
+      );
+    }
 
-    let filtered = [...relevantTransactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    let filtered = [...relevantTransactions];
 
     if (dateRange?.from && dateRange?.to) {
         const interval = { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to) };
@@ -167,7 +179,7 @@ export function TransactionTable({
     }
     
     return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [transactions, accountId, dateRange, searchQuery]);
+  }, [transactions, accountId, isPrimaryView, dateRange, searchQuery]);
 
 
   const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
