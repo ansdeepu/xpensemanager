@@ -34,37 +34,12 @@ const generateColor = (str: string) => {
 }
 
 
-export function Header() {
+export function Header({ pageTitle }: { pageTitle: string }) {
   const [user, loading] = useAuthState(auth);
-  const [currentDateTime, setCurrentDateTime] = useState("");
-  const [currentMonthYear, setCurrentMonthYear] = useState("");
   const [clientLoaded, setClientLoaded] = useState(false);
 
   useEffect(() => {
     setClientLoaded(true);
-
-    const updateDateTime = () => {
-      const date = new Date();
-      const dateTimeOptions: Intl.DateTimeFormatOptions = { 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-       };
-       const monthYearOptions: Intl.DateTimeFormatOptions = {
-        month: 'long',
-        year: 'numeric',
-       }
-      setCurrentDateTime(date.toLocaleString('en-US', dateTimeOptions));
-      setCurrentMonthYear(date.toLocaleString('en-US', monthYearOptions));
-    };
-
-    updateDateTime();
-    const intervalId = setInterval(updateDateTime, 1000);
-
-    return () => clearInterval(intervalId);
   }, []);
 
   const getInitials = (name: string | null | undefined) => {
@@ -82,15 +57,7 @@ export function Header() {
     <header className="sticky top-0 z-10 flex h-20 items-center justify-between gap-4 border-b bg-background px-4 md:px-6">
       <div className="flex items-center gap-2">
         <SidebarTrigger className="md:hidden" />
-        <div>
-             <div className="text-xs text-muted-foreground hidden md:block">
-              {clientLoaded ? currentDateTime : <Skeleton className="h-4 w-48 mt-1" />}
-            </div>
-        </div>
-      </div>
-
-      <div className="hidden md:block">
-        <div className="text-sm font-medium text-muted-foreground">{clientLoaded ? currentMonthYear : <Skeleton className="h-4 w-24" />}</div>
+        <h1 className="text-xl font-semibold">{pageTitle}</h1>
       </div>
 
       <DropdownMenu>
