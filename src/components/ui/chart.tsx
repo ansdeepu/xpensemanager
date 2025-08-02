@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -355,6 +356,35 @@ function getPayloadConfigFromPayload(
     : config[key as keyof typeof config]
 }
 
+const Bar = React.forwardRef<
+  React.ElementRef<typeof RechartsPrimitive.Bar>,
+  React.ComponentProps<typeof RechartsPrimitive.Bar>
+>(({ ...props }, ref) => {
+  return <RechartsPrimitive.Bar ref={ref} {...props} />
+})
+
+const XAxis = React.forwardRef<
+  React.ElementRef<typeof RechartsPrimitive.XAxis>,
+  React.ComponentProps<typeof RechartsPrimitive.XAxis>
+>(({ ...props }, ref) => {
+  return <RechartsPrimitive.XAxis ref={ref} {...props} />
+})
+
+const YAxis = React.forwardRef<
+  React.ElementRef<typeof RechartsPrimitive.YAxis>,
+  React.ComponentProps<typeof RechartsPrimitive.YAxis>
+>(({ ...props }, ref) => {
+  return <RechartsPrimitive.YAxis ref={ref} {...props} />
+})
+
+const BarChart = React.forwardRef<
+  React.ElementRef<typeof RechartsPrimitive.BarChart>,
+  React.ComponentProps<typeof RechartsPrimitive.BarChart>
+>(({ ...props }, ref) => {
+  return <RechartsPrimitive.BarChart ref={ref} {...props} />
+})
+
+
 export {
   ChartContainer,
   ChartTooltip,
@@ -362,4 +392,8 @@ export {
   ChartLegend,
   ChartLegendContent,
   ChartStyle,
+  Bar,
+  XAxis,
+  YAxis,
+  BarChart
 }

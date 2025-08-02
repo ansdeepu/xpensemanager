@@ -22,6 +22,10 @@ import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import type { Transaction } from "@/lib/data";
 import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { CalendarIcon } from "lucide-react";
+
 import {
   Tooltip,
   TooltipContent,
@@ -49,6 +53,8 @@ export function OverviewChart() {
   const [user] = useAuthState(auth);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+
 
   useEffect(() => {
     if (user && db) {
@@ -140,29 +146,49 @@ export function OverviewChart() {
       <CardHeader>
         <CardTitle>Daily & Monthly Expense Overview</CardTitle>
         <CardDescription>
-          Select a day to see detailed expenses below the calendar.
+          Select a day to see detailed expenses for that date.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col items-center gap-6">
-        <TooltipProvider>
-          <Calendar
-            mode="single"
-            selected={selectedDate}
-            onSelect={setSelectedDate}
-            modifiers={{
-              withExpenses: (date) => {
-                const dateString = format(startOfDay(date), "yyyy-MM-dd");
-                return !!dailyExpenses[dateString];
-              },
-            }}
-            modifiersClassNames={{
-              withExpenses: "bg-accent/30 rounded-full",
-            }}
-            components={{
-              DayContent: DayWithTooltip,
-            }}
-          />
-        </TooltipProvider>
+        <Popover open={isPickerOpen} onOpenChange={setIsPickerOpen}>
+            <PopoverTrigger asChild>
+                <Button
+                variant={"outline"}
+                className={cn(
+                    "w-[280px] justify-start text-left font-normal",
+                    !selectedDate && "text-muted-foreground"
+                )}
+                >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0">
+                <TooltipProvider>
+                    <Calendar
+                        mode="single"
+                        selected={selectedDate}
+                        onSelect={(date) => {
+                            setSelectedDate(date);
+                            setIsPickerOpen(false);
+                        }}
+                        modifiers={{
+                        withExpenses: (date) => {
+                            const dateString = format(startOfDay(date), "yyyy-MM-dd");
+                            return !!dailyExpenses[dateString];
+                        },
+                        }}
+                        modifiersClassNames={{
+                        withExpenses: "bg-accent/30 rounded-full",
+                        }}
+                        components={{
+                        DayContent: DayWithTooltip,
+                        }}
+                        initialFocus
+                    />
+                </TooltipProvider>
+            </PopoverContent>
+        </Popover>
 
         {transactionsOnSelectedDate.length > 0 && (
            <div className="w-full">
@@ -197,6 +223,7 @@ export function OverviewChart() {
             <ChartContainer config={{}} className="h-[200px] w-full">
                 <BarChart accessibilityLayer data={monthlyChartData}>
                     <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} />
+                    <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `${value/1000}k`} />
                     <ChartTooltip 
                       cursor={false}
                       content={<ChartTooltipContent formatter={(value) => formatCurrency(value as number)} />}
