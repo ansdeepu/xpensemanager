@@ -168,7 +168,7 @@ export function CategoryExpenses() {
 
   if (loading) {
       return (
-          <Card className="lg:col-span-4 h-[1200px]">
+          <Card className="lg:col-span-4 h-[900px]">
               <CardHeader>
                   <Skeleton className="h-6 w-1/4" />
                   <Skeleton className="h-4 w-1/2" />
@@ -186,6 +186,8 @@ export function CategoryExpenses() {
     switch (view) {
         case 'category-details': {
             const IconComponent = selectedCategory ? iconComponents[selectedCategory.icon] || Tag : Tag;
+            const categoryTotalSpent = subCategoryStats.reduce((sum, s) => sum + s.spent, 0);
+            const categoryTotalBudget = subCategoryStats.reduce((sum, s) => sum + s.budget, 0);
             return (
                 <div className="flex flex-col h-full">
                     <div className="flex items-center gap-2 mb-4">
@@ -208,6 +210,16 @@ export function CategoryExpenses() {
                             ))}
                         </div>
                     </ScrollArea>
+                     <div className="pt-4 border-t mt-4 space-y-2">
+                        <div className="flex justify-between w-full font-medium">
+                            <span>Total Spent</span>
+                            <span>{formatCurrency(categoryTotalSpent)}</span>
+                        </div>
+                        <div className="flex justify-between w-full text-sm text-muted-foreground">
+                            <span>Total Budget</span>
+                            <span>{formatCurrency(categoryTotalBudget)}</span>
+                        </div>
+                    </div>
                 </div>
             );
         }
@@ -274,7 +286,7 @@ export function CategoryExpenses() {
 
 
   return (
-    <Card className="lg:col-span-4 h-[1200px] flex flex-col">
+    <Card className="lg:col-span-4 h-[900px] flex flex-col">
         <CardHeader>
             <CardTitle>Category Expenses</CardTitle>
             <div className="flex justify-between items-center">
