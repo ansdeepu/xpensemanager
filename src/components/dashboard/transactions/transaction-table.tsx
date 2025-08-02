@@ -750,6 +750,7 @@ export function TransactionTable({
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>Sl. No.</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Description</TableHead>
               <TableHead>Type</TableHead>
@@ -760,8 +761,9 @@ export function TransactionTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredTransactions.map((t) => (
+            {filteredTransactions.map((t, index) => (
               <TableRow key={t.id}>
+                <TableCell className="font-medium">{index + 1}</TableCell>
                 <TableCell>{format(new Date(t.date), 'dd/MM/yyyy')}</TableCell>
                 <TableCell className="font-medium">{t.description}</TableCell>
                 <TableCell>
