@@ -110,21 +110,21 @@ export function CategoryExpenses() {
 
   const subCategoryStats = useMemo(() => {
     if (!selectedCategory) return [];
-    const stats: { name: string; spent: number; budget: number }[] = [];
     
-    const relevantSubcategories = selectedCategory.subcategories.filter(sub => 
-        sub.frequency === 'monthly' || (sub.frequency === 'occasional' && sub.selectedMonths?.includes(currentMonthName))
-    );
-
-    relevantSubcategories.forEach(sub => {
+    return selectedCategory.subcategories.map(sub => {
         const spent = monthlyTransactions
             .filter(t => t.categoryId === selectedCategory.id && t.subcategory === sub.name)
             .reduce((sum, t) => sum + t.amount, 0);
-        
-        stats.push({ name: sub.name, spent, budget: sub.amount || 0 });
-    });
 
-    return stats;
+        const isBudgetedThisMonth = sub.frequency === 'monthly' || (sub.frequency === 'occasional' && sub.selectedMonths?.includes(currentMonthName));
+        
+        return { 
+            name: sub.name, 
+            spent, 
+            budget: isBudgetedThisMonth ? (sub.amount || 0) : 0 
+        };
+    }).filter(stat => stat.spent > 0 || stat.budget > 0);
+
   }, [selectedCategory, monthlyTransactions, currentMonthName]);
 
   
@@ -214,7 +214,7 @@ export function CategoryExpenses() {
                                         <TableCell>{index + 1}</TableCell>
                                         <TableCell>{stat.name}</TableCell>
                                         <TableCell className="text-right">{formatCurrency(stat.spent)}</TableCell>
-                                        <TableCell className="text-right">{formatCurrency(stat.budget)}</TableCell>
+                                        <TableCell className="text-right">{stat.budget > 0 ? formatCurrency(stat.budget) : '-'}</TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
@@ -226,7 +226,7 @@ export function CategoryExpenses() {
                             <span>{formatCurrency(categoryTotalSpent)}</span>
                         </div>
                         <div className="flex justify-between w-full text-sm text-muted-foreground">
-                            <span>Total Budget</span>
+                            <span>Total Budget for this month</span>
                             <span>{formatCurrency(categoryTotalBudget)}</span>
                         </div>
                     </div>
