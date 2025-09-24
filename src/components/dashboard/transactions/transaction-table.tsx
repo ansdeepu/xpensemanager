@@ -143,28 +143,10 @@ export function TransactionTable({
     }, [editCategory, categories]);
 
   const filteredTransactions = useMemo(() => {
-    let relevantTransactions;
-
-    if (isPrimaryView) {
-      const primaryAndWallets = [accountId, 'cash-wallet', 'digital-wallet'];
-      relevantTransactions = transactions.filter(t => {
-        // Direct income/expense for the primary account
-        if (t.accountId === accountId) return true;
-        // Expenses paid via wallets
-        if (t.paymentMethod === 'cash' || t.paymentMethod === 'digital') return true;
-        // Transfers involving any of the primary group
-        if (t.type === 'transfer') {
-           return primaryAndWallets.includes(t.fromAccountId!) || primaryAndWallets.includes(t.toAccountId!);
-        }
-        return false;
-      });
-    } else {
-      // For other account views, only show transactions for that specific account.
-      relevantTransactions = transactions.filter(t =>
-          (t.type !== 'transfer' && t.accountId === accountId) ||
-          (t.type === 'transfer' && (t.fromAccountId === accountId || t.toAccountId === accountId))
-      );
-    }
+    const relevantTransactions = transactions.filter(t =>
+        (t.type !== 'transfer' && t.accountId === accountId) ||
+        (t.type === 'transfer' && (t.fromAccountId === accountId || t.toAccountId === accountId))
+    );
 
     let filtered = [...relevantTransactions];
 
@@ -183,7 +165,7 @@ export function TransactionTable({
     }
     
     return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [transactions, accountId, isPrimaryView, dateRange, searchQuery]);
+  }, [transactions, accountId, dateRange, searchQuery]);
 
 
   const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
@@ -381,7 +363,7 @@ export function TransactionTable({
                 type: 'transfer',
                 date: transactionDate.toISOString(),
                 category: 'Transfer',
-                paymentMethod: 'online',
+                paymentMethod: 'online', 
                 accountId: fromAccountId, 
                 categoryId: 'transfer',
             };
