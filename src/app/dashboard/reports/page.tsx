@@ -142,13 +142,13 @@ export default function ReportsPage() {
     const monthStart = startOfMonth(currentDate);
     const monthEnd = endOfMonth(currentDate);
 
-    const allAccounts = [
+    const allAccountEntities = [
         ...accounts,
         { id: 'cash-wallet', name: 'Cash Wallet' },
         { id: 'digital-wallet', name: 'Digital Wallet' }
     ];
 
-    allAccounts.forEach(acc => {
+    allAccountEntities.forEach(acc => {
         report[acc.id] = {
             income: { categories: {}, total: 0 },
             expense: { categories: {}, total: 0 }
@@ -159,6 +159,7 @@ export default function ReportsPage() {
 
     monthlyTransactions.forEach(t => {
       let targetAccountId: string | null = null;
+      let transactionType = t.type;
       
       if (t.type === 'expense') {
         if (t.paymentMethod === 'cash') targetAccountId = 'cash-wallet';
@@ -166,10 +167,31 @@ export default function ReportsPage() {
         else if (t.accountId) targetAccountId = t.accountId;
       } else if (t.type === 'income' && t.accountId) {
         targetAccountId = t.accountId;
+      } else if (t.type === 'transfer') {
+        // For transfers, we create two entries: one expense, one income
+        if (t.fromAccountId && report[t.fromAccountId]) {
+            // This is an "expense" for the 'from' account
+            const fromReport = report[t.fromAccountId].expense;
+            fromReport.total += t.amount;
+             if (!fromReport.categories['Transfer']) {
+                fromReport.categories['Transfer'] = { name: 'Transfer', total: 0, subcategories: {} };
+            }
+            fromReport.categories['Transfer'].total += t.amount;
+        }
+        if (t.toAccountId && report[t.toAccountId]) {
+             // This is an "income" for the 'to' account
+            const toReport = report[t.toAccountId].income;
+            toReport.total += t.amount;
+             if (!toReport.categories['Transfer']) {
+                toReport.categories['Transfer'] = { name: 'Transfer', total: 0, subcategories: {} };
+            }
+            toReport.categories['Transfer'].total += t.amount;
+        }
+        return; // Skip the generic processing below for transfers
       }
 
-      if (targetAccountId && report[targetAccountId]) {
-        const reportSection = report[targetAccountId][t.type];
+      if (targetAccountId && report[targetAccountId] && (transactionType === 'income' || transactionType === 'expense')) {
+        const reportSection = report[targetAccountId][transactionType];
         if (!reportSection) return;
 
         reportSection.total += t.amount;
@@ -215,6 +237,9 @@ export default function ReportsPage() {
       'cash-wallet', 
       'digital-wallet'
     ];
+  
+  const hasTransactions = allAccountIds.some(id => (monthlyReport[id]?.income.total > 0 || monthlyReport[id]?.expense.total > 0));
+
 
   return (
     <div className="space-y-6">
@@ -244,7 +269,7 @@ export default function ReportsPage() {
                      <AccordionItem value={account.id} key={account.id}>
                         <AccordionTrigger>
                             <div className="flex justify-between w-full pr-4">
-                                <span>{account.name}</span>
+                                <span className="font-semibold">{account.name}</span>
                                 <div className="flex gap-4">
                                     <span className="text-green-600">{formatCurrency(monthlyReport[account.id]?.income.total || 0)}</span>
                                     <span className="text-red-600">{formatCurrency(monthlyReport[account.id]?.expense.total || 0)}</span>
@@ -260,27 +285,35 @@ export default function ReportsPage() {
                  <AccordionItem value="cash-wallet">
                     <AccordionTrigger>
                          <div className="flex justify-between w-full pr-4">
-                            <span>Cash Wallet</span>
-                            <span className="text-red-600">{formatCurrency(monthlyReport['cash-wallet']?.expense.total || 0)}</span>
+                            <span className="font-semibold">Cash Wallet</span>
+                            <div className="flex gap-4">
+                                <span className="text-green-600">{formatCurrency(monthlyReport['cash-wallet']?.income.total || 0)}</span>
+                                <span className="text-red-600">{formatCurrency(monthlyReport['cash-wallet']?.expense.total || 0)}</span>
+                            </div>
                         </div>
                     </AccordionTrigger>
                     <AccordionContent>
+                        <ReportTable title="Income" data={monthlyReport['cash-wallet'].income} />
                         <ReportTable title="Expenses" data={monthlyReport['cash-wallet'].expense} />
                     </AccordionContent>
                  </AccordionItem>
                  <AccordionItem value="digital-wallet">
                     <AccordionTrigger>
                          <div className="flex justify-between w-full pr-4">
-                            <span>Digital Wallet</span>
-                            <span className="text-red-600">{formatCurrency(monthlyReport['digital-wallet']?.expense.total || 0)}</span>
+                            <span className="font-semibold">Digital Wallet</span>
+                            <div className="flex gap-4">
+                                <span className="text-green-600">{formatCurrency(monthlyReport['digital-wallet']?.income.total || 0)}</span>
+                                <span className="text-red-600">{formatCurrency(monthlyReport['digital-wallet']?.expense.total || 0)}</span>
+                            </div>
                         </div>
                     </AccordionTrigger>
                     <AccordionContent>
+                        <ReportTable title="Income" data={monthlyReport['digital-wallet'].income} />
                         <ReportTable title="Expenses" data={monthlyReport['digital-wallet'].expense} />
                     </AccordionContent>
                  </AccordionItem>
             </Accordion>
-            {allAccountIds.every(id => (monthlyReport[id]?.income.total === 0 && monthlyReport[id]?.expense.total === 0)) && (
+            {!hasTransactions && (
                 <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-40 border-2 border-dashed rounded-lg mt-6">
                     <BookText className="h-10 w-10 mb-2"/>
                     <p>No transactions found for {format(currentDate, "MMMM yyyy")}.</p>
