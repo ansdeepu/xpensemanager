@@ -27,7 +27,7 @@ import {
 import { Header } from "@/components/dashboard/header";
 
 const menuItems = [
-  { href: "/dashboard", label: "Dashboard", description: "An overview of your financial status." },
+  { href: "/dashboard", label: "Dashboard", description: "An overview of your financial status.", icon: LayoutDashboard },
   {
     href: "/dashboard/transactions",
     label: "Transaction History",
