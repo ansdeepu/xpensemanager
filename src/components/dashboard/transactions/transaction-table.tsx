@@ -71,12 +71,29 @@ const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
+// Function to safely evaluate math expressions
+const evaluateMath = (expression: string): number | null => {
+  try {
+    // Basic validation: only allow numbers, operators, and parentheses
+    if (/[^0-9+\-*/.() ]/.test(expression)) {
+      return null;
+    }
+    // eslint-disable-next-line no-eval
+    const result = eval(expression);
+    if (typeof result === 'number' && isFinite(result)) {
+      return result;
+    }
+    return null;
+  } catch (error) {
+    return null;
+  }
+};
+
+
 export function TransactionTable({
   accountId,
-  isPrimaryView,
 }: {
   accountId: string;
-  isPrimaryView: boolean;
 }) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -96,6 +113,27 @@ export function TransactionTable({
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 100;
   const { toast } = useToast();
+  
+  // State for amount inputs
+  const [expenseAmount, setExpenseAmount] = useState("");
+  const [incomeAmount, setIncomeAmount] = useState("");
+  const [transferAmount, setTransferAmount] = useState("");
+  const [editAmount, setEditAmount] = useState("");
+
+  const handleAmountChange = (setter: React.Dispatch<React.SetStateAction<string>>) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    setter(e.target.value);
+  };
+  
+  const handleAmountBlur = (
+    value: string,
+    setter: React.Dispatch<React.SetStateAction<string>>
+  ) => {
+    if (value.trim() === "") return;
+    const result = evaluateMath(value);
+    if (result !== null) {
+      setter(String(result));
+    }
+  };
 
   const expenseCategories = useMemo(() => {
     const regularExpenses = categories.filter(c => c.type === 'expense');
@@ -143,10 +181,22 @@ export function TransactionTable({
     }, [editCategory, categories]);
 
   const filteredTransactions = useMemo(() => {
-    const relevantTransactions = transactions.filter(t =>
-        (t.type !== 'transfer' && t.accountId === accountId) ||
-        (t.type === 'transfer' && (t.fromAccountId === accountId || t.toAccountId === accountId))
-    );
+      const relevantTransactions = transactions.filter(t => {
+        if (t.type === 'transfer') {
+            return t.fromAccountId === accountId || t.toAccountId === accountId;
+        }
+        
+        // For cash/digital wallets, show all their expenses/transfers
+        if (accountId === 'cash-wallet') {
+            return t.paymentMethod === 'cash' || t.fromAccountId === 'cash-wallet' || t.toAccountId === 'cash-wallet';
+        }
+        if (accountId === 'digital-wallet') {
+            return t.paymentMethod === 'digital' || t.fromAccountId === 'digital-wallet' || t.toAccountId === 'digital-wallet';
+        }
+        
+        // For regular accounts, show only their specific transactions
+        return t.accountId === accountId;
+    });
 
     let filtered = [...relevantTransactions];
 
@@ -211,6 +261,7 @@ export function TransactionTable({
   useEffect(() => {
     if (selectedTransaction) {
       setEditDate(new Date(selectedTransaction.date));
+      setEditAmount(String(selectedTransaction.amount));
       if (selectedTransaction.type === 'expense' || selectedTransaction.type === 'income') {
         const categoryDoc = categories.find(c => c.id === selectedTransaction.categoryId);
         setEditCategory(categoryDoc?.id);
@@ -218,6 +269,7 @@ export function TransactionTable({
     } else {
         setEditDate(undefined);
         setEditCategory(undefined);
+        setEditAmount("");
     }
    }, [selectedTransaction, categories]);
 
@@ -242,7 +294,8 @@ export function TransactionTable({
 
     try {
         if (transactionType === 'expense' || transactionType === 'income') {
-            const amount = parseFloat(formData.get(`${transactionType}-amount`) as string);
+            const amountStr = transactionType === 'expense' ? expenseAmount : incomeAmount;
+            const amount = parseFloat(amountStr);
             const accountId = formData.get(`${transactionType}-account`) as string;
             const description = formData.get(`${transactionType}-description`) as string
             const categoryId = formData.get(`${transactionType}-category`) as string;
@@ -337,7 +390,7 @@ export function TransactionTable({
             });
 
         } else if (transactionType === 'transfer') {
-            const amount = parseFloat(formData.get("transfer-amount") as string);
+            const amount = parseFloat(transferAmount);
             const fromAccountId = formData.get("transfer-from") as string;
             const toAccountId = formData.get("transfer-to") as string;
             const description = formData.get("transfer-description") as string;
@@ -360,10 +413,10 @@ export function TransactionTable({
                 amount,
                 fromAccountId,
                 toAccountId,
-                type: 'transfer',
+                type: 'transfer' as 'transfer',
                 date: transactionDate.toISOString(),
                 category: 'Transfer',
-                paymentMethod: 'online', 
+                paymentMethod: 'online' as 'online', 
                 accountId: fromAccountId, 
                 categoryId: 'transfer',
             };
@@ -378,6 +431,9 @@ export function TransactionTable({
         setSelectedExpenseCategory(undefined);
         setSelectedIncomeCategory(undefined);
         setDate(new Date());
+        setExpenseAmount("");
+        setIncomeAmount("");
+        setTransferAmount("");
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -394,7 +450,7 @@ export function TransactionTable({
     const formData = new FormData(event.currentTarget);
     const updatedData: Partial<Transaction> = {
       description: formData.get("description") as string,
-      amount: parseFloat(formData.get("amount") as string),
+      amount: parseFloat(editAmount),
       date: (editDate || new Date()).toISOString(),
     };
   
@@ -552,6 +608,9 @@ export function TransactionTable({
               setSelectedExpenseCategory(undefined);
               setSelectedIncomeCategory(undefined);
               setDate(new Date());
+              setExpenseAmount("");
+              setIncomeAmount("");
+              setTransferAmount("");
             }
           }}>
             <DialogTrigger asChild>
@@ -646,7 +705,16 @@ export function TransactionTable({
                           </div>
                           <div className="space-y-2">
                             <Label htmlFor="expense-amount">Amount</Label>
-                            <Input id="expense-amount" name="expense-amount" type="number" step="0.01" placeholder="0.00" required className="hide-number-arrows"/>
+                            <Input
+                                id="expense-amount"
+                                name="expense-amount"
+                                placeholder="e.g. 50+20"
+                                required
+                                className="hide-number-arrows"
+                                value={expenseAmount}
+                                onChange={handleAmountChange(setExpenseAmount)}
+                                onBlur={() => handleAmountBlur(expenseAmount, setExpenseAmount)}
+                            />
                           </div>
                       </div>
                     </TabsContent>
@@ -718,7 +786,16 @@ export function TransactionTable({
                           </div>
                           <div className="space-y-2">
                             <Label htmlFor="income-amount">Amount</Label>
-                            <Input id="income-amount" name="income-amount" type="number" step="0.01" placeholder="0.00" required className="hide-number-arrows"/>
+                            <Input
+                                id="income-amount"
+                                name="income-amount"
+                                placeholder="e.g. 1000-50"
+                                required
+                                className="hide-number-arrows"
+                                value={incomeAmount}
+                                onChange={handleAmountChange(setIncomeAmount)}
+                                onBlur={() => handleAmountBlur(incomeAmount, setIncomeAmount)}
+                            />
                           </div>
                       </div>
                     </TabsContent>
@@ -782,7 +859,16 @@ export function TransactionTable({
                         </div>
                          <div className="space-y-2 col-span-2">
                             <Label htmlFor="transfer-amount">Amount</Label>
-                            <Input id="transfer-amount" name="transfer-amount" type="number" step="0.01" placeholder="0.00" required className="hide-number-arrows"/>
+                            <Input
+                                id="transfer-amount"
+                                name="transfer-amount"
+                                placeholder="e.g. 500*2"
+                                required
+                                className="hide-number-arrows"
+                                value={transferAmount}
+                                onChange={handleAmountChange(setTransferAmount)}
+                                onBlur={() => handleAmountBlur(transferAmount, setTransferAmount)}
+                            />
                         </div>
                     </TabsContent>
                     </div>
@@ -1018,7 +1104,16 @@ export function TransactionTable({
 
                     <div className="space-y-2">
                         <Label htmlFor="edit-amount">Amount</Label>
-                        <Input id="edit-amount" name="amount" type="number" step="0.01" defaultValue={selectedTransaction?.amount} required className="hide-number-arrows"/>
+                        <Input
+                            id="edit-amount"
+                            name="amount"
+                            placeholder="e.g. 100/2"
+                            required
+                            className="hide-number-arrows"
+                            value={editAmount}
+                            onChange={handleAmountChange(setEditAmount)}
+                            onBlur={() => handleAmountBlur(editAmount, setEditAmount)}
+                        />
                     </div>
                 </div>
                 <DialogFooter>
