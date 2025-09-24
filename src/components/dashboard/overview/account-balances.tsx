@@ -131,14 +131,14 @@ export function AccountBalances() {
     };
   };
 
-  const debouncedUpdateBalance = useCallback(useDebounce(async (accountId: string, value: number) => {
-        if (!user || isNaN(value)) return;
+  const debouncedUpdateBalance = useCallback(useDebounce(async (accountId: string, value: number | null) => {
+        if (!user) return;
         const accountRef = doc(db, "accounts", accountId);
         await updateDoc(accountRef, { actualBalance: value });
     }, 500), [user]);
     
-  const debouncedUpdateWalletBalance = useCallback(useDebounce(async (walletType: 'cash' | 'digital', value: number) => {
-    if (!user || isNaN(value)) return;
+  const debouncedUpdateWalletBalance = useCallback(useDebounce(async (walletType: 'cash' | 'digital', value: number | null) => {
+    if (!user) return;
     const prefRef = doc(db, "user_preferences", user.uid);
     await setDoc(prefRef, { wallets: { ...walletPreferences, [walletType]: value } }, { merge: true });
   }, 500), [user, walletPreferences]);
@@ -213,11 +213,10 @@ export function AccountBalances() {
                                 type="number"
                                 placeholder="Enter balance"
                                 className="hide-number-arrows h-8"
-                                key={`cash-${walletPreferences.cash}`}
                                 defaultValue={walletPreferences.cash ?? ''}
                                 onChange={(e) => {
-                                    const value = e.target.value === '' ? undefined : parseFloat(e.target.value)
-                                    if(value !== undefined) debouncedUpdateWalletBalance('cash', value)
+                                    const value = e.target.value === '' ? null : parseFloat(e.target.value)
+                                    debouncedUpdateWalletBalance('cash', value)
                                 }}
                                 onClick={(e) => e.stopPropagation()}
                             />
@@ -251,11 +250,10 @@ export function AccountBalances() {
                                 type="number"
                                 placeholder="Enter balance"
                                 className="hide-number-arrows h-8"
-                                key={`digital-${walletPreferences.digital}`}
                                 defaultValue={walletPreferences.digital ?? ''}
                                 onChange={(e) => {
-                                    const value = e.target.value === '' ? undefined : parseFloat(e.target.value)
-                                    if(value !== undefined) debouncedUpdateWalletBalance('digital', value)
+                                    const value = e.target.value === '' ? null : parseFloat(e.target.value)
+                                    debouncedUpdateWalletBalance('digital', value)
                                 }}
                                 onClick={(e) => e.stopPropagation()}
                             />
@@ -292,11 +290,10 @@ export function AccountBalances() {
                                     type="number"
                                     placeholder="Enter balance"
                                     className="hide-number-arrows h-8"
-                                    key={`${account.id}-${account.actualBalance}`}
                                     defaultValue={account.actualBalance ?? ''}
                                     onChange={(e) => {
-                                        const value = e.target.value === '' ? undefined : parseFloat(e.target.value)
-                                        if (value !== undefined) debouncedUpdateBalance(account.id, value);
+                                        const value = e.target.value === '' ? null : parseFloat(e.target.value)
+                                        debouncedUpdateBalance(account.id, value);
                                     }}
                                     onClick={(e) => e.stopPropagation()}
                                 />

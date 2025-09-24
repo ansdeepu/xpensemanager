@@ -1,40 +1,88 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { TransactionTable } from "@/components/dashboard/transactions/transaction-table";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
-import type { Account } from "@/lib/data";
+import type { Account, Transaction } from "@/lib/data";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+  }).format(amount);
+};
+
 export default function TransactionsPage() {
-  const [user, loading] = useAuthState(auth);
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [accountsLoading, setAccountsLoading] = useState(true);
+  const [user, userLoading] = useAuthState(auth);
+  const [rawAccounts, setRawAccounts] = useState<Omit<Account, 'balance'>[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [dataLoading, setDataLoading] = useState(true);
 
   useEffect(() => {
     if (user) {
       const accountsQuery = query(collection(db, "accounts"), where("userId", "==", user.uid), orderBy("order", "asc"));
-      const unsubscribe = onSnapshot(accountsQuery, (snapshot) => {
-        const userAccounts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Account));
-        setAccounts(userAccounts);
-        setAccountsLoading(false);
+      const unsubscribeAccounts = onSnapshot(accountsQuery, (snapshot) => {
+        const userAccounts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Omit<Account, 'balance'>));
+        setRawAccounts(userAccounts);
+        if (dataLoading) setDataLoading(false);
       });
-      return () => unsubscribe();
-    } else if (!loading) {
-        setAccountsLoading(false);
+
+      const transactionsQuery = query(collection(db, "transactions"), where("userId", "==", user.uid));
+      const unsubscribeTransactions = onSnapshot(transactionsQuery, (snapshot) => {
+        setTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction)));
+      });
+
+      return () => {
+        unsubscribeAccounts();
+        unsubscribeTransactions();
+      };
+    } else if (!userLoading) {
+      setDataLoading(false);
     }
-  }, [user, loading]);
+  }, [user, userLoading, dataLoading]);
+
+  const { accountBalances } = useMemo(() => {
+    const calculatedAccountBalances: { [key: string]: number } = {};
+    rawAccounts.forEach(acc => {
+      calculatedAccountBalances[acc.id] = 0;
+    });
+
+    transactions.forEach(t => {
+      if (t.type === 'income' && t.accountId && calculatedAccountBalances[t.accountId] !== undefined) {
+        calculatedAccountBalances[t.accountId] += t.amount;
+      } else if (t.type === 'expense' && t.accountId && t.paymentMethod === 'online' && calculatedAccountBalances[t.accountId] !== undefined) {
+        calculatedAccountBalances[t.accountId] -= t.amount;
+      } else if (t.type === 'transfer') {
+        if (t.fromAccountId && calculatedAccountBalances[t.fromAccountId] !== undefined) {
+          calculatedAccountBalances[t.fromAccountId] -= t.amount;
+        }
+        if (t.toAccountId && calculatedAccountBalances[t.toAccountId] !== undefined) {
+          calculatedAccountBalances[t.toAccountId] += t.amount;
+        }
+      }
+    });
+
+    return { accountBalances: calculatedAccountBalances };
+  }, [rawAccounts, transactions]);
+  
+  const accounts = useMemo(() => {
+    return rawAccounts.map(acc => ({
+        ...acc,
+        balance: accountBalances[acc.id] ?? 0,
+    }));
+  }, [rawAccounts, accountBalances]);
+
 
   const primaryAccount = accounts.find(a => a.isPrimary);
 
-  if (loading || accountsLoading) {
+  if (userLoading || dataLoading) {
     return (
       <div className="space-y-6">
-        <Skeleton className="h-8 w-1/3" />
         <Skeleton className="h-10 w-full" />
         <Skeleton className="h-[600px] w-full" />
       </div>
@@ -44,12 +92,19 @@ export default function TransactionsPage() {
   return (
     <div className="space-y-6">
       <Tabs defaultValue={primaryAccount?.id || "all"} className="w-full">
-        <TabsList className="grid w-full grid-cols-1 md:grid-cols-3 lg:grid-cols-5">
+        <TabsList className="grid w-full grid-cols-1 md:grid-cols-3 lg:grid-cols-5 h-auto flex-wrap">
           {primaryAccount && (
-            <TabsTrigger value={primaryAccount.id}>Primary Account ({primaryAccount.name})</TabsTrigger>
+            <TabsTrigger value={primaryAccount.id} className="flex flex-col h-auto py-2">
+              <span>Primary ({primaryAccount.name})</span>
+              <span className="font-bold text-primary">{formatCurrency(primaryAccount.balance)}</span>
+            </TabsTrigger>
           )}
           {accounts.map(account => (
-            !account.isPrimary && <TabsTrigger key={account.id} value={account.id}>{account.name}</TabsTrigger>
+            !account.isPrimary && 
+            <TabsTrigger key={account.id} value={account.id} className="flex flex-col h-auto py-2">
+              <span>{account.name}</span>
+              <span className="font-bold text-primary">{formatCurrency(account.balance)}</span>
+            </TabsTrigger>
           ))}
         </TabsList>
         {primaryAccount && (
