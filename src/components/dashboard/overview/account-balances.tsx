@@ -213,10 +213,10 @@ export function AccountBalances() {
                                 type="number"
                                 placeholder="Enter balance"
                                 className="hide-number-arrows h-8"
-                                value={walletPreferences.cash ?? ''}
+                                key={`cash-${walletPreferences.cash}`}
+                                defaultValue={walletPreferences.cash ?? ''}
                                 onChange={(e) => {
                                     const value = e.target.value === '' ? undefined : parseFloat(e.target.value)
-                                    setWalletPreferences(prev => ({...prev, cash: value}))
                                     if(value !== undefined) debouncedUpdateWalletBalance('cash', value)
                                 }}
                                 onClick={(e) => e.stopPropagation()}
@@ -251,10 +251,10 @@ export function AccountBalances() {
                                 type="number"
                                 placeholder="Enter balance"
                                 className="hide-number-arrows h-8"
-                                value={walletPreferences.digital ?? ''}
+                                key={`digital-${walletPreferences.digital}`}
+                                defaultValue={walletPreferences.digital ?? ''}
                                 onChange={(e) => {
                                     const value = e.target.value === '' ? undefined : parseFloat(e.target.value)
-                                    setWalletPreferences(prev => ({...prev, digital: value}))
                                     if(value !== undefined) debouncedUpdateWalletBalance('digital', value)
                                 }}
                                 onClick={(e) => e.stopPropagation()}
@@ -292,10 +292,10 @@ export function AccountBalances() {
                                     type="number"
                                     placeholder="Enter balance"
                                     className="hide-number-arrows h-8"
-                                    value={account.actualBalance ?? ''}
+                                    key={`${account.id}-${account.actualBalance}`}
+                                    defaultValue={account.actualBalance ?? ''}
                                     onChange={(e) => {
                                         const value = e.target.value === '' ? undefined : parseFloat(e.target.value)
-                                        setRawAccounts(prev => prev.map(a => a.id === account.id ? {...a, actualBalance: value} : a))
                                         if (value !== undefined) debouncedUpdateBalance(account.id, value);
                                     }}
                                     onClick={(e) => e.stopPropagation()}
