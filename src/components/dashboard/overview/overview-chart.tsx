@@ -114,9 +114,13 @@ export function OverviewChart() {
   }, [accounts]);
 
   const dailyExpenses = useMemo(() => {
-    const primaryAccountExpenses = transactions.filter(t => t.accountId === primaryAccountId);
+    // Include expenses from primary account, cash, and digital wallets
+    const relevantExpenses = transactions.filter(t => 
+        t.type === 'expense' &&
+        (t.accountId === primaryAccountId || t.paymentMethod === 'cash' || t.paymentMethod === 'digital')
+    );
 
-    return primaryAccountExpenses.reduce((acc, t) => {
+    return relevantExpenses.reduce((acc, t) => {
       const date = format(startOfDay(new Date(t.date)), "yyyy-MM-dd");
       if (!acc[date]) {
         acc[date] = 0;
@@ -127,10 +131,11 @@ export function OverviewChart() {
   }, [transactions, primaryAccountId]);
 
   const transactionsOnSelectedDate = useMemo(() => {
-    if (!selectedDate || !primaryAccountId) return [];
+    if (!selectedDate) return [];
     return transactions.filter(t => 
+        t.type === 'expense' &&
         isSameDay(new Date(t.date), selectedDate) &&
-        t.accountId === primaryAccountId
+        (t.accountId === primaryAccountId || t.paymentMethod === 'cash' || t.paymentMethod === 'digital')
     );
   }, [transactions, selectedDate, primaryAccountId]);
 
@@ -143,12 +148,9 @@ export function OverviewChart() {
     const currentYear = getYear(new Date());
     const monthlyTotals = Array.from({ length: 12 }, (_, i) => ({ month: format(new Date(currentYear, i), 'MMM'), total: 0 }));
 
-    const expenseCategoryIds = new Set(
-        categories.filter(c => c.type === 'expense').map(c => c.id)
-    );
-
     const expenseTransactions = transactions.filter(t => 
-        t.categoryId && expenseCategoryIds.has(t.categoryId) && t.accountId === primaryAccountId
+        t.type === 'expense' &&
+        (t.accountId === primaryAccountId || t.paymentMethod === 'cash' || t.paymentMethod === 'digital')
     );
 
     expenseTransactions.forEach(t => {
@@ -160,7 +162,7 @@ export function OverviewChart() {
     });
 
     return monthlyTotals;
-  }, [transactions, categories, primaryAccountId]);
+  }, [transactions, primaryAccountId]);
 
   const DayWithTooltip = ({
     date,
@@ -200,7 +202,7 @@ export function OverviewChart() {
       <CardHeader>
         <CardTitle>Daily & Monthly Expense Overview</CardTitle>
         <CardDescription>
-          Select a day to see detailed expenses for that date from your primary account.
+          Select a day to see detailed expenses for that date.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col items-center gap-6">
