@@ -182,7 +182,7 @@ export function BillList() {
         const paidOnDate = bill.paidOn ? new Date(bill.paidOn) : null;
         
         if (paidOnDate) {
-            return <Badge variant="secondary" className="border-green-500 text-green-700">Paid on {format(paidOnDate, 'dd/MM/yy')}</Badge>;
+            return <Badge variant="secondary" className="border-green-500 text-green-700">Paid on {format(paidOnDate, 'dd/MM/yyyy')}</Badge>;
         }
         
         if (isPast(dueDate)) {

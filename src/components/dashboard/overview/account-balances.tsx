@@ -77,7 +77,7 @@ export function AccountBalances() {
   const { cashWalletBalance, digitalWalletBalance, accountBalances } = useMemo(() => {
     const calculatedAccountBalances: { [key: string]: number } = {};
     rawAccounts.forEach(acc => {
-        calculatedAccountBalances[acc.id] = acc.actualBalance ?? 0; // Start with actual balance
+        calculatedAccountBalances[acc.id] = 0; // Start with 0
     });
 
     let calculatedCashWalletBalance = 0;
@@ -213,7 +213,7 @@ export function AccountBalances() {
                             )}
                         >
                             <CalendarIcon className="mr-2 h-4 w-4" />
-                            {reconciliationDate ? format(reconciliationDate, "PPP") : <span>Pick a date</span>}
+                            {reconciliationDate ? format(reconciliationDate, "dd/MM/yyyy") : <span>Pick a date</span>}
                         </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0">

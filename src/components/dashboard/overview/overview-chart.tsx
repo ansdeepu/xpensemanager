@@ -116,8 +116,7 @@ export function OverviewChart() {
   const dailyExpenses = useMemo(() => {
     // Include expenses from primary account, cash, and digital wallets
     const relevantExpenses = transactions.filter(t => 
-        t.type === 'expense' &&
-        (t.accountId === primaryAccountId || t.paymentMethod === 'cash' || t.paymentMethod === 'digital')
+        t.type === 'expense'
     );
 
     return relevantExpenses.reduce((acc, t) => {
@@ -128,16 +127,15 @@ export function OverviewChart() {
       acc[date] += t.amount;
       return acc;
     }, {} as Record<string, number>);
-  }, [transactions, primaryAccountId]);
+  }, [transactions]);
 
   const transactionsOnSelectedDate = useMemo(() => {
     if (!selectedDate) return [];
     return transactions.filter(t => 
         t.type === 'expense' &&
-        isSameDay(new Date(t.date), selectedDate) &&
-        (t.accountId === primaryAccountId || t.paymentMethod === 'cash' || t.paymentMethod === 'digital')
+        isSameDay(new Date(t.date), selectedDate)
     );
-  }, [transactions, selectedDate, primaryAccountId]);
+  }, [transactions, selectedDate]);
 
   const totalForSelectedDate = useMemo(() => {
     return transactionsOnSelectedDate.reduce((total, t) => total + t.amount, 0);
@@ -149,8 +147,7 @@ export function OverviewChart() {
     const monthlyTotals = Array.from({ length: 12 }, (_, i) => ({ month: format(new Date(currentYear, i), 'MMM'), total: 0 }));
 
     const expenseTransactions = transactions.filter(t => 
-        t.type === 'expense' &&
-        (t.accountId === primaryAccountId || t.paymentMethod === 'cash' || t.paymentMethod === 'digital')
+        t.type === 'expense'
     );
 
     expenseTransactions.forEach(t => {
@@ -162,7 +159,7 @@ export function OverviewChart() {
     });
 
     return monthlyTotals;
-  }, [transactions, primaryAccountId]);
+  }, [transactions]);
 
   const DayWithTooltip = ({
     date,
@@ -216,7 +213,7 @@ export function OverviewChart() {
                 )}
                 >
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
+                {selectedDate ? format(selectedDate, "dd/MM/yyyy") : <span>Pick a date</span>}
                 </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0">
@@ -298,4 +295,3 @@ export function OverviewChart() {
     </Card>
   );
 }
-

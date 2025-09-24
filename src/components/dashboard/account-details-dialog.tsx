@@ -167,5 +167,3 @@ export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChan
         </Dialog>
     )
 }
-
-    
