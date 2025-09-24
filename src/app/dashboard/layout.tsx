@@ -12,6 +12,7 @@ import {
   FileText,
   HelpCircle,
   User,
+  BookText,
 } from "lucide-react";
 
 import {
@@ -37,6 +38,7 @@ const menuItems = [
   { href: "/dashboard/bank-accounts", label: "Bank Accounts", description: "Manage your bank accounts and wallets.", icon: Landmark },
   { href: "/dashboard/categories", label: "Categories", description: "Organize your income and expenses.", icon: Shapes },
   { href: "/dashboard/bills-and-events", label: "Bills & Events", description: "Track upcoming payments and special days.", icon: FileText },
+  { href: "/dashboard/reports", label: "Reports", description: "View detailed monthly financial reports.", icon: BookText },
   { href: "/dashboard/help", label: "Help", description: "Get help on how to use the app.", icon: HelpCircle },
   { href: "/dashboard/profile", label: "User Profile", description: "Manage your profile settings.", icon: User },
 ];
