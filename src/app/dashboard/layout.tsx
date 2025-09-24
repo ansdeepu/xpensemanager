@@ -27,17 +27,18 @@ import {
 import { Header } from "@/components/dashboard/header";
 
 const menuItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard", label: "Dashboard", description: "An overview of your financial status." },
   {
     href: "/dashboard/transactions",
-    label: "Transactions",
+    label: "Transaction History",
+    description: "A detailed record of your financial activities.",
     icon: ArrowRightLeft,
   },
-  { href: "/dashboard/bank-accounts", label: "Bank Accounts", icon: Landmark },
-  { href: "/dashboard/categories", label: "Categories", icon: Shapes },
-  { href: "/dashboard/bills-and-events", label: "Bills & Events", icon: FileText },
-  { href: "/dashboard/help", label: "Help", icon: HelpCircle },
-  { href: "/dashboard/profile", label: "User Profile", icon: User },
+  { href: "/dashboard/bank-accounts", label: "Bank Accounts", description: "Manage your bank accounts and wallets.", icon: Landmark },
+  { href: "/dashboard/categories", label: "Categories", description: "Organize your income and expenses.", icon: Shapes },
+  { href: "/dashboard/bills-and-events", label: "Bills & Events", description: "Track upcoming payments and special days.", icon: FileText },
+  { href: "/dashboard/help", label: "Help", description: "Get help on how to use the app.", icon: HelpCircle },
+  { href: "/dashboard/profile", label: "User Profile", description: "Manage your profile settings.", icon: User },
 ];
 
 export default function DashboardLayout({
@@ -46,7 +47,9 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const pageTitle = menuItems.find((item) => item.href === pathname)?.label || "Dashboard";
+  const activeItem = menuItems.find((item) => item.href === pathname);
+  const pageTitle = activeItem?.label || "Dashboard";
+  const pageDescription = activeItem?.description;
 
   return (
     <SidebarProvider>
@@ -78,7 +81,7 @@ export default function DashboardLayout({
           </SidebarContent>
         </Sidebar>
         <SidebarInset>
-          <Header pageTitle={pageTitle} />
+          <Header pageTitle={pageTitle} pageDescription={pageDescription} />
           <main className="flex-1 p-4 md:p-6">{children}</main>
         </SidebarInset>
       </div>

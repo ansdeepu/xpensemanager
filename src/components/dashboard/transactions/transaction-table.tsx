@@ -186,7 +186,6 @@ export function TransactionTable({
             return t.fromAccountId === accountId || t.toAccountId === accountId;
         }
         
-        // For cash/digital wallets, show all their expenses/transfers
         if (accountId === 'cash-wallet') {
             return t.paymentMethod === 'cash' || t.fromAccountId === 'cash-wallet' || t.toAccountId === 'cash-wallet';
         }
@@ -194,7 +193,6 @@ export function TransactionTable({
             return t.paymentMethod === 'digital' || t.fromAccountId === 'digital-wallet' || t.toAccountId === 'digital-wallet';
         }
         
-        // For regular accounts, show only their specific transactions
         return t.accountId === accountId;
     });
 
@@ -545,12 +543,6 @@ export function TransactionTable({
     <>
     <Card id="printable-area">
       <CardHeader className="flex flex-col gap-4">
-         <div className="flex-1">
-          <CardTitle>Transaction History</CardTitle>
-          <CardDescription>
-            A detailed record of your financial activities.
-          </CardDescription>
-        </div>
         <div className="flex flex-col md:flex-row items-center gap-2 w-full print-hide">
           <div className="relative flex-1 md:grow-0">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />

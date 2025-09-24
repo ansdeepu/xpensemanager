@@ -35,7 +35,7 @@ const generateColor = (str: string) => {
 }
 
 
-export function Header({ pageTitle }: { pageTitle: string }) {
+export function Header({ pageTitle, pageDescription }: { pageTitle: string, pageDescription?: string }) {
   const [user, loading] = useAuthState(auth);
   const [clientLoaded, setClientLoaded] = useState(false);
   const [currentDateTime, setCurrentDateTime] = useState<Date | null>(null);
@@ -65,10 +65,14 @@ export function Header({ pageTitle }: { pageTitle: string }) {
         <SidebarTrigger className="md:hidden" />
         <div>
             <h1 className="text-xl font-semibold">{pageTitle}</h1>
-            {currentDateTime ? (
-                <p className="text-xs text-muted-foreground">{format(currentDateTime, "EEEE, dd/MM/yyyy, hh:mm a")}</p>
+            {pageDescription ? (
+                <p className="text-xs text-muted-foreground">{pageDescription}</p>
             ) : (
-                <Skeleton className="h-4 w-48 mt-1" />
+                currentDateTime ? (
+                    <p className="text-xs text-muted-foreground">{format(currentDateTime, "EEEE, dd/MM/yyyy, hh:mm a")}</p>
+                ) : (
+                    <Skeleton className="h-4 w-48 mt-1" />
+                )
             )}
         </div>
       </div>
