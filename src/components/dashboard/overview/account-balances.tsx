@@ -32,11 +32,11 @@ export function AccountBalances() {
   const [user] = useAuthState(auth);
   const [rawAccounts, setRawAccounts] = useState<Omit<Account, 'balance'>[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [walletPreferences, setWalletPreferences = useState<{ cash?: { balance?: number }, digital?: { balance?: number } }>({});
-  const [reconciliationDate, setReconciliationDate = useState<Date | undefined>(new Date());
-  const [loading, setLoading = useState(true);
-  const [isDetailsDialogOpen, setIsDetailsDialogOpen = useState(false);
-  const [selectedAccountForDetails, setSelectedAccountForDetails = useState<AccountForDetails | null>(null);
+  const [walletPreferences, setWalletPreferences] = useState<{ cash?: { balance?: number, date?: string }, digital?: { balance?: number, date?: string } }>({});
+  const [reconciliationDate, setReconciliationDate] = useState<Date | undefined>(new Date());
+  const [loading, setLoading] = useState(true);
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const [selectedAccountForDetails, setSelectedAccountForDetails] = useState<AccountForDetails | null>(null);
 
   useEffect(() => {
     if (user && db) {
@@ -77,7 +77,7 @@ export function AccountBalances() {
   const { cashWalletBalance, digitalWalletBalance, accountBalances } = useMemo(() => {
     const calculatedAccountBalances: { [key: string]: number } = {};
     rawAccounts.forEach(acc => {
-        calculatedAccountBalances[acc.id] = 0; // Start with 0
+        calculatedAccountBalances[acc.id] = acc.actualBalance ?? 0; // Start with actual balance
     });
 
     let calculatedCashWalletBalance = 0;
@@ -363,5 +363,3 @@ export function AccountBalances() {
     </>
   );
 }
-
-    
