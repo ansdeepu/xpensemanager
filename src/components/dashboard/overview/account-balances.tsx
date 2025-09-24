@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Landmark, Wallet, Coins } from "lucide-react";
+import { Landmark, Wallet, Coins, CalendarIcon } from "lucide-react";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, getDoc, setDoc } from "firebase/firestore";
@@ -19,6 +19,11 @@ import { AccountDetailsDialog } from "@/components/dashboard/account-details-dia
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
+
 
 type WalletType = 'cash-wallet' | 'digital-wallet';
 type AccountForDetails = (Omit<Account, 'balance'> & { balance: number }) | { id: WalletType, name: string, balance: number };
@@ -27,7 +32,7 @@ export function AccountBalances() {
   const [user] = useAuthState(auth);
   const [rawAccounts, setRawAccounts] = useState<Omit<Account, 'balance'>[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [walletPreferences, setWalletPreferences] = useState<{ cash?: number, digital?: number }>({});
+  const [walletPreferences, setWalletPreferences] = useState<{ cash?: { balance?: number, date?: string }, digital?: { balance?: number, date?: string } }>({});
   const [loading, setLoading] = useState(true);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [selectedAccountForDetails, setSelectedAccountForDetails] = useState<AccountForDetails | null>(null);
@@ -131,16 +136,20 @@ export function AccountBalances() {
     };
   };
 
-  const debouncedUpdateBalance = useCallback(useDebounce(async (accountId: string, value: number | null) => {
+  const debouncedUpdateAccount = useCallback(useDebounce(async (accountId: string, data: { actualBalance?: number | null, actualBalanceDate?: string }) => {
         if (!user) return;
         const accountRef = doc(db, "accounts", accountId);
-        await updateDoc(accountRef, { actualBalance: value });
+        await updateDoc(accountRef, data);
     }, 500), [user]);
     
-  const debouncedUpdateWalletBalance = useCallback(useDebounce(async (walletType: 'cash' | 'digital', value: number | null) => {
+  const debouncedUpdateWallet = useCallback(useDebounce(async (walletType: 'cash' | 'digital', data: { balance?: number | null, date?: string }) => {
     if (!user) return;
     const prefRef = doc(db, "user_preferences", user.uid);
-    await setDoc(prefRef, { wallets: { ...walletPreferences, [walletType]: value } }, { merge: true });
+    const updatedWallets = { 
+        ...walletPreferences, 
+        [walletType]: { ...walletPreferences[walletType], ...data } 
+    };
+    await setDoc(prefRef, { wallets: updatedWallets }, { merge: true });
   }, 500), [user, walletPreferences]);
 
 
@@ -182,8 +191,8 @@ export function AccountBalances() {
       )
   }
 
-  const cashBalanceDifference = walletPreferences.cash !== undefined ? cashWalletBalance - walletPreferences.cash : null;
-  const digitalBalanceDifference = walletPreferences.digital !== undefined ? digitalWalletBalance - walletPreferences.digital : null;
+  const cashBalanceDifference = walletPreferences.cash?.balance !== undefined ? cashWalletBalance - walletPreferences.cash.balance : null;
+  const digitalBalanceDifference = walletPreferences.digital?.balance !== undefined ? digitalWalletBalance - walletPreferences.digital.balance : null;
 
 
   return (
@@ -208,18 +217,42 @@ export function AccountBalances() {
                      <CardContent className="pt-2">
                         <div className="space-y-2">
                             <Label htmlFor="actual-balance-cash" className="text-xs">Actual Balance</Label>
-                            <Input
-                                id="actual-balance-cash"
-                                type="number"
-                                placeholder="Enter balance"
-                                className="hide-number-arrows h-8"
-                                defaultValue={walletPreferences.cash ?? ''}
-                                onChange={(e) => {
-                                    const value = e.target.value === '' ? null : parseFloat(e.target.value)
-                                    debouncedUpdateWalletBalance('cash', value)
-                                }}
-                                onClick={(e) => e.stopPropagation()}
-                            />
+                             <div className="flex gap-2">
+                                <Input
+                                    id="actual-balance-cash"
+                                    type="number"
+                                    placeholder="Enter balance"
+                                    className="hide-number-arrows h-8"
+                                    defaultValue={walletPreferences.cash?.balance ?? ''}
+                                    onChange={(e) => {
+                                        const value = e.target.value === '' ? null : parseFloat(e.target.value)
+                                        debouncedUpdateWallet('cash', { balance: value })
+                                    }}
+                                    onClick={(e) => e.stopPropagation()}
+                                />
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={(e) => e.stopPropagation()}>
+                                            <CalendarIcon className="h-4 w-4" />
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" onClick={(e) => e.stopPropagation()}>
+                                        <Calendar
+                                            mode="single"
+                                            selected={walletPreferences.cash?.date ? new Date(walletPreferences.cash.date) : undefined}
+                                            onSelect={(date) => {
+                                                debouncedUpdateWallet('cash', { date: date?.toISOString() })
+                                            }}
+                                            initialFocus
+                                        />
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
+                            {walletPreferences.cash?.date && (
+                                <p className="text-xs text-muted-foreground">
+                                    as of {format(new Date(walletPreferences.cash.date), "dd/MM/yy")}
+                                </p>
+                            )}
                             {cashBalanceDifference !== null && (
                                 <p className={cn(
                                     "text-xs font-medium",
@@ -245,18 +278,42 @@ export function AccountBalances() {
                      <CardContent className="pt-2">
                         <div className="space-y-2">
                             <Label htmlFor="actual-balance-digital" className="text-xs">Actual Balance</Label>
-                            <Input
-                                id="actual-balance-digital"
-                                type="number"
-                                placeholder="Enter balance"
-                                className="hide-number-arrows h-8"
-                                defaultValue={walletPreferences.digital ?? ''}
-                                onChange={(e) => {
-                                    const value = e.target.value === '' ? null : parseFloat(e.target.value)
-                                    debouncedUpdateWalletBalance('digital', value)
-                                }}
-                                onClick={(e) => e.stopPropagation()}
-                            />
+                             <div className="flex gap-2">
+                                <Input
+                                    id="actual-balance-digital"
+                                    type="number"
+                                    placeholder="Enter balance"
+                                    className="hide-number-arrows h-8"
+                                    defaultValue={walletPreferences.digital?.balance ?? ''}
+                                    onChange={(e) => {
+                                        const value = e.target.value === '' ? null : parseFloat(e.target.value)
+                                        debouncedUpdateWallet('digital', { balance: value })
+                                    }}
+                                    onClick={(e) => e.stopPropagation()}
+                                />
+                                 <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={(e) => e.stopPropagation()}>
+                                            <CalendarIcon className="h-4 w-4" />
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" onClick={(e) => e.stopPropagation()}>
+                                        <Calendar
+                                            mode="single"
+                                            selected={walletPreferences.digital?.date ? new Date(walletPreferences.digital.date) : undefined}
+                                            onSelect={(date) => {
+                                                debouncedUpdateWallet('digital', { date: date?.toISOString() })
+                                            }}
+                                            initialFocus
+                                        />
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
+                             {walletPreferences.digital?.date && (
+                                <p className="text-xs text-muted-foreground">
+                                    as of {format(new Date(walletPreferences.digital.date), "dd/MM/yy")}
+                                </p>
+                            )}
                             {digitalBalanceDifference !== null && (
                                 <p className={cn(
                                     "text-xs font-medium",
@@ -285,18 +342,42 @@ export function AccountBalances() {
                         <CardContent className="pt-2">
                             <div className="space-y-2">
                                 <Label htmlFor={`actual-balance-${account.id}`} className="text-xs">Actual Balance</Label>
-                                <Input
-                                    id={`actual-balance-${account.id}`}
-                                    type="number"
-                                    placeholder="Enter balance"
-                                    className="hide-number-arrows h-8"
-                                    defaultValue={account.actualBalance ?? ''}
-                                    onChange={(e) => {
-                                        const value = e.target.value === '' ? null : parseFloat(e.target.value)
-                                        debouncedUpdateBalance(account.id, value);
-                                    }}
-                                    onClick={(e) => e.stopPropagation()}
-                                />
+                                <div className="flex gap-2">
+                                    <Input
+                                        id={`actual-balance-${account.id}`}
+                                        type="number"
+                                        placeholder="Enter balance"
+                                        className="hide-number-arrows h-8"
+                                        defaultValue={account.actualBalance ?? ''}
+                                        onChange={(e) => {
+                                            const value = e.target.value === '' ? null : parseFloat(e.target.value)
+                                            debouncedUpdateAccount(account.id, { actualBalance: value });
+                                        }}
+                                        onClick={(e) => e.stopPropagation()}
+                                    />
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button variant="outline" size="icon" className="h-8 w-8" onClick={(e) => e.stopPropagation()}>
+                                                <CalendarIcon className="h-4 w-4" />
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0" onClick={(e) => e.stopPropagation()}>
+                                            <Calendar
+                                                mode="single"
+                                                selected={account.actualBalanceDate ? new Date(account.actualBalanceDate) : undefined}
+                                                onSelect={(date) => {
+                                                    debouncedUpdateAccount(account.id, { actualBalanceDate: date?.toISOString() })
+                                                }}
+                                                initialFocus
+                                            />
+                                        </PopoverContent>
+                                    </Popover>
+                                </div>
+                                {account.actualBalanceDate && (
+                                    <p className="text-xs text-muted-foreground">
+                                        as of {format(new Date(account.actualBalanceDate), "dd/MM/yy")}
+                                    </p>
+                                )}
                                 {balanceDifference !== null && (
                                     <p className={cn(
                                         "text-xs font-medium",

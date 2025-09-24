@@ -11,6 +11,7 @@ export type Account = {
   isPrimary?: boolean;
   order: number;
   actualBalance?: number;
+  actualBalanceDate?: string;
 };
 
 export type Bill = {
@@ -68,4 +69,5 @@ export const transactions: Transaction[] = [];
 
 export const categories: Category[] = [];
 
+    
     
