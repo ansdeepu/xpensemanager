@@ -109,13 +109,13 @@ export default function TransactionsPage() {
         </TabsList>
         {primaryAccount && (
             <TabsContent value={primaryAccount.id} className="mt-6">
-                <TransactionTable accountId={primaryAccount.id} isPrimaryView={true} />
+                <TransactionTable accountId={primaryAccount.id} />
             </TabsContent>
         )}
          {accounts.map(account => (
             !account.isPrimary && (
                 <TabsContent key={account.id} value={account.id} className="mt-6">
-                    <TransactionTable accountId={account.id} isPrimaryView={false} />
+                    <TransactionTable accountId={account.id} />
                 </TabsContent>
             )
         ))}

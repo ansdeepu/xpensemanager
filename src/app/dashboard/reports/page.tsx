@@ -255,23 +255,28 @@ export default function ReportsPage() {
         </CardHeader>
         <CardContent>
             <Accordion type="single" collapsible className="w-full" defaultValue={accounts.find(a => a.isPrimary)?.id}>
-                {accounts.map(account => (
+                {accounts.map(account => {
+                    const reportData = monthlyReport[account.id];
+                    if (!reportData) return null; // Add a guard clause here
+
+                    return (
                      <AccordionItem value={account.id} key={account.id}>
                         <AccordionTrigger>
                             <div className="flex justify-between w-full pr-4">
                                 <span className="font-semibold">{account.name}</span>
                                 <div className="flex gap-4">
-                                    <span className="text-green-600">{formatCurrency(monthlyReport[account.id]?.income.total || 0)}</span>
-                                    <span className="text-red-600">{formatCurrency(monthlyReport[account.id]?.expense.total || 0)}</span>
+                                    <span className="text-green-600">{formatCurrency(reportData.income.total || 0)}</span>
+                                    <span className="text-red-600">{formatCurrency(reportData.expense.total || 0)}</span>
                                 </div>
                             </div>
                         </AccordionTrigger>
                         <AccordionContent>
-                           <ReportTable title="Income" data={monthlyReport[account.id].income} />
-                           <ReportTable title="Expenses" data={monthlyReport[account.id].expense} />
+                           <ReportTable title="Income" data={reportData.income} />
+                           <ReportTable title="Expenses" data={reportData.expense} />
                         </AccordionContent>
                      </AccordionItem>
-                ))}
+                    )
+                })}
             </Accordion>
             {!hasTransactions && (
                 <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-40 border-2 border-dashed rounded-lg mt-6">
