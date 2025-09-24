@@ -142,11 +142,7 @@ export default function ReportsPage() {
     const monthStart = startOfMonth(currentDate);
     const monthEnd = endOfMonth(currentDate);
 
-    const allAccountEntities = [
-        ...accounts,
-        { id: 'cash-wallet', name: 'Cash Wallet' },
-        { id: 'digital-wallet', name: 'Digital Wallet' }
-    ];
+    const allAccountEntities = [...accounts];
 
     allAccountEntities.forEach(acc => {
         report[acc.id] = {
@@ -162,9 +158,7 @@ export default function ReportsPage() {
       let transactionType = t.type;
       
       if (t.type === 'expense') {
-        if (t.paymentMethod === 'cash') targetAccountId = 'cash-wallet';
-        else if (t.paymentMethod === 'digital') targetAccountId = 'digital-wallet';
-        else if (t.accountId) targetAccountId = t.accountId;
+        if (t.accountId) targetAccountId = t.accountId;
       } else if (t.type === 'income' && t.accountId) {
         targetAccountId = t.accountId;
       } else if (t.type === 'transfer') {
@@ -232,11 +226,7 @@ export default function ReportsPage() {
     )
   }
 
-  const allAccountIds = [
-      ...accounts.map(a => a.id), 
-      'cash-wallet', 
-      'digital-wallet'
-    ];
+  const allAccountIds = [...accounts.map(a => a.id)];
   
   const hasTransactions = allAccountIds.some(id => (monthlyReport[id]?.income.total > 0 || monthlyReport[id]?.expense.total > 0));
 
@@ -264,7 +254,7 @@ export default function ReportsPage() {
           </div>
         </CardHeader>
         <CardContent>
-            <Accordion type="single" collapsible className="w-full" defaultValue={accounts.find(a => a.isPrimary)?.id || 'cash-wallet'}>
+            <Accordion type="single" collapsible className="w-full" defaultValue={accounts.find(a => a.isPrimary)?.id}>
                 {accounts.map(account => (
                      <AccordionItem value={account.id} key={account.id}>
                         <AccordionTrigger>
@@ -282,36 +272,6 @@ export default function ReportsPage() {
                         </AccordionContent>
                      </AccordionItem>
                 ))}
-                 <AccordionItem value="cash-wallet">
-                    <AccordionTrigger>
-                         <div className="flex justify-between w-full pr-4">
-                            <span className="font-semibold">Cash Wallet</span>
-                            <div className="flex gap-4">
-                                <span className="text-green-600">{formatCurrency(monthlyReport['cash-wallet']?.income.total || 0)}</span>
-                                <span className="text-red-600">{formatCurrency(monthlyReport['cash-wallet']?.expense.total || 0)}</span>
-                            </div>
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                        <ReportTable title="Income" data={monthlyReport['cash-wallet'].income} />
-                        <ReportTable title="Expenses" data={monthlyReport['cash-wallet'].expense} />
-                    </AccordionContent>
-                 </AccordionItem>
-                 <AccordionItem value="digital-wallet">
-                    <AccordionTrigger>
-                         <div className="flex justify-between w-full pr-4">
-                            <span className="font-semibold">Digital Wallet</span>
-                            <div className="flex gap-4">
-                                <span className="text-green-600">{formatCurrency(monthlyReport['digital-wallet']?.income.total || 0)}</span>
-                                <span className="text-red-600">{formatCurrency(monthlyReport['digital-wallet']?.expense.total || 0)}</span>
-                            </div>
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                        <ReportTable title="Income" data={monthlyReport['digital-wallet'].income} />
-                        <ReportTable title="Expenses" data={monthlyReport['digital-wallet'].expense} />
-                    </AccordionContent>
-                 </AccordionItem>
             </Accordion>
             {!hasTransactions && (
                 <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-40 border-2 border-dashed rounded-lg mt-6">
