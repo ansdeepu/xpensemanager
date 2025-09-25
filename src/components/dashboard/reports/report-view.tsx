@@ -31,7 +31,6 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import { Bar, BarChart, XAxis, YAxis, ResponsiveContainer, CartesianGrid } from "recharts";
-import { Progress } from "@/components/ui/progress";
 import { useReportDate } from "@/context/report-date-context";
 import { FinancialAdvice } from "./financial-advice";
 
@@ -42,11 +41,15 @@ const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
+type CategoryBreakdown = {
+  [key: string]: { total: number; subcategories: { [key: string]: number } } 
+};
+
 type ReportData = {
   totalIncome: number;
   totalExpense: number;
-  incomeByCategory: { [key: string]: number };
-  expenseByCategory: { [key: string]: { total: number; subcategories: { [key: string]: number } } };
+  incomeByCategory: CategoryBreakdown;
+  expenseByCategory: CategoryBreakdown;
   incomeTransactions: Transaction[];
   expenseTransactions: Transaction[];
 };
@@ -84,7 +87,11 @@ export function ReportView({ transactions }: { transactions: Transaction[] }) {
 
         if (t.type === 'income') {
             data.totalIncome += t.amount;
-            data.incomeByCategory[categoryName] = (data.incomeByCategory[categoryName] || 0) + t.amount;
+            if (!data.incomeByCategory[categoryName]) {
+                data.incomeByCategory[categoryName] = { total: 0, subcategories: {} };
+            }
+            data.incomeByCategory[categoryName].total += t.amount;
+            data.incomeByCategory[categoryName].subcategories[subCategoryName] = (data.incomeByCategory[categoryName].subcategories[subCategoryName] || 0) + t.amount;
             data.incomeTransactions.push(t);
         } else if (t.type === 'expense') {
             data.totalExpense += t.amount;
@@ -106,8 +113,11 @@ export function ReportView({ transactions }: { transactions: Transaction[] }) {
       .sort((a, b) => b.value - a.value);
   }, [monthlyReport.expenseByCategory]);
 
-  const handleCategoryClick = (categoryName: string) => {
-    const categoryData = monthlyReport.expenseByCategory[categoryName];
+  const handleCategoryClick = (categoryName: string, type: 'income' | 'expense') => {
+    const categoryData = type === 'income' 
+      ? monthlyReport.incomeByCategory[categoryName] 
+      : monthlyReport.expenseByCategory[categoryName];
+      
     if (categoryData) {
       setSelectedCategoryDetail({
         name: categoryName,
@@ -184,13 +194,14 @@ export function ReportView({ transactions }: { transactions: Transaction[] }) {
                       <ResponsiveContainer width="100%" height={300}>
                           <BarChart
                               data={expenseChartData}
-                              margin={{ top: 5, right: 20, left: -10, bottom: 5 }}
+                              layout="vertical"
+                              margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
                           >
-                              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                              <XAxis dataKey="name" tick={{ fontSize: 12 }} interval={0} angle={-45} textAnchor="end" height={80} />
-                              <YAxis tickFormatter={(value) => `${Number(value) / 1000}k`} />
+                              <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                              <YAxis dataKey="name" type="category" tick={{ fontSize: 12 }} interval={0} width={80} />
+                              <XAxis type="number" tickFormatter={(value) => `${Number(value) / 1000}k`} />
                               <ChartTooltip cursor={{ fill: 'hsl(var(--muted))' }} content={<ChartTooltipContent formatter={(value) => formatCurrency(value as number)} />} />
-                              <Bar dataKey="value" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
+                              <Bar dataKey="value" fill="hsl(var(--chart-1))" radius={[0, 4, 4, 0]} barSize={20} />
                           </BarChart>
                       </ResponsiveContainer>
                     </ChartContainer>
@@ -212,10 +223,10 @@ export function ReportView({ transactions }: { transactions: Transaction[] }) {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {Object.entries(monthlyReport.incomeByCategory).map(([category, amount]) => (
-                                <TableRow key={category}>
+                            {Object.entries(monthlyReport.incomeByCategory).map(([category, { total }]) => (
+                                <TableRow key={category} onClick={() => handleCategoryClick(category, 'income')} className="cursor-pointer">
                                     <TableCell className="font-medium">{category}</TableCell>
-                                    <TableCell className="text-right">{formatCurrency(amount)}</TableCell>
+                                    <TableCell className="text-right">{formatCurrency(total)}</TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>
@@ -242,7 +253,7 @@ export function ReportView({ transactions }: { transactions: Transaction[] }) {
                         </TableHeader>
                         <TableBody>
                             {Object.entries(monthlyReport.expenseByCategory).sort(([,a],[,b])=> b.total - a.total).map(([category, {total}]) => (
-                                <TableRow key={category} onClick={() => handleCategoryClick(category)} className="cursor-pointer">
+                                <TableRow key={category} onClick={() => handleCategoryClick(category, 'expense')} className="cursor-pointer">
                                     <TableCell className="font-medium">{category}</TableCell>
                                     <TableCell className="text-right">{formatCurrency(total)}</TableCell>
                                 </TableRow>
@@ -266,7 +277,7 @@ export function ReportView({ transactions }: { transactions: Transaction[] }) {
             <DialogHeader>
             <DialogTitle>{selectedCategoryDetail?.name} - Sub-category Breakdown</DialogTitle>
             <DialogDescription>
-                Details of your spending in this category for {format(currentDate, "MMMM yyyy")}.
+                Details of your activity in this category for {format(currentDate, "MMMM yyyy")}.
             </DialogDescription>
             </DialogHeader>
             <Table>
