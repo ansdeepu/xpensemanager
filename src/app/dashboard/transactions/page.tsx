@@ -9,6 +9,7 @@ import { collection, query, where, onSnapshot, orderBy } from "firebase/firestor
 import type { Account, Transaction } from "@/lib/data";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-IN", {
@@ -49,7 +50,7 @@ export default function TransactionsPage() {
   const { accountBalances, cashWalletBalance, digitalWalletBalance } = useMemo(() => {
     const calculatedAccountBalances: { [key: string]: number } = {};
     rawAccounts.forEach(acc => {
-      calculatedAccountBalances[acc.id] = 0; // Start at 0, not actualBalance
+      calculatedAccountBalances[acc.id] = 0; 
     });
 
     let calculatedCashBalance = 0;
@@ -67,7 +68,6 @@ export default function TransactionsPage() {
           calculatedDigitalBalance -= t.amount;
         }
       } else if (t.type === 'transfer') {
-        // From account
         if (t.fromAccountId && calculatedAccountBalances[t.fromAccountId] !== undefined) {
           calculatedAccountBalances[t.fromAccountId] -= t.amount;
         } else if (t.fromAccountId === 'cash-wallet') {
@@ -75,7 +75,6 @@ export default function TransactionsPage() {
         } else if (t.fromAccountId === 'digital-wallet') {
           calculatedDigitalBalance -= t.amount;
         }
-        // To account
         if (t.toAccountId && calculatedAccountBalances[t.toAccountId] !== undefined) {
           calculatedAccountBalances[t.toAccountId] += t.amount;
         } else if (t.toAccountId === 'cash-wallet') {
@@ -119,13 +118,31 @@ export default function TransactionsPage() {
       <Tabs defaultValue={primaryAccount?.id || "all-accounts"} className="w-full">
         <TabsList className="grid w-full grid-cols-1 md:grid-cols-3 lg:grid-cols-5 h-auto flex-wrap">
           {primaryAccount && (
-            <TabsTrigger value={primaryAccount.id} className="flex flex-col h-auto py-2">
-              <span>Primary ({primaryAccount.name})</span>
-              <span className="font-bold text-primary">{formatCurrency(allBalance)}</span>
+            <TabsTrigger value={primaryAccount.id} className="flex flex-col h-auto p-2 items-start text-left">
+              <span className="font-semibold text-sm">Primary ({primaryAccount.name})</span>
+               <div className="w-full text-xs text-muted-foreground mt-2 space-y-1">
+                 <div className="flex justify-between">
+                    <span>Bank:</span>
+                    <span>{formatCurrency(primaryAccount.balance)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Cash Wallet:</span>
+                    <span>{formatCurrency(cashWalletBalance)}</span>
+                  </div>
+                   <div className="flex justify-between">
+                    <span>Digital Wallet:</span>
+                    <span>{formatCurrency(digitalWalletBalance)}</span>
+                  </div>
+              </div>
+              <Separator className="my-2" />
+              <div className="flex justify-between w-full">
+                <span className="font-bold text-sm">Total Balance:</span>
+                <span className="font-bold text-primary text-sm">{formatCurrency(allBalance)}</span>
+              </div>
             </TabsTrigger>
           )}
           {accounts.filter(account => !account.isPrimary).map(account => (
-            <TabsTrigger key={account.id} value={account.id} className="flex flex-col h-auto py-2">
+            <TabsTrigger key={account.id} value={account.id} className="flex flex-col h-auto p-2">
               <span>{account.name}</span>
               <span className="font-bold text-primary">{formatCurrency(account.balance)}</span>
             </TabsTrigger>
@@ -133,12 +150,12 @@ export default function TransactionsPage() {
         </TabsList>
         {primaryAccount && (
             <TabsContent value={primaryAccount.id} className="mt-6">
-                <TransactionTable accountId={primaryAccount.id} />
+                <TransactionTable accountId={primaryAccount.id} isPrimaryView={true} />
             </TabsContent>
         )}
          {accounts.filter(account => !account.isPrimary).map(account => (
             <TabsContent key={account.id} value={account.id} className="mt-6">
-                <TransactionTable accountId={account.id} />
+                <TransactionTable accountId={account.id} isPrimaryView={false} />
             </TabsContent>
         ))}
       </Tabs>

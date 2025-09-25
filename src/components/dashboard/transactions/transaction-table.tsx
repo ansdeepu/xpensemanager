@@ -92,8 +92,10 @@ const evaluateMath = (expression: string): number | null => {
 
 export function TransactionTable({
   accountId,
+  isPrimaryView,
 }: {
   accountId: string;
+  isPrimaryView: boolean;
 }) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -181,9 +183,6 @@ export function TransactionTable({
     }, [editCategory, categories]);
 
   const filteredTransactions = useMemo(() => {
-    const primaryAccount = accounts.find(a => a.isPrimary);
-    const isPrimaryView = primaryAccount?.id === accountId;
-
     const relevantTransactions = transactions.filter(t => {
       if (isPrimaryView) {
         // Show all transactions from primary account, cash and digital wallets
@@ -218,7 +217,7 @@ export function TransactionTable({
     }
     
     return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [transactions, accountId, dateRange, searchQuery, accounts]);
+  }, [transactions, accountId, dateRange, searchQuery, isPrimaryView]);
 
 
   const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
