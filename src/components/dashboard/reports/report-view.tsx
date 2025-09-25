@@ -3,7 +3,7 @@
 
 import React, { useState, useMemo } from "react";
 import type { Transaction } from "@/lib/data";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, BookText, TrendingUp, TrendingDown, IndianRupee } from "lucide-react";
 import { format, startOfMonth, endOfMonth, isWithinInterval, subMonths, addMonths } from "date-fns";
@@ -16,6 +16,15 @@ import {
   TableRow,
   TableFooter,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
 import {
   ChartContainer,
   ChartTooltip,
@@ -42,8 +51,17 @@ type ReportData = {
   expenseTransactions: Transaction[];
 };
 
+type CategoryDetail = {
+  name: string;
+  total: number;
+  subcategories: { [key: string]: number };
+};
+
+
 export function ReportView({ transactions }: { transactions: Transaction[] }) {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+  const [selectedCategoryDetail, setSelectedCategoryDetail] = useState<CategoryDetail | null>(null);
 
   const monthlyReport = useMemo(() => {
     const monthStart = startOfMonth(currentDate);
@@ -93,7 +111,7 @@ export function ReportView({ transactions }: { transactions: Transaction[] }) {
     expenseChartData.forEach((item, index) => {
       config[item.name] = {
         label: item.name,
-        color: `hsl(var(--chart-${index + 1}))`,
+        color: `hsl(var(--chart-${(index % 5) + 1}))`,
       };
     });
     return config;
@@ -103,10 +121,23 @@ export function ReportView({ transactions }: { transactions: Transaction[] }) {
   const goToPreviousMonth = () => setCurrentDate(prev => subMonths(prev, 1));
   const goToNextMonth = () => setCurrentDate(prev => addMonths(prev, 1));
   
+  const handleCategoryClick = (categoryName: string) => {
+    const categoryData = monthlyReport.expenseByCategory[categoryName];
+    if (categoryData) {
+      setSelectedCategoryDetail({
+        name: categoryName,
+        total: categoryData.total,
+        subcategories: categoryData.subcategories,
+      });
+      setIsDetailDialogOpen(true);
+    }
+  };
+
   const netSavings = monthlyReport.totalIncome - monthlyReport.totalExpense;
   const hasTransactions = monthlyReport.incomeTransactions.length > 0 || monthlyReport.expenseTransactions.length > 0;
 
   return (
+    <>
     <div className="space-y-6">
       <div className="flex justify-end items-center gap-2">
         <Button variant="outline" size="icon" className="h-8 w-8" onClick={goToPreviousMonth}>
@@ -175,6 +206,7 @@ export function ReportView({ transactions }: { transactions: Transaction[] }) {
                             data={[{ name: 'Month', income: monthlyReport.totalIncome, expense: monthlyReport.totalExpense }]}
                             layout="vertical"
                             margin={{ left: 0, right: 20 }}
+                            barSize={32}
                         >
                             <XAxis type="number" hide />
                             <YAxis type="category" dataKey="name" hide />
@@ -203,7 +235,7 @@ export function ReportView({ transactions }: { transactions: Transaction[] }) {
                                     <Cell key={entry.name} fill={chartConfig[entry.name]?.color} />
                                 ))}
                             </Pie>
-                             <ChartLegend content={<ChartLegendContent nameKey="name" />} />
+                             <ChartLegend content={<ChartLegendContent nameKey="name" className="flex-wrap" />} />
                         </PieChart>
                     </ChartContainer>
                 </CardContent>
@@ -254,7 +286,7 @@ export function ReportView({ transactions }: { transactions: Transaction[] }) {
                         </TableHeader>
                         <TableBody>
                             {Object.entries(monthlyReport.expenseByCategory).sort(([,a],[,b])=> b.total - a.total).map(([category, {total}]) => (
-                                <TableRow key={category}>
+                                <TableRow key={category} onClick={() => handleCategoryClick(category)} className="cursor-pointer">
                                     <TableCell className="font-medium">{category}</TableCell>
                                     <TableCell className="text-right">{formatCurrency(total)}</TableCell>
                                 </TableRow>
@@ -273,5 +305,45 @@ export function ReportView({ transactions }: { transactions: Transaction[] }) {
       </>
      )}
     </div>
+     <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
+        <DialogContent>
+            <DialogHeader>
+            <DialogTitle>{selectedCategoryDetail?.name} - Sub-category Breakdown</DialogTitle>
+            <DialogDescription>
+                Details of your spending in this category for {format(currentDate, "MMMM yyyy")}.
+            </DialogDescription>
+            </DialogHeader>
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>Sub-category</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {selectedCategoryDetail && Object.entries(selectedCategoryDetail.subcategories)
+                        .sort(([,a],[,b]) => b - a)
+                        .map(([name, amount]) => (
+                        <TableRow key={name}>
+                            <TableCell>{name}</TableCell>
+                            <TableCell className="text-right">{formatCurrency(amount)}</TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
+                <TableFooter>
+                    <TableRow>
+                        <TableHead>Total</TableHead>
+                        <TableHead className="text-right">{formatCurrency(selectedCategoryDetail?.total || 0)}</TableHead>
+                    </TableRow>
+                </TableFooter>
+            </Table>
+             <DialogFooter>
+                <DialogClose asChild>
+                    <Button type="button" variant="secondary">Close</Button>
+                </DialogClose>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
+    </>
   );
 }

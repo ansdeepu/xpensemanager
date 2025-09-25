@@ -356,36 +356,13 @@ function getPayloadConfigFromPayload(
     : config[key as keyof typeof config]
 }
 
-type BarProps = React.ComponentProps<typeof RechartsPrimitive.Bar>;
-const Bar = React.forwardRef<
-  React.ElementRef<typeof RechartsPrimitive.Bar>,
-  BarProps
->(({ ...props }, ref) => {
-  return <RechartsPrimitive.Bar ref={ref as React.Ref<any>} {...props} />
-})
-Bar.displayName = "Bar"
-
-const XAxis = React.forwardRef<
-  React.ElementRef<typeof RechartsPrimitive.XAxis>,
-  React.ComponentProps<typeof RechartsPrimitive.XAxis>
->(({ ...props }, ref) => {
-  return <RechartsPrimitive.XAxis ref={ref} {...props} />
-})
-
-const YAxis = React.forwardRef<
-  React.ElementRef<typeof RechartsPrimitive.YAxis>,
-  React.ComponentProps<typeof RechartsPrimitive.YAxis>
->(({ ...props }, ref) => {
-  return <RechartsPrimitive.YAxis ref={ref} {...props} />
-})
-
-const BarChart = React.forwardRef<
-  React.ElementRef<typeof RechartsPrimitive.BarChart>,
-  React.ComponentProps<typeof RechartsPrimitive.BarChart>
->(({ ...props }, ref) => {
-  return <RechartsPrimitive.BarChart ref={ref} {...props} />
-})
-
+const Bar = RechartsPrimitive.Bar;
+const XAxis = RechartsPrimitive.XAxis;
+const YAxis = RechartsPrimitive.YAxis;
+const BarChart = RechartsPrimitive.BarChart;
+const Pie = RechartsPrimitive.Pie;
+const PieChart = RechartsPrimitive.PieChart;
+const Cell = RechartsPrimitive.Cell;
 
 export {
   ChartContainer,
@@ -397,5 +374,8 @@ export {
   Bar,
   XAxis,
   YAxis,
-  BarChart
+  BarChart,
+  Pie,
+  PieChart,
+  Cell
 }
