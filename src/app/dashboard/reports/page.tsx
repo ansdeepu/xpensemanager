@@ -4,30 +4,12 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "@/lib/firebase";
-import { collection, query, where, onSnapshot } from "firebase/firestore";
-import type { Transaction } from "@/lib/data";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, BookText, TrendingUp, TrendingDown, IndianRupee } from "lucide-react";
-import { format, startOfMonth, endOfMonth, isWithinInterval, subMonths, addMonths } from "date-fns";
+import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
+import type { Account, Transaction } from "@/lib/data";
+import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-  TableFooter,
-} from "@/components/ui/table";
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart";
-import { Bar, BarChart, XAxis, YAxis, Pie, PieChart, Cell, Legend } from "recharts";
-import { Progress } from "@/components/ui/progress";
-
+import { ReportView } from "@/components/dashboard/reports/report-view";
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-IN", {
@@ -36,288 +18,179 @@ const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
-type ReportData = {
-  totalIncome: number;
-  totalExpense: number;
-  incomeByCategory: { [key: string]: number };
-  expenseByCategory: { [key: string]: { total: number; subcategories: { [key: string]: number } } };
-  incomeTransactions: Transaction[];
-  expenseTransactions: Transaction[];
-};
-
-
 export default function ReportsPage() {
   const [user, userLoading] = useAuthState(auth);
+  const [rawAccounts, setRawAccounts] = useState<Omit<Account, 'balance'>[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [currentDate, setCurrentDate] = useState(new Date());
   const [dataLoading, setDataLoading] = useState(true);
 
   useEffect(() => {
     if (user) {
+      const accountsQuery = query(collection(db, "accounts"), where("userId", "==", user.uid), orderBy("order", "asc"));
+      const unsubscribeAccounts = onSnapshot(accountsQuery, (snapshot) => {
+        const userAccounts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Omit<Account, 'balance'>));
+        setRawAccounts(userAccounts);
+        if (dataLoading) setDataLoading(false);
+      });
+
       const transactionsQuery = query(collection(db, "transactions"), where("userId", "==", user.uid));
       const unsubscribeTransactions = onSnapshot(transactionsQuery, (snapshot) => {
         setTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction)));
-        if(dataLoading) setDataLoading(false);
       });
 
       return () => {
+        unsubscribeAccounts();
         unsubscribeTransactions();
       };
     } else if (!userLoading) {
       setDataLoading(false);
     }
   }, [user, userLoading, dataLoading]);
-  
-  const monthlyReport = useMemo(() => {
-    const monthStart = startOfMonth(currentDate);
-    const monthEnd = endOfMonth(currentDate);
-    
-    const monthlyTransactions = transactions.filter(t => isWithinInterval(new Date(t.date), { start: monthStart, end: monthEnd }));
 
-    const data: ReportData = {
-        totalIncome: 0,
-        totalExpense: 0,
-        incomeByCategory: {},
-        expenseByCategory: {},
-        incomeTransactions: [],
-        expenseTransactions: [],
-    };
-
-    monthlyTransactions.forEach(t => {
-        const categoryName = t.category || "Uncategorized";
-        const subCategoryName = t.subcategory || "Unspecified";
-
-        if (t.type === 'income') {
-            data.totalIncome += t.amount;
-            data.incomeByCategory[categoryName] = (data.incomeByCategory[categoryName] || 0) + t.amount;
-            data.incomeTransactions.push(t);
-        } else if (t.type === 'expense') {
-            data.totalExpense += t.amount;
-            if (!data.expenseByCategory[categoryName]) {
-                data.expenseByCategory[categoryName] = { total: 0, subcategories: {} };
-            }
-            data.expenseByCategory[categoryName].total += t.amount;
-            data.expenseByCategory[categoryName].subcategories[subCategoryName] = (data.expenseByCategory[categoryName].subcategories[subCategoryName] || 0) + t.amount;
-            data.expenseTransactions.push(t);
-        }
+  const { accountBalances, cashWalletBalance, digitalWalletBalance } = useMemo(() => {
+    const calculatedAccountBalances: { [key: string]: number } = {};
+    rawAccounts.forEach(acc => {
+      calculatedAccountBalances[acc.id] = 0; 
     });
-    
-    return data;
-  }, [transactions, currentDate]);
 
-  const expenseChartData = useMemo(() => {
-    return Object.entries(monthlyReport.expenseByCategory)
-      .map(([name, { total }]) => ({ name, value: total }))
-      .sort((a, b) => b.value - a.value);
-  }, [monthlyReport.expenseByCategory]);
-  
-  const chartColors = [
-    'hsl(var(--chart-1))', 
-    'hsl(var(--chart-2))', 
-    'hsl(var(--chart-3))', 
-    'hsl(var(--chart-4))', 
-    'hsl(var(--chart-5))'
-  ];
+    let calculatedCashBalance = 0;
+    let calculatedDigitalBalance = 0;
 
-  const goToPreviousMonth = () => setCurrentDate(prev => subMonths(prev, 1));
-  const goToNextMonth = () => setCurrentDate(prev => addMonths(prev, 1));
+    transactions.forEach(t => {
+      if (t.type === 'income' && t.accountId && calculatedAccountBalances[t.accountId] !== undefined) {
+        calculatedAccountBalances[t.accountId] += t.amount;
+      } else if (t.type === 'expense') {
+        if (t.paymentMethod === 'online' && t.accountId && calculatedAccountBalances[t.accountId] !== undefined) {
+          calculatedAccountBalances[t.accountId] -= t.amount;
+        } else if (t.paymentMethod === 'cash') {
+          calculatedCashBalance -= t.amount;
+        } else if (t.paymentMethod === 'digital') {
+          calculatedDigitalBalance -= t.amount;
+        }
+      } else if (t.type === 'transfer') {
+        if (t.fromAccountId && calculatedAccountBalances[t.fromAccountId] !== undefined) {
+          calculatedAccountBalances[t.fromAccountId] -= t.amount;
+        } else if (t.fromAccountId === 'cash-wallet') {
+          calculatedCashBalance -= t.amount;
+        } else if (t.fromAccountId === 'digital-wallet') {
+          calculatedDigitalBalance -= t.amount;
+        }
+        if (t.toAccountId && calculatedAccountBalances[t.toAccountId] !== undefined) {
+          calculatedAccountBalances[t.toAccountId] += t.amount;
+        } else if (t.toAccountId === 'cash-wallet') {
+          calculatedCashBalance += t.amount;
+        } else if (t.toAccountId === 'digital-wallet') {
+          calculatedDigitalBalance += t.amount;
+        }
+      }
+    });
+
+    return { 
+      accountBalances: calculatedAccountBalances, 
+      cashWalletBalance: calculatedCashBalance,
+      digitalWalletBalance: calculatedDigitalBalance 
+    };
+  }, [rawAccounts, transactions]);
   
-  if (userLoading || dataLoading) {
-    return (
-        <div className="space-y-6">
-            <Card>
-                <CardHeader>
-                    <Skeleton className="h-8 w-1/3" />
-                    <Skeleton className="h-4 w-2/3" />
-                </CardHeader>
-                <CardContent>
-                    <Skeleton className="h-48 w-full" />
-                </CardContent>
-            </Card>
-        </div>
-    )
+  const accounts = useMemo(() => {
+    return rawAccounts.map(acc => ({
+        ...acc,
+        balance: accountBalances[acc.id] ?? 0,
+    }));
+  }, [rawAccounts, accountBalances]);
+
+  const primaryAccount = accounts.find(a => a.isPrimary);
+
+  const getTransactionsForAccount = (accountId: string | 'all') => {
+    if (accountId === 'all') {
+      return transactions;
+    }
+    if (primaryAccount && accountId === primaryAccount.id) {
+        return transactions.filter(t => 
+            (t.accountId === primaryAccount.id && t.paymentMethod === 'online') ||
+            t.paymentMethod === 'cash' ||
+            t.paymentMethod === 'digital' ||
+            t.fromAccountId === primaryAccount.id || t.toAccountId === primaryAccount.id ||
+            t.fromAccountId === 'cash-wallet' || t.toAccountId === 'cash-wallet' ||
+            t.fromAccountId === 'digital-wallet' || t.toAccountId === 'digital-wallet'
+        );
+    }
+    return transactions.filter(t => {
+      if (t.type === 'transfer') {
+        return t.fromAccountId === accountId || t.toAccountId === accountId;
+      }
+      return t.accountId === accountId;
+    });
   }
 
-  const netSavings = monthlyReport.totalIncome - monthlyReport.totalExpense;
-  const hasTransactions = monthlyReport.incomeTransactions.length > 0 || monthlyReport.expenseTransactions.length > 0;
+  if (userLoading || dataLoading) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-8 w-1/3" />
+            <Skeleton className="h-4 w-2/3" />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-10 w-full mb-6" />
+            <Skeleton className="h-96 w-full" />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+  
+  const allBalance = (primaryAccount?.balance || 0) + cashWalletBalance + digitalWalletBalance;
 
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <div className="flex justify-between items-center">
-            <div>
-                <CardTitle>Monthly Financial Report</CardTitle>
-                <CardDescription>
-                An overview of your financial performance for the month.
-                </CardDescription>
-            </div>
-            <div className="flex items-center gap-2">
-                <Button variant="outline" size="icon" className="h-8 w-8" onClick={goToPreviousMonth}>
-                    <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <span className="text-lg font-semibold w-36 text-center">{format(currentDate, "MMMM yyyy")}</span>
-                <Button variant="outline" size="icon" className="h-8 w-8" onClick={goToNextMonth}>
-                    <ChevronRight className="h-4 w-4" />
-                </Button>
-            </div>
-          </div>
+          <CardTitle>Financial Reports</CardTitle>
+          <CardDescription>
+            An overview of your financial performance for each account.
+          </CardDescription>
         </CardHeader>
       </Card>
-      
-      {!hasTransactions ? (
-         <Card>
-            <CardContent className="pt-6">
-                 <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-40">
-                    <BookText className="h-10 w-10 mb-2"/>
-                    <p>No transactions found for {format(currentDate, "MMMM yyyy")}.</p>
-                </div>
-            </CardContent>
-        </Card>
-      ) : (
-      <>
-        <div className="grid gap-6 md:grid-cols-3">
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Income</CardTitle>
-                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold text-green-600">{formatCurrency(monthlyReport.totalIncome)}</div>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
-                    <TrendingDown className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold text-red-600">{formatCurrency(monthlyReport.totalExpense)}</div>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Net Savings</CardTitle>
-                    <IndianRupee className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className={`text-2xl font-bold ${netSavings >= 0 ? 'text-foreground' : 'text-red-600'}`}>
-                        {formatCurrency(netSavings)}
-                    </div>
-                </CardContent>
-            </Card>
-        </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
-            <Card className="lg:col-span-2">
-                 <CardHeader>
-                    <CardTitle>Income vs Expenses</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <ChartContainer config={{}} className="h-[250px] w-full">
-                        <BarChart
-                            data={[{ name: 'Month', income: monthlyReport.totalIncome, expense: monthlyReport.totalExpense }]}
-                            layout="vertical"
-                            margin={{ left: -20 }}
-                        >
-                            <XAxis type="number" hide />
-                            <YAxis type="category" dataKey="name" hide />
-                            <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
-                            <Bar dataKey="income" fill="var(--color-chart-2)" radius={5} />
-                            <Bar dataKey="expense" fill="var(--color-chart-5)" radius={5} />
-                        </BarChart>
-                    </ChartContainer>
-                     <div className="mt-4 space-y-2">
-                        <div className="flex justify-between font-medium"><span>Income</span> <span className="text-green-600">{formatCurrency(monthlyReport.totalIncome)}</span></div>
-                        <div className="flex justify-between font-medium"><span>Expense</span> <span className="text-red-600">{formatCurrency(monthlyReport.totalExpense)}</span></div>
-                        <Progress value={(monthlyReport.totalExpense / monthlyReport.totalIncome) * 100} className="h-2" />
-                    </div>
-                </CardContent>
-            </Card>
-             <Card className="lg:col-span-3">
-                 <CardHeader>
-                    <CardTitle>Expense Breakdown</CardTitle>
-                </CardHeader>
-                <CardContent>
-                     <ChartContainer config={{}} className="h-[300px] w-full">
-                        <PieChart>
-                            <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-                            <Pie data={expenseChartData} dataKey="value" nameKey="name" innerRadius={60}>
-                                {expenseChartData.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={chartColors[index % chartColors.length]} />
-                                ))}
-                            </Pie>
-                            <Legend />
-                        </PieChart>
-                    </ChartContainer>
-                </CardContent>
-            </Card>
-        </div>
+      <Tabs defaultValue="all" className="w-full">
+        <TabsList className="grid w-full grid-cols-1 md:grid-cols-3 lg:grid-cols-6 h-auto flex-wrap">
+          <TabsTrigger value="all" className="flex flex-col h-auto p-2">
+            <span>Overall Summary</span>
+            <span className="font-bold text-primary">All Accounts</span>
+          </TabsTrigger>
+          {primaryAccount && (
+             <TabsTrigger value={primaryAccount.id} className="flex flex-col h-auto p-2 items-start text-left">
+              <span className="font-semibold text-sm">Primary ({primaryAccount.name})</span>
+               <div className="w-full text-xs text-muted-foreground mt-1">
+                  <div className="flex justify-between items-center">
+                    <span>Bank: {formatCurrency(primaryAccount.balance)}</span>
+                    <span>Cash: {formatCurrency(cashWalletBalance)}</span>
+                  </div>
+                   <div className="flex justify-between items-center mt-1">
+                    <span>Digital: {formatCurrency(digitalWalletBalance)}</span>
+                    <span className="font-bold text-primary">{formatCurrency(allBalance)}</span>
+                  </div>
+              </div>
+            </TabsTrigger>
+          )}
+          {accounts.filter(account => !account.isPrimary).map(account => (
+            <TabsTrigger key={account.id} value={account.id} className="flex flex-col h-auto p-2">
+              <span>{account.name}</span>
+              <span className="font-bold text-primary">{formatCurrency(account.balance)}</span>
+            </TabsTrigger>
+          ))}
+        </TabsList>
 
-        <div className="grid gap-6 md:grid-cols-2">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Income Details</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Category</TableHead>
-                                <TableHead className="text-right">Amount</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {Object.entries(monthlyReport.incomeByCategory).map(([category, amount]) => (
-                                <TableRow key={category}>
-                                    <TableCell className="font-medium">{category}</TableCell>
-                                    <TableCell className="text-right">{formatCurrency(amount)}</TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                         <TableFooter>
-                            <TableRow>
-                                <TableHead>Total Income</TableHead>
-                                <TableHead className="text-right">{formatCurrency(monthlyReport.totalIncome)}</TableHead>
-                            </TableRow>
-                        </TableFooter>
-                    </Table>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader>
-                    <CardTitle>Expense Details</CardTitle>
-                </CardHeader>
-                <CardContent>
-                     <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Category</TableHead>
-                                <TableHead className="text-right">Amount</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {Object.entries(monthlyReport.expenseByCategory).sort(([,a],[,b])=> b.total - a.total).map(([category, {total}]) => (
-                                <TableRow key={category}>
-                                    <TableCell className="font-medium">{category}</TableCell>
-                                    <TableCell className="text-right">{formatCurrency(total)}</TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                         <TableFooter>
-                            <TableRow>
-                                <TableHead>Total Expenses</TableHead>
-                                <TableHead className="text-right">{formatCurrency(monthlyReport.totalExpense)}</TableHead>
-                            </TableRow>
-                        </TableFooter>
-                    </Table>
-                </CardContent>
-            </Card>
-        </div>
-      </>
-     )}
+        <TabsContent value="all" className="mt-6">
+          <ReportView transactions={getTransactionsForAccount('all')} />
+        </TabsContent>
+        {accounts.map(account => (
+          <TabsContent key={account.id} value={account.id} className="mt-6">
+            <ReportView transactions={getTransactionsForAccount(account.id)} />
+          </TabsContent>
+        ))}
+      </Tabs>
     </div>
   );
 }
-
-    
