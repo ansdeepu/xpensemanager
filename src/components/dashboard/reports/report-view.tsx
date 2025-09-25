@@ -5,8 +5,8 @@ import React, { useState, useMemo } from "react";
 import type { Transaction } from "@/lib/data";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, BookText, TrendingUp, TrendingDown, IndianRupee } from "lucide-react";
-import { format, startOfMonth, endOfMonth, isWithinInterval, subMonths, addMonths } from "date-fns";
+import { BookText, TrendingUp, TrendingDown, IndianRupee } from "lucide-react";
+import { format, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import {
   Table,
   TableBody,
@@ -29,11 +29,10 @@ import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent
 } from "@/components/ui/chart";
-import { Bar, BarChart, XAxis, YAxis, Pie, PieChart, Cell } from "recharts";
+import { Bar, BarChart, XAxis, YAxis, ResponsiveContainer, CartesianGrid } from "recharts";
 import { Progress } from "@/components/ui/progress";
+import { useReportDate } from "@/context/report-date-context";
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-IN", {
@@ -59,9 +58,9 @@ type CategoryDetail = {
 
 
 export function ReportView({ transactions }: { transactions: Transaction[] }) {
-  const [currentDate, setCurrentDate] = useState(new Date());
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [selectedCategoryDetail, setSelectedCategoryDetail] = useState<CategoryDetail | null>(null);
+  const { currentDate } = useReportDate();
 
   const monthlyReport = useMemo(() => {
     const monthStart = startOfMonth(currentDate);
@@ -103,24 +102,9 @@ export function ReportView({ transactions }: { transactions: Transaction[] }) {
   const expenseChartData = useMemo(() => {
     return Object.entries(monthlyReport.expenseByCategory)
       .map(([name, { total }]) => ({ name, value: total }))
-      .sort((a, b) => b.value - a.value);
+      .sort((a, b) => a.value - b.value);
   }, [monthlyReport.expenseByCategory]);
-  
-  const chartConfig = useMemo(() => {
-    const config: any = {};
-    expenseChartData.forEach((item, index) => {
-      config[item.name] = {
-        label: item.name,
-        color: `hsl(var(--chart-${(index % 5) + 1}))`,
-      };
-    });
-    return config;
-  }, [expenseChartData]);
 
-
-  const goToPreviousMonth = () => setCurrentDate(prev => subMonths(prev, 1));
-  const goToNextMonth = () => setCurrentDate(prev => addMonths(prev, 1));
-  
   const handleCategoryClick = (categoryName: string) => {
     const categoryData = monthlyReport.expenseByCategory[categoryName];
     if (categoryData) {
@@ -139,16 +123,6 @@ export function ReportView({ transactions }: { transactions: Transaction[] }) {
   return (
     <>
     <div className="space-y-6">
-      <div className="flex justify-end items-center gap-2">
-        <Button variant="outline" size="icon" className="h-8 w-8" onClick={goToPreviousMonth}>
-            <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <span className="text-lg font-semibold w-36 text-center">{format(currentDate, "MMMM yyyy")}</span>
-        <Button variant="outline" size="icon" className="h-8 w-8" onClick={goToNextMonth}>
-            <ChevronRight className="h-4 w-4" />
-        </Button>
-      </div>
-      
       {!hasTransactions ? (
          <Card>
             <CardContent className="pt-6">
@@ -226,18 +200,20 @@ export function ReportView({ transactions }: { transactions: Transaction[] }) {
                  <CardHeader>
                     <CardTitle>Expense Breakdown</CardTitle>
                 </CardHeader>
-                <CardContent className="flex items-center justify-center">
-                     <ChartContainer config={chartConfig} className="h-[300px] w-full max-w-sm">
-                        <PieChart>
-                            <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
-                            <Pie data={expenseChartData} dataKey="value" nameKey="name" innerRadius={60} strokeWidth={5}>
-                                {expenseChartData.map((entry) => (
-                                    <Cell key={entry.name} fill={chartConfig[entry.name]?.color} />
-                                ))}
-                            </Pie>
-                             <ChartLegend content={<ChartLegendContent nameKey="name" className="flex-wrap" />} />
-                        </PieChart>
-                    </ChartContainer>
+                <CardContent>
+                    <ResponsiveContainer width="100%" height={300}>
+                        <BarChart
+                            layout="vertical"
+                            data={expenseChartData}
+                            margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                        >
+                            <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                            <XAxis type="number" tickFormatter={(value) => formatCurrency(value as number)} />
+                            <YAxis dataKey="name" type="category" width={80} tick={{ fontSize: 12 }} />
+                            <ChartTooltip cursor={{ fill: 'hsl(var(--muted))' }} content={<ChartTooltipContent />} />
+                            <Bar dataKey="value" fill="hsl(var(--chart-1))" barSize={20} />
+                        </BarChart>
+                    </ResponsiveContainer>
                 </CardContent>
             </Card>
         </div>

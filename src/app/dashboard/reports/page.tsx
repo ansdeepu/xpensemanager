@@ -10,6 +10,8 @@ import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReportView } from "@/components/dashboard/reports/report-view";
+import { ReportDateProvider } from "@/context/report-date-context";
+
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-IN", {
@@ -143,45 +145,47 @@ export default function ReportsPage() {
   const allBalance = (primaryAccount?.balance || 0) + cashWalletBalance + digitalWalletBalance;
 
   return (
-    <div className="space-y-6">
-      <Tabs defaultValue="all" className="w-full">
-        <TabsList className="grid w-full grid-cols-1 md:grid-cols-3 lg:grid-cols-6 h-auto flex-wrap">
-          <TabsTrigger value="all" className="flex flex-col h-auto p-2">
-            <span>Overall Summary</span>
-            <span className="font-bold text-primary">All Accounts</span>
-          </TabsTrigger>
-          {primaryAccount && (
-             <TabsTrigger value={primaryAccount.id} className="flex flex-col h-auto p-2 items-start text-left">
-              <span className="font-semibold text-sm">Primary ({primaryAccount.name})</span>
-               <div className="w-full text-xs text-muted-foreground mt-1">
-                  <div className="flex justify-between items-center">
-                    <span>Bank: {formatCurrency(primaryAccount.balance)}</span>
-                    <span>Cash: {formatCurrency(cashWalletBalance)}</span>
-                  </div>
-                   <div className="flex justify-between items-center mt-1">
-                    <span>Digital: {formatCurrency(digitalWalletBalance)}</span>
-                    <span className="font-bold text-primary">{formatCurrency(allBalance)}</span>
-                  </div>
-              </div>
+    <ReportDateProvider>
+      <div className="space-y-6">
+        <Tabs defaultValue="all" className="w-full">
+          <TabsList className="grid w-full grid-cols-1 md:grid-cols-3 lg:grid-cols-6 h-auto flex-wrap">
+            <TabsTrigger value="all" className="flex flex-col h-auto p-2">
+              <span>Overall Summary</span>
+              <span className="font-bold text-primary">All Accounts</span>
             </TabsTrigger>
-          )}
-          {accounts.filter(account => !account.isPrimary).map(account => (
-            <TabsTrigger key={account.id} value={account.id} className="flex flex-col h-auto p-2">
-              <span>{account.name}</span>
-              <span className="font-bold text-primary">{formatCurrency(account.balance)}</span>
-            </TabsTrigger>
-          ))}
-        </TabsList>
+            {primaryAccount && (
+              <TabsTrigger value={primaryAccount.id} className="flex flex-col h-auto p-2 items-start text-left">
+                <span className="font-semibold text-sm">Primary ({primaryAccount.name})</span>
+                <div className="w-full text-xs text-muted-foreground mt-1">
+                    <div className="flex justify-between items-center">
+                      <span>Bank: {formatCurrency(primaryAccount.balance)}</span>
+                      <span>Cash: {formatCurrency(cashWalletBalance)}</span>
+                    </div>
+                    <div className="flex justify-between items-center mt-1">
+                      <span>Digital: {formatCurrency(digitalWalletBalance)}</span>
+                      <span className="font-bold text-primary">{formatCurrency(allBalance)}</span>
+                    </div>
+                </div>
+              </TabsTrigger>
+            )}
+            {accounts.filter(account => !account.isPrimary).map(account => (
+              <TabsTrigger key={account.id} value={account.id} className="flex flex-col h-auto p-2">
+                <span>{account.name}</span>
+                <span className="font-bold text-primary">{formatCurrency(account.balance)}</span>
+              </TabsTrigger>
+            ))}
+          </TabsList>
 
-        <TabsContent value="all" className="mt-6">
-          <ReportView transactions={getTransactionsForAccount('all')} />
-        </TabsContent>
-        {accounts.map(account => (
-          <TabsContent key={account.id} value={account.id} className="mt-6">
-            <ReportView transactions={getTransactionsForAccount(account.id)} />
+          <TabsContent value="all" className="mt-6">
+            <ReportView transactions={getTransactionsForAccount('all')} />
           </TabsContent>
-        ))}
-      </Tabs>
-    </div>
+          {accounts.map(account => (
+            <TabsContent key={account.id} value={account.id} className="mt-6">
+              <ReportView transactions={getTransactionsForAccount(account.id)} />
+            </TabsContent>
+          ))}
+        </Tabs>
+      </div>
+    </ReportDateProvider>
   );
 }

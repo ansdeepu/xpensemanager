@@ -12,13 +12,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { LogOut, User } from "lucide-react";
+import { LogOut, User, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/lib/firebase";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
+import { useReportDate } from "@/context/report-date-context";
 
 // Function to generate a color from a string
 const generateColor = (str: string) => {
@@ -39,6 +41,9 @@ export function Header({ pageTitle, pageDescription }: { pageTitle: string, page
   const [user, loading] = useAuthState(auth);
   const [clientLoaded, setClientLoaded] = useState(false);
   const [currentDateTime, setCurrentDateTime] = useState<Date | null>(null);
+  const pathname = usePathname();
+  const isReportsPage = pathname === '/dashboard/reports';
+  const { currentDate, goToPreviousMonth, goToNextMonth } = useReportDate();
 
 
   useEffect(() => {
@@ -78,10 +83,22 @@ export function Header({ pageTitle, pageDescription }: { pageTitle: string, page
       </div>
 
       <div className="hidden md:flex flex-1 justify-center">
-        {currentDateTime ? (
-             <h2 className="text-lg font-semibold">{format(currentDateTime, "MMMM yyyy")}</h2>
+        {isReportsPage ? (
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={goToPreviousMonth}>
+                <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-lg font-semibold w-36 text-center">{format(currentDate, "MMMM yyyy")}</span>
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={goToNextMonth}>
+                <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         ) : (
-            <Skeleton className="h-6 w-32" />
+           currentDateTime ? (
+             <h2 className="text-lg font-semibold">{format(currentDateTime, "MMMM yyyy")}</h2>
+            ) : (
+                <Skeleton className="h-6 w-32" />
+            )
         )}
       </div>
 
