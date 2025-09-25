@@ -120,24 +120,15 @@ export default function TransactionsPage() {
           {primaryAccount && (
             <TabsTrigger value={primaryAccount.id} className="flex flex-col h-auto p-2 items-start text-left">
               <span className="font-semibold text-sm">Primary ({primaryAccount.name})</span>
-               <div className="w-full text-xs text-muted-foreground mt-2 space-y-1">
-                 <div className="flex justify-between">
-                    <span>Bank:</span>
-                    <span>{formatCurrency(primaryAccount.balance)}</span>
+               <div className="w-full text-xs text-muted-foreground mt-1">
+                  <div className="flex justify-between items-center">
+                    <span>Bank: {formatCurrency(primaryAccount.balance)}</span>
+                    <span>Cash: {formatCurrency(cashWalletBalance)}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Cash Wallet:</span>
-                    <span>{formatCurrency(cashWalletBalance)}</span>
+                   <div className="flex justify-between items-center mt-1">
+                    <span>Digital: {formatCurrency(digitalWalletBalance)}</span>
+                    <span className="font-bold text-primary">{formatCurrency(allBalance)}</span>
                   </div>
-                   <div className="flex justify-between">
-                    <span>Digital Wallet:</span>
-                    <span>{formatCurrency(digitalWalletBalance)}</span>
-                  </div>
-              </div>
-              <Separator className="my-2" />
-              <div className="flex justify-between w-full">
-                <span className="font-bold text-sm">Total Balance:</span>
-                <span className="font-bold text-primary text-sm">{formatCurrency(allBalance)}</span>
               </div>
             </TabsTrigger>
           )}
@@ -150,12 +141,12 @@ export default function TransactionsPage() {
         </TabsList>
         {primaryAccount && (
             <TabsContent value={primaryAccount.id} className="mt-6">
-                <TransactionTable accountId={primaryAccount.id} isPrimaryView={true} />
+                <TransactionTable accountId={primaryAccount.id} />
             </TabsContent>
         )}
          {accounts.filter(account => !account.isPrimary).map(account => (
             <TabsContent key={account.id} value={account.id} className="mt-6">
-                <TransactionTable accountId={account.id} isPrimaryView={false} />
+                <TransactionTable accountId={account.id} />
             </TabsContent>
         ))}
       </Tabs>
