@@ -103,7 +103,7 @@ export function ReportView({ transactions }: { transactions: Transaction[] }) {
   const expenseChartData = useMemo(() => {
     return Object.entries(monthlyReport.expenseByCategory)
       .map(([name, { total }]) => ({ name, value: total }))
-      .sort((a, b) => a.value - b.value);
+      .sort((a, b) => b.value - a.value);
   }, [monthlyReport.expenseByCategory]);
 
   const handleCategoryClick = (categoryName: string) => {
@@ -183,15 +183,14 @@ export function ReportView({ transactions }: { transactions: Transaction[] }) {
                     }} className="h-[300px] w-full">
                       <ResponsiveContainer width="100%" height={300}>
                           <BarChart
-                              layout="vertical"
                               data={expenseChartData}
-                              margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                              margin={{ top: 5, right: 20, left: -10, bottom: 5 }}
                           >
-                              <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                              <XAxis type="number" tickFormatter={(value) => formatCurrency(value as number)} />
-                              <YAxis dataKey="name" type="category" width={80} tick={{ fontSize: 12 }} />
-                              <ChartTooltip cursor={{ fill: 'hsl(var(--muted))' }} content={<ChartTooltipContent />} />
-                              <Bar dataKey="value" fill="hsl(var(--chart-1))" barSize={20} />
+                              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                              <XAxis dataKey="name" tick={{ fontSize: 12 }} interval={0} angle={-45} textAnchor="end" height={80} />
+                              <YAxis tickFormatter={(value) => `${Number(value) / 1000}k`} />
+                              <ChartTooltip cursor={{ fill: 'hsl(var(--muted))' }} content={<ChartTooltipContent formatter={(value) => formatCurrency(value as number)} />} />
+                              <Bar dataKey="value" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
                           </BarChart>
                       </ResponsiveContainer>
                     </ChartContainer>
