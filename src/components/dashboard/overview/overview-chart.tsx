@@ -55,8 +55,12 @@ export function OverviewChart() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [isPickerOpen, setIsPickerOpen] = useState(false);
+
+  useEffect(() => {
+    setSelectedDate(new Date());
+  }, []);
 
 
   useEffect(() => {
