@@ -49,7 +49,7 @@ export default function TransactionsPage() {
   const { accountBalances, cashWalletBalance, digitalWalletBalance } = useMemo(() => {
     const calculatedAccountBalances: { [key: string]: number } = {};
     rawAccounts.forEach(acc => {
-      calculatedAccountBalances[acc.id] = acc.actualBalance || 0;
+      calculatedAccountBalances[acc.id] = 0; // Start at 0, not actualBalance
     });
 
     let calculatedCashBalance = 0;
