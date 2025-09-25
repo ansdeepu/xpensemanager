@@ -22,11 +22,13 @@ import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { format } from "date-fns";
+import { format, isValid } from "date-fns";
 
 
 type WalletType = 'cash-wallet' | 'digital-wallet';
 type AccountForDetails = (Omit<Account, 'balance'> & { balance: number }) | { id: WalletType, name: string, balance: number };
+
+const RECONCILIATION_DATE_KEY = 'reconciliationDate';
 
 export function AccountBalances() {
   const [user] = useAuthState(auth);
@@ -37,6 +39,25 @@ export function AccountBalances() {
   const [loading, setLoading] = useState(true);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [selectedAccountForDetails, setSelectedAccountForDetails] = useState<AccountForDetails | null>(null);
+
+  useEffect(() => {
+    const savedDate = localStorage.getItem(RECONCILIATION_DATE_KEY);
+    if (savedDate) {
+      const parsedDate = new Date(savedDate);
+      if (isValid(parsedDate)) {
+        setReconciliationDate(parsedDate);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (reconciliationDate) {
+      localStorage.setItem(RECONCILIATION_DATE_KEY, reconciliationDate.toISOString());
+    } else {
+      localStorage.removeItem(RECONCILIATION_DATE_KEY);
+    }
+  }, [reconciliationDate]);
+
 
   useEffect(() => {
     if (user && db) {
@@ -363,3 +384,5 @@ export function AccountBalances() {
     </>
   );
 }
+
+    
