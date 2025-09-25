@@ -201,19 +201,23 @@ export function ReportView({ transactions }: { transactions: Transaction[] }) {
                     <CardTitle>Expense Breakdown</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <ResponsiveContainer width="100%" height={300}>
-                        <BarChart
-                            layout="vertical"
-                            data={expenseChartData}
-                            margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                        >
-                            <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                            <XAxis type="number" tickFormatter={(value) => formatCurrency(value as number)} />
-                            <YAxis dataKey="name" type="category" width={80} tick={{ fontSize: 12 }} />
-                            <ChartTooltip cursor={{ fill: 'hsl(var(--muted))' }} content={<ChartTooltipContent />} />
-                            <Bar dataKey="value" fill="hsl(var(--chart-1))" barSize={20} />
-                        </BarChart>
-                    </ResponsiveContainer>
+                    <ChartContainer config={{
+                      value: { label: "Amount" },
+                    }} className="h-[300px] w-full">
+                      <ResponsiveContainer width="100%" height={300}>
+                          <BarChart
+                              layout="vertical"
+                              data={expenseChartData}
+                              margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                          >
+                              <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                              <XAxis type="number" tickFormatter={(value) => formatCurrency(value as number)} />
+                              <YAxis dataKey="name" type="category" width={80} tick={{ fontSize: 12 }} />
+                              <ChartTooltip cursor={{ fill: 'hsl(var(--muted))' }} content={<ChartTooltipContent />} />
+                              <Bar dataKey="value" fill="hsl(var(--chart-1))" barSize={20} />
+                          </BarChart>
+                      </ResponsiveContainer>
+                    </ChartContainer>
                 </CardContent>
             </Card>
         </div>
