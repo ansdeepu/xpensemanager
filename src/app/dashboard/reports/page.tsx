@@ -142,9 +142,7 @@ export default function ReportsPage() {
     const monthStart = startOfMonth(currentDate);
     const monthEnd = endOfMonth(currentDate);
 
-    const allAccountEntities = [...accounts];
-
-    allAccountEntities.forEach(acc => {
+    accounts.forEach(acc => {
         report[acc.id] = {
             income: { categories: {}, total: 0 },
             expense: { categories: {}, total: 0 }
@@ -226,9 +224,7 @@ export default function ReportsPage() {
     )
   }
 
-  const allAccountIds = [...accounts.map(a => a.id)];
-  
-  const hasTransactions = allAccountIds.some(id => (monthlyReport[id]?.income.total > 0 || monthlyReport[id]?.expense.total > 0));
+  const hasTransactions = accounts.some(id => (monthlyReport[id.id]?.income.total > 0 || monthlyReport[id.id]?.expense.total > 0));
 
 
   return (
@@ -257,7 +253,7 @@ export default function ReportsPage() {
             <Accordion type="single" collapsible className="w-full" defaultValue={accounts.find(a => a.isPrimary)?.id}>
                 {accounts.map(account => {
                     const reportData = monthlyReport[account.id];
-                    if (!reportData) return null; // Add a guard clause here
+                    if (!reportData) return null;
 
                     return (
                      <AccordionItem value={account.id} key={account.id}>
