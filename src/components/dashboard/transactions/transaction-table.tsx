@@ -92,8 +92,10 @@ const evaluateMath = (expression: string): number | null => {
 
 export function TransactionTable({
   accountId,
+  isPrimaryView,
 }: {
   accountId: string;
+  isPrimaryView: boolean;
 }) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -182,30 +184,20 @@ export function TransactionTable({
 
   const filteredTransactions = useMemo(() => {
     const relevantTransactions = transactions.filter(t => {
-      // For Transfers
+      if (isPrimaryView) {
+        // Show all transactions from primary account, cash and digital wallets
+        return (t.accountId === accountId && t.paymentMethod === 'online') ||
+               t.paymentMethod === 'cash' ||
+               t.paymentMethod === 'digital' ||
+               t.fromAccountId === accountId || t.toAccountId === accountId ||
+               t.fromAccountId === 'cash-wallet' || t.toAccountId === 'cash-wallet' ||
+               t.fromAccountId === 'digital-wallet' || t.toAccountId === 'digital-wallet';
+      }
+      // For other accounts, show only their specific transactions
       if (t.type === 'transfer') {
         return t.fromAccountId === accountId || t.toAccountId === accountId;
       }
-      
-      // For Cash Wallet
-      if (accountId === 'cash-wallet') {
-        return t.paymentMethod === 'cash' || t.toAccountId === 'cash-wallet' || t.fromAccountId === 'cash-wallet';
-      }
-      
-      // For Digital Wallet
-      if (accountId === 'digital-wallet') {
-        return t.paymentMethod === 'digital' || t.toAccountId === 'digital-wallet' || t.fromAccountId === 'digital-wallet';
-      }
-      
-      // For regular bank accounts
-      if (t.type === 'income') {
-        return t.accountId === accountId;
-      }
-      if (t.type === 'expense') {
-        return t.accountId === accountId && t.paymentMethod === 'online';
-      }
-      
-      return false; // Should not be reached for regular accounts
+      return t.accountId === accountId;
     });
 
     let filtered = [...relevantTransactions];
@@ -225,7 +217,7 @@ export function TransactionTable({
     }
     
     return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [transactions, accountId, dateRange, searchQuery]);
+  }, [transactions, accountId, dateRange, searchQuery, isPrimaryView]);
 
 
   const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);

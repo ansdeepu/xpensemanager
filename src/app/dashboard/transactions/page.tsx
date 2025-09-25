@@ -112,24 +112,18 @@ export default function TransactionsPage() {
     );
   }
 
+  const allBalance = (primaryAccount?.balance || 0) + cashWalletBalance + digitalWalletBalance;
+
   return (
     <div className="space-y-6">
-      <Tabs defaultValue={primaryAccount?.id || "cash-wallet"} className="w-full">
+      <Tabs defaultValue={primaryAccount?.id || "all-accounts"} className="w-full">
         <TabsList className="grid w-full grid-cols-1 md:grid-cols-3 lg:grid-cols-5 h-auto flex-wrap">
           {primaryAccount && (
             <TabsTrigger value={primaryAccount.id} className="flex flex-col h-auto py-2">
               <span>Primary ({primaryAccount.name})</span>
-              <span className="font-bold text-primary">{formatCurrency(primaryAccount.balance)}</span>
+              <span className="font-bold text-primary">{formatCurrency(allBalance)}</span>
             </TabsTrigger>
           )}
-           <TabsTrigger value="cash-wallet" className="flex flex-col h-auto py-2">
-              <span>Cash Wallet</span>
-              <span className="font-bold text-primary">{formatCurrency(cashWalletBalance)}</span>
-            </TabsTrigger>
-             <TabsTrigger value="digital-wallet" className="flex flex-col h-auto py-2">
-              <span>Digital Wallet</span>
-              <span className="font-bold text-primary">{formatCurrency(digitalWalletBalance)}</span>
-            </TabsTrigger>
           {accounts.map(account => (
             !account.isPrimary && 
             <TabsTrigger key={account.id} value={account.id} className="flex flex-col h-auto py-2">
@@ -140,19 +134,13 @@ export default function TransactionsPage() {
         </TabsList>
         {primaryAccount && (
             <TabsContent value={primaryAccount.id} className="mt-6">
-                <TransactionTable accountId={primaryAccount.id} />
+                <TransactionTable accountId={primaryAccount.id} isPrimaryView={true} />
             </TabsContent>
         )}
-        <TabsContent value="cash-wallet" className="mt-6">
-            <TransactionTable accountId="cash-wallet" />
-        </TabsContent>
-        <TabsContent value="digital-wallet" className="mt-6">
-            <TransactionTable accountId="digital-wallet" />
-        </TabsContent>
          {accounts.map(account => (
             !account.isPrimary && (
                 <TabsContent key={account.id} value={account.id} className="mt-6">
-                    <TransactionTable accountId={account.id} />
+                    <TransactionTable accountId={account.id} isPrimaryView={false} />
                 </TabsContent>
             )
         ))}
