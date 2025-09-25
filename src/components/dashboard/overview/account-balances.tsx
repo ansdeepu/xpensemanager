@@ -33,7 +33,7 @@ export function AccountBalances() {
   const [rawAccounts, setRawAccounts] = useState<Omit<Account, 'balance'>[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [walletPreferences, setWalletPreferences] = useState<{ cash?: { balance?: number, date?: string }, digital?: { balance?: number, date?: string } }>({});
-  const [reconciliationDate, setReconciliationDate] = useState<Date | undefined>(new Date());
+  const [reconciliationDate, setReconciliationDate] = useState<Date | undefined>();
   const [loading, setLoading] = useState(true);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [selectedAccountForDetails, setSelectedAccountForDetails] = useState<AccountForDetails | null>(null);
@@ -213,7 +213,7 @@ export function AccountBalances() {
                             )}
                         >
                             <CalendarIcon className="mr-2 h-4 w-4" />
-                            {reconciliationDate ? format(reconciliationDate, "dd/MM/yyyy") : <span>Pick a date</span>}
+                            {reconciliationDate ? format(reconciliationDate, "dd/MM/yyyy") : <span>Pick a reconciliation date</span>}
                         </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0">
