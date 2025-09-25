@@ -33,6 +33,7 @@ import {
 import { Bar, BarChart, XAxis, YAxis, ResponsiveContainer, CartesianGrid } from "recharts";
 import { Progress } from "@/components/ui/progress";
 import { useReportDate } from "@/context/report-date-context";
+import { FinancialAdvice } from "./financial-advice";
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-IN", {
@@ -167,36 +168,12 @@ export function ReportView({ transactions }: { transactions: Transaction[] }) {
         </div>
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
-            <Card className="lg:col-span-2">
-                 <CardHeader>
-                    <CardTitle>Income vs Expenses</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <ChartContainer config={{
-                        income: { label: "Income", color: "hsl(var(--chart-2))" },
-                        expense: { label: "Expense", color: "hsl(var(--chart-5))" },
-                    }} className="h-[250px] w-full">
-                        <BarChart
-                            data={[{ name: 'Month', income: monthlyReport.totalIncome, expense: monthlyReport.totalExpense }]}
-                            layout="vertical"
-                            margin={{ left: 0, right: 20 }}
-                            barSize={32}
-                        >
-                            <XAxis type="number" hide />
-                            <YAxis type="category" dataKey="name" hide />
-                            <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
-                            <Bar dataKey="income" fill="var(--color-income)" radius={5} />
-                            <Bar dataKey="expense" fill="var(--color-expense)" radius={5} />
-                        </BarChart>
-                    </ChartContainer>
-                     <div className="mt-4 space-y-2">
-                        <div className="flex justify-between font-medium"><span>Income</span> <span className="text-green-600">{formatCurrency(monthlyReport.totalIncome)}</span></div>
-                        <div className="flex justify-between font-medium"><span>Expense</span> <span className="text-red-600">{formatCurrency(monthlyReport.totalExpense)}</span></div>
-                         {monthlyReport.totalIncome > 0 && <Progress value={(monthlyReport.totalExpense / monthlyReport.totalIncome) * 100} className="h-2" />}
-                    </div>
-                </CardContent>
-            </Card>
-             <Card className="lg:col-span-3">
+            <FinancialAdvice 
+              totalIncome={monthlyReport.totalIncome}
+              totalExpense={monthlyReport.totalExpense}
+              expenseByCategory={Object.fromEntries(Object.entries(monthlyReport.expenseByCategory).map(([k, v]) => [k, v.total]))}
+            />
+             <Card className="lg:col-span-2">
                  <CardHeader>
                     <CardTitle>Expense Breakdown</CardTitle>
                 </CardHeader>

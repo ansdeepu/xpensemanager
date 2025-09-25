@@ -6,11 +6,10 @@ import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
 import type { Account, Transaction } from "@/lib/data";
-import { Card, CardHeader, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReportView } from "@/components/dashboard/reports/report-view";
-import { ReportDateProvider } from "@/context/report-date-context";
 
 
 const formatCurrency = (amount: number) => {
@@ -133,10 +132,10 @@ export default function ReportsPage() {
             <Skeleton className="h-8 w-1/3" />
             <Skeleton className="h-4 w-2/3" />
           </CardHeader>
-          <CardContent>
+          <CardTitle>
             <Skeleton className="h-10 w-full mb-6" />
             <Skeleton className="h-96 w-full" />
-          </CardContent>
+          </CardTitle>
         </Card>
       </div>
     );
@@ -145,47 +144,45 @@ export default function ReportsPage() {
   const allBalance = (primaryAccount?.balance || 0) + cashWalletBalance + digitalWalletBalance;
 
   return (
-    <ReportDateProvider>
-      <div className="space-y-6">
-        <Tabs defaultValue="all" className="w-full">
-          <TabsList className="grid w-full grid-cols-1 md:grid-cols-3 lg:grid-cols-6 h-auto flex-wrap">
-            <TabsTrigger value="all" className="flex flex-col h-auto p-2">
-              <span>Overall Summary</span>
-              <span className="font-bold text-primary">All Accounts</span>
+    <div className="space-y-6">
+      <Tabs defaultValue="all" className="w-full">
+        <TabsList className="grid w-full grid-cols-1 md:grid-cols-3 lg:grid-cols-6 h-auto flex-wrap">
+          <TabsTrigger value="all" className="flex flex-col h-auto p-2">
+            <span>Overall Summary</span>
+            <span className="font-bold text-primary">All Accounts</span>
+          </TabsTrigger>
+          {primaryAccount && (
+            <TabsTrigger value={primaryAccount.id} className="flex flex-col h-auto p-2 items-start text-left">
+              <span className="font-semibold text-sm">Primary ({primaryAccount.name})</span>
+              <div className="w-full text-xs text-muted-foreground mt-1">
+                  <div className="flex justify-between items-center">
+                    <span>Bank: {formatCurrency(primaryAccount.balance)}</span>
+                    <span>Cash: {formatCurrency(cashWalletBalance)}</span>
+                  </div>
+                  <div className="flex justify-between items-center mt-1">
+                    <span>Digital: {formatCurrency(digitalWalletBalance)}</span>
+                    <span className="font-bold text-primary">{formatCurrency(allBalance)}</span>
+                  </div>
+              </div>
             </TabsTrigger>
-            {primaryAccount && (
-              <TabsTrigger value={primaryAccount.id} className="flex flex-col h-auto p-2 items-start text-left">
-                <span className="font-semibold text-sm">Primary ({primaryAccount.name})</span>
-                <div className="w-full text-xs text-muted-foreground mt-1">
-                    <div className="flex justify-between items-center">
-                      <span>Bank: {formatCurrency(primaryAccount.balance)}</span>
-                      <span>Cash: {formatCurrency(cashWalletBalance)}</span>
-                    </div>
-                    <div className="flex justify-between items-center mt-1">
-                      <span>Digital: {formatCurrency(digitalWalletBalance)}</span>
-                      <span className="font-bold text-primary">{formatCurrency(allBalance)}</span>
-                    </div>
-                </div>
-              </TabsTrigger>
-            )}
-            {accounts.filter(account => !account.isPrimary).map(account => (
-              <TabsTrigger key={account.id} value={account.id} className="flex flex-col h-auto p-2">
-                <span>{account.name}</span>
-                <span className="font-bold text-primary">{formatCurrency(account.balance)}</span>
-              </TabsTrigger>
-            ))}
-          </TabsList>
-
-          <TabsContent value="all" className="mt-6">
-            <ReportView transactions={getTransactionsForAccount('all')} />
-          </TabsContent>
-          {accounts.map(account => (
-            <TabsContent key={account.id} value={account.id} className="mt-6">
-              <ReportView transactions={getTransactionsForAccount(account.id)} />
-            </TabsContent>
+          )}
+          {accounts.filter(account => !account.isPrimary).map(account => (
+            <TabsTrigger key={account.id} value={account.id} className="flex flex-col h-auto p-2">
+              <span>{account.name}</span>
+              <span className="font-bold text-primary">{formatCurrency(account.balance)}</span>
+            </TabsTrigger>
           ))}
-        </Tabs>
-      </div>
-    </ReportDateProvider>
+        </TabsList>
+
+        <TabsContent value="all" className="mt-6">
+          <ReportView transactions={getTransactionsForAccount('all')} />
+        </TabsContent>
+        {accounts.map(account => (
+          <TabsContent key={account.id} value={account.id} className="mt-6">
+            <ReportView transactions={getTransactionsForAccount(account.id)} />
+          </TabsContent>
+        ))}
+      </Tabs>
+    </div>
   );
 }
