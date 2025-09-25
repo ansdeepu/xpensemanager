@@ -98,14 +98,13 @@ export function AccountBalances() {
   const { cashWalletBalance, digitalWalletBalance, accountBalances } = useMemo(() => {
     const calculatedAccountBalances: { [key: string]: number } = {};
     rawAccounts.forEach(acc => {
-        calculatedAccountBalances[acc.id] = acc.actualBalance || 0; 
+        calculatedAccountBalances[acc.id] = 0; 
     });
 
     let calculatedCashWalletBalance = 0;
     let calculatedDigitalWalletBalance = 0;
 
     transactions.forEach(t => {
-      // Wallet balance calculation
       if (t.type === 'transfer') {
         if (t.toAccountId === 'cash-wallet') calculatedCashWalletBalance += t.amount;
         if (t.fromAccountId === 'cash-wallet') calculatedCashWalletBalance -= t.amount;
@@ -116,7 +115,6 @@ export function AccountBalances() {
         if (t.paymentMethod === 'digital') calculatedDigitalWalletBalance -= t.amount;
       }
 
-        // Bank account balance calculation
         if (t.type === 'income' && t.accountId && calculatedAccountBalances[t.accountId] !== undefined) {
             calculatedAccountBalances[t.accountId] += t.amount;
         } else if (t.type === 'expense' && t.accountId && t.paymentMethod === 'online' && calculatedAccountBalances[t.accountId] !== undefined) {
@@ -384,5 +382,3 @@ export function AccountBalances() {
     </>
   );
 }
-
-    
