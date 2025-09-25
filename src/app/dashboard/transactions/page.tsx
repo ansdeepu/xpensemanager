@@ -124,8 +124,7 @@ export default function TransactionsPage() {
               <span className="font-bold text-primary">{formatCurrency(allBalance)}</span>
             </TabsTrigger>
           )}
-          {accounts.map(account => (
-            !account.isPrimary && 
+          {accounts.filter(account => !account.isPrimary).map(account => (
             <TabsTrigger key={account.id} value={account.id} className="flex flex-col h-auto py-2">
               <span>{account.name}</span>
               <span className="font-bold text-primary">{formatCurrency(account.balance)}</span>
@@ -137,12 +136,10 @@ export default function TransactionsPage() {
                 <TransactionTable accountId={primaryAccount.id} isPrimaryView={true} />
             </TabsContent>
         )}
-         {accounts.map(account => (
-            !account.isPrimary && (
-                <TabsContent key={account.id} value={account.id} className="mt-6">
-                    <TransactionTable accountId={account.id} isPrimaryView={false} />
-                </TabsContent>
-            )
+         {accounts.filter(account => !account.isPrimary).map(account => (
+            <TabsContent key={account.id} value={account.id} className="mt-6">
+                <TransactionTable accountId={account.id} isPrimaryView={false} />
+            </TabsContent>
         ))}
       </Tabs>
     </div>
