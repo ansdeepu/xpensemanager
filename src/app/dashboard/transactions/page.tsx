@@ -46,28 +46,51 @@ export default function TransactionsPage() {
     }
   }, [user, userLoading, dataLoading]);
 
-  const { accountBalances } = useMemo(() => {
+  const { accountBalances, cashWalletBalance, digitalWalletBalance } = useMemo(() => {
     const calculatedAccountBalances: { [key: string]: number } = {};
     rawAccounts.forEach(acc => {
-      calculatedAccountBalances[acc.id] = 0;
+      calculatedAccountBalances[acc.id] = acc.actualBalance || 0;
     });
+
+    let calculatedCashBalance = 0;
+    let calculatedDigitalBalance = 0;
 
     transactions.forEach(t => {
       if (t.type === 'income' && t.accountId && calculatedAccountBalances[t.accountId] !== undefined) {
         calculatedAccountBalances[t.accountId] += t.amount;
-      } else if (t.type === 'expense' && t.accountId && t.paymentMethod === 'online' && calculatedAccountBalances[t.accountId] !== undefined) {
-        calculatedAccountBalances[t.accountId] -= t.amount;
+      } else if (t.type === 'expense') {
+        if (t.paymentMethod === 'online' && t.accountId && calculatedAccountBalances[t.accountId] !== undefined) {
+          calculatedAccountBalances[t.accountId] -= t.amount;
+        } else if (t.paymentMethod === 'cash') {
+          calculatedCashBalance -= t.amount;
+        } else if (t.paymentMethod === 'digital') {
+          calculatedDigitalBalance -= t.amount;
+        }
       } else if (t.type === 'transfer') {
+        // From account
         if (t.fromAccountId && calculatedAccountBalances[t.fromAccountId] !== undefined) {
           calculatedAccountBalances[t.fromAccountId] -= t.amount;
+        } else if (t.fromAccountId === 'cash-wallet') {
+          calculatedCashBalance -= t.amount;
+        } else if (t.fromAccountId === 'digital-wallet') {
+          calculatedDigitalBalance -= t.amount;
         }
+        // To account
         if (t.toAccountId && calculatedAccountBalances[t.toAccountId] !== undefined) {
           calculatedAccountBalances[t.toAccountId] += t.amount;
+        } else if (t.toAccountId === 'cash-wallet') {
+          calculatedCashBalance += t.amount;
+        } else if (t.toAccountId === 'digital-wallet') {
+          calculatedDigitalBalance += t.amount;
         }
       }
     });
 
-    return { accountBalances: calculatedAccountBalances };
+    return { 
+      accountBalances: calculatedAccountBalances, 
+      cashWalletBalance: calculatedCashBalance,
+      digitalWalletBalance: calculatedDigitalBalance 
+    };
   }, [rawAccounts, transactions]);
   
   const accounts = useMemo(() => {
@@ -91,7 +114,7 @@ export default function TransactionsPage() {
 
   return (
     <div className="space-y-6">
-      <Tabs defaultValue={primaryAccount?.id || "all"} className="w-full">
+      <Tabs defaultValue={primaryAccount?.id || "cash-wallet"} className="w-full">
         <TabsList className="grid w-full grid-cols-1 md:grid-cols-3 lg:grid-cols-5 h-auto flex-wrap">
           {primaryAccount && (
             <TabsTrigger value={primaryAccount.id} className="flex flex-col h-auto py-2">
@@ -99,6 +122,14 @@ export default function TransactionsPage() {
               <span className="font-bold text-primary">{formatCurrency(primaryAccount.balance)}</span>
             </TabsTrigger>
           )}
+           <TabsTrigger value="cash-wallet" className="flex flex-col h-auto py-2">
+              <span>Cash Wallet</span>
+              <span className="font-bold text-primary">{formatCurrency(cashWalletBalance)}</span>
+            </TabsTrigger>
+             <TabsTrigger value="digital-wallet" className="flex flex-col h-auto py-2">
+              <span>Digital Wallet</span>
+              <span className="font-bold text-primary">{formatCurrency(digitalWalletBalance)}</span>
+            </TabsTrigger>
           {accounts.map(account => (
             !account.isPrimary && 
             <TabsTrigger key={account.id} value={account.id} className="flex flex-col h-auto py-2">
@@ -112,6 +143,12 @@ export default function TransactionsPage() {
                 <TransactionTable accountId={primaryAccount.id} />
             </TabsContent>
         )}
+        <TabsContent value="cash-wallet" className="mt-6">
+            <TransactionTable accountId="cash-wallet" />
+        </TabsContent>
+        <TabsContent value="digital-wallet" className="mt-6">
+            <TransactionTable accountId="digital-wallet" />
+        </TabsContent>
          {accounts.map(account => (
             !account.isPrimary && (
                 <TabsContent key={account.id} value={account.id} className="mt-6">

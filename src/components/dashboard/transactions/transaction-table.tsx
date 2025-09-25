@@ -181,19 +181,31 @@ export function TransactionTable({
     }, [editCategory, categories]);
 
   const filteredTransactions = useMemo(() => {
-      const relevantTransactions = transactions.filter(t => {
-        if (t.type === 'transfer') {
-            return t.fromAccountId === accountId || t.toAccountId === accountId;
-        }
-        
-        if (accountId === 'cash-wallet') {
-            return t.paymentMethod === 'cash' || t.fromAccountId === 'cash-wallet' || t.toAccountId === 'cash-wallet';
-        }
-        if (accountId === 'digital-wallet') {
-            return t.paymentMethod === 'digital' || t.fromAccountId === 'digital-wallet' || t.toAccountId === 'digital-wallet';
-        }
-        
+    const relevantTransactions = transactions.filter(t => {
+      // For Transfers
+      if (t.type === 'transfer') {
+        return t.fromAccountId === accountId || t.toAccountId === accountId;
+      }
+      
+      // For Cash Wallet
+      if (accountId === 'cash-wallet') {
+        return t.paymentMethod === 'cash' || t.toAccountId === 'cash-wallet' || t.fromAccountId === 'cash-wallet';
+      }
+      
+      // For Digital Wallet
+      if (accountId === 'digital-wallet') {
+        return t.paymentMethod === 'digital' || t.toAccountId === 'digital-wallet' || t.fromAccountId === 'digital-wallet';
+      }
+      
+      // For regular bank accounts
+      if (t.type === 'income') {
         return t.accountId === accountId;
+      }
+      if (t.type === 'expense') {
+        return t.accountId === accountId && t.paymentMethod === 'online';
+      }
+      
+      return false; // Should not be reached for regular accounts
     });
 
     let filtered = [...relevantTransactions];
