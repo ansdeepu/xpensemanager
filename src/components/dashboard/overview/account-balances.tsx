@@ -77,7 +77,7 @@ export function AccountBalances() {
   const { cashWalletBalance, digitalWalletBalance, accountBalances } = useMemo(() => {
     const calculatedAccountBalances: { [key: string]: number } = {};
     rawAccounts.forEach(acc => {
-        calculatedAccountBalances[acc.id] = 0; // Start with 0
+        calculatedAccountBalances[acc.id] = acc.actualBalance || 0; 
     });
 
     let calculatedCashWalletBalance = 0;
@@ -308,7 +308,7 @@ export function AccountBalances() {
                     </CardContent>
                 </Card>
                 {accounts.map(account => {
-                    const balanceDifference = account.actualBalance !== undefined ? account.balance - account.actualBalance : null;
+                    const balanceDifference = account.actualBalance !== undefined && account.actualBalance !== null ? account.balance - account.actualBalance : null;
                     return (
                      <Card key={account.id}>
                         <div className="cursor-pointer hover:bg-muted/50" onClick={() => handleAccountClick(account)}>
