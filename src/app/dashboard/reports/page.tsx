@@ -5,18 +5,12 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
-import type { Account, Category, Transaction } from "@/lib/data";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import type { Transaction } from "@/lib/data";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, BookText } from "lucide-react";
+import { ChevronLeft, ChevronRight, BookText, TrendingUp, TrendingDown, IndianRupee } from "lucide-react";
 import { format, startOfMonth, endOfMonth, isWithinInterval, subMonths, addMonths } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import {
   Table,
   TableBody,
@@ -26,7 +20,14 @@ import {
   TableRow,
   TableFooter,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
+import { Bar, BarChart, XAxis, YAxis, Pie, PieChart, Cell, Legend } from "recharts";
+import { Progress } from "@/components/ui/progress";
+
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-IN", {
@@ -36,92 +37,23 @@ const formatCurrency = (amount: number) => {
 };
 
 type ReportData = {
-  income: {
-    categories: {
-      [key: string]: {
-        name: string;
-        total: number;
-        subcategories: {
-          [key: string]: { name: string; total: number };
-        };
-      };
-    };
-    total: number;
-  };
-  expense: {
-    categories: {
-      [key: string]: {
-        name: string;
-        total: number;
-        subcategories: {
-          [key: string]: { name: string; total: number };
-        };
-      };
-    };
-    total: number;
-  };
+  totalIncome: number;
+  totalExpense: number;
+  incomeByCategory: { [key: string]: number };
+  expenseByCategory: { [key: string]: { total: number; subcategories: { [key: string]: number } } };
+  incomeTransactions: Transaction[];
+  expenseTransactions: Transaction[];
 };
-
-function ReportTable({ title, data }: { title: string, data: ReportData['income'] | ReportData['expense'] }) {
-    const categories = Object.values(data.categories).sort((a,b) => b.total - a.total);
-
-    if (data.total === 0) {
-        return (
-            <div className="pt-4">
-                <p className="text-sm text-muted-foreground">No {title.toLowerCase()} for this period.</p>
-            </div>
-        );
-    }
-
-    return (
-        <Table>
-            <TableHeader>
-                <TableRow>
-                    <TableHead>Category / Sub-category</TableHead>
-                    <TableHead className="text-right">Total</TableHead>
-                </TableRow>
-            </TableHeader>
-            <TableBody>
-                {categories.map(cat => (
-                    <React.Fragment key={cat.name}>
-                        <TableRow className="bg-muted/50">
-                            <TableCell className="font-semibold">{cat.name}</TableCell>
-                            <TableCell className="text-right font-semibold">{formatCurrency(cat.total)}</TableCell>
-                        </TableRow>
-                        {Object.values(cat.subcategories).sort((a,b) => b.total - a.total).map(sub => (
-                             <TableRow key={sub.name}>
-                                <TableCell className="pl-8">{sub.name}</TableCell>
-                                <TableCell className="text-right">{formatCurrency(sub.total)}</TableCell>
-                            </TableRow>
-                        ))}
-                    </React.Fragment>
-                ))}
-            </TableBody>
-            <TableFooter>
-                <TableRow>
-                    <TableHead>Total {title}</TableHead>
-                    <TableHead className="text-right">{formatCurrency(data.total)}</TableHead>
-                </TableRow>
-            </TableFooter>
-        </Table>
-    )
-}
 
 
 export default function ReportsPage() {
   const [user, userLoading] = useAuthState(auth);
-  const [accounts, setAccounts] = useState<Account[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [dataLoading, setDataLoading] = useState(true);
 
   useEffect(() => {
     if (user) {
-      const accountsQuery = query(collection(db, "accounts"), where("userId", "==", user.uid));
-      const unsubscribeAccounts = onSnapshot(accountsQuery, (snapshot) => {
-        setAccounts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Account)));
-      });
-
       const transactionsQuery = query(collection(db, "transactions"), where("userId", "==", user.uid));
       const unsubscribeTransactions = onSnapshot(transactionsQuery, (snapshot) => {
         setTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction)));
@@ -129,7 +61,6 @@ export default function ReportsPage() {
       });
 
       return () => {
-        unsubscribeAccounts();
         unsubscribeTransactions();
       };
     } else if (!userLoading) {
@@ -138,72 +69,55 @@ export default function ReportsPage() {
   }, [user, userLoading, dataLoading]);
   
   const monthlyReport = useMemo(() => {
-    const report: { [key: string]: ReportData } = {};
     const monthStart = startOfMonth(currentDate);
     const monthEnd = endOfMonth(currentDate);
-
-    accounts.forEach(acc => {
-        report[acc.id] = {
-            income: { categories: {}, total: 0 },
-            expense: { categories: {}, total: 0 }
-        };
-    });
-
+    
     const monthlyTransactions = transactions.filter(t => isWithinInterval(new Date(t.date), { start: monthStart, end: monthEnd }));
 
+    const data: ReportData = {
+        totalIncome: 0,
+        totalExpense: 0,
+        incomeByCategory: {},
+        expenseByCategory: {},
+        incomeTransactions: [],
+        expenseTransactions: [],
+    };
+
     monthlyTransactions.forEach(t => {
-      let targetAccountId: string | null = null;
-      let transactionType = t.type;
-      
-      if (t.type === 'expense') {
-        if (t.accountId) targetAccountId = t.accountId;
-      } else if (t.type === 'income' && t.accountId) {
-        targetAccountId = t.accountId;
-      } else if (t.type === 'transfer') {
-        // For transfers, we create two entries: one expense, one income
-        if (t.fromAccountId && report[t.fromAccountId]) {
-            // This is an "expense" for the 'from' account
-            const fromReport = report[t.fromAccountId].expense;
-            fromReport.total += t.amount;
-             if (!fromReport.categories['Transfer']) {
-                fromReport.categories['Transfer'] = { name: 'Transfer', total: 0, subcategories: {} };
-            }
-            fromReport.categories['Transfer'].total += t.amount;
-        }
-        if (t.toAccountId && report[t.toAccountId]) {
-             // This is an "income" for the 'to' account
-            const toReport = report[t.toAccountId].income;
-            toReport.total += t.amount;
-             if (!toReport.categories['Transfer']) {
-                toReport.categories['Transfer'] = { name: 'Transfer', total: 0, subcategories: {} };
-            }
-            toReport.categories['Transfer'].total += t.amount;
-        }
-        return; // Skip the generic processing below for transfers
-      }
-
-      if (targetAccountId && report[targetAccountId] && (transactionType === 'income' || transactionType === 'expense')) {
-        const reportSection = report[targetAccountId][transactionType];
-        if (!reportSection) return;
-
-        reportSection.total += t.amount;
-        
         const categoryName = t.category || "Uncategorized";
-        if (!reportSection.categories[categoryName]) {
-            reportSection.categories[categoryName] = { name: categoryName, total: 0, subcategories: {} };
-        }
-        reportSection.categories[categoryName].total += t.amount;
-
         const subCategoryName = t.subcategory || "Unspecified";
-        if (!reportSection.categories[categoryName].subcategories[subCategoryName]) {
-            reportSection.categories[categoryName].subcategories[subCategoryName] = { name: subCategoryName, total: 0 };
-        }
-        reportSection.categories[categoryName].subcategories[subCategoryName].total += t.amount;
-      }
-    });
 
-    return report;
-  }, [accounts, transactions, currentDate]);
+        if (t.type === 'income') {
+            data.totalIncome += t.amount;
+            data.incomeByCategory[categoryName] = (data.incomeByCategory[categoryName] || 0) + t.amount;
+            data.incomeTransactions.push(t);
+        } else if (t.type === 'expense') {
+            data.totalExpense += t.amount;
+            if (!data.expenseByCategory[categoryName]) {
+                data.expenseByCategory[categoryName] = { total: 0, subcategories: {} };
+            }
+            data.expenseByCategory[categoryName].total += t.amount;
+            data.expenseByCategory[categoryName].subcategories[subCategoryName] = (data.expenseByCategory[categoryName].subcategories[subCategoryName] || 0) + t.amount;
+            data.expenseTransactions.push(t);
+        }
+    });
+    
+    return data;
+  }, [transactions, currentDate]);
+
+  const expenseChartData = useMemo(() => {
+    return Object.entries(monthlyReport.expenseByCategory)
+      .map(([name, { total }]) => ({ name, value: total }))
+      .sort((a, b) => b.value - a.value);
+  }, [monthlyReport.expenseByCategory]);
+  
+  const chartColors = [
+    'hsl(var(--chart-1))', 
+    'hsl(var(--chart-2))', 
+    'hsl(var(--chart-3))', 
+    'hsl(var(--chart-4))', 
+    'hsl(var(--chart-5))'
+  ];
 
   const goToPreviousMonth = () => setCurrentDate(prev => subMonths(prev, 1));
   const goToNextMonth = () => setCurrentDate(prev => addMonths(prev, 1));
@@ -224,8 +138,8 @@ export default function ReportsPage() {
     )
   }
 
-  const hasTransactions = accounts.some(id => (monthlyReport[id.id]?.income.total > 0 || monthlyReport[id.id]?.expense.total > 0));
-
+  const netSavings = monthlyReport.totalIncome - monthlyReport.totalExpense;
+  const hasTransactions = monthlyReport.incomeTransactions.length > 0 || monthlyReport.expenseTransactions.length > 0;
 
   return (
     <div className="space-y-6">
@@ -233,9 +147,9 @@ export default function ReportsPage() {
         <CardHeader>
           <div className="flex justify-between items-center">
             <div>
-                <CardTitle>Monthly Report</CardTitle>
+                <CardTitle>Monthly Financial Report</CardTitle>
                 <CardDescription>
-                A detailed breakdown of income and expenses for each account.
+                An overview of your financial performance for the month.
                 </CardDescription>
             </div>
             <div className="flex items-center gap-2">
@@ -249,39 +163,161 @@ export default function ReportsPage() {
             </div>
           </div>
         </CardHeader>
-        <CardContent>
-            <Accordion type="single" collapsible className="w-full" defaultValue={accounts.find(a => a.isPrimary)?.id}>
-                {accounts.map(account => {
-                    const reportData = monthlyReport[account.id];
-                    if (!reportData) return null;
-
-                    return (
-                     <AccordionItem value={account.id} key={account.id}>
-                        <AccordionTrigger>
-                            <div className="flex justify-between w-full pr-4">
-                                <span className="font-semibold">{account.name}</span>
-                                <div className="flex gap-4">
-                                    <span className="text-green-600">{formatCurrency(reportData.income.total || 0)}</span>
-                                    <span className="text-red-600">{formatCurrency(reportData.expense.total || 0)}</span>
-                                </div>
-                            </div>
-                        </AccordionTrigger>
-                        <AccordionContent>
-                           <ReportTable title="Income" data={reportData.income} />
-                           <ReportTable title="Expenses" data={reportData.expense} />
-                        </AccordionContent>
-                     </AccordionItem>
-                    )
-                })}
-            </Accordion>
-            {!hasTransactions && (
-                <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-40 border-2 border-dashed rounded-lg mt-6">
+      </Card>
+      
+      {!hasTransactions ? (
+         <Card>
+            <CardContent className="pt-6">
+                 <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-40">
                     <BookText className="h-10 w-10 mb-2"/>
                     <p>No transactions found for {format(currentDate, "MMMM yyyy")}.</p>
                 </div>
-            )}
-        </CardContent>
-      </Card>
+            </CardContent>
+        </Card>
+      ) : (
+      <>
+        <div className="grid gap-6 md:grid-cols-3">
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Income</CardTitle>
+                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold text-green-600">{formatCurrency(monthlyReport.totalIncome)}</div>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
+                    <TrendingDown className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold text-red-600">{formatCurrency(monthlyReport.totalExpense)}</div>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Net Savings</CardTitle>
+                    <IndianRupee className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className={`text-2xl font-bold ${netSavings >= 0 ? 'text-foreground' : 'text-red-600'}`}>
+                        {formatCurrency(netSavings)}
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
+            <Card className="lg:col-span-2">
+                 <CardHeader>
+                    <CardTitle>Income vs Expenses</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <ChartContainer config={{}} className="h-[250px] w-full">
+                        <BarChart
+                            data={[{ name: 'Month', income: monthlyReport.totalIncome, expense: monthlyReport.totalExpense }]}
+                            layout="vertical"
+                            margin={{ left: -20 }}
+                        >
+                            <XAxis type="number" hide />
+                            <YAxis type="category" dataKey="name" hide />
+                            <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+                            <Bar dataKey="income" fill="var(--color-chart-2)" radius={5} />
+                            <Bar dataKey="expense" fill="var(--color-chart-5)" radius={5} />
+                        </BarChart>
+                    </ChartContainer>
+                     <div className="mt-4 space-y-2">
+                        <div className="flex justify-between font-medium"><span>Income</span> <span className="text-green-600">{formatCurrency(monthlyReport.totalIncome)}</span></div>
+                        <div className="flex justify-between font-medium"><span>Expense</span> <span className="text-red-600">{formatCurrency(monthlyReport.totalExpense)}</span></div>
+                        <Progress value={(monthlyReport.totalExpense / monthlyReport.totalIncome) * 100} className="h-2" />
+                    </div>
+                </CardContent>
+            </Card>
+             <Card className="lg:col-span-3">
+                 <CardHeader>
+                    <CardTitle>Expense Breakdown</CardTitle>
+                </CardHeader>
+                <CardContent>
+                     <ChartContainer config={{}} className="h-[300px] w-full">
+                        <PieChart>
+                            <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+                            <Pie data={expenseChartData} dataKey="value" nameKey="name" innerRadius={60}>
+                                {expenseChartData.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={chartColors[index % chartColors.length]} />
+                                ))}
+                            </Pie>
+                            <Legend />
+                        </PieChart>
+                    </ChartContainer>
+                </CardContent>
+            </Card>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-2">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Income Details</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Category</TableHead>
+                                <TableHead className="text-right">Amount</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {Object.entries(monthlyReport.incomeByCategory).map(([category, amount]) => (
+                                <TableRow key={category}>
+                                    <TableCell className="font-medium">{category}</TableCell>
+                                    <TableCell className="text-right">{formatCurrency(amount)}</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                         <TableFooter>
+                            <TableRow>
+                                <TableHead>Total Income</TableHead>
+                                <TableHead className="text-right">{formatCurrency(monthlyReport.totalIncome)}</TableHead>
+                            </TableRow>
+                        </TableFooter>
+                    </Table>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Expense Details</CardTitle>
+                </CardHeader>
+                <CardContent>
+                     <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Category</TableHead>
+                                <TableHead className="text-right">Amount</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {Object.entries(monthlyReport.expenseByCategory).sort(([,a],[,b])=> b.total - a.total).map(([category, {total}]) => (
+                                <TableRow key={category}>
+                                    <TableCell className="font-medium">{category}</TableCell>
+                                    <TableCell className="text-right">{formatCurrency(total)}</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                         <TableFooter>
+                            <TableRow>
+                                <TableHead>Total Expenses</TableHead>
+                                <TableHead className="text-right">{formatCurrency(monthlyReport.totalExpense)}</TableHead>
+                            </TableRow>
+                        </TableFooter>
+                    </Table>
+                </CardContent>
+            </Card>
+        </div>
+      </>
+     )}
     </div>
   );
 }
+
+    
