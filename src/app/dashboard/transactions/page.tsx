@@ -192,9 +192,9 @@ export default function TransactionsPage() {
         </Popover>
 
       <Tabs defaultValue={primaryAccount?.id || "all-accounts"} className="w-full">
-        <TabsList className="grid w-full grid-cols-1 md:grid-cols-3 lg:grid-cols-5 h-auto flex-wrap">
+        <TabsList className="grid w-full grid-cols-1 md:grid-cols-3 lg:grid-cols-4 h-auto flex-wrap">
           {primaryAccount && (
-            <TabsTrigger value={primaryAccount.id} className="flex flex-col h-auto p-3 items-start text-left gap-4">
+            <TabsTrigger value={primaryAccount.id} className={cn("flex flex-col h-auto p-3 items-start text-left gap-4", "md:col-span-2")}>
               <div className="w-full flex justify-between">
                 <span className="font-semibold text-sm">Primary ({primaryAccount.name})</span>
                 <span className="font-bold text-primary">{formatCurrency(allBalance)}</span>
@@ -335,7 +335,5 @@ export default function TransactionsPage() {
     </div>
   );
 }
-
-    
 
     
