@@ -1,15 +1,22 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { TransactionTable } from "@/components/dashboard/transactions/transaction-table";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "@/lib/firebase";
-import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
+import { collection, query, where, onSnapshot, orderBy, doc, setDoc, updateDoc } from "firebase/firestore";
 import type { Account, Transaction } from "@/lib/data";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { CalendarIcon } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-IN", {
@@ -22,7 +29,36 @@ export default function TransactionsPage() {
   const [user, userLoading] = useAuthState(auth);
   const [rawAccounts, setRawAccounts] = useState<Omit<Account, 'balance'>[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [walletPreferences, setWalletPreferences] = useState<{ cash?: { balance?: number, date?: string }, digital?: { balance?: number, date?: string } }>({});
+  const [reconciliationDate, setReconciliationDate] = useState<Date | undefined>(new Date());
   const [dataLoading, setDataLoading] = useState(true);
+
+  const useDebounce = (callback: Function, delay: number) => {
+    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+    return (...args: any) => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(() => {
+        callback(...args);
+      }, delay);
+    };
+  };
+
+  const debouncedUpdateAccount = useCallback(useDebounce(async (accountId: string, data: { actualBalance?: number | null, actualBalanceDate?: string }) => {
+        if (!user) return;
+        const accountRef = doc(db, "accounts", accountId);
+        await updateDoc(accountRef, { ...data, actualBalanceDate: reconciliationDate?.toISOString() });
+    }, 500), [user, reconciliationDate]);
+    
+  const debouncedUpdateWallet = useCallback(useDebounce(async (walletType: 'cash' | 'digital', data: { balance?: number | null, date?: string }) => {
+    if (!user) return;
+    const prefRef = doc(db, "user_preferences", user.uid);
+    const updatedWallets = { 
+        ...walletPreferences, 
+        [walletType]: { ...walletPreferences[walletType], ...data, date: reconciliationDate?.toISOString() } 
+    };
+    await setDoc(prefRef, { wallets: updatedWallets }, { merge: true });
+  }, 500), [user, walletPreferences, reconciliationDate]);
+
 
   useEffect(() => {
     if (user) {
@@ -37,10 +73,18 @@ export default function TransactionsPage() {
       const unsubscribeTransactions = onSnapshot(transactionsQuery, (snapshot) => {
         setTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction)));
       });
+      
+      const preferencesDocRef = doc(db, "user_preferences", user.uid);
+      const unsubscribePreferences = onSnapshot(preferencesDocRef, (doc) => {
+        if (doc.exists()) {
+          setWalletPreferences(doc.data().wallets || {});
+        }
+      });
 
       return () => {
         unsubscribeAccounts();
         unsubscribeTransactions();
+        unsubscribePreferences();
       };
     } else if (!userLoading) {
       setDataLoading(false);
@@ -113,34 +157,138 @@ export default function TransactionsPage() {
 
   const allBalance = (primaryAccount?.balance || 0) + cashWalletBalance + digitalWalletBalance;
 
+  const cashBalanceDifference = walletPreferences.cash?.balance !== undefined ? cashWalletBalance - walletPreferences.cash.balance : null;
+  const digitalBalanceDifference = walletPreferences.digital?.balance !== undefined ? digitalWalletBalance - walletPreferences.digital.balance : null;
+
   return (
     <div className="space-y-6">
+        <Popover>
+            <PopoverTrigger asChild>
+                <Button
+                    variant={"outline"}
+                    className={cn(
+                        "w-full sm:w-[280px] justify-start text-left font-normal",
+                        !reconciliationDate && "text-muted-foreground"
+                    )}
+                >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {reconciliationDate ? `Reconciliation Date: ${format(reconciliationDate, "PPP")}` : <span>Pick a date</span>}
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0">
+                <Calendar
+                    mode="single"
+                    selected={reconciliationDate}
+                    onSelect={setReconciliationDate}
+                    initialFocus
+                />
+            </PopoverContent>
+        </Popover>
+
       <Tabs defaultValue={primaryAccount?.id || "all-accounts"} className="w-full">
         <TabsList className="grid w-full grid-cols-1 md:grid-cols-3 lg:grid-cols-5 h-auto flex-wrap">
           {primaryAccount && (
             <TabsTrigger value={primaryAccount.id} className="flex flex-col h-auto p-2 items-start text-left">
               <span className="font-semibold text-sm">Primary ({primaryAccount.name})</span>
-               <div className="w-full text-xs text-muted-foreground mt-1">
+               <div className="w-full text-xs text-muted-foreground mt-1 space-y-1">
                   <div className="flex justify-between items-center">
                     <span>Bank: {formatCurrency(primaryAccount.balance)}</span>
-                    <span>Cash: {formatCurrency(cashWalletBalance)}</span>
-                  </div>
-                   <div className="flex justify-between items-center mt-1">
-                    <span>Digital: {formatCurrency(digitalWalletBalance)}</span>
                     <span className="font-bold text-primary">{formatCurrency(allBalance)}</span>
+                  </div>
+                   <div className="flex justify-between items-center">
+                    <span>Cash: {formatCurrency(cashWalletBalance)}</span>
+                    <span>Digital: {formatCurrency(digitalWalletBalance)}</span>
                   </div>
               </div>
             </TabsTrigger>
           )}
-          {accounts.filter(account => !account.isPrimary).map(account => (
-            <TabsTrigger key={account.id} value={account.id} className="flex flex-col h-auto p-2">
-              <span>{account.name}</span>
-              <span className="font-bold text-primary">{formatCurrency(account.balance)}</span>
-            </TabsTrigger>
-          ))}
+          {accounts.filter(account => !account.isPrimary).map(account => {
+            const balanceDifference = account.actualBalance !== undefined ? account.balance - account.actualBalance : null;
+            return (
+              <TabsTrigger key={account.id} value={account.id} className="flex flex-col h-auto p-2 items-start text-left gap-1">
+                <div className="w-full flex justify-between">
+                    <span className="font-semibold text-sm">{account.name}</span>
+                    <span className="font-bold text-primary">{formatCurrency(account.balance)}</span>
+                </div>
+                 <div className="w-full">
+                    <Label htmlFor={`actual-balance-${account.id}`} className="text-xs">Actual Balance</Label>
+                    <Input
+                        id={`actual-balance-${account.id}`}
+                        type="number"
+                        placeholder="0.00"
+                        className="hide-number-arrows h-7 mt-1 text-xs"
+                        defaultValue={account.actualBalance ?? ''}
+                        onChange={(e) => {
+                            const value = e.target.value === '' ? null : parseFloat(e.target.value)
+                            debouncedUpdateAccount(account.id, { actualBalance: value });
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    />
+                     {balanceDifference !== null && (
+                        <p className={cn(
+                            "text-xs font-medium pt-1",
+                            balanceDifference === 0 && "text-green-600",
+                            balanceDifference !== 0 && "text-red-600"
+                        )}>
+                            Diff: {formatCurrency(balanceDifference)}
+                        </p>
+                    )}
+                 </div>
+              </TabsTrigger>
+          )})}
         </TabsList>
         {primaryAccount && (
             <TabsContent value={primaryAccount.id} className="mt-6">
+                 <div className="grid md:grid-cols-2 gap-4 mb-6">
+                    <div className="space-y-2 rounded-lg border p-3">
+                        <Label htmlFor="actual-balance-cash" className="text-sm font-medium">Cash Wallet Actual Balance</Label>
+                        <Input
+                            id="actual-balance-cash"
+                            type="number"
+                            placeholder="Enter balance"
+                            className="hide-number-arrows h-8"
+                            defaultValue={walletPreferences.cash?.balance ?? ''}
+                            onChange={(e) => {
+                                const value = e.target.value === '' ? null : parseFloat(e.target.value)
+                                debouncedUpdateWallet('cash', { balance: value })
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                        />
+                        {cashBalanceDifference !== null && (
+                            <p className={cn(
+                                "text-sm font-medium pt-1",
+                                cashBalanceDifference === 0 && "text-green-600",
+                                cashBalanceDifference !== 0 && "text-red-600"
+                            )}>
+                                Diff: {formatCurrency(cashBalanceDifference)}
+                            </p>
+                        )}
+                    </div>
+                    <div className="space-y-2 rounded-lg border p-3">
+                        <Label htmlFor="actual-balance-digital" className="text-sm font-medium">Digital Wallet Actual Balance</Label>
+                        <Input
+                            id="actual-balance-digital"
+                            type="number"
+                            placeholder="Enter balance"
+                            className="hide-number-arrows h-8"
+                            defaultValue={walletPreferences.digital?.balance ?? ''}
+                            onChange={(e) => {
+                                const value = e.target.value === '' ? null : parseFloat(e.target.value)
+                                debouncedUpdateWallet('digital', { balance: value })
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                        />
+                        {digitalBalanceDifference !== null && (
+                            <p className={cn(
+                                "text-sm font-medium pt-1",
+                                digitalBalanceDifference === 0 && "text-green-600",
+                                digitalBalanceDifference !== 0 && "text-red-600"
+                            )}>
+                                Diff: {formatCurrency(digitalBalanceDifference)}
+                            </p>
+                        )}
+                    </div>
+                </div>
                 <TransactionTable accountId={primaryAccount.id} />
             </TabsContent>
         )}
