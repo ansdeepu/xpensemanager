@@ -35,6 +35,7 @@ import { useReportDate } from "@/context/report-date-context";
 import { FinancialAdvice } from "./financial-advice";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-IN", {
@@ -49,9 +50,9 @@ type CategoryBreakdown = {
 
 type ReportData = {
   totalIncome: number;
-  totalExpense: number;
+  totalExpense: number; // Will be regular expenses
   incomeByCategory: CategoryBreakdown;
-  expenseByCategory: CategoryBreakdown;
+  expenseByCategory: CategoryBreakdown; // Regular expenses by category
   incomeTransactions: Transaction[];
   expenseTransactions: Transaction[];
 };
@@ -68,16 +69,44 @@ export function ReportView({ transactions, categories }: { transactions: Transac
   const [selectedCategoryDetail, setSelectedCategoryDetail] = useState<CategoryDetail | null>(null);
   const { currentDate } = useReportDate();
   const [specialExpenseThreshold, setSpecialExpenseThreshold] = useState(2000);
+  
+  const monthStart = useMemo(() => startOfMonth(currentDate), [currentDate]);
+  const monthEnd = useMemo(() => endOfMonth(currentDate), [currentDate]);
+
+  const monthlyTransactions = useMemo(() => 
+    transactions.filter(t => isWithinInterval(new Date(t.date), { start: monthStart, end: monthEnd })),
+    [transactions, monthStart, monthEnd]
+  );
+  
+  const subCategoryMap = useMemo(() => {
+    const expenseCategories = categories.filter(c => c.type === 'expense');
+    const map: { [key: string]: { [key: string]: SubCategory } } = {};
+    expenseCategories.forEach(cat => {
+      map[cat.id] = {};
+      cat.subcategories.forEach(sub => {
+        map[cat.id][sub.name] = sub;
+      });
+    });
+    return map;
+  }, [categories]);
+
+  const specialExpenses = useMemo(() => {
+    return monthlyTransactions.filter(t => {
+      if (t.type === 'expense' && t.amount > specialExpenseThreshold && t.categoryId && t.subcategory) {
+        const sub = subCategoryMap[t.categoryId]?.[t.subcategory];
+        return sub?.frequency === 'occasional';
+      }
+      return false;
+    });
+  }, [monthlyTransactions, subCategoryMap, specialExpenseThreshold]);
+
+  const specialExpenseIds = useMemo(() => new Set(specialExpenses.map(e => e.id)), [specialExpenses]);
+  const totalSpecialExpense = useMemo(() => specialExpenses.reduce((acc, t) => acc + t.amount, 0), [specialExpenses]);
 
   const monthlyReport = useMemo(() => {
-    const monthStart = startOfMonth(currentDate);
-    const monthEnd = endOfMonth(currentDate);
-    
-    const monthlyTransactions = transactions.filter(t => isWithinInterval(new Date(t.date), { start: monthStart, end: monthEnd }));
-
     const data: ReportData = {
         totalIncome: 0,
-        totalExpense: 0,
+        totalExpense: 0, // This will now track regular expenses
         incomeByCategory: {},
         expenseByCategory: {},
         incomeTransactions: [],
@@ -97,40 +126,21 @@ export function ReportView({ transactions, categories }: { transactions: Transac
             data.incomeByCategory[categoryName].subcategories[subCategoryName] = (data.incomeByCategory[categoryName].subcategories[subCategoryName] || 0) + t.amount;
             data.incomeTransactions.push(t);
         } else if (t.type === 'expense') {
-            data.totalExpense += t.amount;
-            if (!data.expenseByCategory[categoryName]) {
-                data.expenseByCategory[categoryName] = { total: 0, subcategories: {} };
+            // Exclude special expenses from this calculation
+            if (!specialExpenseIds.has(t.id)) {
+                data.totalExpense += t.amount;
+                if (!data.expenseByCategory[categoryName]) {
+                    data.expenseByCategory[categoryName] = { total: 0, subcategories: {} };
+                }
+                data.expenseByCategory[categoryName].total += t.amount;
+                data.expenseByCategory[categoryName].subcategories[subCategoryName] = (data.expenseByCategory[categoryName].subcategories[subCategoryName] || 0) + t.amount;
             }
-            data.expenseByCategory[categoryName].total += t.amount;
-            data.expenseByCategory[categoryName].subcategories[subCategoryName] = (data.expenseByCategory[categoryName].subcategories[subCategoryName] || 0) + t.amount;
-            data.expenseTransactions.push(t);
+            data.expenseTransactions.push(t); // Keep all expenses here for other potential uses
         }
     });
     
     return data;
-  }, [transactions, currentDate]);
-
-  const specialExpenses = useMemo(() => {
-    const expenseCategories = categories.filter(c => c.type === 'expense');
-    
-    // Create a map for quick subcategory lookup
-    const subCategoryMap: { [key: string]: { [key: string]: SubCategory } } = {};
-    expenseCategories.forEach(cat => {
-      subCategoryMap[cat.id] = {};
-      cat.subcategories.forEach(sub => {
-        subCategoryMap[cat.id][sub.name] = sub;
-      });
-    });
-
-    return monthlyReport.expenseTransactions.filter(t => {
-      if (t.amount > specialExpenseThreshold && t.categoryId && t.subcategory) {
-        const sub = subCategoryMap[t.categoryId]?.[t.subcategory];
-        return sub?.frequency === 'occasional';
-      }
-      return false;
-    });
-  }, [monthlyReport.expenseTransactions, categories, specialExpenseThreshold]);
-
+  }, [monthlyTransactions, specialExpenseIds]);
 
   const expenseChartData = useMemo(() => {
     return Object.entries(monthlyReport.expenseByCategory)
@@ -153,8 +163,9 @@ export function ReportView({ transactions, categories }: { transactions: Transac
     }
   };
 
-  const netSavings = monthlyReport.totalIncome - monthlyReport.totalExpense;
-  const hasTransactions = monthlyReport.incomeTransactions.length > 0 || monthlyReport.expenseTransactions.length > 0;
+  const grandTotalExpense = monthlyReport.totalExpense + totalSpecialExpense;
+  const netSavings = monthlyReport.totalIncome - grandTotalExpense;
+  const hasTransactions = monthlyTransactions.length > 0;
 
   return (
     <>
@@ -202,7 +213,7 @@ export function ReportView({ transactions, categories }: { transactions: Transac
                     <TrendingDown className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold text-red-600">{formatCurrency(monthlyReport.totalExpense)}</div>
+                    <div className="text-2xl font-bold text-red-600">{formatCurrency(grandTotalExpense)}</div>
                 </CardContent>
             </Card>
             <Card>
@@ -221,12 +232,12 @@ export function ReportView({ transactions, categories }: { transactions: Transac
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
             <FinancialAdvice 
               totalIncome={monthlyReport.totalIncome}
-              totalExpense={monthlyReport.totalExpense}
+              totalExpense={grandTotalExpense}
               expenseByCategory={Object.fromEntries(Object.entries(monthlyReport.expenseByCategory).map(([k, v]) => [k, v.total]))}
             />
              <Card className="lg:col-span-2">
                  <CardHeader>
-                    <CardTitle>Expense Breakdown</CardTitle>
+                    <CardTitle>Regular Expense Breakdown</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <ChartContainer config={{
@@ -250,50 +261,6 @@ export function ReportView({ transactions, categories }: { transactions: Transac
             </Card>
         </div>
         
-        {specialExpenses.length > 0 && (
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Sparkles className="text-primary"/>
-                        <span>Special Expenses Summary</span>
-                    </CardTitle>
-                    <CardDescription>
-                        A summary of occasional expenses over {formatCurrency(specialExpenseThreshold)}.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Date</TableHead>
-                                <TableHead>Description</TableHead>
-                                <TableHead>Category</TableHead>
-                                <TableHead className="text-right">Amount</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {specialExpenses.map(expense => (
-                                <TableRow key={expense.id}>
-                                    <TableCell>{format(new Date(expense.date), 'dd/MM/yyyy')}</TableCell>
-                                    <TableCell className="font-medium">{expense.description}</TableCell>
-                                    <TableCell>{expense.category} / {expense.subcategory}</TableCell>
-                                    <TableCell className="text-right">{formatCurrency(expense.amount)}</TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                         <TableFooter>
-                            <TableRow>
-                                <TableHead colSpan={3}>Total Special Expenses</TableHead>
-                                <TableHead className="text-right">
-                                    {formatCurrency(specialExpenses.reduce((acc, t) => acc + t.amount, 0))}
-                                </TableHead>
-                            </TableRow>
-                        </TableFooter>
-                    </Table>
-                </CardContent>
-            </Card>
-        )}
-
         <div className="grid gap-6 md:grid-cols-2">
             <Card>
                 <CardHeader>
@@ -332,7 +299,7 @@ export function ReportView({ transactions, categories }: { transactions: Transac
                      <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Category</TableHead>
+                                <TableHead>Regular Expenses</TableHead>
                                 <TableHead className="text-right">Amount</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -344,14 +311,49 @@ export function ReportView({ transactions, categories }: { transactions: Transac
                                 </TableRow>
                             ))}
                         </TableBody>
-                         <TableFooter>
-                            <TableRow>
-                                <TableHead>Total Expenses</TableHead>
-                                <TableHead className="text-right">{formatCurrency(monthlyReport.totalExpense)}</TableHead>
-                            </TableRow>
-                        </TableFooter>
                     </Table>
+                    {specialExpenses.length > 0 && (
+                        <>
+                            <Separator className="my-4" />
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Special Expenses (Occasional & > {formatCurrency(specialExpenseThreshold)})</TableHead>
+                                        <TableHead className="text-right">Amount</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {specialExpenses.map(expense => (
+                                        <TableRow key={expense.id}>
+                                            <TableCell>
+                                                <p className="font-medium">{expense.description}</p>
+                                                <p className="text-xs text-muted-foreground">{expense.category} / {expense.subcategory}</p>
+                                            </TableCell>
+                                            <TableCell className="text-right">{formatCurrency(expense.amount)}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </>
+                    )}
                 </CardContent>
+                <CardFooter className="flex-col items-start gap-2 pt-4">
+                    <Separator />
+                     <div className="w-full flex justify-between text-sm text-muted-foreground">
+                        <span>Regular Expenses Total</span>
+                        <span className="font-mono">{formatCurrency(monthlyReport.totalExpense)}</span>
+                    </div>
+                     {specialExpenses.length > 0 && (
+                        <div className="w-full flex justify-between text-sm text-muted-foreground">
+                            <span>Special Expenses Total</span>
+                            <span className="font-mono">{formatCurrency(totalSpecialExpense)}</span>
+                        </div>
+                    )}
+                    <div className="w-full flex justify-between font-bold text-base">
+                        <span>Grand Total Expenses</span>
+                        <span className="font-mono">{formatCurrency(grandTotalExpense)}</span>
+                    </div>
+                </CardFooter>
             </Card>
         </div>
       </>
@@ -399,3 +401,5 @@ export function ReportView({ transactions, categories }: { transactions: Transac
     </>
   );
 }
+
+    
