@@ -3,7 +3,7 @@
 
 import React, { useState, useMemo } from "react";
 import type { Transaction, Category, SubCategory } from "@/lib/data";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BookText, TrendingUp, TrendingDown, IndianRupee, AlertTriangle } from "lucide-react";
 import { format, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
@@ -135,16 +135,18 @@ export function ReportView({ transactions, categories, isOverallSummary, account
             data.incomeByCategory[categoryName].subcategories[subCategoryName] = (data.incomeByCategory[categoryName].subcategories[subCategoryName] || 0) + t.amount;
             data.incomeTransactions.push(t);
         } else if (t.type === 'expense') {
-            if (!specialExpenseIds.has(t.id)) {
-                data.totalExpense += t.amount;
-                if (!data.expenseByCategory[categoryName]) {
-                    data.expenseByCategory[categoryName] = { total: 0, subcategories: {} };
+             if (isOverallSummary || (t.paymentMethod !== 'cash' && t.paymentMethod !== 'digital')) {
+                if (!specialExpenseIds.has(t.id)) {
+                    data.totalExpense += t.amount;
+                    if (!data.expenseByCategory[categoryName]) {
+                        data.expenseByCategory[categoryName] = { total: 0, subcategories: {} };
+                    }
+                    data.expenseByCategory[categoryName].total += t.amount;
+                    data.expenseByCategory[categoryName].subcategories[subCategoryName] = (data.expenseByCategory[categoryName].subcategories[subCategoryName] || 0) + t.amount;
                 }
-                data.expenseByCategory[categoryName].total += t.amount;
-                data.expenseByCategory[categoryName].subcategories[subCategoryName] = (data.expenseByCategory[categoryName].subcategories[subCategoryName] || 0) + t.amount;
+                data.expenseTransactions.push(t);
             }
-            data.expenseTransactions.push(t);
-        } else if (t.type === 'transfer') {
+        } else if (t.type === 'transfer' && !isOverallSummary) {
             if (t.toAccountId === accountId) {
                 data.totalTransfersIn += t.amount;
                 data.transferInTransactions.push(t);
@@ -503,5 +505,3 @@ export function ReportView({ transactions, categories, isOverallSummary, account
     </>
   );
 }
-
-    
