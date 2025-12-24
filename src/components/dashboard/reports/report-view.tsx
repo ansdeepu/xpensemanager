@@ -3,7 +3,7 @@
 
 import React, { useState, useMemo } from "react";
 import type { Transaction, Category, SubCategory } from "@/lib/data";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BookText, TrendingUp, TrendingDown, IndianRupee, AlertTriangle, Sparkles } from "lucide-react";
 import { format, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
@@ -401,5 +401,7 @@ export function ReportView({ transactions, categories }: { transactions: Transac
     </>
   );
 }
+
+    
 
     
