@@ -3,7 +3,7 @@
 
 import React, { useState, useMemo } from "react";
 import type { Transaction, Category, SubCategory } from "@/lib/data";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BookText, TrendingUp, TrendingDown, IndianRupee, AlertTriangle } from "lucide-react";
 import { format, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
@@ -22,7 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
+  DialogFooter as DialogFooterComponent,
   DialogClose,
 } from "@/components/ui/dialog";
 import {
@@ -51,10 +51,10 @@ type CategoryBreakdown = {
 type ReportData = {
   totalIncome: number;
   totalTransfersIn: number;
-  totalExpense: number; // Will be regular expenses
+  totalExpense: number; 
   totalTransfersOut: number;
   incomeByCategory: CategoryBreakdown;
-  expenseByCategory: CategoryBreakdown; // Regular expenses by category
+  expenseByCategory: CategoryBreakdown; 
   incomeTransactions: Transaction[];
   expenseTransactions: Transaction[];
   transferInTransactions: Transaction[];
@@ -135,7 +135,8 @@ export function ReportView({ transactions, categories, isOverallSummary, account
             data.incomeByCategory[categoryName].subcategories[subCategoryName] = (data.incomeByCategory[categoryName].subcategories[subCategoryName] || 0) + t.amount;
             data.incomeTransactions.push(t);
         } else if (t.type === 'expense') {
-             if (isOverallSummary || (t.paymentMethod !== 'cash' && t.paymentMethod !== 'digital')) {
+            const isWalletExpense = t.paymentMethod === 'cash' || t.paymentMethod === 'digital';
+            if (isOverallSummary || (!isWalletExpense && t.accountId === accountId)) {
                 if (!specialExpenseIds.has(t.id)) {
                     data.totalExpense += t.amount;
                     if (!data.expenseByCategory[categoryName]) {
@@ -146,7 +147,7 @@ export function ReportView({ transactions, categories, isOverallSummary, account
                 }
                 data.expenseTransactions.push(t);
             }
-        } else if (t.type === 'transfer' && !isOverallSummary) {
+        } else if (t.type === 'transfer') {
             if (t.toAccountId === accountId) {
                 data.totalTransfersIn += t.amount;
                 data.transferInTransactions.push(t);
@@ -182,8 +183,8 @@ export function ReportView({ transactions, categories, isOverallSummary, account
     }
   };
   
-  const grandTotalIncome = monthlyReport.totalIncome + monthlyReport.totalTransfersIn;
-  const grandTotalExpense = monthlyReport.totalExpense + totalSpecialExpense + monthlyReport.totalTransfersOut;
+  const grandTotalIncome = isOverallSummary ? monthlyReport.totalIncome : monthlyReport.totalIncome + monthlyReport.totalTransfersIn;
+  const grandTotalExpense = isOverallSummary ? monthlyReport.totalExpense + totalSpecialExpense : monthlyReport.totalExpense + totalSpecialExpense + monthlyReport.totalTransfersOut;
   const netSavings = grandTotalIncome - grandTotalExpense;
   const hasTransactions = monthlyTransactions.length > 0;
 
@@ -307,7 +308,7 @@ export function ReportView({ transactions, categories, isOverallSummary, account
                                     <TableCell colSpan={2} className="text-center text-muted-foreground">No income this month.</TableCell>
                                 </TableRow>
                             )}
-                            {monthlyReport.totalTransfersIn > 0 && !isOverallSummary && (
+                            {!isOverallSummary && monthlyReport.totalTransfersIn > 0 && (
                                 <TableRow>
                                     <TableCell className="font-medium">Transfers In</TableCell>
                                     <TableCell className="text-right">{formatCurrency(monthlyReport.totalTransfersIn)}</TableCell>
@@ -374,7 +375,7 @@ export function ReportView({ transactions, categories, isOverallSummary, account
                             </Table>
                         </>
                     )}
-                     {monthlyReport.totalTransfersOut > 0 && !isOverallSummary && (
+                     {!isOverallSummary && monthlyReport.totalTransfersOut > 0 && (
                         <>
                             <Separator className="my-4" />
                             <Table>
@@ -403,7 +404,7 @@ export function ReportView({ transactions, categories, isOverallSummary, account
                             <span className="font-mono">{formatCurrency(totalSpecialExpense)}</span>
                         </div>
                     )}
-                     {monthlyReport.totalTransfersOut > 0 && !isOverallSummary && (
+                     {!isOverallSummary && monthlyReport.totalTransfersOut > 0 && (
                         <div className="w-full flex justify-between text-sm text-muted-foreground">
                             <span>Transfers Out Total</span>
                             <span className="font-mono">{formatCurrency(monthlyReport.totalTransfersOut)}</span>
@@ -456,11 +457,11 @@ export function ReportView({ transactions, categories, isOverallSummary, account
                     </TableRow>
                 </TableFooter>
             </Table>
-             <DialogFooter>
+             <DialogFooterComponent>
                 <DialogClose asChild>
                     <Button type="button" variant="secondary">Close</Button>
                 </DialogClose>
-            </DialogFooter>
+            </DialogFooterComponent>
         </DialogContent>
     </Dialog>
     <Dialog open={isTransferDialogOpen} onOpenChange={setIsTransferDialogOpen}>
@@ -495,13 +496,15 @@ export function ReportView({ transactions, categories, isOverallSummary, account
                     </TableRow>
                 </TableFooter>
             </Table>
-            <DialogFooter>
+            <DialogFooterComponent>
                 <DialogClose asChild>
                     <Button type="button" variant="secondary">Close</Button>
                 </DialogClose>
-            </DialogFooter>
+            </DialogFooterComponent>
         </DialogContent>
     </Dialog>
     </>
   );
 }
+
+    
