@@ -3,7 +3,7 @@
 
 import React, { useState, useMemo } from "react";
 import type { Transaction, Category, SubCategory } from "@/lib/data";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BookText, TrendingUp, TrendingDown, IndianRupee, AlertTriangle } from "lucide-react";
 import { format, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
@@ -68,7 +68,7 @@ type CategoryDetail = {
 };
 
 
-export function ReportView({ transactions, categories, isOverallSummary, accountId }: { transactions: Transaction[], categories: Category[], isOverallSummary: boolean, accountId?: string }) {
+export function ReportView({ transactions, categories, isOverallSummary, accountId, isPrimaryReport }: { transactions: Transaction[], categories: Category[], isOverallSummary: boolean, accountId?: string, isPrimaryReport?: boolean }) {
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
   const [selectedCategoryDetail, setSelectedCategoryDetail] = useState<CategoryDetail | null>(null);
@@ -128,30 +128,42 @@ export function ReportView({ transactions, categories, isOverallSummary, account
 
         const isWalletExpense = t.paymentMethod === 'cash' || t.paymentMethod === 'digital';
         
+        let includeTransaction = false;
+        if (isOverallSummary) {
+          includeTransaction = t.accountId !== 'cash-wallet' && t.accountId !== 'digital-wallet'; // Exclude wallet-only transactions for overall summary
+        } else if (isPrimaryReport) {
+            // For primary report, include its own transactions and both wallets
+            includeTransaction = t.accountId === accountId || isWalletExpense || t.fromAccountId === accountId || t.toAccountId === accountId;
+        } else {
+            // For other accounts, only their own transactions
+            includeTransaction = t.accountId === accountId || t.fromAccountId === accountId || t.toAccountId === accountId;
+        }
+        
+        if (!includeTransaction) return;
+
+
         if (t.type === 'income') {
-             if (isOverallSummary || t.accountId === accountId) {
-                data.totalIncome += t.amount;
-                if (!data.incomeByCategory[categoryName]) {
-                    data.incomeByCategory[categoryName] = { total: 0, subcategories: {} };
-                }
-                data.incomeByCategory[categoryName].total += t.amount;
-                data.incomeByCategory[categoryName].subcategories[subCategoryName] = (data.incomeByCategory[categoryName].subcategories[subCategoryName] || 0) + t.amount;
-                data.incomeTransactions.push(t);
+            data.totalIncome += t.amount;
+            if (!data.incomeByCategory[categoryName]) {
+                data.incomeByCategory[categoryName] = { total: 0, subcategories: {} };
             }
+            data.incomeByCategory[categoryName].total += t.amount;
+            data.incomeByCategory[categoryName].subcategories[subCategoryName] = (data.incomeByCategory[categoryName].subcategories[subCategoryName] || 0) + t.amount;
+            data.incomeTransactions.push(t);
         } else if (t.type === 'expense') {
-             if (isOverallSummary || (!isWalletExpense && t.accountId === accountId)) {
-                if (!specialExpenseIds.has(t.id)) {
-                    data.totalExpense += t.amount;
-                    if (!data.expenseByCategory[categoryName]) {
-                        data.expenseByCategory[categoryName] = { total: 0, subcategories: {} };
-                    }
-                    data.expenseByCategory[categoryName].total += t.amount;
-                    data.expenseByCategory[categoryName].subcategories[subCategoryName] = (data.expenseByCategory[categoryName].subcategories[subCategoryName] || 0) + t.amount;
+            if (!specialExpenseIds.has(t.id)) {
+                data.totalExpense += t.amount;
+                if (!data.expenseByCategory[categoryName]) {
+                    data.expenseByCategory[categoryName] = { total: 0, subcategories: {} };
                 }
-                data.expenseTransactions.push(t);
+                data.expenseByCategory[categoryName].total += t.amount;
+                data.expenseByCategory[categoryName].subcategories[subCategoryName] = (data.expenseByCategory[categoryName].subcategories[subCategoryName] || 0) + t.amount;
             }
+            data.expenseTransactions.push(t);
         } else if (t.type === 'transfer') {
-            if (t.toAccountId === accountId) {
+            if (isOverallSummary) return; // Don't process transfers for overall summary
+
+             if (t.toAccountId === accountId) {
                 data.totalTransfersIn += t.amount;
                 data.transferInTransactions.push(t);
             }
@@ -163,7 +175,7 @@ export function ReportView({ transactions, categories, isOverallSummary, account
     });
     
     return data;
-  }, [monthlyTransactions, specialExpenseIds, isOverallSummary, accountId]);
+  }, [monthlyTransactions, specialExpenseIds, isOverallSummary, accountId, isPrimaryReport]);
 
   const expenseChartData = useMemo(() => {
     return Object.entries(monthlyReport.expenseByCategory)
@@ -186,8 +198,8 @@ export function ReportView({ transactions, categories, isOverallSummary, account
     }
   };
   
-  const grandTotalIncome = isOverallSummary ? monthlyReport.totalIncome : monthlyReport.totalIncome + monthlyReport.totalTransfersIn;
-  const grandTotalExpense = monthlyReport.totalExpense + totalSpecialExpense + (isOverallSummary ? 0 : monthlyReport.totalTransfersOut);
+  const grandTotalIncome = monthlyReport.totalIncome + monthlyReport.totalTransfersIn;
+  const grandTotalExpense = monthlyReport.totalExpense + totalSpecialExpense + monthlyReport.totalTransfersOut;
   const netSavings = grandTotalIncome - grandTotalExpense;
   const hasTransactions = monthlyTransactions.length > 0;
 
@@ -229,7 +241,7 @@ export function ReportView({ transactions, categories, isOverallSummary, account
                 </CardHeader>
                 <CardContent>
                     <div className="text-2xl font-bold text-green-600">{formatCurrency(grandTotalIncome)}</div>
-                    {!isOverallSummary && monthlyReport.totalTransfersIn > 0 && (
+                    {monthlyReport.totalTransfersIn > 0 && (
                         <p className="text-xs text-muted-foreground">
                             (+{formatCurrency(monthlyReport.totalTransfersIn)} from transfers)
                         </p>
@@ -243,7 +255,7 @@ export function ReportView({ transactions, categories, isOverallSummary, account
                 </CardHeader>
                 <CardContent>
                     <div className="text-2xl font-bold text-red-600">{formatCurrency(grandTotalExpense)}</div>
-                     {!isOverallSummary && monthlyReport.totalTransfersOut > 0 && (
+                     {monthlyReport.totalTransfersOut > 0 && (
                         <p className="text-xs text-muted-foreground">
                             (+{formatCurrency(monthlyReport.totalTransfersOut)} from transfers)
                         </p>
@@ -321,9 +333,12 @@ export function ReportView({ transactions, categories, isOverallSummary, account
                                     <TableCell colSpan={2} className="text-center text-muted-foreground">No income this month.</TableCell>
                                 </TableRow>
                             )}
-                            {!isOverallSummary && monthlyReport.totalTransfersIn > 0 && (
-                                <TableRow>
-                                    <TableCell className="font-medium">Transfers In</TableCell>
+                            {monthlyReport.totalTransfersIn > 0 && (
+                                 <TableRow onClick={() => setIsTransferDialogOpen(true)} className="cursor-pointer">
+                                    <TableCell>
+                                        <p className="font-medium">Transfers In</p>
+                                        <p className="text-xs text-muted-foreground">({monthlyReport.transferInTransactions.length} transaction{monthlyReport.transferInTransactions.length === 1 ? '' : 's'})</p>
+                                    </TableCell>
                                     <TableCell className="text-right">{formatCurrency(monthlyReport.totalTransfersIn)}</TableCell>
                                 </TableRow>
                             )}
@@ -388,7 +403,7 @@ export function ReportView({ transactions, categories, isOverallSummary, account
                             </Table>
                         </>
                     )}
-                     {!isOverallSummary && monthlyReport.totalTransfersOut > 0 && (
+                     {monthlyReport.totalTransfersOut > 0 && (
                         <>
                             <Separator className="my-4" />
                             <Table>
@@ -417,7 +432,7 @@ export function ReportView({ transactions, categories, isOverallSummary, account
                             <span className="font-mono">{formatCurrency(totalSpecialExpense)}</span>
                         </div>
                     )}
-                     {!isOverallSummary && monthlyReport.totalTransfersOut > 0 && (
+                     {monthlyReport.totalTransfersOut > 0 && (
                         <div className="w-full flex justify-between text-sm text-muted-foreground">
                             <span>Transfers Out Total</span>
                             <span className="font-mono">{formatCurrency(monthlyReport.totalTransfersOut)}</span>
@@ -480,9 +495,9 @@ export function ReportView({ transactions, categories, isOverallSummary, account
     <Dialog open={isTransferDialogOpen} onOpenChange={setIsTransferDialogOpen}>
         <DialogContent>
             <DialogHeader>
-                <DialogTitle>Transfers Out Details</DialogTitle>
+                <DialogTitle>Transfers Details</DialogTitle>
                 <DialogDescription>
-                    A list of all transfers out from this account for {format(currentDate, "MMMM yyyy")}.
+                    A list of all transfers for this account for {format(currentDate, "MMMM yyyy")}.
                 </DialogDescription>
             </DialogHeader>
             <Table>
@@ -494,18 +509,25 @@ export function ReportView({ transactions, categories, isOverallSummary, account
                     </TableRow>
                 </TableHeader>
                 <TableBody>
+                    {monthlyReport.transferInTransactions.map(t => (
+                        <TableRow key={t.id}>
+                            <TableCell>{format(new Date(t.date), 'dd/MM/yyyy')}</TableCell>
+                            <TableCell>{t.description} (In)</TableCell>
+                            <TableCell className="text-right text-green-600">{formatCurrency(t.amount)}</TableCell>
+                        </TableRow>
+                    ))}
                     {monthlyReport.transferOutTransactions.map(t => (
                         <TableRow key={t.id}>
                             <TableCell>{format(new Date(t.date), 'dd/MM/yyyy')}</TableCell>
-                            <TableCell>{t.description}</TableCell>
-                            <TableCell className="text-right">{formatCurrency(t.amount)}</TableCell>
+                            <TableCell>{t.description} (Out)</TableCell>
+                            <TableCell className="text-right text-red-600">-{formatCurrency(t.amount)}</TableCell>
                         </TableRow>
                     ))}
                 </TableBody>
                 <TableFooter>
                     <TableRow>
-                        <TableHead>Total</TableHead>
-                        <TableHead colSpan={2} className="text-right">{formatCurrency(monthlyReport.totalTransfersOut)}</TableHead>
+                        <TableHead>Net Transfer</TableHead>
+                        <TableHead colSpan={2} className="text-right">{formatCurrency(monthlyReport.totalTransfersIn - monthlyReport.totalTransfersOut)}</TableHead>
                     </TableRow>
                 </TableFooter>
             </Table>
@@ -520,4 +542,3 @@ export function ReportView({ transactions, categories, isOverallSummary, account
   );
 }
 
-    

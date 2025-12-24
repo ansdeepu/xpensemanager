@@ -126,15 +126,15 @@ export default function ReportsPage() {
     );
   }
   
-  const allBalance = (primaryAccount?.balance || 0) + cashWalletBalance + digitalWalletBalance;
+  const allBalance = accounts.reduce((sum, acc) => sum + acc.balance, 0) + cashWalletBalance + digitalWalletBalance;
 
   return (
     <div className="space-y-6">
-      <Tabs defaultValue="all" className="w-full">
+      <Tabs defaultValue={primaryAccount?.id || 'all'} className="w-full">
         <TabsList className="grid w-full grid-cols-1 md:grid-cols-3 lg:grid-cols-6 h-auto flex-wrap">
           <TabsTrigger value="all" className="flex flex-col h-auto p-2">
             <span>Overall Summary</span>
-            <span className="font-bold text-primary">All Accounts</span>
+            <span className="font-bold text-primary">{formatCurrency(allBalance)}</span>
           </TabsTrigger>
           {primaryAccount && (
             <TabsTrigger value={primaryAccount.id} className="flex flex-col h-auto p-2 items-start text-left">
@@ -146,7 +146,7 @@ export default function ReportsPage() {
                   </div>
                   <div className="flex justify-between items-center mt-1">
                     <span>Digital: {formatCurrency(digitalWalletBalance)}</span>
-                    <span className="font-bold text-primary">{formatCurrency(allBalance)}</span>
+                    <span className="font-bold text-primary">{formatCurrency(primaryAccount.balance + cashWalletBalance + digitalWalletBalance)}</span>
                   </div>
               </div>
             </TabsTrigger>
@@ -162,17 +162,15 @@ export default function ReportsPage() {
         <TabsContent value="all" className="mt-6">
           <ReportView transactions={transactions} categories={categories} isOverallSummary={true} />
         </TabsContent>
+        
         {accounts.map(account => (
           <TabsContent key={account.id} value={account.id} className="mt-6">
             <ReportView 
-                transactions={transactions.filter(t => 
-                    t.accountId === account.id || 
-                    t.fromAccountId === account.id || 
-                    t.toAccountId === account.id
-                )} 
+                transactions={transactions} 
                 categories={categories}
                 isOverallSummary={false} 
                 accountId={account.id}
+                isPrimaryReport={!!account.isPrimary}
             />
           </TabsContent>
         ))}
@@ -180,3 +178,4 @@ export default function ReportsPage() {
     </div>
   );
 }
+
