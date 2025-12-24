@@ -5,7 +5,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
-import type { Account, Transaction } from "@/lib/data";
+import type { Account, Transaction, Category } from "@/lib/data";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -23,6 +23,7 @@ export default function ReportsPage() {
   const [user, userLoading] = useAuthState(auth);
   const [rawAccounts, setRawAccounts] = useState<Omit<Account, 'balance'>[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
 
   useEffect(() => {
@@ -39,9 +40,15 @@ export default function ReportsPage() {
         setTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction)));
       });
 
+      const categoriesQuery = query(collection(db, "categories"), where("userId", "==", user.uid));
+      const unsubscribeCategories = onSnapshot(categoriesQuery, (snapshot) => {
+        setCategories(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category)));
+      });
+
       return () => {
         unsubscribeAccounts();
         unsubscribeTransactions();
+        unsubscribeCategories();
       };
     } else if (!userLoading) {
       setDataLoading(false);
@@ -175,11 +182,11 @@ export default function ReportsPage() {
         </TabsList>
 
         <TabsContent value="all" className="mt-6">
-          <ReportView transactions={getTransactionsForAccount('all')} />
+          <ReportView transactions={getTransactionsForAccount('all')} categories={categories} />
         </TabsContent>
         {accounts.map(account => (
           <TabsContent key={account.id} value={account.id} className="mt-6">
-            <ReportView transactions={getTransactionsForAccount(account.id)} />
+            <ReportView transactions={getTransactionsForAccount(account.id)} categories={categories} />
           </TabsContent>
         ))}
       </Tabs>

@@ -2,10 +2,10 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import type { Transaction } from "@/lib/data";
+import type { Transaction, Category, SubCategory } from "@/lib/data";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BookText, TrendingUp, TrendingDown, IndianRupee } from "lucide-react";
+import { BookText, TrendingUp, TrendingDown, IndianRupee, AlertTriangle, Sparkles } from "lucide-react";
 import { format, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import {
   Table,
@@ -33,6 +33,8 @@ import {
 import { Bar, BarChart, XAxis, YAxis, ResponsiveContainer, CartesianGrid } from "recharts";
 import { useReportDate } from "@/context/report-date-context";
 import { FinancialAdvice } from "./financial-advice";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-IN", {
@@ -61,10 +63,11 @@ type CategoryDetail = {
 };
 
 
-export function ReportView({ transactions }: { transactions: Transaction[] }) {
+export function ReportView({ transactions, categories }: { transactions: Transaction[], categories: Category[] }) {
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [selectedCategoryDetail, setSelectedCategoryDetail] = useState<CategoryDetail | null>(null);
   const { currentDate } = useReportDate();
+  const [specialExpenseThreshold, setSpecialExpenseThreshold] = useState(2000);
 
   const monthlyReport = useMemo(() => {
     const monthStart = startOfMonth(currentDate);
@@ -107,6 +110,28 @@ export function ReportView({ transactions }: { transactions: Transaction[] }) {
     return data;
   }, [transactions, currentDate]);
 
+  const specialExpenses = useMemo(() => {
+    const expenseCategories = categories.filter(c => c.type === 'expense');
+    
+    // Create a map for quick subcategory lookup
+    const subCategoryMap: { [key: string]: { [key: string]: SubCategory } } = {};
+    expenseCategories.forEach(cat => {
+      subCategoryMap[cat.id] = {};
+      cat.subcategories.forEach(sub => {
+        subCategoryMap[cat.id][sub.name] = sub;
+      });
+    });
+
+    return monthlyReport.expenseTransactions.filter(t => {
+      if (t.amount > specialExpenseThreshold && t.categoryId && t.subcategory) {
+        const sub = subCategoryMap[t.categoryId]?.[t.subcategory];
+        return sub?.frequency === 'occasional';
+      }
+      return false;
+    });
+  }, [monthlyReport.expenseTransactions, categories, specialExpenseThreshold]);
+
+
   const expenseChartData = useMemo(() => {
     return Object.entries(monthlyReport.expenseByCategory)
       .map(([name, { total }]) => ({ name, value: total }))
@@ -134,6 +159,22 @@ export function ReportView({ transactions }: { transactions: Transaction[] }) {
   return (
     <>
     <div className="space-y-6">
+      <div className="flex justify-end">
+        <div className="w-full max-w-xs space-y-2">
+            <Label htmlFor="special-expense-threshold" className="text-sm font-medium flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4" />
+              <span>Special Expense Threshold</span>
+            </Label>
+            <Input
+              id="special-expense-threshold"
+              type="number"
+              value={specialExpenseThreshold}
+              onChange={(e) => setSpecialExpenseThreshold(Number(e.target.value))}
+              className="hide-number-arrows"
+              placeholder="e.g. 2000"
+            />
+        </div>
+      </div>
       {!hasTransactions ? (
          <Card>
             <CardContent className="pt-6">
@@ -208,6 +249,50 @@ export function ReportView({ transactions }: { transactions: Transaction[] }) {
                 </CardContent>
             </Card>
         </div>
+        
+        {specialExpenses.length > 0 && (
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <Sparkles className="text-primary"/>
+                        <span>Special Expenses Summary</span>
+                    </CardTitle>
+                    <CardDescription>
+                        A summary of occasional expenses over {formatCurrency(specialExpenseThreshold)}.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Date</TableHead>
+                                <TableHead>Description</TableHead>
+                                <TableHead>Category</TableHead>
+                                <TableHead className="text-right">Amount</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {specialExpenses.map(expense => (
+                                <TableRow key={expense.id}>
+                                    <TableCell>{format(new Date(expense.date), 'dd/MM/yyyy')}</TableCell>
+                                    <TableCell className="font-medium">{expense.description}</TableCell>
+                                    <TableCell>{expense.category} / {expense.subcategory}</TableCell>
+                                    <TableCell className="text-right">{formatCurrency(expense.amount)}</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                         <TableFooter>
+                            <TableRow>
+                                <TableHead colSpan={3}>Total Special Expenses</TableHead>
+                                <TableHead className="text-right">
+                                    {formatCurrency(specialExpenses.reduce((acc, t) => acc + t.amount, 0))}
+                                </TableHead>
+                            </TableRow>
+                        </TableFooter>
+                    </Table>
+                </CardContent>
+            </Card>
+        )}
 
         <div className="grid gap-6 md:grid-cols-2">
             <Card>
