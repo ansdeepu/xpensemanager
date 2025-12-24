@@ -21,7 +21,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription as DialogDescriptionComponent,
+  DialogDescription,
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
@@ -66,7 +66,7 @@ type CategoryDetail = {
 };
 
 
-export function ReportView({ transactions, categories }: { transactions: Transaction[], categories: Category[] }) {
+export function ReportView({ transactions, categories, isOverallSummary, accountId }: { transactions: Transaction[], categories: Category[], isOverallSummary: boolean, accountId?: string }) {
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [selectedCategoryDetail, setSelectedCategoryDetail] = useState<CategoryDetail | null>(null);
   const { currentDate } = useReportDate();
@@ -140,18 +140,17 @@ export function ReportView({ transactions, categories }: { transactions: Transac
             }
             data.expenseTransactions.push(t);
         } else if (t.type === 'transfer') {
-            // This logic assumes `transactions` are pre-filtered for the current account context
-            // A transaction is either a transfer IN or OUT for this view.
-            if (t.toAccountId && !t.fromAccountId) { // Simplified assumption: if toAccountId is set, it's incoming for this context
-                 data.totalTransfersIn += t.amount;
-            } else { // It's outgoing
-                 data.totalTransfersOut += t.amount;
+            if (!isOverallSummary && t.toAccountId === accountId) {
+                data.totalTransfersIn += t.amount;
+            }
+            if (!isOverallSummary && t.fromAccountId === accountId) {
+                data.totalTransfersOut += t.amount;
             }
         }
     });
     
     return data;
-  }, [monthlyTransactions, specialExpenseIds]);
+  }, [monthlyTransactions, specialExpenseIds, isOverallSummary, accountId]);
 
   const expenseChartData = useMemo(() => {
     return Object.entries(monthlyReport.expenseByCategory)
@@ -348,8 +347,8 @@ export function ReportView({ transactions, categories }: { transactions: Transac
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead className="font-bold">Special Expenses (Occasional & > {formatCurrency(specialExpenseThreshold)})</TableHead>
-                                        <TableHead className="text-right font-bold">Amount</TableHead>
+                                        <TableHead className="font-bold text-red-600">Special Expenses (Occasional & > {formatCurrency(specialExpenseThreshold)})</TableHead>
+                                        <TableHead className="text-right font-bold text-red-600">Amount</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -366,7 +365,7 @@ export function ReportView({ transactions, categories }: { transactions: Transac
                             </Table>
                         </>
                     )}
-                     {monthlyReport.totalTransfersOut > 0 && (
+                     {monthlyReport.totalTransfersOut > 0 && !isOverallSummary && (
                         <>
                             <Separator className="my-4" />
                             <Table>
@@ -398,7 +397,7 @@ export function ReportView({ transactions, categories }: { transactions: Transac
                             <span className="font-mono">{formatCurrency(totalSpecialExpense)}</span>
                         </div>
                     )}
-                     {monthlyReport.totalTransfersOut > 0 && (
+                     {monthlyReport.totalTransfersOut > 0 && !isOverallSummary && (
                         <div className="w-full flex justify-between text-sm text-muted-foreground">
                             <span>Transfers Out Total</span>
                             <span className="font-mono">{formatCurrency(monthlyReport.totalTransfersOut)}</span>
@@ -418,9 +417,9 @@ export function ReportView({ transactions, categories }: { transactions: Transac
         <DialogContent>
             <DialogHeader>
             <DialogTitle>{selectedCategoryDetail?.name} - Sub-category Breakdown</DialogTitle>
-            <DialogDescriptionComponent>
+            <DialogDescription>
                 Details of your activity in this category for {format(currentDate, "MMMM yyyy")}.
-            </DialogDescriptionComponent>
+            </DialogDescription>
             </DialogHeader>
             <Table>
                 <TableHeader>
@@ -461,5 +460,3 @@ export function ReportView({ transactions, categories }: { transactions: Transac
     </>
   );
 }
-
-    

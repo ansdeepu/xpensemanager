@@ -109,38 +109,6 @@ export default function ReportsPage() {
 
   const primaryAccount = accounts.find(a => a.isPrimary);
 
-  const getTransactionsForAccount = (accountId: string | 'all') => {
-    if (accountId === 'all') {
-      return transactions;
-    }
-    
-    // For any specific account tab, filter transactions relevant to it.
-    return transactions.filter(t => {
-      // Regular income/expense tied to the account
-      if ((t.type === 'income' || (t.type === 'expense' && t.paymentMethod === 'online')) && t.accountId === accountId) {
-        return true;
-      }
-      // Expenses from wallets are not tied to a bank account ID, so they won't be included here, which is correct.
-      
-      // Transfers involving the account
-      if (t.type === 'transfer') {
-        // A transfer where this account is the source
-        if (t.fromAccountId === accountId) {
-            // To represent this as an "expense" for the report, we can return it as is.
-            return true;
-        }
-        // A transfer where this account is the destination
-        if (t.toAccountId === accountId) {
-            // To represent this as an "income" for the report, we can create a modified transaction.
-            // However, it's simpler to handle this logic inside the ReportView itself based on context.
-            // For now, just include the original transaction. The view will interpret it.
-            return true;
-        }
-      }
-      return false;
-    });
-  }
-
   if (userLoading || dataLoading) {
     return (
       <div className="space-y-6">
@@ -192,7 +160,7 @@ export default function ReportsPage() {
         </TabsList>
 
         <TabsContent value="all" className="mt-6">
-          <ReportView transactions={transactions} categories={categories} />
+          <ReportView transactions={transactions} categories={categories} isOverallSummary={true} />
         </TabsContent>
         {accounts.map(account => (
           <TabsContent key={account.id} value={account.id} className="mt-6">
@@ -202,7 +170,9 @@ export default function ReportsPage() {
                     t.fromAccountId === account.id || 
                     t.toAccountId === account.id
                 )} 
-                categories={categories} 
+                categories={categories}
+                isOverallSummary={false} 
+                accountId={account.id}
             />
           </TabsContent>
         ))}
@@ -210,5 +180,3 @@ export default function ReportsPage() {
     </div>
   );
 }
-
-    
