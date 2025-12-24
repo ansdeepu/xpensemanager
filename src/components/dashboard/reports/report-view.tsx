@@ -126,17 +126,20 @@ export function ReportView({ transactions, categories, isOverallSummary, account
         const categoryName = t.category || "Uncategorized";
         const subCategoryName = t.subcategory || "Unspecified";
 
+        const isWalletExpense = t.paymentMethod === 'cash' || t.paymentMethod === 'digital';
+        
         if (t.type === 'income') {
-            data.totalIncome += t.amount;
-            if (!data.incomeByCategory[categoryName]) {
-                data.incomeByCategory[categoryName] = { total: 0, subcategories: {} };
+             if (isOverallSummary || t.accountId === accountId) {
+                data.totalIncome += t.amount;
+                if (!data.incomeByCategory[categoryName]) {
+                    data.incomeByCategory[categoryName] = { total: 0, subcategories: {} };
+                }
+                data.incomeByCategory[categoryName].total += t.amount;
+                data.incomeByCategory[categoryName].subcategories[subCategoryName] = (data.incomeByCategory[categoryName].subcategories[subCategoryName] || 0) + t.amount;
+                data.incomeTransactions.push(t);
             }
-            data.incomeByCategory[categoryName].total += t.amount;
-            data.incomeByCategory[categoryName].subcategories[subCategoryName] = (data.incomeByCategory[categoryName].subcategories[subCategoryName] || 0) + t.amount;
-            data.incomeTransactions.push(t);
         } else if (t.type === 'expense') {
-            const isWalletExpense = t.paymentMethod === 'cash' || t.paymentMethod === 'digital';
-            if (isOverallSummary || (!isWalletExpense && t.accountId === accountId)) {
+             if (isOverallSummary || (!isWalletExpense && t.accountId === accountId)) {
                 if (!specialExpenseIds.has(t.id)) {
                     data.totalExpense += t.amount;
                     if (!data.expenseByCategory[categoryName]) {
@@ -184,7 +187,7 @@ export function ReportView({ transactions, categories, isOverallSummary, account
   };
   
   const grandTotalIncome = isOverallSummary ? monthlyReport.totalIncome : monthlyReport.totalIncome + monthlyReport.totalTransfersIn;
-  const grandTotalExpense = isOverallSummary ? monthlyReport.totalExpense + totalSpecialExpense : monthlyReport.totalExpense + totalSpecialExpense + monthlyReport.totalTransfersOut;
+  const grandTotalExpense = monthlyReport.totalExpense + totalSpecialExpense + (isOverallSummary ? 0 : monthlyReport.totalTransfersOut);
   const netSavings = grandTotalIncome - grandTotalExpense;
   const hasTransactions = monthlyTransactions.length > 0;
 
@@ -192,7 +195,7 @@ export function ReportView({ transactions, categories, isOverallSummary, account
     <>
     <div className="space-y-6">
       <div className="flex justify-end">
-        <div className="flex items-center gap-2">
+         <div className="flex items-center gap-2">
             <Label htmlFor="special-expense-threshold" className="text-sm font-bold text-red-600 flex items-center gap-2 flex-shrink-0">
               <AlertTriangle className="h-4 w-4" />
               <span>Special Expense Threshold</span>
@@ -226,6 +229,11 @@ export function ReportView({ transactions, categories, isOverallSummary, account
                 </CardHeader>
                 <CardContent>
                     <div className="text-2xl font-bold text-green-600">{formatCurrency(grandTotalIncome)}</div>
+                    {!isOverallSummary && monthlyReport.totalTransfersIn > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                            (+{formatCurrency(monthlyReport.totalTransfersIn)} from transfers)
+                        </p>
+                    )}
                 </CardContent>
             </Card>
             <Card>
@@ -235,6 +243,11 @@ export function ReportView({ transactions, categories, isOverallSummary, account
                 </CardHeader>
                 <CardContent>
                     <div className="text-2xl font-bold text-red-600">{formatCurrency(grandTotalExpense)}</div>
+                     {!isOverallSummary && monthlyReport.totalTransfersOut > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                            (+{formatCurrency(monthlyReport.totalTransfersOut)} from transfers)
+                        </p>
+                    )}
                 </CardContent>
             </Card>
             <Card>
