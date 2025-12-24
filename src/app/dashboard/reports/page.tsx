@@ -115,7 +115,7 @@ export default function ReportsPage() {
     }
     if (primaryAccount && accountId === primaryAccount.id) {
         return transactions.filter(t => 
-            (t.accountId === primaryAccount.id && t.paymentMethod === 'online') ||
+            (t.accountId === primaryAccount.id) ||
             t.paymentMethod === 'cash' ||
             t.paymentMethod === 'digital' ||
             t.fromAccountId === primaryAccount.id || t.toAccountId === primaryAccount.id ||
@@ -124,10 +124,7 @@ export default function ReportsPage() {
         );
     }
     return transactions.filter(t => {
-      if (t.type === 'transfer') {
-        return t.fromAccountId === accountId || t.toAccountId === accountId;
-      }
-      return t.accountId === accountId;
+      return t.accountId === accountId || t.fromAccountId === accountId || t.toAccountId === accountId;
     });
   }
 
@@ -193,3 +190,5 @@ export default function ReportsPage() {
     </div>
   );
 }
+
+    

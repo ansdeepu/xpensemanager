@@ -5,7 +5,7 @@ import React, { useState, useMemo } from "react";
 import type { Transaction, Category, SubCategory } from "@/lib/data";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BookText, TrendingUp, TrendingDown, IndianRupee, AlertTriangle, Sparkles } from "lucide-react";
+import { BookText, TrendingUp, TrendingDown, IndianRupee, AlertTriangle } from "lucide-react";
 import { format, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import {
   Table,
@@ -14,7 +14,6 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  TableFooter,
 } from "@/components/ui/table";
 import {
   Dialog,
@@ -126,7 +125,6 @@ export function ReportView({ transactions, categories }: { transactions: Transac
             data.incomeByCategory[categoryName].subcategories[subCategoryName] = (data.incomeByCategory[categoryName].subcategories[subCategoryName] || 0) + t.amount;
             data.incomeTransactions.push(t);
         } else if (t.type === 'expense') {
-            // Exclude special expenses from this calculation
             if (!specialExpenseIds.has(t.id)) {
                 data.totalExpense += t.amount;
                 if (!data.expenseByCategory[categoryName]) {
@@ -135,7 +133,7 @@ export function ReportView({ transactions, categories }: { transactions: Transac
                 data.expenseByCategory[categoryName].total += t.amount;
                 data.expenseByCategory[categoryName].subcategories[subCategoryName] = (data.expenseByCategory[categoryName].subcategories[subCategoryName] || 0) + t.amount;
             }
-            data.expenseTransactions.push(t); // Keep all expenses here for other potential uses
+            data.expenseTransactions.push(t);
         }
     });
     
@@ -171,8 +169,8 @@ export function ReportView({ transactions, categories }: { transactions: Transac
     <>
     <div className="space-y-6">
       <div className="flex justify-end">
-        <div className="w-full max-w-xs space-y-2">
-            <Label htmlFor="special-expense-threshold" className="text-sm font-medium flex items-center gap-2">
+        <div className="flex items-center gap-4">
+            <Label htmlFor="special-expense-threshold" className="text-sm font-bold text-red-600 flex items-center gap-2 flex-shrink-0">
               <AlertTriangle className="h-4 w-4" />
               <span>Special Expense Threshold</span>
             </Label>
@@ -181,7 +179,7 @@ export function ReportView({ transactions, categories }: { transactions: Transac
               type="number"
               value={specialExpenseThreshold}
               onChange={(e) => setSpecialExpenseThreshold(Number(e.target.value))}
-              className="hide-number-arrows"
+              className="hide-number-arrows w-32"
               placeholder="e.g. 2000"
             />
         </div>
@@ -218,7 +216,7 @@ export function ReportView({ transactions, categories }: { transactions: Transac
             </Card>
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Net Savings</CardTitle>
+                    <CardTitle className="text-sm font-medium">Net Balance</CardTitle>
                     <IndianRupee className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
@@ -275,12 +273,18 @@ export function ReportView({ transactions, categories }: { transactions: Transac
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {Object.entries(monthlyReport.incomeByCategory).map(([category, { total }]) => (
-                                <TableRow key={category} onClick={() => handleCategoryClick(category, 'income')} className="cursor-pointer">
-                                    <TableCell className="font-medium">{category}</TableCell>
-                                    <TableCell className="text-right">{formatCurrency(total)}</TableCell>
+                            {Object.keys(monthlyReport.incomeByCategory).length > 0 ? (
+                                Object.entries(monthlyReport.incomeByCategory).map(([category, { total }]) => (
+                                    <TableRow key={category} onClick={() => handleCategoryClick(category, 'income')} className="cursor-pointer">
+                                        <TableCell className="font-medium">{category}</TableCell>
+                                        <TableCell className="text-right">{formatCurrency(total)}</TableCell>
+                                    </TableRow>
+                                ))
+                            ) : (
+                                <TableRow>
+                                    <TableCell colSpan={2} className="text-center text-muted-foreground">No income this month.</TableCell>
                                 </TableRow>
-                            ))}
+                            )}
                         </TableBody>
                          <TableFooter>
                             <TableRow>
@@ -304,12 +308,18 @@ export function ReportView({ transactions, categories }: { transactions: Transac
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {Object.entries(monthlyReport.expenseByCategory).sort(([,a],[,b])=> b.total - a.total).map(([category, {total}]) => (
-                                <TableRow key={category} onClick={() => handleCategoryClick(category, 'expense')} className="cursor-pointer">
-                                    <TableCell className="font-medium">{category}</TableCell>
-                                    <TableCell className="text-right">{formatCurrency(total)}</TableCell>
+                             {Object.keys(monthlyReport.expenseByCategory).length > 0 ? (
+                                Object.entries(monthlyReport.expenseByCategory).sort(([,a],[,b])=> b.total - a.total).map(([category, {total}]) => (
+                                    <TableRow key={category} onClick={() => handleCategoryClick(category, 'expense')} className="cursor-pointer">
+                                        <TableCell className="font-medium">{category}</TableCell>
+                                        <TableCell className="text-right">{formatCurrency(total)}</TableCell>
+                                    </TableRow>
+                                ))
+                             ) : (
+                                <TableRow>
+                                    <TableCell colSpan={2} className="text-center text-muted-foreground">No regular expenses this month.</TableCell>
                                 </TableRow>
-                            ))}
+                            )}
                         </TableBody>
                     </Table>
                     {specialExpenses.length > 0 && (
@@ -318,8 +328,8 @@ export function ReportView({ transactions, categories }: { transactions: Transac
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Special Expenses (Occasional & > {formatCurrency(specialExpenseThreshold)})</TableHead>
-                                        <TableHead className="text-right">Amount</TableHead>
+                                        <TableHead className="font-bold">Special Expenses (Occasional & > {formatCurrency(specialExpenseThreshold)})</TableHead>
+                                        <TableHead className="text-right font-bold">Amount</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -375,14 +385,19 @@ export function ReportView({ transactions, categories }: { transactions: Transac
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {selectedCategoryDetail && Object.entries(selectedCategoryDetail.subcategories)
+                    {selectedCategoryDetail && Object.keys(selectedCategoryDetail.subcategories).length > 0 ? (
+                        Object.entries(selectedCategoryDetail.subcategories)
                         .sort(([,a],[,b]) => b - a)
                         .map(([name, amount]) => (
                         <TableRow key={name}>
                             <TableCell>{name}</TableCell>
                             <TableCell className="text-right">{formatCurrency(amount)}</TableCell>
                         </TableRow>
-                    ))}
+                    ))) : (
+                        <TableRow>
+                            <TableCell colSpan={2} className="text-center text-muted-foreground">No sub-category data for this period.</TableCell>
+                        </TableRow>
+                    )}
                 </TableBody>
                 <TableFooter>
                     <TableRow>
@@ -401,7 +416,5 @@ export function ReportView({ transactions, categories }: { transactions: Transac
     </>
   );
 }
-
-    
 
     
