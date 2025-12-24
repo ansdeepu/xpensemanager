@@ -194,7 +194,7 @@ export default function TransactionsPage() {
       <Tabs defaultValue={primaryAccount?.id || "all-accounts"} className="w-full">
         <TabsList className="grid w-full grid-cols-1 md:grid-cols-3 lg:grid-cols-4 h-auto flex-wrap">
           {primaryAccount && (
-            <TabsTrigger value={primaryAccount.id} className={cn("flex flex-col h-auto p-3 items-start text-left gap-4", "md:col-span-2")}>
+            <TabsTrigger value={primaryAccount.id} className={cn("border flex flex-col h-auto p-3 items-start text-left gap-4", "md:col-span-2")}>
               <div className="w-full flex justify-between">
                 <span className="font-semibold text-sm">Primary ({primaryAccount.name})</span>
                 <span className="font-bold text-primary">{formatCurrency(allBalance)}</span>
@@ -290,7 +290,7 @@ export default function TransactionsPage() {
           {accounts.filter(account => !account.isPrimary).map(account => {
             const balanceDifference = account.actualBalance !== undefined && account.actualBalance !== null ? account.balance - account.actualBalance : null;
             return (
-              <TabsTrigger key={account.id} value={account.id} className="flex flex-col h-auto p-2 items-start text-left gap-1">
+              <TabsTrigger key={account.id} value={account.id} className="border flex flex-col h-auto p-2 items-start text-left gap-1">
                 <div className="w-full flex justify-between">
                     <span className="font-semibold text-sm">{account.name}</span>
                     <span className="font-bold text-primary">{formatCurrency(account.balance)}</span>
@@ -335,5 +335,7 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+    
 
     
