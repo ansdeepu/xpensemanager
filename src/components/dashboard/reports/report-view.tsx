@@ -3,7 +3,7 @@
 
 import React, { useState, useMemo } from "react";
 import type { Transaction, Category, SubCategory } from "@/lib/data";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BookText, TrendingUp, TrendingDown, IndianRupee, AlertTriangle, Sparkles } from "lucide-react";
 import { format, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
@@ -21,7 +21,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
+  DialogDescription as DialogDescriptionComponent,
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
@@ -361,9 +361,9 @@ export function ReportView({ transactions, categories }: { transactions: Transac
         <DialogContent>
             <DialogHeader>
             <DialogTitle>{selectedCategoryDetail?.name} - Sub-category Breakdown</DialogTitle>
-            <DialogDescription>
+            <DialogDescriptionComponent>
                 Details of your activity in this category for {format(currentDate, "MMMM yyyy")}.
-            </DialogDescription>
+            </DialogDescriptionComponent>
             </DialogHeader>
             <Table>
                 <TableHeader>
