@@ -203,7 +203,7 @@ export default function TransactionsPage() {
             </TabsTrigger>
           )}
           {accounts.filter(account => !account.isPrimary).map(account => {
-            const balanceDifference = account.actualBalance !== undefined ? account.balance - account.actualBalance : null;
+            const balanceDifference = account.actualBalance !== undefined && account.actualBalance !== null ? account.balance - account.actualBalance : null;
             return (
               <TabsTrigger key={account.id} value={account.id} className="flex flex-col h-auto p-2 items-start text-left gap-1">
                 <div className="w-full flex justify-between">
@@ -227,8 +227,8 @@ export default function TransactionsPage() {
                      {balanceDifference !== null && (
                         <p className={cn(
                             "text-xs font-medium pt-1",
-                            balanceDifference === 0 && "text-green-600",
-                            balanceDifference !== 0 && "text-red-600"
+                            Math.round(balanceDifference * 100) === 0 && "text-green-600",
+                            Math.round(balanceDifference * 100) !== 0 && "text-red-600"
                         )}>
                             Diff: {formatCurrency(balanceDifference)}
                         </p>
@@ -257,8 +257,8 @@ export default function TransactionsPage() {
                         {cashBalanceDifference !== null && (
                             <p className={cn(
                                 "text-sm font-medium pt-1",
-                                cashBalanceDifference === 0 && "text-green-600",
-                                cashBalanceDifference !== 0 && "text-red-600"
+                                Math.round(cashBalanceDifference * 100) === 0 && "text-green-600",
+                                Math.round(cashBalanceDifference * 100) !== 0 && "text-red-600"
                             )}>
                                 Diff: {formatCurrency(cashBalanceDifference)}
                             </p>
@@ -281,8 +281,8 @@ export default function TransactionsPage() {
                         {digitalBalanceDifference !== null && (
                             <p className={cn(
                                 "text-sm font-medium pt-1",
-                                digitalBalanceDifference === 0 && "text-green-600",
-                                digitalBalanceDifference !== 0 && "text-red-600"
+                                Math.round(digitalBalanceDifference * 100) === 0 && "text-green-600",
+                                Math.round(digitalBalanceDifference * 100) !== 0 && "text-red-600"
                             )}>
                                 Diff: {formatCurrency(digitalBalanceDifference)}
                             </p>
