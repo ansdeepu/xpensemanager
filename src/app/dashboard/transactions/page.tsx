@@ -31,6 +31,7 @@ export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [walletPreferences, setWalletPreferences] = useState<{ cash?: { balance?: number, date?: string }, digital?: { balance?: number, date?: string } }>({});
   const [reconciliationDate, setReconciliationDate] = useState<Date | undefined>(new Date());
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [dataLoading, setDataLoading] = useState(true);
 
   const useDebounce = (callback: Function, delay: number) => {
@@ -43,13 +44,13 @@ export default function TransactionsPage() {
     };
   };
 
-  const debouncedUpdateAccount = useCallback(useDebounce(async (accountId: string, data: { actualBalance?: number | null, actualBalanceDate?: string }) => {
+  const debouncedUpdateAccount = useCallback(useDebounce(async (accountId: string, data: { actualBalance?: number | null }) => {
         if (!user) return;
         const accountRef = doc(db, "accounts", accountId);
         await updateDoc(accountRef, { ...data, actualBalanceDate: reconciliationDate?.toISOString() });
     }, 500), [user, reconciliationDate]);
     
-  const debouncedUpdateWallet = useCallback(useDebounce(async (walletType: 'cash' | 'digital', data: { balance?: number | null, date?: string }) => {
+  const debouncedUpdateWallet = useCallback(useDebounce(async (walletType: 'cash' | 'digital', data: { balance?: number | null }) => {
     if (!user) return;
     const prefRef = doc(db, "user_preferences", user.uid);
     const updatedWallets = { 
@@ -164,7 +165,7 @@ export default function TransactionsPage() {
 
   return (
     <div className="space-y-6">
-        <Popover>
+        <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
             <PopoverTrigger asChild>
                 <Button
                     variant={"outline"}
@@ -174,14 +175,17 @@ export default function TransactionsPage() {
                     )}
                 >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {reconciliationDate ? `Reconciliation Date: ${format(reconciliationDate, "PPP")}` : <span>Pick a date</span>}
+                    {reconciliationDate ? `Reconciliation Date: ${format(reconciliationDate, "dd/MM/yyyy")}` : <span>Pick a date</span>}
                 </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0">
                 <Calendar
                     mode="single"
                     selected={reconciliationDate}
-                    onSelect={setReconciliationDate}
+                    onSelect={(date) => {
+                      setReconciliationDate(date);
+                      setIsDatePickerOpen(false);
+                    }}
                     initialFocus
                 />
             </PopoverContent>
@@ -331,3 +335,5 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+    
