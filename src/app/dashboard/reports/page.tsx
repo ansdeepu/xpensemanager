@@ -113,18 +113,31 @@ export default function ReportsPage() {
     if (accountId === 'all') {
       return transactions;
     }
-    if (primaryAccount && accountId === primaryAccount.id) {
-        return transactions.filter(t => 
-            (t.accountId === primaryAccount.id) ||
-            t.paymentMethod === 'cash' ||
-            t.paymentMethod === 'digital' ||
-            t.fromAccountId === primaryAccount.id || t.toAccountId === primaryAccount.id ||
-            t.fromAccountId === 'cash-wallet' || t.toAccountId === 'cash-wallet' ||
-            t.fromAccountId === 'digital-wallet' || t.toAccountId === 'digital-wallet'
-        );
-    }
+    
+    // For any specific account tab, filter transactions relevant to it.
     return transactions.filter(t => {
-      return t.accountId === accountId || t.fromAccountId === accountId || t.toAccountId === accountId;
+      // Regular income/expense tied to the account
+      if ((t.type === 'income' || (t.type === 'expense' && t.paymentMethod === 'online')) && t.accountId === accountId) {
+        return true;
+      }
+      // Expenses from wallets are not tied to a bank account ID, so they won't be included here, which is correct.
+      
+      // Transfers involving the account
+      if (t.type === 'transfer') {
+        // A transfer where this account is the source
+        if (t.fromAccountId === accountId) {
+            // To represent this as an "expense" for the report, we can return it as is.
+            return true;
+        }
+        // A transfer where this account is the destination
+        if (t.toAccountId === accountId) {
+            // To represent this as an "income" for the report, we can create a modified transaction.
+            // However, it's simpler to handle this logic inside the ReportView itself based on context.
+            // For now, just include the original transaction. The view will interpret it.
+            return true;
+        }
+      }
+      return false;
     });
   }
 
@@ -179,11 +192,18 @@ export default function ReportsPage() {
         </TabsList>
 
         <TabsContent value="all" className="mt-6">
-          <ReportView transactions={getTransactionsForAccount('all')} categories={categories} />
+          <ReportView transactions={transactions} categories={categories} />
         </TabsContent>
         {accounts.map(account => (
           <TabsContent key={account.id} value={account.id} className="mt-6">
-            <ReportView transactions={getTransactionsForAccount(account.id)} categories={categories} />
+            <ReportView 
+                transactions={transactions.filter(t => 
+                    t.accountId === account.id || 
+                    t.fromAccountId === account.id || 
+                    t.toAccountId === account.id
+                )} 
+                categories={categories} 
+            />
           </TabsContent>
         ))}
       </Tabs>

@@ -3,7 +3,7 @@
 
 import React, { useState, useMemo } from "react";
 import type { Transaction, Category, SubCategory } from "@/lib/data";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BookText, TrendingUp, TrendingDown, IndianRupee, AlertTriangle } from "lucide-react";
 import { format, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
@@ -50,7 +50,9 @@ type CategoryBreakdown = {
 
 type ReportData = {
   totalIncome: number;
+  totalTransfersIn: number;
   totalExpense: number; // Will be regular expenses
+  totalTransfersOut: number;
   incomeByCategory: CategoryBreakdown;
   expenseByCategory: CategoryBreakdown; // Regular expenses by category
   incomeTransactions: Transaction[];
@@ -106,7 +108,9 @@ export function ReportView({ transactions, categories }: { transactions: Transac
   const monthlyReport = useMemo(() => {
     const data: ReportData = {
         totalIncome: 0,
-        totalExpense: 0, // This will now track regular expenses
+        totalTransfersIn: 0,
+        totalExpense: 0,
+        totalTransfersOut: 0,
         incomeByCategory: {},
         expenseByCategory: {},
         incomeTransactions: [],
@@ -117,7 +121,7 @@ export function ReportView({ transactions, categories }: { transactions: Transac
         const categoryName = t.category || "Uncategorized";
         const subCategoryName = t.subcategory || "Unspecified";
 
-        if (t.type === 'income' || (t.type === 'transfer' && t.toAccountId !== 'cash-wallet' && t.toAccountId !== 'digital-wallet')) {
+        if (t.type === 'income') {
             data.totalIncome += t.amount;
             if (!data.incomeByCategory[categoryName]) {
                 data.incomeByCategory[categoryName] = { total: 0, subcategories: {} };
@@ -125,7 +129,7 @@ export function ReportView({ transactions, categories }: { transactions: Transac
             data.incomeByCategory[categoryName].total += t.amount;
             data.incomeByCategory[categoryName].subcategories[subCategoryName] = (data.incomeByCategory[categoryName].subcategories[subCategoryName] || 0) + t.amount;
             data.incomeTransactions.push(t);
-        } else if (t.type === 'expense' || (t.type === 'transfer' && t.fromAccountId !== 'cash-wallet' && t.fromAccountId !== 'digital-wallet')) {
+        } else if (t.type === 'expense') {
             if (!specialExpenseIds.has(t.id)) {
                 data.totalExpense += t.amount;
                 if (!data.expenseByCategory[categoryName]) {
@@ -135,6 +139,14 @@ export function ReportView({ transactions, categories }: { transactions: Transac
                 data.expenseByCategory[categoryName].subcategories[subCategoryName] = (data.expenseByCategory[categoryName].subcategories[subCategoryName] || 0) + t.amount;
             }
             data.expenseTransactions.push(t);
+        } else if (t.type === 'transfer') {
+            // This logic assumes `transactions` are pre-filtered for the current account context
+            // A transaction is either a transfer IN or OUT for this view.
+            if (t.toAccountId && !t.fromAccountId) { // Simplified assumption: if toAccountId is set, it's incoming for this context
+                 data.totalTransfersIn += t.amount;
+            } else { // It's outgoing
+                 data.totalTransfersOut += t.amount;
+            }
         }
     });
     
@@ -161,9 +173,10 @@ export function ReportView({ transactions, categories }: { transactions: Transac
       setIsDetailDialogOpen(true);
     }
   };
-
-  const grandTotalExpense = monthlyReport.totalExpense + totalSpecialExpense;
-  const netSavings = monthlyReport.totalIncome - grandTotalExpense;
+  
+  const grandTotalIncome = monthlyReport.totalIncome + monthlyReport.totalTransfersIn;
+  const grandTotalExpense = monthlyReport.totalExpense + totalSpecialExpense + monthlyReport.totalTransfersOut;
+  const netSavings = grandTotalIncome - grandTotalExpense;
   const hasTransactions = monthlyTransactions.length > 0;
 
   return (
@@ -203,7 +216,7 @@ export function ReportView({ transactions, categories }: { transactions: Transac
                     <TrendingUp className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold text-green-600">{formatCurrency(monthlyReport.totalIncome)}</div>
+                    <div className="text-2xl font-bold text-green-600">{formatCurrency(grandTotalIncome)}</div>
                 </CardContent>
             </Card>
             <Card>
@@ -230,7 +243,7 @@ export function ReportView({ transactions, categories }: { transactions: Transac
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
             <FinancialAdvice 
-              totalIncome={monthlyReport.totalIncome}
+              totalIncome={grandTotalIncome}
               totalExpense={grandTotalExpense}
               expenseByCategory={Object.fromEntries(Object.entries(monthlyReport.expenseByCategory).map(([k, v]) => [k, v.total]))}
             />
@@ -286,11 +299,17 @@ export function ReportView({ transactions, categories }: { transactions: Transac
                                     <TableCell colSpan={2} className="text-center text-muted-foreground">No income this month.</TableCell>
                                 </TableRow>
                             )}
+                            {monthlyReport.totalTransfersIn > 0 && (
+                                <TableRow>
+                                    <TableCell className="font-medium">Transfers In</TableCell>
+                                    <TableCell className="text-right">{formatCurrency(monthlyReport.totalTransfersIn)}</TableCell>
+                                </TableRow>
+                            )}
                         </TableBody>
                          <TableFooter>
                             <TableRow>
                                 <TableHead>Total Income</TableHead>
-                                <TableHead className="text-right">{formatCurrency(monthlyReport.totalIncome)}</TableHead>
+                                <TableHead className="text-right">{formatCurrency(grandTotalIncome)}</TableHead>
                             </TableRow>
                         </TableFooter>
                     </Table>
@@ -347,6 +366,25 @@ export function ReportView({ transactions, categories }: { transactions: Transac
                             </Table>
                         </>
                     )}
+                     {monthlyReport.totalTransfersOut > 0 && (
+                        <>
+                            <Separator className="my-4" />
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="font-bold">Transfers Out</TableHead>
+                                        <TableHead className="text-right font-bold">Amount</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    <TableRow>
+                                        <TableCell>Total transfers to other accounts</TableCell>
+                                        <TableCell className="text-right">{formatCurrency(monthlyReport.totalTransfersOut)}</TableCell>
+                                    </TableRow>
+                                </TableBody>
+                            </Table>
+                        </>
+                    )}
                 </CardContent>
                 <CardFooter className="flex-col items-start gap-2 pt-4">
                     <Separator />
@@ -358,6 +396,12 @@ export function ReportView({ transactions, categories }: { transactions: Transac
                         <div className="w-full flex justify-between text-sm text-muted-foreground">
                             <span>Special Expenses Total</span>
                             <span className="font-mono">{formatCurrency(totalSpecialExpense)}</span>
+                        </div>
+                    )}
+                     {monthlyReport.totalTransfersOut > 0 && (
+                        <div className="w-full flex justify-between text-sm text-muted-foreground">
+                            <span>Transfers Out Total</span>
+                            <span className="font-mono">{formatCurrency(monthlyReport.totalTransfersOut)}</span>
                         </div>
                     )}
                     <div className="w-full flex justify-between font-bold text-base">
