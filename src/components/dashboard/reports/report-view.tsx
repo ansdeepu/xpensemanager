@@ -14,6 +14,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableFooter,
 } from "@/components/ui/table";
 import {
   Dialog,
@@ -116,7 +117,7 @@ export function ReportView({ transactions, categories }: { transactions: Transac
         const categoryName = t.category || "Uncategorized";
         const subCategoryName = t.subcategory || "Unspecified";
 
-        if (t.type === 'income') {
+        if (t.type === 'income' || (t.type === 'transfer' && t.toAccountId !== 'cash-wallet' && t.toAccountId !== 'digital-wallet')) {
             data.totalIncome += t.amount;
             if (!data.incomeByCategory[categoryName]) {
                 data.incomeByCategory[categoryName] = { total: 0, subcategories: {} };
@@ -124,7 +125,7 @@ export function ReportView({ transactions, categories }: { transactions: Transac
             data.incomeByCategory[categoryName].total += t.amount;
             data.incomeByCategory[categoryName].subcategories[subCategoryName] = (data.incomeByCategory[categoryName].subcategories[subCategoryName] || 0) + t.amount;
             data.incomeTransactions.push(t);
-        } else if (t.type === 'expense') {
+        } else if (t.type === 'expense' || (t.type === 'transfer' && t.fromAccountId !== 'cash-wallet' && t.fromAccountId !== 'digital-wallet')) {
             if (!specialExpenseIds.has(t.id)) {
                 data.totalExpense += t.amount;
                 if (!data.expenseByCategory[categoryName]) {
@@ -169,7 +170,7 @@ export function ReportView({ transactions, categories }: { transactions: Transac
     <>
     <div className="space-y-6">
       <div className="flex justify-end">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
             <Label htmlFor="special-expense-threshold" className="text-sm font-bold text-red-600 flex items-center gap-2 flex-shrink-0">
               <AlertTriangle className="h-4 w-4" />
               <span>Special Expense Threshold</span>
