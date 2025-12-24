@@ -157,8 +157,10 @@ export default function TransactionsPage() {
 
   const allBalance = (primaryAccount?.balance || 0) + cashWalletBalance + digitalWalletBalance;
 
-  const cashBalanceDifference = walletPreferences.cash?.balance !== undefined ? cashWalletBalance - walletPreferences.cash.balance : null;
-  const digitalBalanceDifference = walletPreferences.digital?.balance !== undefined ? digitalWalletBalance - walletPreferences.digital.balance : null;
+  const cashBalanceDifference = walletPreferences.cash?.balance !== undefined && walletPreferences.cash.balance !== null ? cashWalletBalance - walletPreferences.cash.balance : null;
+  const digitalBalanceDifference = walletPreferences.digital?.balance !== undefined && walletPreferences.digital.balance !== null ? digitalWalletBalance - walletPreferences.digital.balance : null;
+  const primaryAccountBalanceDifference = primaryAccount?.actualBalance !== undefined && primaryAccount?.actualBalance !== null ? primaryAccount.balance - primaryAccount.actualBalance : null;
+
 
   return (
     <div className="space-y-6">
@@ -188,17 +190,96 @@ export default function TransactionsPage() {
       <Tabs defaultValue={primaryAccount?.id || "all-accounts"} className="w-full">
         <TabsList className="grid w-full grid-cols-1 md:grid-cols-3 lg:grid-cols-5 h-auto flex-wrap">
           {primaryAccount && (
-            <TabsTrigger value={primaryAccount.id} className="flex flex-col h-auto p-2 items-start text-left">
-              <span className="font-semibold text-sm">Primary ({primaryAccount.name})</span>
-               <div className="w-full text-xs text-muted-foreground mt-1 space-y-1">
-                  <div className="flex justify-between items-center">
-                    <span>Bank: {formatCurrency(primaryAccount.balance)}</span>
-                    <span className="font-bold text-primary">{formatCurrency(allBalance)}</span>
+            <TabsTrigger value={primaryAccount.id} className="flex flex-col h-auto p-3 items-start text-left gap-4">
+              <div className="w-full flex justify-between">
+                <span className="font-semibold text-sm">Primary ({primaryAccount.name})</span>
+                <span className="font-bold text-primary">{formatCurrency(allBalance)}</span>
+              </div>
+
+              <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-3 text-left">
+                {/* Bank Column */}
+                <div className="space-y-1">
+                  <div className="flex justify-between items-baseline">
+                    <Label htmlFor={`actual-balance-${primaryAccount.id}`} className="text-xs">Bank Balance</Label>
+                    <span className="font-mono text-xs">{formatCurrency(primaryAccount.balance)}</span>
                   </div>
-                   <div className="flex justify-between items-center">
-                    <span>Cash: {formatCurrency(cashWalletBalance)}</span>
-                    <span>Digital: {formatCurrency(digitalWalletBalance)}</span>
+                  <Input
+                      id={`actual-balance-${primaryAccount.id}`}
+                      type="number"
+                      placeholder="Actual"
+                      className="hide-number-arrows h-7 mt-1 text-xs"
+                      defaultValue={primaryAccount.actualBalance ?? ''}
+                      onChange={(e) => {
+                          const value = e.target.value === '' ? null : parseFloat(e.target.value)
+                          debouncedUpdateAccount(primaryAccount.id, { actualBalance: value });
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                  />
+                  {primaryAccountBalanceDifference !== null && (
+                      <p className={cn(
+                          "text-xs font-medium pt-1",
+                          Math.round(primaryAccountBalanceDifference * 100) === 0 ? "text-green-600" : "text-red-600"
+                      )}>
+                          Diff: {formatCurrency(primaryAccountBalanceDifference)}
+                      </p>
+                  )}
+                </div>
+
+                {/* Cash Column */}
+                <div className="space-y-1">
+                  <div className="flex justify-between items-baseline">
+                    <Label htmlFor="actual-balance-cash" className="text-xs">Cash</Label>
+                    <span className="font-mono text-xs">{formatCurrency(cashWalletBalance)}</span>
                   </div>
+                  <Input
+                      id="actual-balance-cash"
+                      type="number"
+                      placeholder="Actual"
+                      className="hide-number-arrows h-7"
+                      defaultValue={walletPreferences.cash?.balance ?? ''}
+                      onChange={(e) => {
+                          const value = e.target.value === '' ? null : parseFloat(e.target.value)
+                          debouncedUpdateWallet('cash', { balance: value })
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                  />
+                  {cashBalanceDifference !== null && (
+                      <p className={cn(
+                          "text-xs font-medium pt-1",
+                          Math.round(cashBalanceDifference * 100) === 0 ? "text-green-600" : "text-red-600"
+                      )}>
+                          Diff: {formatCurrency(cashBalanceDifference)}
+                      </p>
+                  )}
+                </div>
+
+                {/* Digital Column */}
+                <div className="space-y-1">
+                  <div className="flex justify-between items-baseline">
+                    <Label htmlFor="actual-balance-digital" className="text-xs">Digital</Label>
+                     <span className="font-mono text-xs">{formatCurrency(digitalWalletBalance)}</span>
+                  </div>
+                   <Input
+                      id="actual-balance-digital"
+                      type="number"
+                      placeholder="Actual"
+                      className="hide-number-arrows h-7"
+                      defaultValue={walletPreferences.digital?.balance ?? ''}
+                      onChange={(e) => {
+                          const value = e.target.value === '' ? null : parseFloat(e.target.value)
+                          debouncedUpdateWallet('digital', { balance: value })
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                  />
+                  {digitalBalanceDifference !== null && (
+                      <p className={cn(
+                          "text-xs font-medium pt-1",
+                           Math.round(digitalBalanceDifference * 100) === 0 ? "text-green-600" : "text-red-600"
+                      )}>
+                          Diff: {formatCurrency(digitalBalanceDifference)}
+                      </p>
+                  )}
+                </div>
               </div>
             </TabsTrigger>
           )}
@@ -227,8 +308,7 @@ export default function TransactionsPage() {
                      {balanceDifference !== null && (
                         <p className={cn(
                             "text-xs font-medium pt-1",
-                            Math.round(balanceDifference * 100) === 0 && "text-green-600",
-                            Math.round(balanceDifference * 100) !== 0 && "text-red-600"
+                            Math.round(balanceDifference * 100) === 0 ? "text-green-600" : "text-red-600"
                         )}>
                             Diff: {formatCurrency(balanceDifference)}
                         </p>
@@ -239,56 +319,6 @@ export default function TransactionsPage() {
         </TabsList>
         {primaryAccount && (
             <TabsContent value={primaryAccount.id} className="mt-6">
-                 <div className="grid md:grid-cols-2 gap-4 mb-6">
-                    <div className="space-y-2 rounded-lg border p-3">
-                        <Label htmlFor="actual-balance-cash" className="text-sm font-medium">Cash Wallet Actual Balance</Label>
-                        <Input
-                            id="actual-balance-cash"
-                            type="number"
-                            placeholder="Enter balance"
-                            className="hide-number-arrows h-8"
-                            defaultValue={walletPreferences.cash?.balance ?? ''}
-                            onChange={(e) => {
-                                const value = e.target.value === '' ? null : parseFloat(e.target.value)
-                                debouncedUpdateWallet('cash', { balance: value })
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                        />
-                        {cashBalanceDifference !== null && (
-                            <p className={cn(
-                                "text-sm font-medium pt-1",
-                                Math.round(cashBalanceDifference * 100) === 0 && "text-green-600",
-                                Math.round(cashBalanceDifference * 100) !== 0 && "text-red-600"
-                            )}>
-                                Diff: {formatCurrency(cashBalanceDifference)}
-                            </p>
-                        )}
-                    </div>
-                    <div className="space-y-2 rounded-lg border p-3">
-                        <Label htmlFor="actual-balance-digital" className="text-sm font-medium">Digital Wallet Actual Balance</Label>
-                        <Input
-                            id="actual-balance-digital"
-                            type="number"
-                            placeholder="Enter balance"
-                            className="hide-number-arrows h-8"
-                            defaultValue={walletPreferences.digital?.balance ?? ''}
-                            onChange={(e) => {
-                                const value = e.target.value === '' ? null : parseFloat(e.target.value)
-                                debouncedUpdateWallet('digital', { balance: value })
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                        />
-                        {digitalBalanceDifference !== null && (
-                            <p className={cn(
-                                "text-sm font-medium pt-1",
-                                Math.round(digitalBalanceDifference * 100) === 0 && "text-green-600",
-                                Math.round(digitalBalanceDifference * 100) !== 0 && "text-red-600"
-                            )}>
-                                Diff: {formatCurrency(digitalBalanceDifference)}
-                            </p>
-                        )}
-                    </div>
-                </div>
                 <TransactionTable accountId={primaryAccount.id} />
             </TabsContent>
         )}
