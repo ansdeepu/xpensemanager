@@ -26,6 +26,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { CalendarIcon } from "lucide-react";
+import { DayProps } from "react-day-picker";
 
 import {
   Tooltip,
@@ -165,18 +166,13 @@ export function OverviewChart() {
     return monthlyTotals;
   }, [transactions]);
 
-  const DayWithTooltip = ({
-    date,
-    displayMonth,
-  }: {
-    date: Date;
-    displayMonth: Date;
-  }) => {
+  const DayWithTooltip = (props: DayProps) => {
+    const date = props.date;
     const dateString = format(date, "yyyy-MM-dd");
     const expenseTotal = dailyExpenses[dateString];
 
     if (!expenseTotal) {
-      return <div>{format(date, "d")}</div>;
+      return <div className="react-day-picker-Day-content">{format(date, "d")}</div>;
     }
 
     return (
@@ -184,7 +180,7 @@ export function OverviewChart() {
         <TooltipTrigger asChild>
           <div
             className={cn(
-              "relative h-full w-full flex items-center justify-center rounded-full font-bold",
+              "relative h-full w-full flex items-center justify-center rounded-full font-bold react-day-picker-Day-content",
               "bg-accent text-accent-foreground"
             )}
           >
@@ -239,7 +235,7 @@ export function OverviewChart() {
                         withExpenses: "bg-accent/30 rounded-full",
                         }}
                         components={{
-                        DayContent: DayWithTooltip,
+                          Day: DayWithTooltip,
                         }}
                         initialFocus
                     />

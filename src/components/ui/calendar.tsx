@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -60,16 +61,21 @@ function Calendar({
         IconRight: ({ className, ...props }) => (
           <ChevronRight className={cn("h-4 w-4", className)} {...props} />
         ),
-         DayContent: (props: DayProps) => {
-          if (props.displayMonth.getMonth() !== props.date.getMonth()) {
+        Day: (props: DayProps) => {
+          const { date, displayMonth } = props;
+          if (displayMonth.getMonth() !== date.getMonth()) {
             return <div />;
           }
-          return <div>{props.date.getDate()}</div>;
+          return (
+            <div className="react-day-picker-Day-content">
+              {date.getDate()}
+            </div>
+          );
         },
       }}
       {...props}
     />
-  )
+  );
 }
 Calendar.displayName = "Calendar"
 
