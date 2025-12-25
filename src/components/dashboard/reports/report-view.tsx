@@ -14,6 +14,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableFooter,
 } from "@/components/ui/table";
 import {
   Dialog,
@@ -150,50 +151,36 @@ export function ReportView({ transactions, categories, accounts, isOverallSummar
             data.incomeByCategory[categoryName].subcategories[subCategoryName] = (data.incomeByCategory[categoryName].subcategories[subCategoryName] || 0) + t.amount;
             data.incomeTransactions.push(t);
         } else if (t.type === 'expense') {
-             if (isPrimaryReport) {
-                 if (isWalletExpense || t.accountId === accountId) {
-                    if (!specialExpenseIds.has(t.id)) {
-                        data.totalExpense += t.amount;
-                        if (!data.expenseByCategory[categoryName]) {
-                            data.expenseByCategory[categoryName] = { total: 0, subcategories: {} };
-                        }
-                        data.expenseByCategory[categoryName].total += t.amount;
-                        data.expenseByCategory[categoryName].subcategories[subCategoryName] = (data.expenseByCategory[categoryName].subcategories[subCategoryName] || 0) + t.amount;
-                    }
-                    data.expenseTransactions.push(t);
-                }
-            } else if (isOverallSummary) {
-                if (!specialExpenseIds.has(t.id)) {
-                    data.totalExpense += t.amount;
-                    if (!data.expenseByCategory[categoryName]) {
-                        data.expenseByCategory[categoryName] = { total: 0, subcategories: {} };
-                    }
-                    data.expenseByCategory[categoryName].total += t.amount;
-                    data.expenseByCategory[categoryName].subcategories[subCategoryName] = (data.expenseByCategory[categoryName].subcategories[subCategoryName] || 0) + t.amount;
-                }
-                data.expenseTransactions.push(t);
+            const isWalletTransaction = t.paymentMethod === 'cash' || t.paymentMethod === 'digital';
+            let shouldProcessExpense = false;
+
+            if (isOverallSummary) {
+                shouldProcessExpense = true;
+            } else if (isPrimaryReport) {
+                shouldProcessExpense = t.accountId === accountId || isWalletTransaction;
+            } else { // Non-primary account view
+                shouldProcessExpense = t.accountId === accountId;
             }
-            else { 
-                if (!specialExpenseIds.has(t.id)) {
-                    data.totalExpense += t.amount;
-                    if (!data.expenseByCategory[categoryName]) {
-                        data.expenseByCategory[categoryName] = { total: 0, subcategories: {} };
-                    }
-                    data.expenseByCategory[categoryName].total += t.amount;
-                    data.expenseByCategory[categoryName].subcategories[subCategoryName] = (data.expenseByCategory[categoryName].subcategories[subCategoryName] || 0) + t.amount;
-                }
-                data.expenseTransactions.push(t);
+            
+            if(shouldProcessExpense) {
+              if (!specialExpenseIds.has(t.id)) {
+                  data.totalExpense += t.amount;
+                  if (!data.expenseByCategory[categoryName]) {
+                      data.expenseByCategory[categoryName] = { total: 0, subcategories: {} };
+                  }
+                  data.expenseByCategory[categoryName].total += t.amount;
+                  data.expenseByCategory[categoryName].subcategories[subCategoryName] = (data.expenseByCategory[categoryName].subcategories[subCategoryName] || 0) + t.amount;
+              }
+              data.expenseTransactions.push(t);
             }
         } else if (t.type === 'transfer') {
             // Logic for Primary Report
             if (isPrimaryReport) {
                 // Count as "Transfer In" only if it comes from another bank account into the primary ecosystem (primary account or wallets).
-                if (t.fromAccountId && nonPrimaryBankAccountIds.has(t.fromAccountId)) {
-                    const isToPrimaryEcosystem = t.toAccountId === accountId || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
-                    if (isToPrimaryEcosystem) {
-                        data.totalTransfersIn += t.amount;
-                        data.transferInTransactions.push(t);
-                    }
+                const isToPrimaryEcosystem = t.toAccountId === accountId || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
+                if (t.fromAccountId && nonPrimaryBankAccountIds.has(t.fromAccountId) && isToPrimaryEcosystem) {
+                    data.totalTransfersIn += t.amount;
+                    data.transferInTransactions.push(t);
                 }
             }
             // Logic for non-primary, non-overall accounts
@@ -413,7 +400,7 @@ export function ReportView({ transactions, categories, accounts, isOverallSummar
                                     <TableCell colSpan={2} className="text-center text-muted-foreground">No regular expenses this month.</TableCell>
                                 </TableRow>
                             )}
-                            {!isOverallSummary && !isPrimaryReport && monthlyReport.transferOutTransactions.length > 0 && (
+                            {!isOverallSummary && !isPrimaryReport && monthlyReport.totalTransfersOut > 0 && (
                                 <TableRow onClick={() => setIsTransferDialogOpen(true)} className="cursor-pointer">
                                     <TableCell>
                                         <p className="font-medium">Transfers Out</p>
@@ -570,5 +557,3 @@ export function ReportView({ transactions, categories, accounts, isOverallSummar
     </>
   );
 }
-
-    
