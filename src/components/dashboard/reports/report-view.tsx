@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import type { Transaction, Category, SubCategory } from "@/lib/data";
+import type { Transaction, Category, SubCategory, Account } from "@/lib/data";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BookText, TrendingUp, TrendingDown, IndianRupee, AlertTriangle } from "lucide-react";
@@ -71,7 +71,7 @@ type CategoryDetail = {
 };
 
 
-export function ReportView({ transactions, categories, accounts, isOverallSummary, accountId, isPrimaryReport }: { transactions: Transaction[], categories: Category[], accounts: (Omit<import("/workspace/src/lib/data").Account, "balance"> & { balance: number; })[] , isOverallSummary: boolean, accountId?: string, isPrimaryReport?: boolean }) {
+export function ReportView({ transactions, categories, accounts, isOverallSummary, accountId, isPrimaryReport }: { transactions: Transaction[], categories: Category[], accounts: Account[] , isOverallSummary: boolean, accountId?: string, isPrimaryReport?: boolean }) {
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
   const [selectedCategoryDetail, setSelectedCategoryDetail] = useState<CategoryDetail | null>(null);
@@ -405,11 +405,13 @@ export function ReportView({ transactions, categories, accounts, isOverallSummar
                 </CardContent>
                  {isPrimaryReport && (
                     <CardFooter className="flex-col items-start gap-2 pt-4">
+                      <div>
                         <Separator />
                         <div className="w-full flex justify-between font-bold text-base text-blue-600 mt-2">
                             <span>Total Income Budget</span>
                             <span className="font-mono">{formatCurrency(monthlyReport.totalIncomeBudget)}</span>
                         </div>
+                      </div>
                     </CardFooter>
                 )}
             </Card>
@@ -468,27 +470,29 @@ export function ReportView({ transactions, categories, accounts, isOverallSummar
                     )}
                 </CardContent>
                 <CardFooter className="flex-col items-start gap-2 pt-4">
-                    <Separator />
-                     <div className="w-full flex justify-between text-sm text-muted-foreground">
-                        <span>Regular Expenses Total</span>
-                        <span className="font-mono">{formatCurrency(monthlyReport.totalExpense)}</span>
-                    </div>
-                     {isPrimaryReport && specialExpenses.length > 0 && (
-                        <div className="w-full flex justify-between text-sm text-muted-foreground">
-                            <span>Special Expenses Total</span>
-                            <span className="font-mono">{formatCurrency(totalSpecialExpense)}</span>
+                    <div>
+                        <Separator />
+                        <div className="w-full flex justify-between text-sm text-muted-foreground mt-2">
+                            <span>Regular Expenses Total</span>
+                            <span className="font-mono">{formatCurrency(monthlyReport.totalExpense)}</span>
                         </div>
-                    )}
-                    <div className="w-full flex justify-between font-bold text-base mt-2">
-                        <span>Grand Total Expenses</span>
-                        <span className="font-mono">{formatCurrency(grandTotalExpense)}</span>
-                    </div>
-                    {isPrimaryReport && (
-                        <div className="w-full flex justify-between font-bold text-base text-blue-600 mt-2">
-                            <span>Total Expense Budget</span>
-                            <span className="font-mono">{formatCurrency(monthlyReport.totalExpenseBudget)}</span>
+                        {isPrimaryReport && specialExpenses.length > 0 && (
+                            <div className="w-full flex justify-between text-sm text-muted-foreground">
+                                <span>Special Expenses Total</span>
+                                <span className="font-mono">{formatCurrency(totalSpecialExpense)}</span>
+                            </div>
+                        )}
+                        <div className="w-full flex justify-between font-bold text-base mt-2">
+                            <span>Grand Total Expenses</span>
+                            <span className="font-mono">{formatCurrency(grandTotalExpense)}</span>
                         </div>
-                    )}
+                        {isPrimaryReport && (
+                            <div className="w-full flex justify-between font-bold text-base text-blue-600 mt-2">
+                                <span>Total Expense Budget</span>
+                                <span className="font-mono">{formatCurrency(monthlyReport.totalExpenseBudget)}</span>
+                            </div>
+                        )}
+                    </div>
                 </CardFooter>
             </Card>
         </div>
@@ -588,6 +592,7 @@ export function ReportView({ transactions, categories, accounts, isOverallSummar
     </>
   );
 }
+
 
 
 
