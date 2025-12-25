@@ -222,7 +222,7 @@ export function ReportView({ transactions, categories, accounts, isOverallSummar
   };
   
   const grandTotalIncome = monthlyReport.totalIncome + monthlyReport.totalTransfersIn;
-  const grandTotalExpense = monthlyReport.totalExpense + totalSpecialExpense + monthlyReport.totalTransfersOut;
+  const grandTotalExpense = monthlyReport.totalExpense + (isPrimaryReport ? totalSpecialExpense : 0) + monthlyReport.totalTransfersOut;
   const netSavings = grandTotalIncome - grandTotalExpense;
   const hasTransactions = monthlyTransactions.length > 0;
 
@@ -411,7 +411,7 @@ export function ReportView({ transactions, categories, accounts, isOverallSummar
                             )}
                         </TableBody>
                     </Table>
-                    {specialExpenses.length > 0 && (
+                    {isPrimaryReport && specialExpenses.length > 0 && (
                         <>
                             <Separator className="my-4" />
                             <Table>
@@ -442,7 +442,7 @@ export function ReportView({ transactions, categories, accounts, isOverallSummar
                         <span>Regular Expenses Total</span>
                         <span className="font-mono">{formatCurrency(monthlyReport.totalExpense)}</span>
                     </div>
-                     {specialExpenses.length > 0 && (
+                     {isPrimaryReport && specialExpenses.length > 0 && (
                         <div className="w-full flex justify-between text-sm text-muted-foreground">
                             <span>Special Expenses Total</span>
                             <span className="font-mono">{formatCurrency(totalSpecialExpense)}</span>
