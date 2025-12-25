@@ -167,7 +167,7 @@ export function OverviewChart() {
   }, [transactions]);
 
   const DayWithTooltip = (props: DayProps) => {
-    const date = props.day;
+    const date = props.date;
     const dateString = format(date, "yyyy-MM-dd");
     const expenseTotal = dailyExpenses[dateString];
 

@@ -3,7 +3,7 @@
 
 import * as React from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
-import { DayPicker, DayProps } from "react-day-picker"
+import { DayPicker, DayProps, Day as RDPDay } from "react-day-picker"
 
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
@@ -61,17 +61,7 @@ function Calendar({
         IconRight: ({ className, ...props }) => (
           <ChevronRight className={cn("h-4 w-4", className)} {...props} />
         ),
-        Day: (props: DayProps) => {
-          const { day, modifiers } = props;
-          if (modifiers.outside) {
-            return <div />;
-          }
-          return (
-            <div>
-              {day.getDate()}
-            </div>
-          );
-        },
+        Day: (props: DayProps) => <RDPDay {...props} />,
       }}
       {...props}
     />
