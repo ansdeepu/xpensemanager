@@ -167,14 +167,18 @@ export function OverviewChart() {
   }, [transactions]);
 
   const DayWithTooltip = (props: DayProps) => {
-    const { date } = props;
-    const dateString = format(date, "yyyy-MM-dd");
+    const { day } = props;
+    if (!(day instanceof Date)) {
+      return <DefaultDay {...props} />;
+    }
+  
+    const dateString = format(day, "yyyy-MM-dd");
     const expenseTotal = dailyExpenses[dateString];
-
+  
     if (!expenseTotal) {
       return <DefaultDay {...props} />;
     }
-
+  
     return (
       <Tooltip>
         <TooltipTrigger asChild>
