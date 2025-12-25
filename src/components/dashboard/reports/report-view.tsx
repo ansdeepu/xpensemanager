@@ -155,14 +155,12 @@ export function ReportView({ transactions, categories, accounts, isOverallSummar
             data.incomeByCategory[categoryName].subcategories[subCategoryName] = (data.incomeByCategory[categoryName].subcategories[subCategoryName] || 0) + t.amount;
             data.incomeTransactions.push(t);
         } else if (t.type === 'expense') {
-            const isWalletTransaction = t.paymentMethod === 'cash' || t.paymentMethod === 'digital';
             let shouldProcessExpense = false;
 
-            if (isOverallSummary || isPrimaryReport) {
-                shouldProcessExpense = t.accountId === accountId || isWalletTransaction;
-                 if (isOverallSummary && !isPrimaryReport) { // Overall summary but not primary
-                    shouldProcessExpense = true;
-                }
+            if (isOverallSummary) {
+                shouldProcessExpense = true;
+            } else if (isPrimaryReport) {
+                shouldProcessExpense = t.accountId === accountId || isWalletExpense;
             } else { // Non-primary account view
                 shouldProcessExpense = t.accountId === accountId;
             }
@@ -179,7 +177,7 @@ export function ReportView({ transactions, categories, accounts, isOverallSummar
               data.expenseTransactions.push(t);
             }
         } else if (t.type === 'transfer') {
-            // Logic for Primary Report
+             // Logic for Primary Report
             if (isPrimaryReport) {
                 // Count as "Transfer In" only if it comes from another bank account into the primary ecosystem (primary account or wallets).
                 const isToPrimaryEcosystem = t.toAccountId === accountId || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
@@ -244,7 +242,7 @@ export function ReportView({ transactions, categories, accounts, isOverallSummar
   };
   
   const grandTotalIncome = monthlyReport.totalIncome + monthlyReport.totalTransfersIn;
-  const grandTotalExpense = monthlyReport.totalExpense + (isPrimaryReport ? totalSpecialExpense : 0) + monthlyReport.totalTransfersOut;
+  const grandTotalExpense = monthlyReport.totalExpense + (isPrimaryReport ? totalSpecialExpense : 0);
   const netSavings = grandTotalIncome - grandTotalExpense;
   const hasTransactions = monthlyTransactions.length > 0;
 
@@ -457,22 +455,22 @@ export function ReportView({ transactions, categories, accounts, isOverallSummar
                         <span>Regular Expenses Total</span>
                         <span className="font-mono">{formatCurrency(monthlyReport.totalExpense)}</span>
                     </div>
-                     {isPrimaryReport && (
-                        <div className="w-full flex justify-between text-sm text-muted-foreground">
-                            <span>Total Budget</span>
-                            <span className="font-mono">{formatCurrency(monthlyReport.totalBudget)}</span>
-                        </div>
-                    )}
                      {isPrimaryReport && specialExpenses.length > 0 && (
                         <div className="w-full flex justify-between text-sm text-muted-foreground">
                             <span>Special Expenses Total</span>
                             <span className="font-mono">{formatCurrency(totalSpecialExpense)}</span>
                         </div>
                     )}
-                    <div className="w-full flex justify-between font-bold text-base">
+                    <div className="w-full flex justify-between font-bold text-base mt-2">
                         <span>Grand Total Expenses</span>
                         <span className="font-mono">{formatCurrency(grandTotalExpense)}</span>
                     </div>
+                    {isPrimaryReport && (
+                        <div className="w-full flex justify-between font-bold text-base text-blue-600 mt-2">
+                            <span>Total Budget</span>
+                            <span className="font-mono">{formatCurrency(monthlyReport.totalBudget)}</span>
+                        </div>
+                    )}
                 </CardFooter>
             </Card>
         </div>
@@ -572,4 +570,5 @@ export function ReportView({ transactions, categories, accounts, isOverallSummar
     </>
   );
 }
+
 
