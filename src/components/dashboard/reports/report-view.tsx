@@ -60,7 +60,8 @@ type ReportData = {
   expenseTransactions: Transaction[];
   transferInTransactions: Transaction[];
   transferOutTransactions: Transaction[];
-  totalBudget: number;
+  totalIncomeBudget: number;
+  totalExpenseBudget: number;
 };
 
 type CategoryDetail = {
@@ -123,12 +124,11 @@ export function ReportView({ transactions, categories, accounts, isOverallSummar
         expenseTransactions: [],
         transferInTransactions: [],
         transferOutTransactions: [],
-        totalBudget: 0,
+        totalIncomeBudget: 0,
+        totalExpenseBudget: 0,
     };
     
-    const allBankAccountIds = new Set(accounts.map(acc => acc.id));
     const nonPrimaryBankAccountIds = new Set(accounts.filter(acc => !acc.isPrimary).map(acc => acc.id));
-
 
     monthlyTransactions.forEach(t => {
         const categoryName = t.category || "Uncategorized";
@@ -177,17 +177,13 @@ export function ReportView({ transactions, categories, accounts, isOverallSummar
               data.expenseTransactions.push(t);
             }
         } else if (t.type === 'transfer') {
-             // Logic for Primary Report
-            if (isPrimaryReport) {
-                // Count as "Transfer In" only if it comes from another bank account into the primary ecosystem (primary account or wallets).
+             if (isPrimaryReport) {
                 const isToPrimaryEcosystem = t.toAccountId === accountId || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
                 if (t.fromAccountId && nonPrimaryBankAccountIds.has(t.fromAccountId) && isToPrimaryEcosystem) {
                     data.totalTransfersIn += t.amount;
                     data.transferInTransactions.push(t);
                 }
-            }
-            // Logic for non-primary, non-overall accounts
-            else if (!isOverallSummary) {
+            } else if (!isOverallSummary) {
                 if (t.toAccountId === accountId) {
                     data.totalTransfersIn += t.amount;
                     data.transferInTransactions.push(t);
@@ -200,7 +196,7 @@ export function ReportView({ transactions, categories, accounts, isOverallSummar
         }
     });
 
-    categories.filter(c => c.type === 'expense' || c.type === 'bank-expense').forEach(cat => {
+    categories.forEach(cat => {
         const categoryBudget = cat.subcategories
           .filter(sub => 
             sub.frequency === 'monthly' || 
@@ -208,14 +204,23 @@ export function ReportView({ transactions, categories, accounts, isOverallSummar
           )
           .reduce((sum, sub) => sum + (sub.amount || 0), 0);
 
-        if (data.expenseByCategory[cat.name]) {
-            data.expenseByCategory[cat.name].budget = categoryBudget;
-        } else if (categoryBudget > 0) {
-            // Include categories that have a budget but no spending yet
-            data.expenseByCategory[cat.name] = { total: 0, budget: categoryBudget, subcategories: {} };
+        if (cat.type === 'expense' || cat.type === 'bank-expense') {
+            if (data.expenseByCategory[cat.name]) {
+                data.expenseByCategory[cat.name].budget = categoryBudget;
+            } else if (categoryBudget > 0) {
+                data.expenseByCategory[cat.name] = { total: 0, budget: categoryBudget, subcategories: {} };
+            }
+            data.totalExpenseBudget += categoryBudget;
+        } else if (cat.type === 'income') {
+            if (data.incomeByCategory[cat.name]) {
+                data.incomeByCategory[cat.name].budget = categoryBudget;
+            } else if (categoryBudget > 0) {
+                data.incomeByCategory[cat.name] = { total: 0, budget: categoryBudget, subcategories: {} };
+            }
+            data.totalIncomeBudget += categoryBudget;
         }
-        data.totalBudget += categoryBudget;
     });
+
 
     return data;
   }, [monthlyTransactions, specialExpenseIds, isOverallSummary, accountId, isPrimaryReport, categories, accounts, currentMonthName]);
@@ -361,19 +366,21 @@ export function ReportView({ transactions, categories, accounts, isOverallSummar
                             <TableRow>
                                 <TableHead>Category</TableHead>
                                 <TableHead className="text-right">Amount</TableHead>
+                                {isPrimaryReport && <TableHead className="text-right">Budget</TableHead>}
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {Object.keys(monthlyReport.incomeByCategory).length > 0 ? (
-                                Object.entries(monthlyReport.incomeByCategory).map(([category, { total }]) => (
+                                Object.entries(monthlyReport.incomeByCategory).map(([category, { total, budget }]) => (
                                     <TableRow key={category} onClick={() => handleCategoryClick(category, 'income')} className="cursor-pointer">
                                         <TableCell className="font-medium">{category}</TableCell>
                                         <TableCell className="text-right">{formatCurrency(total)}</TableCell>
+                                        {isPrimaryReport && <TableCell className="text-right">{budget > 0 ? formatCurrency(budget) : '-'}</TableCell>}
                                     </TableRow>
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={2} className="text-center text-muted-foreground">No income this month.</TableCell>
+                                    <TableCell colSpan={isPrimaryReport ? 3 : 2} className="text-center text-muted-foreground">No income this month.</TableCell>
                                 </TableRow>
                             )}
                             {monthlyReport.totalTransfersIn > 0 && (
@@ -383,6 +390,7 @@ export function ReportView({ transactions, categories, accounts, isOverallSummar
                                         <p className="text-xs text-muted-foreground">({monthlyReport.transferInTransactions.length} transaction{monthlyReport.transferInTransactions.length === 1 ? '' : 's'})</p>
                                     </TableCell>
                                     <TableCell className="text-right">{formatCurrency(monthlyReport.totalTransfersIn)}</TableCell>
+                                    {isPrimaryReport && <TableCell />}
                                 </TableRow>
                             )}
                         </TableBody>
@@ -390,10 +398,20 @@ export function ReportView({ transactions, categories, accounts, isOverallSummar
                             <TableRow>
                                 <TableHead>Total Income</TableHead>
                                 <TableHead className="text-right">{formatCurrency(grandTotalIncome)}</TableHead>
+                                {isPrimaryReport && <TableHead />}
                             </TableRow>
                         </TableFooter>
                     </Table>
                 </CardContent>
+                 {isPrimaryReport && (
+                    <CardFooter className="flex-col items-start gap-2 pt-4">
+                        <Separator />
+                        <div className="w-full flex justify-between font-bold text-base text-blue-600 mt-2">
+                            <span>Total Income Budget</span>
+                            <span className="font-mono">{formatCurrency(monthlyReport.totalIncomeBudget)}</span>
+                        </div>
+                    </CardFooter>
+                )}
             </Card>
             <Card>
                 <CardHeader>
@@ -467,8 +485,8 @@ export function ReportView({ transactions, categories, accounts, isOverallSummar
                     </div>
                     {isPrimaryReport && (
                         <div className="w-full flex justify-between font-bold text-base text-blue-600 mt-2">
-                            <span>Total Budget</span>
-                            <span className="font-mono">{formatCurrency(monthlyReport.totalBudget)}</span>
+                            <span>Total Expense Budget</span>
+                            <span className="font-mono">{formatCurrency(monthlyReport.totalExpenseBudget)}</span>
                         </div>
                     )}
                 </CardFooter>
@@ -570,5 +588,6 @@ export function ReportView({ transactions, categories, accounts, isOverallSummar
     </>
   );
 }
+
 
 
