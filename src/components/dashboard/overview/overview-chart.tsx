@@ -24,7 +24,7 @@ import { collection, query, where, onSnapshot } from "firebase/firestore";
 import type { Transaction, Category, Account } from "@/lib/data";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { CalendarIcon } from "lucide-react";
 import { DayProps, Day as DefaultDay } from "react-day-picker";
 
