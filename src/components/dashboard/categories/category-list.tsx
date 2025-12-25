@@ -354,7 +354,7 @@ function SortableCategoryCard({
                     </div>
               </CardHeader>
               <CardContent className="p-6 pt-0">
-                <div className="h-64 overflow-y-auto pr-4">
+                <div className="max-h-[50vh] min-h-[10rem] overflow-y-auto pr-4">
                     <DndContext 
                         sensors={sensors} 
                         collisionDetection={closestCenter} 
