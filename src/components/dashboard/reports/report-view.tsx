@@ -127,7 +127,6 @@ export function ReportView({ transactions, categories, isOverallSummary, account
     monthlyTransactions.forEach(t => {
         const categoryName = t.category || "Uncategorized";
         const subCategoryName = t.subcategory || "Unspecified";
-
         const isWalletExpense = t.paymentMethod === 'cash' || t.paymentMethod === 'digital';
         
         let includeTransaction = false;
@@ -162,7 +161,7 @@ export function ReportView({ transactions, categories, isOverallSummary, account
                     }
                     data.expenseTransactions.push(t);
                 }
-            } else { // For non-primary, non-overall accounts
+            } else { 
                 if (!specialExpenseIds.has(t.id)) {
                     data.totalExpense += t.amount;
                     if (!data.expenseByCategory[categoryName]) {
@@ -174,17 +173,29 @@ export function ReportView({ transactions, categories, isOverallSummary, account
                 data.expenseTransactions.push(t);
             }
         } else if (t.type === 'transfer') {
-            const isToPrimaryEcosystem = t.toAccountId === accountId || (isPrimaryReport && (t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet'));
-            const isFromAnotherBankAccount = t.fromAccountId && allAccountIds.has(t.fromAccountId) && t.fromAccountId !== accountId;
+            const isFromWallet = t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
+            const isToWallet = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
 
-            if (isToPrimaryEcosystem && isFromAnotherBankAccount) {
-                data.totalTransfersIn += t.amount;
-                data.transferInTransactions.push(t);
+            // Logic for Primary Report
+            if (isPrimaryReport) {
+                // Count as "Transfer In" only if it comes from another bank account into the primary ecosystem
+                if (t.fromAccountId && allAccountIds.has(t.fromAccountId) && t.fromAccountId !== accountId) {
+                    if (t.toAccountId === accountId || isToWallet) {
+                        data.totalTransfersIn += t.amount;
+                        data.transferInTransactions.push(t);
+                    }
+                }
             }
-            
-            if (t.fromAccountId === accountId && !isOverallSummary && !isPrimaryReport) {
-                data.totalTransfersOut += t.amount;
-                data.transferOutTransactions.push(t);
+            // Logic for non-primary, non-overall accounts
+            else if (!isOverallSummary) {
+                if (t.toAccountId === accountId) {
+                    data.totalTransfersIn += t.amount;
+                    data.transferInTransactions.push(t);
+                }
+                if (t.fromAccountId === accountId) {
+                    data.totalTransfersOut += t.amount;
+                    data.transferOutTransactions.push(t);
+                }
             }
         }
     });
@@ -221,20 +232,20 @@ export function ReportView({ transactions, categories, isOverallSummary, account
   return (
     <>
     <div className="space-y-6">
-       <div className="flex justify-end">
-         <div className="flex items-center gap-2">
-            <Label htmlFor="special-expense-threshold" className="text-sm font-bold text-red-600 flex items-center gap-2 flex-shrink-0">
-              <AlertTriangle className="h-4 w-4" />
-              <span>Special Expense Threshold</span>
-            </Label>
-            <Input
-              id="special-expense-threshold"
-              type="number"
-              value={specialExpenseThreshold}
-              onChange={(e) => setSpecialExpenseThreshold(Number(e.target.value))}
-              className="hide-number-arrows w-32"
-              placeholder="e.g. 2000"
-            />
+      <div className="flex justify-end">
+        <div className="flex items-center gap-2">
+          <Label htmlFor="special-expense-threshold" className="text-sm font-bold text-red-600 flex items-center gap-2 flex-shrink-0">
+            <AlertTriangle className="h-4 w-4" />
+            <span>Special Expense Threshold</span>
+          </Label>
+          <Input
+            id="special-expense-threshold"
+            type="number"
+            value={specialExpenseThreshold}
+            onChange={(e) => setSpecialExpenseThreshold(Number(e.target.value))}
+            className="hide-number-arrows w-32"
+            placeholder="e.g. 2000"
+          />
         </div>
       </div>
       {!hasTransactions ? (
@@ -270,7 +281,7 @@ export function ReportView({ transactions, categories, isOverallSummary, account
                 </CardHeader>
                 <CardContent>
                     <div className="text-2xl font-bold text-red-600">{formatCurrency(grandTotalExpense)}</div>
-                     {monthlyReport.totalTransfersOut > 0 && !isOverallSummary && (
+                     {monthlyReport.totalTransfersOut > 0 && !isOverallSummary && !isPrimaryReport && (
                         <p className="text-xs text-muted-foreground">
                             (+{formatCurrency(monthlyReport.totalTransfersOut)} from transfers)
                         </p>
@@ -392,7 +403,7 @@ export function ReportView({ transactions, categories, isOverallSummary, account
                                     <TableCell colSpan={2} className="text-center text-muted-foreground">No regular expenses this month.</TableCell>
                                 </TableRow>
                             )}
-                             {!isOverallSummary && monthlyReport.transferOutTransactions.length > 0 && (
+                             {!isOverallSummary && !isPrimaryReport && monthlyReport.transferOutTransactions.length > 0 && (
                                 <TableRow onClick={() => setIsTransferDialogOpen(true)} className="cursor-pointer">
                                     <TableCell>
                                         <p className="font-medium">Transfers Out</p>
@@ -440,7 +451,7 @@ export function ReportView({ transactions, categories, isOverallSummary, account
                             <span className="font-mono">{formatCurrency(totalSpecialExpense)}</span>
                         </div>
                     )}
-                     {!isOverallSummary && monthlyReport.totalTransfersOut > 0 && (
+                     {!isOverallSummary && !isPrimaryReport && monthlyReport.totalTransfersOut > 0 && (
                         <div className="w-full flex justify-between text-sm text-muted-foreground">
                             <span>Transfers Out Total</span>
                             <span className="font-mono">{formatCurrency(monthlyReport.totalTransfersOut)}</span>
@@ -549,5 +560,3 @@ export function ReportView({ transactions, categories, isOverallSummary, account
     </>
   );
 }
-
-    
