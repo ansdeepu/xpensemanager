@@ -3,7 +3,7 @@
 
 import React, { useState, useMemo } from "react";
 import type { Transaction, Category, SubCategory } from "@/lib/data";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BookText, TrendingUp, TrendingDown, IndianRupee, AlertTriangle } from "lucide-react";
 import { format, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
@@ -150,8 +150,18 @@ export function ReportView({ transactions, categories, isOverallSummary, account
             data.incomeByCategory[categoryName].subcategories[subCategoryName] = (data.incomeByCategory[categoryName].subcategories[subCategoryName] || 0) + t.amount;
             data.incomeTransactions.push(t);
         } else if (t.type === 'expense') {
-            if (isOverallSummary || isPrimaryReport) {
-                if (isWalletExpense || t.accountId === accountId) {
+            if (isOverallSummary) {
+                if (!specialExpenseIds.has(t.id)) {
+                    data.totalExpense += t.amount;
+                    if (!data.expenseByCategory[categoryName]) {
+                        data.expenseByCategory[categoryName] = { total: 0, subcategories: {} };
+                    }
+                    data.expenseByCategory[categoryName].total += t.amount;
+                    data.expenseByCategory[categoryName].subcategories[subCategoryName] = (data.expenseByCategory[categoryName].subcategories[subCategoryName] || 0) + t.amount;
+                }
+                data.expenseTransactions.push(t);
+            } else if (isPrimaryReport) {
+                 if (isWalletExpense || t.accountId === accountId) {
                     if (!specialExpenseIds.has(t.id)) {
                         data.totalExpense += t.amount;
                         if (!data.expenseByCategory[categoryName]) {
@@ -174,10 +184,10 @@ export function ReportView({ transactions, categories, isOverallSummary, account
                 data.expenseTransactions.push(t);
             }
         } else if (t.type === 'transfer') {
-            const isToPrimaryOrWallet = t.toAccountId === accountId || (isPrimaryReport && (t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet'));
-            const isFromOtherBankAccount = t.fromAccountId && allAccountIds.has(t.fromAccountId);
+            const isToPrimaryEcosystem = t.toAccountId === accountId || (isPrimaryReport && (t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet'));
+            const isFromAnotherBankAccount = t.fromAccountId && allAccountIds.has(t.fromAccountId);
 
-            if (isToPrimaryOrWallet && isFromOtherBankAccount) {
+            if (isToPrimaryEcosystem && isFromAnotherBankAccount) {
                 data.totalTransfersIn += t.amount;
                 data.transferInTransactions.push(t);
             }
@@ -221,7 +231,7 @@ export function ReportView({ transactions, categories, isOverallSummary, account
   return (
     <>
     <div className="space-y-6">
-       <div className="flex justify-end">
+      <div className="flex justify-end">
          <div className="flex items-center gap-2">
             <Label htmlFor="special-expense-threshold" className="text-sm font-bold text-red-600 flex items-center gap-2 flex-shrink-0">
               <AlertTriangle className="h-4 w-4" />
@@ -556,5 +566,3 @@ export function ReportView({ transactions, categories, isOverallSummary, account
     </>
   );
 }
-
-    
