@@ -3,7 +3,7 @@
 
 import React, { useState, useMemo } from "react";
 import type { Transaction, Category, SubCategory } from "@/lib/data";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BookText, TrendingUp, TrendingDown, IndianRupee, AlertTriangle } from "lucide-react";
 import { format, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
@@ -150,17 +150,7 @@ export function ReportView({ transactions, categories, isOverallSummary, account
             data.incomeByCategory[categoryName].subcategories[subCategoryName] = (data.incomeByCategory[categoryName].subcategories[subCategoryName] || 0) + t.amount;
             data.incomeTransactions.push(t);
         } else if (t.type === 'expense') {
-            if (isOverallSummary) {
-                if (!specialExpenseIds.has(t.id)) {
-                    data.totalExpense += t.amount;
-                    if (!data.expenseByCategory[categoryName]) {
-                        data.expenseByCategory[categoryName] = { total: 0, subcategories: {} };
-                    }
-                    data.expenseByCategory[categoryName].total += t.amount;
-                    data.expenseByCategory[categoryName].subcategories[subCategoryName] = (data.expenseByCategory[categoryName].subcategories[subCategoryName] || 0) + t.amount;
-                }
-                data.expenseTransactions.push(t);
-            } else if (isPrimaryReport) {
+             if (isPrimaryReport) {
                  if (isWalletExpense || t.accountId === accountId) {
                     if (!specialExpenseIds.has(t.id)) {
                         data.totalExpense += t.amount;
@@ -185,7 +175,7 @@ export function ReportView({ transactions, categories, isOverallSummary, account
             }
         } else if (t.type === 'transfer') {
             const isToPrimaryEcosystem = t.toAccountId === accountId || (isPrimaryReport && (t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet'));
-            const isFromAnotherBankAccount = t.fromAccountId && allAccountIds.has(t.fromAccountId);
+            const isFromAnotherBankAccount = t.fromAccountId && allAccountIds.has(t.fromAccountId) && t.fromAccountId !== accountId;
 
             if (isToPrimaryEcosystem && isFromAnotherBankAccount) {
                 data.totalTransfersIn += t.amount;
@@ -231,7 +221,7 @@ export function ReportView({ transactions, categories, isOverallSummary, account
   return (
     <>
     <div className="space-y-6">
-      <div className="flex justify-end">
+       <div className="flex justify-end">
          <div className="flex items-center gap-2">
             <Label htmlFor="special-expense-threshold" className="text-sm font-bold text-red-600 flex items-center gap-2 flex-shrink-0">
               <AlertTriangle className="h-4 w-4" />
@@ -280,7 +270,7 @@ export function ReportView({ transactions, categories, isOverallSummary, account
                 </CardHeader>
                 <CardContent>
                     <div className="text-2xl font-bold text-red-600">{formatCurrency(grandTotalExpense)}</div>
-                     {monthlyReport.totalTransfersOut > 0 && !isOverallSummary && !isPrimaryReport && (
+                     {monthlyReport.totalTransfersOut > 0 && !isOverallSummary && (
                         <p className="text-xs text-muted-foreground">
                             (+{formatCurrency(monthlyReport.totalTransfersOut)} from transfers)
                         </p>
@@ -402,6 +392,15 @@ export function ReportView({ transactions, categories, isOverallSummary, account
                                     <TableCell colSpan={2} className="text-center text-muted-foreground">No regular expenses this month.</TableCell>
                                 </TableRow>
                             )}
+                             {!isOverallSummary && monthlyReport.transferOutTransactions.length > 0 && (
+                                <TableRow onClick={() => setIsTransferDialogOpen(true)} className="cursor-pointer">
+                                    <TableCell>
+                                        <p className="font-medium">Transfers Out</p>
+                                        <p className="text-xs text-muted-foreground">({monthlyReport.transferOutTransactions.length} transaction{monthlyReport.transferOutTransactions.length === 1 ? '' : 's'})</p>
+                                    </TableCell>
+                                    <TableCell className="text-right">{formatCurrency(monthlyReport.totalTransfersOut)}</TableCell>
+                                </TableRow>
+                            )}
                         </TableBody>
                     </Table>
                     {specialExpenses.length > 0 && (
@@ -428,22 +427,6 @@ export function ReportView({ transactions, categories, isOverallSummary, account
                             </Table>
                         </>
                     )}
-                     {monthlyReport.transferOutTransactions.length > 0 && !isOverallSummary && !isPrimaryReport && (
-                        <>
-                            <Separator className="my-4" />
-                            <Table>
-                                <TableBody>
-                                     <TableRow onClick={() => setIsTransferDialogOpen(true)} className="cursor-pointer">
-                                        <TableCell>
-                                            <p className="font-medium">Transfers Out</p>
-                                             <p className="text-xs text-muted-foreground">({monthlyReport.transferOutTransactions.length} transaction{monthlyReport.transferOutTransactions.length === 1 ? '' : 's'})</p>
-                                        </TableCell>
-                                        <TableCell className="text-right">{formatCurrency(monthlyReport.totalTransfersOut)}</TableCell>
-                                    </TableRow>
-                                </TableBody>
-                            </Table>
-                        </>
-                    )}
                 </CardContent>
                 <CardFooter className="flex-col items-start gap-2 pt-4">
                     <Separator />
@@ -457,7 +440,7 @@ export function ReportView({ transactions, categories, isOverallSummary, account
                             <span className="font-mono">{formatCurrency(totalSpecialExpense)}</span>
                         </div>
                     )}
-                     {monthlyReport.totalTransfersOut > 0 && !isOverallSummary && !isPrimaryReport && (
+                     {!isOverallSummary && monthlyReport.totalTransfersOut > 0 && (
                         <div className="w-full flex justify-between text-sm text-muted-foreground">
                             <span>Transfers Out Total</span>
                             <span className="font-mono">{formatCurrency(monthlyReport.totalTransfersOut)}</span>
@@ -566,3 +549,5 @@ export function ReportView({ transactions, categories, isOverallSummary, account
     </>
   );
 }
+
+    
