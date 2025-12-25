@@ -167,12 +167,12 @@ export function OverviewChart() {
   }, [transactions]);
 
   const DayWithTooltip = (props: DayProps) => {
-    const date = props.date;
+    const date = props.day;
     const dateString = format(date, "yyyy-MM-dd");
     const expenseTotal = dailyExpenses[dateString];
 
     if (!expenseTotal) {
-      return <div className="react-day-picker-Day-content">{format(date, "d")}</div>;
+      return <div>{format(date, "d")}</div>;
     }
 
     return (
@@ -180,7 +180,7 @@ export function OverviewChart() {
         <TooltipTrigger asChild>
           <div
             className={cn(
-              "relative h-full w-full flex items-center justify-center rounded-full font-bold react-day-picker-Day-content",
+              "relative h-full w-full flex items-center justify-center rounded-full font-bold",
               "bg-accent text-accent-foreground"
             )}
           >

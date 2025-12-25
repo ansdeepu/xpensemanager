@@ -62,13 +62,13 @@ function Calendar({
           <ChevronRight className={cn("h-4 w-4", className)} {...props} />
         ),
         Day: (props: DayProps) => {
-          const { date, displayMonth } = props;
-          if (displayMonth.getMonth() !== date.getMonth()) {
+          const { day, modifiers } = props;
+          if (modifiers.outside) {
             return <div />;
           }
           return (
-            <div className="react-day-picker-Day-content">
-              {date.getDate()}
+            <div>
+              {day.getDate()}
             </div>
           );
         },
