@@ -26,7 +26,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { CalendarIcon } from "lucide-react";
-import { DayProps, Day as RDPDay } from "react-day-picker";
+import { DayPicker, DayProps } from "react-day-picker";
+import { Day } from "react-day-picker";
 
 import {
   Tooltip,
@@ -172,13 +173,13 @@ export function OverviewChart() {
     const expenseTotal = dailyExpenses[dateString];
 
     if (!expenseTotal) {
-      return <RDPDay {...props}/>;
+      return <Day {...props} />;
     }
 
     return (
       <Tooltip>
         <TooltipTrigger asChild>
-          <RDPDay {...props}/>
+          <Day {...props} />
         </TooltipTrigger>
         <TooltipContent>
           <p>{formatCurrency(expenseTotal)}</p>
@@ -288,5 +289,3 @@ export function OverviewChart() {
     </Card>
   );
 }
-
-    
