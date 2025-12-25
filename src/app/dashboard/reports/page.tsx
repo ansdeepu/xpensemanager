@@ -160,7 +160,7 @@ export default function ReportsPage() {
         </TabsList>
 
         <TabsContent value="all" className="mt-6">
-          <ReportView transactions={transactions} categories={categories} isOverallSummary={true} />
+          <ReportView transactions={transactions} categories={categories} accounts={accounts} isOverallSummary={true} />
         </TabsContent>
         
         {accounts.map(account => (
@@ -168,6 +168,7 @@ export default function ReportsPage() {
             <ReportView 
                 transactions={transactions} 
                 categories={categories}
+                accounts={accounts}
                 isOverallSummary={false} 
                 accountId={account.id}
                 isPrimaryReport={!!account.isPrimary}
@@ -179,3 +180,4 @@ export default function ReportsPage() {
   );
 }
 
+    
