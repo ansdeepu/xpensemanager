@@ -289,29 +289,31 @@ export default function TransactionsPage() {
                     <span className="font-semibold text-sm">{account.name}</span>
                     <span className="font-bold text-primary">{formatCurrency(account.balance)}</span>
                 </div>
-                 <div className="w-full space-y-1">
-                    <Label htmlFor={`actual-balance-${account.id}`} className="text-xs">Actual Balance</Label>
-                    <Input
-                        id={`actual-balance-${account.id}`}
-                        type="number"
-                        placeholder="0.00"
-                        className="hide-number-arrows h-7 mt-1 text-xs"
-                        defaultValue={account.actualBalance ?? ''}
-                        onChange={(e) => {
-                            const value = e.target.value === '' ? null : parseFloat(e.target.value)
-                            debouncedUpdateAccount(account.id, { actualBalance: value });
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                    />
+                <div className="w-full">
+                    <div className="flex items-center gap-2">
+                        <Label htmlFor={`actual-balance-${account.id}`} className="text-xs flex-shrink-0">Actual Balance</Label>
+                        <Input
+                            id={`actual-balance-${account.id}`}
+                            type="number"
+                            placeholder="0.00"
+                            className="hide-number-arrows h-7 text-xs"
+                            defaultValue={account.actualBalance ?? ''}
+                            onChange={(e) => {
+                                const value = e.target.value === '' ? null : parseFloat(e.target.value)
+                                debouncedUpdateAccount(account.id, { actualBalance: value });
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                        />
+                    </div>
                      {balanceDifference !== null && (
                         <p className={cn(
-                            "text-xs font-medium pt-1",
+                            "text-xs font-medium pt-1 text-right",
                             Math.round(balanceDifference * 100) === 0 ? "text-green-600" : "text-red-600"
                         )}>
                             Diff: {formatCurrency(balanceDifference)}
                         </p>
                     )}
-                 </div>
+                </div>
               </TabsTrigger>
           )})}
         </TabsList>
