@@ -47,7 +47,7 @@ import { auth, db } from "@/lib/firebase";
 import { collection, addDoc, query, where, onSnapshot, doc, deleteDoc, updateDoc, orderBy } from "firebase/firestore";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { format, differenceInDays, isPast } from "date-fns";
+import { format, differenceInDays, isPast, addMonths, addQuarters, addYears } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Bill } from "@/lib/data";
@@ -173,23 +173,20 @@ export function BillList() {
         setIsEditDialogOpen(true);
     };
 
-    const getStatusBadge = (bill: Bill) => {
-        if (bill.type === 'special_day') {
-            return <Badge variant="outline" className="border-amber-500 text-amber-700">Special Day</Badge>;
-        }
-
+    const getNextPaymentDate = (bill: Bill) => {
+        if (bill.recurrence === 'none') return null;
         const dueDate = new Date(bill.dueDate);
-        const paidOnDate = bill.paidOn ? new Date(bill.paidOn) : null;
-        
-        if (paidOnDate) {
-            return <Badge variant="secondary" className="border-green-500 text-green-700">Paid on {format(paidOnDate, 'dd/MM/yyyy')}</Badge>;
+        switch (bill.recurrence) {
+            case 'monthly':
+                return addMonths(dueDate, 1);
+            case 'quarterly':
+                return addQuarters(dueDate, 1);
+            case 'yearly':
+                return addYears(dueDate, 1);
+            default:
+                return null;
         }
-        
-        if (isPast(dueDate)) {
-            return <Badge variant="destructive">Overdue</Badge>;
-        }
-        return <Badge variant="outline">Upcoming</Badge>;
-    }
+    };
 
 
     if (loading || !clientLoaded) {
@@ -301,9 +298,10 @@ export function BillList() {
                             <TableRow>
                                 <TableHead>Sl. No.</TableHead>
                                 <TableHead>Title</TableHead>
-                                <TableHead>Due Date</TableHead>
                                 <TableHead className="text-right">Amount</TableHead>
-                                <TableHead>Status</TableHead>
+                                <TableHead>Due Date</TableHead>
+                                <TableHead>Payment Date</TableHead>
+                                <TableHead>Next Payment date</TableHead>
                                 <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -311,6 +309,7 @@ export function BillList() {
                             {bills.map((bill, index) => {
                                 const daysUntilDue = differenceInDays(new Date(bill.dueDate), new Date());
                                 const isOverdue = bill.type === 'bill' && daysUntilDue < 0 && !bill.paidOn;
+                                const nextPaymentDate = getNextPaymentDate(bill);
                                 return (
                                 <TableRow key={bill.id} className={cn(bill.type === 'bill' && bill.paidOn && "text-muted-foreground")}>
                                     <TableCell>{index + 1}</TableCell>
@@ -326,14 +325,19 @@ export function BillList() {
                                             )}
                                         </div>
                                     </TableCell>
+                                    <TableCell className="text-right font-mono">{bill.type === 'bill' ? formatCurrency(bill.amount) : '-'}</TableCell>
                                     <TableCell>
                                         <div>{format(new Date(bill.dueDate), 'dd/MM/yyyy')}</div>
                                         <div className={cn("text-xs", isOverdue ? "text-red-500" : "text-muted-foreground")}>
                                             {bill.paidOn ? " " : isOverdue ? `Overdue by ${-daysUntilDue} days` : `Due in ${daysUntilDue} days`}
                                         </div>
                                     </TableCell>
-                                    <TableCell className="text-right font-mono">{bill.type === 'bill' ? formatCurrency(bill.amount) : '-'}</TableCell>
-                                    <TableCell>{getStatusBadge(bill)}</TableCell>
+                                    <TableCell>
+                                        {bill.paidOn ? format(new Date(bill.paidOn), 'dd/MM/yyyy') : '-'}
+                                    </TableCell>
+                                    <TableCell>
+                                        {nextPaymentDate ? format(nextPaymentDate, 'dd/MM/yyyy') : '-'}
+                                    </TableCell>
                                     <TableCell className="text-right">
                                         <Button variant="ghost" size="icon" onClick={() => openEditDialog(bill)} className="mr-2">
                                             <Pencil className="h-4 w-4" />
