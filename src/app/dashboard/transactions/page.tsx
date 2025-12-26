@@ -218,20 +218,20 @@ export default function TransactionsPage() {
             {primaryAccount && (
               <TabsTrigger value={primaryAccount.id} className={cn("border flex flex-col h-auto min-h-[220px] p-3 items-start text-left gap-4 w-full", "bg-lime-100 dark:bg-lime-900/50")}>
                 <div className="w-full flex justify-between">
-                  <span className="font-semibold text-sm">Primary ({primaryAccount.name})</span>
-                  <span className="font-bold text-primary">{formatCurrency(allBalance)}</span>
+                  <span className="font-semibold text-base">Primary ({primaryAccount.name})</span>
+                  <span className="font-bold text-lg text-primary">{formatCurrency(allBalance)}</span>
                 </div>
 
                 <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-3 text-left">
                   {/* Bank Column */}
                   <div className="space-y-1">
                     <Label htmlFor={`actual-balance-${primaryAccount.id}`} className="text-xs">Bank Balance</Label>
-                    <div className="font-mono text-xs">{formatCurrency(primaryAccount.balance)}</div>
+                    <div className="font-mono text-sm">{formatCurrency(primaryAccount.balance)}</div>
                     <Input
                         id={`actual-balance-${primaryAccount.id}`}
                         type="number"
                         placeholder="Actual"
-                        className="hide-number-arrows h-7 mt-1 text-xs text-right"
+                        className="hide-number-arrows h-7 mt-1 text-xs"
                         defaultValue={primaryAccount.actualBalance ?? ''}
                         onChange={(e) => {
                             const value = e.target.value === '' ? null : parseFloat(e.target.value)
@@ -252,12 +252,12 @@ export default function TransactionsPage() {
                   {/* Cash Column */}
                   <div className="space-y-1">
                     <Label htmlFor="actual-balance-cash" className="text-xs">Cash</Label>
-                    <div className="font-mono text-xs">{formatCurrency(cashWalletBalance)}</div>
+                    <div className="font-mono text-sm">{formatCurrency(cashWalletBalance)}</div>
                     <Input
                         id="actual-balance-cash"
                         type="number"
                         placeholder="Actual"
-                        className="hide-number-arrows h-7 text-right"
+                        className="hide-number-arrows h-7"
                         defaultValue={walletPreferences.cash?.balance ?? ''}
                         onChange={(e) => {
                             const value = e.target.value === '' ? null : parseFloat(e.target.value)
@@ -278,12 +278,12 @@ export default function TransactionsPage() {
                   {/* Digital Column */}
                   <div className="space-y-1">
                     <Label htmlFor="actual-balance-digital" className="text-xs">Digital</Label>
-                      <div className="font-mono text-xs">{formatCurrency(digitalWalletBalance)}</div>
+                      <div className="font-mono text-sm">{formatCurrency(digitalWalletBalance)}</div>
                     <Input
                         id="actual-balance-digital"
                         type="number"
                         placeholder="Actual"
-                        className="hide-number-arrows h-7 text-right"
+                        className="hide-number-arrows h-7"
                         defaultValue={walletPreferences.digital?.balance ?? ''}
                         onChange={(e) => {
                             const value = e.target.value === '' ? null : parseFloat(e.target.value)
