@@ -640,8 +640,8 @@ export function TransactionTable({
                   <div className="py-4 space-y-4">
                   <TabsContent value="expense" className="mt-0 space-y-4">
                     <div className="space-y-2 col-span-2">
-                        <Label htmlFor="date">Date</Label>
-                        <Input id="date" name="date" type="date" defaultValue={format(date || new Date(), 'yyyy-MM-dd')} required />
+                        <Label htmlFor="expense-date">Date</Label>
+                        <Input id="expense-date" name="date" type="date" defaultValue={format(date || new Date(), 'yyyy-MM-dd')} required />
                     </div>
                     <div className="space-y-2 col-span-2">
                       <Label htmlFor="expense-description">Description</Label>
@@ -702,8 +702,8 @@ export function TransactionTable({
                   </TabsContent>
                   <TabsContent value="income" className="mt-0 space-y-4">
                      <div className="space-y-2 col-span-2">
-                        <Label htmlFor="date">Date</Label>
-                         <Input id="date" name="date" type="date" defaultValue={format(date || new Date(), 'yyyy-MM-dd')} required />
+                        <Label htmlFor="income-date">Date</Label>
+                         <Input id="income-date" name="date" type="date" defaultValue={format(date || new Date(), 'yyyy-MM-dd')} required />
                     </div>
                     <div className="space-y-2 col-span-2">
                       <Label htmlFor="income-description">Description</Label>
@@ -762,8 +762,8 @@ export function TransactionTable({
                   </TabsContent>
                   <TabsContent value="transfer" className="mt-0 space-y-4">
                        <div className="space-y-2 col-span-2">
-                        <Label htmlFor="date">Date</Label>
-                        <Input id="date" name="date" type="date" defaultValue={format(date || new Date(), 'yyyy-MM-dd')} required />
+                        <Label htmlFor="transfer-date">Date</Label>
+                        <Input id="transfer-date" name="date" type="date" defaultValue={format(date || new Date(), 'yyyy-MM-dd')} required />
                     </div>
                     <div className="space-y-2 col-span-2">
                       <Label htmlFor="transfer-description">Description</Label>
@@ -823,73 +823,77 @@ export function TransactionTable({
         </div>
       </CardHeader>
       <CardContent>
-        <Table>
-          <TableHeader>
-              <TableRow>
-              <TableHead>Sl.</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead className="w-[25%]">Description</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Account</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
-              <TableHead className="text-right">Transfer</TableHead>
-              <TableHead className="text-right print-hide">Actions</TableHead>
-              </TableRow>
-          </TableHeader>
-          <TableBody>
-              {pagedTransactions.map((t, index) => (
-                  <TableRow key={t.id}>
-                      <TableCell className="font-medium">{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
-                      <TableCell>{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
-                      <TableCell className="font-medium whitespace-pre-wrap break-words">{t.description}</TableCell>
-                      <TableCell>
-                      <Badge 
-                          variant={getBadgeVariant(t.type)}
-                          className="capitalize"
-                          >
-                          {t.type}
-                      </Badge>
-                      </TableCell>
-                      <TableCell className="whitespace-pre-wrap break-words">{t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} -> ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod)}</TableCell>
-                      <TableCell className="whitespace-pre-wrap break-words">
-                          <div>{t.category}</div>
-                          {t.subcategory && <div className="text-sm text-muted-foreground">{t.subcategory}</div>}
-                      </TableCell>
-                      <TableCell className={cn("text-right font-mono", t.type === 'income' ? 'text-green-600' : 'text-red-600')}>
-                          {t.type !== 'transfer' ? formatCurrency(t.amount) : null}
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-blue-600">
-                           {t.type === 'transfer' ? formatCurrency(t.amount) : null}
-                      </TableCell>
-                      <TableCell className="text-right print-hide">
-                          <Button variant="ghost" size="icon" onClick={() => openEditDialog(t)} className="mr-2">
-                              <Pencil className="h-4 w-4" />
-                          </Button>
-                          <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
-                                      <Trash2 className="h-4 w-4" />
-                                  </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                      <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                          This will permanently delete the transaction. This action cannot be undone and will update account balances.
-                                      </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                      <AlertDialogAction onClick={() => handleDeleteTransaction(t)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                                  </AlertDialogFooter>
-                              </AlertDialogContent>
-                          </AlertDialog>
-                      </TableCell>
-                  </TableRow>
-              ))}
-          </TableBody>
-        </Table>
+        <div className="overflow-x-auto">
+          <Table className="min-w-full">
+            <TableHeader>
+                <TableRow>
+                <TableHead>Sl.</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead className="w-[25%]">Description</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Account</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead className="text-right">Amount</TableHead>
+                <TableHead className="text-right">Transfer</TableHead>
+                <TableHead className="text-right print-hide">Actions</TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {pagedTransactions.map((t, index) => (
+                    <TableRow key={t.id}>
+                        <TableCell className="font-medium">{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
+                        <TableCell>{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
+                        <TableCell className="font-medium" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{t.description}</TableCell>
+                        <TableCell>
+                        <Badge 
+                            variant={getBadgeVariant(t.type)}
+                            className="capitalize"
+                            >
+                            {t.type}
+                        </Badge>
+                        </TableCell>
+                        <TableCell style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} -> ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod)}</TableCell>
+                        <TableCell style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                            <div>{t.category}</div>
+                            {t.subcategory && <div className="text-sm text-muted-foreground">{t.subcategory}</div>}
+                        </TableCell>
+                        <TableCell className={cn("text-right font-mono", t.type === 'income' ? 'text-green-600' : 'text-red-600')}>
+                            {t.type !== 'transfer' ? formatCurrency(t.amount) : null}
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-blue-600">
+                            {t.type === 'transfer' ? formatCurrency(t.amount) : null}
+                        </TableCell>
+                        <TableCell className="text-right print-hide">
+                            <div className="flex items-center justify-end gap-2">
+                                <Button variant="ghost" size="icon" onClick={() => openEditDialog(t)} className="h-8 w-8">
+                                    <Pencil className="h-4 w-4" />
+                                </Button>
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-8 w-8">
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                This will permanently delete the transaction. This action cannot be undone and will update account balances.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => handleDeleteTransaction(t)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </div>
+                        </TableCell>
+                    </TableRow>
+                ))}
+            </TableBody>
+          </Table>
+        </div>
       </CardContent>
       {totalPages > 1 && (
         <CardFooter className="flex justify-center items-center gap-2 print-hide pt-6">
