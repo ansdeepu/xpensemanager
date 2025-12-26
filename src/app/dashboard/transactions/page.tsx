@@ -216,7 +216,7 @@ export default function TransactionsPage() {
         <TabsList className="flex flex-wrap h-auto items-start p-0">
           <div className="w-full md:w-1/2 p-1">
             {primaryAccount && (
-              <TabsTrigger value={primaryAccount.id} className={cn("border flex flex-col h-full p-3 items-start text-left gap-4 w-full", "bg-lime-100 dark:bg-lime-900/50")}>
+              <TabsTrigger value={primaryAccount.id} className={cn("border flex flex-col h-auto min-h-[220px] p-3 items-start text-left gap-4 w-full", "bg-lime-100 dark:bg-lime-900/50")}>
                 <div className="w-full flex justify-between">
                   <span className="font-semibold text-sm">Primary ({primaryAccount.name})</span>
                   <span className="font-bold text-primary">{formatCurrency(allBalance)}</span>
@@ -397,3 +397,5 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+    
