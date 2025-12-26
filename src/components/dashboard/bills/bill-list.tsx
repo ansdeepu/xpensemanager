@@ -71,6 +71,28 @@ const getDayWithOrdinal = (d: number) => {
   }
 };
 
+const formatDueDate = (bill: Bill) => {
+    const dueDate = new Date(bill.dueDate);
+    const day = getDayWithOrdinal(dueDate.getDate());
+
+    switch (bill.recurrence) {
+        case 'monthly':
+            return `${day} of every month`;
+        case 'quarterly': {
+            const firstMonth = format(dueDate, 'MMM');
+            const secondMonth = format(addMonths(dueDate, 3), 'MMM');
+            const thirdMonth = format(addMonths(dueDate, 6), 'MMM');
+            const fourthMonth = format(addMonths(dueDate, 9), 'MMM');
+            return `${day} of ${firstMonth}, ${secondMonth}, ${thirdMonth}, ${fourthMonth}`;
+        }
+        case 'yearly':
+            return `${day} of ${format(dueDate, 'MMM')}`;
+        case 'none':
+        default:
+            return `${day} of ${format(dueDate, 'MMM, yyyy')}`;
+    }
+};
+
 
 export function BillList() {
     const [bills, setBills] = useState<Bill[]>([]);
@@ -333,7 +355,7 @@ export function BillList() {
                                     </TableCell>
                                     <TableCell className="text-right font-mono">{bill.type === 'bill' ? formatCurrency(bill.amount) : '-'}</TableCell>
                                     <TableCell>
-                                        <div>{getDayWithOrdinal(dueDate.getDate())} of {format(dueDate, 'MMM, yyyy')}</div>
+                                        <div>{formatDueDate(bill)}</div>
                                         <div className={cn("text-xs", isOverdue ? "text-red-500" : "text-muted-foreground")}>
                                             {bill.paidOn ? " " : isOverdue ? `Overdue by ${-daysUntilDue} days` : `Due in ${daysUntilDue} days`}
                                         </div>
