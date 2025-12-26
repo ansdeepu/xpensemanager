@@ -190,7 +190,7 @@ export default function TransactionsPage() {
           <Button
               variant={"outline"}
               className={cn(
-                  "w-full justify-start text-left font-normal text-red-600",
+                  "w-full justify-start text-left font-bold text-red-600",
                   !reconciliationDate && "text-muted-foreground"
               )}
           >
@@ -394,5 +394,3 @@ export default function TransactionsPage() {
     </div>
   );
 }
-
-    
