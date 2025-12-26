@@ -178,8 +178,10 @@ export function BillList() {
             setEditDay(getDate(dueDate));
             setEditDate(format(dueDate, 'yyyy-MM-dd'));
         } else {
+            // Reset state when there's no selected bill
             setEditDay(undefined);
             setEditDate('');
+            setEditEventType('bill');
             setEditRecurrence('occasional');
             setEditSelectedMonths([]);
         }
