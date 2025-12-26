@@ -298,7 +298,7 @@ export function BillList() {
     };
 
     const getNextPaymentDate = (bill: Bill) => {
-        if (bill.recurrence === 'none' || bill.recurrence === 'occasional' || bill.type === 'special_day') return null;
+        if (bill.recurrence === 'occasional' || bill.type === 'special_day') return null;
         const dueDate = new Date(bill.dueDate);
         switch (bill.recurrence) {
             case 'monthly':
@@ -327,7 +327,15 @@ export function BillList() {
                             Keep track of your upcoming payments and special days.
                         </CardDescription>
                     </div>
-                    <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                    <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+                        setIsAddDialogOpen(open);
+                        if (!open) {
+                            // Reset state on close
+                            setAddEventType('bill');
+                            setAddRecurrence('occasional');
+                            setAddSelectedMonths([]);
+                        }
+                    }}>
                         <DialogTrigger asChild>
                             <Button>
                                 <PlusCircle className="mr-2 h-4 w-4" />
@@ -385,7 +393,7 @@ export function BillList() {
                                             </Select>
                                         </div>
                                     </div>
-                                     {addEventType === 'bill' && addRecurrence === 'occasional' && (
+                                    {addEventType === 'bill' && addRecurrence === 'occasional' && (
                                         <MonthSelector selectedMonths={addSelectedMonths} onMonthToggle={(month) => handleMonthToggle(month, setAddSelectedMonths)} />
                                     )}
                                     {addEventType === 'special_day' ? (
@@ -420,11 +428,7 @@ export function BillList() {
                                 </div>
                                 <DialogFooter>
                                     <DialogClose asChild>
-                                        <Button type="button" variant="secondary" onClick={() => {
-                                            setAddEventType('bill');
-                                            setAddRecurrence('occasional');
-                                            setAddSelectedMonths([]);
-                                        }}>Cancel</Button>
+                                        <Button type="button" variant="secondary">Cancel</Button>
                                     </DialogClose>
                                     <Button type="submit">Add Event</Button>
                                 </DialogFooter>
@@ -458,7 +462,7 @@ export function BillList() {
                                         <div className="flex items-center gap-2">
                                             {bill.type === 'special_day' ? <Gift className="h-4 w-4 text-amber-500" /> : <FileText className="h-4 w-4" />}
                                             <span>{bill.title}</span>
-                                             {bill.recurrence !== 'occasional' && bill.recurrence !== 'none' && (
+                                             {bill.recurrence !== 'occasional' && (
                                                 <Badge variant="outline" className="capitalize flex items-center gap-1">
                                                    <Repeat className="h-3 w-3" />
                                                    {bill.recurrence}
