@@ -113,16 +113,15 @@ const formatDueDate = (bill: Bill) => {
             return `${day} of ${format(dueDate, 'MMM')}`;
         case 'occasional': {
             if (bill.type === 'special_day') {
-                 return format(dueDate, 'do MMMM');
+                 return format(dueDate, 'dd/MM/yyyy');
             }
             if (bill.selectedMonths && bill.selectedMonths.length > 0) {
                 return `${day} of ${bill.selectedMonths.join(', ')}`;
             }
             return `${day} of ${format(dueDate, 'MMM, yyyy')} (Occasional)`;
         }
-        case 'none':
         default:
-            return format(dueDate, 'do MMMM, yyyy');
+            return format(dueDate, 'dd/MM/yyyy');
     }
 };
 
@@ -404,6 +403,9 @@ export function BillList() {
                                                         selected={addDate}
                                                         onSelect={setAddDate}
                                                         initialFocus
+                                                        captionLayout="dropdown-buttons"
+                                                        fromYear={1960}
+                                                        toYear={new Date().getFullYear() + 10}
                                                     />
                                                 </PopoverContent>
                                             </Popover>
@@ -604,6 +606,9 @@ export function BillList() {
                                                 selected={editDate}
                                                 onSelect={setEditDate}
                                                 initialFocus
+                                                captionLayout="dropdown-buttons"
+                                                fromYear={1960}
+                                                toYear={new Date().getFullYear() + 10}
                                             />
                                         </PopoverContent>
                                     </Popover>
@@ -638,5 +643,3 @@ export function BillList() {
         </>
     );
 }
-
-    
