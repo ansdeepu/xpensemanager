@@ -45,8 +45,6 @@ import { PlusCircle, Pencil, Trash2, CalendarIcon, FileText, Repeat, Gift } from
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "@/lib/firebase";
 import { collection, addDoc, query, where, onSnapshot, doc, deleteDoc, updateDoc, orderBy } from "firebase/firestore";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
 import { format, differenceInDays, isPast, addMonths, addQuarters, addYears, setDate as setDayOfMonth, getDate } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -71,6 +69,30 @@ const getDayWithOrdinal = (d: number) => {
   }
 };
 
+const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function MonthSelector({ selectedMonths, onMonthToggle }: { selectedMonths: string[], onMonthToggle: (month: string) => void }) {
+    return (
+        <div className="space-y-2">
+            <Label>Select Months</Label>
+            <div className="grid grid-cols-4 gap-2">
+                {months.map(month => (
+                    <Button
+                        key={month}
+                        type="button"
+                        variant={selectedMonths.includes(month) ? "default" : "outline"}
+                        onClick={() => onMonthToggle(month)}
+                        className="h-8 text-xs"
+                    >
+                        {month}
+                    </Button>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+
 const formatDueDate = (bill: Bill) => {
     const dueDate = new Date(bill.dueDate);
     const day = getDayWithOrdinal(dueDate.getDate());
@@ -87,6 +109,12 @@ const formatDueDate = (bill: Bill) => {
         }
         case 'yearly':
             return `${day} of ${format(dueDate, 'MMM')}`;
+        case 'occasional': {
+            if (bill.selectedMonths && bill.selectedMonths.length > 0) {
+                return `${day} of ${bill.selectedMonths.join(', ')}`;
+            }
+            return `${day} of ${format(dueDate, 'MMM, yyyy')} (Occasional)`;
+        }
         case 'none':
         default:
             return `${day} of ${format(dueDate, 'MMM, yyyy')}`;
@@ -105,6 +133,15 @@ export function BillList() {
     const [editEventType, setEditEventType] = useState<Bill['type']>('bill');
     const [user, loading] = useAuthState(auth);
     const [clientLoaded, setClientLoaded] = useState(false);
+    
+    // State for Add dialog
+    const [addRecurrence, setAddRecurrence] = useState<Bill['recurrence']>('none');
+    const [addSelectedMonths, setAddSelectedMonths] = useState<string[]>([]);
+
+    // State for Edit dialog
+    const [editRecurrence, setEditRecurrence] = useState<Bill['recurrence']>('none');
+    const [editSelectedMonths, setEditSelectedMonths] = useState<string[]>([]);
+
 
     useEffect(() => {
         setClientLoaded(true);
@@ -135,10 +172,20 @@ export function BillList() {
         if (selectedBill) {
             setEditDay(getDate(new Date(selectedBill.dueDate)));
             setEditEventType(selectedBill.type || 'bill');
+            setEditRecurrence(selectedBill.recurrence || 'none');
+            setEditSelectedMonths(selectedBill.selectedMonths || []);
         } else {
             setEditDay(undefined);
+            setEditRecurrence('none');
+            setEditSelectedMonths([]);
         }
     }, [selectedBill]);
+
+    const handleMonthToggle = (month: string, setMonths: React.Dispatch<React.SetStateAction<string[]>>) => {
+        setMonths(prev => 
+            prev.includes(month) ? prev.filter(m => m !== month) : [...prev, month]
+        );
+    };
 
     const handleAddBill = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -149,10 +196,14 @@ export function BillList() {
             userId: user.uid,
             title: formData.get("title") as string,
             dueDate: setDayOfMonth(new Date(), day).toISOString(),
-            recurrence: formData.get("recurrence") as Bill['recurrence'],
+            recurrence: addRecurrence,
             type: addEventType,
         };
         
+        if (addRecurrence === 'occasional') {
+            newBill.selectedMonths = addSelectedMonths;
+        }
+
         if (addEventType === 'bill') {
             newBill.amount = parseFloat(formData.get("amount") as string);
         }
@@ -162,6 +213,8 @@ export function BillList() {
             setIsAddDialogOpen(false);
             setDay(getDate(new Date()));
             setAddEventType('bill');
+            setAddRecurrence('none');
+            setAddSelectedMonths([]);
         } catch (error) {
         }
     };
@@ -174,9 +227,15 @@ export function BillList() {
         const updatedData: Partial<Bill> = {
             title: formData.get("title") as string,
             dueDate: setDayOfMonth(new Date(selectedBill.dueDate), editDay).toISOString(),
-            recurrence: formData.get("recurrence") as Bill['recurrence'],
+            recurrence: editRecurrence,
             type: editEventType
         };
+
+        if (editRecurrence === 'occasional') {
+            updatedData.selectedMonths = editSelectedMonths;
+        } else {
+            updatedData.selectedMonths = []; // Clear months if not occasional
+        }
 
         if (editEventType === 'bill') {
             updatedData.amount = parseFloat(formData.get("amount") as string);
@@ -207,7 +266,7 @@ export function BillList() {
     };
 
     const getNextPaymentDate = (bill: Bill) => {
-        if (bill.recurrence === 'none') return null;
+        if (bill.recurrence === 'none' || bill.recurrence === 'occasional') return null;
         const dueDate = new Date(bill.dueDate);
         switch (bill.recurrence) {
             case 'monthly':
@@ -243,7 +302,7 @@ export function BillList() {
                                 Add Event
                             </Button>
                         </DialogTrigger>
-                        <DialogContent className="sm:max-w-[425px]">
+                        <DialogContent className="sm:max-w-md">
                             <form onSubmit={handleAddBill}>
                                 <DialogHeader>
                                     <DialogTitle>Add New Event</DialogTitle>
@@ -277,12 +336,13 @@ export function BillList() {
                                         )}
                                          <div className="space-y-2">
                                             <Label htmlFor="recurrence">Recurrence</Label>
-                                            <Select name="recurrence" defaultValue="none">
+                                            <Select name="recurrence" value={addRecurrence} onValueChange={(value) => setAddRecurrence(value as Bill['recurrence'])}>
                                                 <SelectTrigger id="recurrence">
                                                     <SelectValue placeholder="Select recurrence" />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    <SelectItem value="none">None</SelectItem>
+                                                    <SelectItem value="none">None (One-time)</SelectItem>
+                                                    <SelectItem value="occasional">Occasional</SelectItem>
                                                     <SelectItem value="yearly">Yearly</SelectItem>
                                                     {addEventType === 'bill' && (
                                                         <>
@@ -294,6 +354,9 @@ export function BillList() {
                                             </Select>
                                         </div>
                                     </div>
+                                     {addRecurrence === 'occasional' && (
+                                        <MonthSelector selectedMonths={addSelectedMonths} onMonthToggle={(month) => handleMonthToggle(month, setAddSelectedMonths)} />
+                                    )}
                                     <div className="space-y-2">
                                         <Label htmlFor="day">Due Day of Month</Label>
                                         <Input 
@@ -311,7 +374,11 @@ export function BillList() {
                                 </div>
                                 <DialogFooter>
                                     <DialogClose asChild>
-                                        <Button type="button" variant="secondary" onClick={() => setAddEventType('bill')}>Cancel</Button>
+                                        <Button type="button" variant="secondary" onClick={() => {
+                                            setAddEventType('bill');
+                                            setAddRecurrence('none');
+                                            setAddSelectedMonths([]);
+                                        }}>Cancel</Button>
                                     </DialogClose>
                                     <Button type="submit">Add Event</Button>
                                 </DialogFooter>
@@ -405,7 +472,7 @@ export function BillList() {
 
             {/* Edit Bill Dialog */}
             <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-                <DialogContent className="sm:max-w-[425px]">
+                <DialogContent className="sm:max-w-md">
                     <form onSubmit={handleEditBill}>
                         <DialogHeader>
                             <DialogTitle>Edit Event</DialogTitle>
@@ -439,12 +506,13 @@ export function BillList() {
                                 )}
                                 <div className="space-y-2">
                                     <Label htmlFor="edit-recurrence">Recurrence</Label>
-                                    <Select name="recurrence" defaultValue={selectedBill?.recurrence || 'none'}>
+                                    <Select name="recurrence" value={editRecurrence} onValueChange={(value) => setEditRecurrence(value as Bill['recurrence'])}>
                                         <SelectTrigger id="edit-recurrence">
                                             <SelectValue placeholder="Select recurrence" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="none">None</SelectItem>
+                                            <SelectItem value="none">None (One-time)</SelectItem>
+                                            <SelectItem value="occasional">Occasional</SelectItem>
                                             <SelectItem value="yearly">Yearly</SelectItem>
                                              {editEventType === 'bill' && (
                                                 <>
@@ -456,6 +524,9 @@ export function BillList() {
                                     </Select>
                                 </div>
                             </div>
+                             {editRecurrence === 'occasional' && (
+                                <MonthSelector selectedMonths={editSelectedMonths} onMonthToggle={(month) => handleMonthToggle(month, setEditSelectedMonths)} />
+                            )}
                              <div className="space-y-2">
                                 <Label htmlFor="edit-day">Due Day of Month</Label>
                                 <Input 

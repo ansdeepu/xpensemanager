@@ -22,7 +22,8 @@ export type Bill = {
   dueDate: string;
   paidOn?: string;
   type: 'bill' | 'special_day';
-  recurrence: 'none' | 'monthly' | 'quarterly' | 'yearly';
+  recurrence: 'none' | 'monthly' | 'quarterly' | 'yearly' | 'occasional';
+  selectedMonths?: string[];
 }
 
 export type Transaction = {
