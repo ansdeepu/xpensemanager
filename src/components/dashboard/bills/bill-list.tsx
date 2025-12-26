@@ -96,6 +96,8 @@ function MonthSelector({ selectedMonths, onMonthToggle }: { selectedMonths: stri
 const formatDueDate = (bill: Bill) => {
     const dueDate = parseISO(bill.dueDate);
     
+    if (!isValid(dueDate)) return "Invalid Date";
+
     if (bill.type === 'special_day') {
         return format(dueDate, 'dd/MM/yyyy');
     }
@@ -225,8 +227,7 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
         let determinedDueDate: Date;
         if (addEventType === 'special_day') {
              const dateValue = formData.get("add-date") as string;
-             const [year, month, day] = dateValue.split('-').map(Number);
-             determinedDueDate = new Date(year, month - 1, day);
+             determinedDueDate = new Date(dateValue);
         } else {
             determinedDueDate = setDayOfMonth(new Date(), addDay);
         }
@@ -235,13 +236,13 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
             userId: user.uid,
             title: title,
             dueDate: determinedDueDate.toISOString(),
-            recurrence: addRecurrence,
             type: addEventType,
-            selectedMonths: addSelectedMonths,
         };
         
         if (addEventType === 'bill') {
             newBill.amount = parseFloat(formData.get("amount") as string);
+            newBill.recurrence = addRecurrence;
+            newBill.selectedMonths = addSelectedMonths;
         }
 
         try {
@@ -267,8 +268,7 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
         let determinedDueDate: Date;
         if (editEventType === 'special_day') {
              const dateValue = formData.get("edit-date") as string;
-             const [year, month, day] = dateValue.split('-').map(Number);
-             determinedDueDate = new Date(year, month - 1, day);
+             determinedDueDate = new Date(dateValue);
         } else {
             determinedDueDate = setDayOfMonth(new Date(selectedBill.dueDate), editDay || 1);
         }
@@ -276,15 +276,17 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
         const updatedData: Partial<Bill> = {
             title: title,
             dueDate: determinedDueDate.toISOString(),
-            recurrence: editRecurrence,
             type: editEventType,
-            selectedMonths: editSelectedMonths,
         };
 
         if (editEventType === 'bill') {
             updatedData.amount = parseFloat(formData.get("amount") as string);
+            updatedData.recurrence = editRecurrence;
+            updatedData.selectedMonths = editSelectedMonths;
         } else {
-            updatedData.amount = 0; 
+            updatedData.amount = 0;
+            delete updatedData.recurrence;
+            delete updatedData.selectedMonths;
         }
 
         try {
@@ -389,45 +391,29 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                                         <Label htmlFor="title">Title</Label>
                                         <Input id="title" name="title" placeholder={addEventType === 'bill' ? "e.g. Credit Card" : "e.g. Birthday"} required />
                                     </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        {addEventType === 'bill' && (
+
+                                    {addEventType === 'bill' ? (
+                                      <>
+                                        <div className="grid grid-cols-2 gap-4">
                                             <div className="space-y-2">
                                                 <Label htmlFor="amount">Amount</Label>
                                                 <Input id="amount" name="amount" type="number" step="0.01" placeholder="0.00" required className="hide-number-arrows" />
                                             </div>
-                                        )}
-                                         <div className="space-y-2">
-                                            <Label htmlFor="recurrence">Recurrence</Label>
-                                            <Select name="recurrence" value={addRecurrence} onValueChange={(value) => setAddRecurrence(value as Bill['recurrence'])}>
-                                                <SelectTrigger id="recurrence">
-                                                    <SelectValue placeholder="Select recurrence" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="occasional">Occasional</SelectItem>
-                                                    <SelectItem value="yearly">Yearly</SelectItem>
-                                                    <SelectItem value="quarterly">Quarterly</SelectItem>
-                                                    <SelectItem value="monthly">Monthly</SelectItem>
-                                                </SelectContent>
-                                            </Select>
+                                             <div className="space-y-2">
+                                                <Label htmlFor="recurrence">Recurrence</Label>
+                                                <Select name="recurrence" value={addRecurrence} onValueChange={(value) => setAddRecurrence(value as Bill['recurrence'])}>
+                                                    <SelectTrigger id="recurrence">
+                                                        <SelectValue placeholder="Select recurrence" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="occasional">Occasional</SelectItem>
+                                                        <SelectItem value="yearly">Yearly</SelectItem>
+                                                        <SelectItem value="quarterly">Quarterly</SelectItem>
+                                                        <SelectItem value="monthly">Monthly</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
                                         </div>
-                                    </div>
-                                    
-                                    <MonthSelector selectedMonths={addSelectedMonths} onMonthToggle={(month) => handleMonthToggle(month, setAddSelectedMonths)} />
-                                    
-                                    {addEventType === 'special_day' ? (
-                                        <div className="space-y-2">
-                                            <Label htmlFor="add-date">Date</Label>
-                                            <Input
-                                                id="add-date"
-                                                name="add-date"
-                                                type="date"
-                                                value={addDate}
-                                                onChange={(e) => setAddDate(e.target.value)}
-                                                className="w-full"
-                                                required
-                                            />
-                                        </div>
-                                    ) : (
                                         <div className="space-y-2">
                                             <Label htmlFor="day">Due Day of Month</Label>
                                             <Input 
@@ -440,6 +426,21 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                                                 onChange={(e) => setAddDay(parseInt(e.target.value, 10))} 
                                                 placeholder="e.g. 26" 
                                                 required 
+                                            />
+                                        </div>
+                                        <MonthSelector selectedMonths={addSelectedMonths} onMonthToggle={(month) => handleMonthToggle(month, setAddSelectedMonths)} />
+                                      </>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            <Label htmlFor="add-date">Special Date</Label>
+                                            <Input
+                                                id="add-date"
+                                                name="add-date"
+                                                type="date"
+                                                value={addDate}
+                                                onChange={(e) => setAddDate(e.target.value)}
+                                                className="w-full"
+                                                required
                                             />
                                         </div>
                                     )}
@@ -470,7 +471,7 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                         <TableBody>
                             {bills.map((bill, index) => {
                                 const dueDate = parseISO(bill.dueDate);
-                                const daysUntilDue = differenceInDays(dueDate, new Date());
+                                const daysUntilDue = isValid(dueDate) ? differenceInDays(dueDate, new Date()) : 0;
                                 const isOverdue = bill.type === 'bill' && daysUntilDue < 0 && !bill.paidOn;
                                 const nextPaymentDate = getNextPaymentDate(bill);
                                 return (
@@ -480,7 +481,7 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                                         <div className="flex items-center gap-2">
                                             {bill.type === 'special_day' ? <Gift className="h-4 w-4 text-amber-500" /> : <FileText className="h-4 w-4" />}
                                             <span>{bill.title}</span>
-                                             {bill.recurrence !== 'occasional' && (
+                                             {bill.type === 'bill' && bill.recurrence !== 'occasional' && (
                                                 <Badge variant="outline" className="capitalize flex items-center gap-1">
                                                    <Repeat className="h-3 w-3" />
                                                    {bill.recurrence}
@@ -567,34 +568,51 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                                 <Label htmlFor="edit-title">Title</Label>
                                 <Input id="edit-title" name="title" defaultValue={selectedBill?.title} required />
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                {editEventType === 'bill' && (
-                                    <div className="space-y-2">
-                                        <Label htmlFor="edit-amount">Amount</Label>
-                                        <Input id="edit-amount" name="amount" type="number" step="0.01" defaultValue={selectedBill?.amount} required className="hide-number-arrows" />
+
+                            {editEventType === 'bill' ? (
+                                <>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="edit-amount">Amount</Label>
+                                            <Input id="edit-amount" name="amount" type="number" step="0.01" defaultValue={selectedBill?.amount} required className="hide-number-arrows" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="edit-recurrence">Recurrence</Label>
+                                            <Select name="recurrence" value={editRecurrence} onValueChange={(value) => setEditRecurrence(value as Bill['recurrence'])}>
+                                                <SelectTrigger id="edit-recurrence">
+                                                    <SelectValue placeholder="Select recurrence" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="occasional">Occasional</SelectItem>
+                                                    <SelectItem value="yearly">Yearly</SelectItem>
+                                                    <SelectItem value="quarterly">Quarterly</SelectItem>
+                                                    <SelectItem value="monthly">Monthly</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
                                     </div>
-                                )}
+                                    <div className="space-y-2">
+                                        <Label htmlFor="edit-day">Due Day of Month</Label>
+                                        <Input 
+                                            id="edit-day" 
+                                            name="edit-day" 
+                                            type="number" 
+                                            min="1" 
+                                            max="31"
+                                            value={editDay ?? ''} 
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                setEditDay(val === '' ? undefined : parseInt(val, 10));
+                                            }} 
+                                            placeholder="e.g. 26" 
+                                            required 
+                                        />
+                                    </div>
+                                    <MonthSelector selectedMonths={editSelectedMonths} onMonthToggle={(month) => handleMonthToggle(month, setEditSelectedMonths)} />
+                                </>
+                            ) : (
                                 <div className="space-y-2">
-                                    <Label htmlFor="edit-recurrence">Recurrence</Label>
-                                    <Select name="recurrence" value={editRecurrence} onValueChange={(value) => setEditRecurrence(value as Bill['recurrence'])}>
-                                        <SelectTrigger id="edit-recurrence">
-                                            <SelectValue placeholder="Select recurrence" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="occasional">Occasional</SelectItem>
-                                            <SelectItem value="yearly">Yearly</SelectItem>
-                                            <SelectItem value="quarterly">Quarterly</SelectItem>
-                                            <SelectItem value="monthly">Monthly</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
-                             
-                            <MonthSelector selectedMonths={editSelectedMonths} onMonthToggle={(month) => handleMonthToggle(month, setEditSelectedMonths)} />
-                            
-                             {editEventType === 'special_day' ? (
-                                <div className="space-y-2">
-                                     <Label htmlFor="edit-date">Date</Label>
+                                     <Label htmlFor="edit-date">Special Date</Label>
                                      <Input
                                         id="edit-date"
                                         name="edit-date"
@@ -605,25 +623,7 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                                         required
                                     />
                                 </div>
-                             ) : (
-                                <div className="space-y-2">
-                                    <Label htmlFor="edit-day">Due Day of Month</Label>
-                                    <Input 
-                                        id="edit-day" 
-                                        name="edit-day" 
-                                        type="number" 
-                                        min="1" 
-                                        max="31"
-                                        value={editDay ?? ''} 
-                                        onChange={(e) => {
-                                            const val = e.target.value;
-                                            setEditDay(val === '' ? undefined : parseInt(val, 10));
-                                        }} 
-                                        placeholder="e.g. 26" 
-                                        required 
-                                    />
-                                </div>
-                             )}
+                            )}
                         </div>
                         <DialogFooter>
                             <DialogClose asChild><Button type="button" variant="secondary" onClick={() => setSelectedBill(null)}>Cancel</Button></DialogClose>
@@ -635,3 +635,5 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
         </>
     );
 }
+
+    
