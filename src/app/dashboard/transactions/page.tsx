@@ -9,7 +9,6 @@ import { collection, query, where, onSnapshot, orderBy, doc, setDoc, updateDoc }
 import type { Account, Transaction } from "@/lib/data";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
@@ -50,7 +49,6 @@ export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [walletPreferences, setWalletPreferences] = useState<{ cash?: { balance?: number, date?: string }, digital?: { balance?: number, date?: string } }>({});
   const [reconciliationDate, setReconciliationDate] = useState<Date | undefined>(new Date());
-  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [dataLoading, setDataLoading] = useState(true);
 
   const useDebounce = (callback: Function, delay: number) => {
@@ -188,40 +186,34 @@ export default function TransactionsPage() {
 
   return (
     <div className="space-y-6">
-        <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
-            <PopoverTrigger asChild>
-                <Button
-                    variant={"outline"}
-                    className={cn(
-                        "w-full sm:w-[280px] justify-start text-left font-normal text-red-600",
-                        !reconciliationDate && "text-muted-foreground"
-                    )}
-                >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {reconciliationDate ? `Reconciliation Date: ${format(reconciliationDate, "dd/MM/yyyy")}` : <span>Pick a date</span>}
-                </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
-                <input
-                    type="date"
-                    value={reconciliationDate ? format(reconciliationDate, 'yyyy-MM-dd') : ''}
-                    onChange={(e) => {
-                        const date = new Date(e.target.value);
-                        if (!isNaN(date.getTime())) {
-                            setReconciliationDate(date);
-                        }
-                        setIsDatePickerOpen(false);
-                    }}
-                    className="w-full p-2"
-                />
-            </PopoverContent>
-        </Popover>
+        <div className="w-full sm:w-[280px]">
+          <Button
+              variant={"outline"}
+              className={cn(
+                  "w-full justify-start text-left font-normal text-red-600",
+                  !reconciliationDate && "text-muted-foreground"
+              )}
+          >
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              <input
+                  type="date"
+                  value={reconciliationDate ? format(reconciliationDate, 'yyyy-MM-dd') : ''}
+                  onChange={(e) => {
+                      const date = new Date(e.target.value);
+                      if (!isNaN(date.getTime())) {
+                          setReconciliationDate(date);
+                      }
+                  }}
+                  className="bg-transparent border-none outline-none"
+              />
+          </Button>
+        </div>
 
       <Tabs defaultValue={primaryAccount?.id || "all-accounts"} className="w-full">
         <TabsList className="flex flex-wrap h-auto items-start p-0">
           <div className="w-full md:w-1/2 p-1">
             {primaryAccount && (
-              <TabsTrigger value={primaryAccount.id} className={cn("border flex flex-col h-auto p-3 items-start text-left gap-4 w-full", "bg-lime-100 dark:bg-lime-900/50")}>
+              <TabsTrigger value={primaryAccount.id} className={cn("border flex flex-col h-full p-3 items-start text-left gap-4 w-full", "bg-lime-100 dark:bg-lime-900/50")}>
                 <div className="w-full flex justify-between">
                   <span className="font-semibold text-sm">Primary ({primaryAccount.name})</span>
                   <span className="font-bold text-primary">{formatCurrency(allBalance)}</span>
@@ -402,3 +394,5 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+    
