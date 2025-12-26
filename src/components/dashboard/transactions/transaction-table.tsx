@@ -111,7 +111,6 @@ export function TransactionTable({
   const [editDate, setEditDate] = useState<Date | undefined>(new Date());
   const [editCategory, setEditCategory] = useState<string | undefined>();
   const [searchQuery, setSearchQuery] = useState("");
-  const [isGlobalSearch, setIsGlobalSearch] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 100;
   const { toast } = useToast();
@@ -182,30 +181,26 @@ export function TransactionTable({
     return category?.subcategories || [];
     }, [editCategory, categories]);
 
-  const filteredTransactions = useMemo(() => {
+    const filteredTransactions = useMemo(() => {
     const primaryAccount = accounts.find(a => a.isPrimary);
     const isPrimaryView = primaryAccount?.id === accountId;
 
-    let sourceTransactions = transactions;
-
-    if (!isGlobalSearch) {
-        sourceTransactions = transactions.filter(t => {
-            if (isPrimaryView) {
-            // Show all transactions from primary account, cash and digital wallets
-            return (t.accountId === accountId && t.paymentMethod === 'online') ||
-                    t.paymentMethod === 'cash' ||
-                    t.paymentMethod === 'digital' ||
-                    t.fromAccountId === accountId || t.toAccountId === accountId ||
-                    t.fromAccountId === 'cash-wallet' || t.toAccountId === 'cash-wallet' ||
-                    t.fromAccountId === 'digital-wallet' || t.toAccountId === 'digital-wallet';
-            }
-            // For other accounts, show only their specific transactions
-            if (t.type === 'transfer') {
-            return t.fromAccountId === accountId || t.toAccountId === accountId;
-            }
-            return t.accountId === accountId;
-        });
-    }
+    let sourceTransactions = transactions.filter(t => {
+      if (isPrimaryView) {
+        // Show all transactions from primary account, cash and digital wallets
+        return (t.accountId === accountId && t.paymentMethod === 'online') ||
+               t.paymentMethod === 'cash' ||
+               t.paymentMethod === 'digital' ||
+               t.fromAccountId === accountId || t.toAccountId === accountId ||
+               t.fromAccountId === 'cash-wallet' || t.toAccountId === 'cash-wallet' ||
+               t.fromAccountId === 'digital-wallet' || t.toAccountId === 'digital-wallet';
+      }
+      // For other accounts, show only their specific transactions
+      if (t.type === 'transfer') {
+        return t.fromAccountId === accountId || t.toAccountId === accountId;
+      }
+      return t.accountId === accountId;
+    });
 
     let filtered = [...sourceTransactions];
 
@@ -219,12 +214,13 @@ export function TransactionTable({
         filtered = filtered.filter(t => 
             t.description.toLowerCase().includes(lowercasedQuery) ||
             t.category.toLowerCase().includes(lowercasedQuery) ||
-            (t.subcategory && t.subcategory.toLowerCase().includes(lowercasedQuery))
+            (t.subcategory && t.subcategory.toLowerCase().includes(lowercasedQuery)) ||
+            t.amount.toString().toLowerCase().includes(lowercasedQuery)
         );
     }
     
     return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [transactions, accountId, dateRange, searchQuery, accounts, isGlobalSearch]);
+    }, [transactions, accountId, dateRange, searchQuery, accounts]);
 
 
   const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
@@ -284,7 +280,7 @@ export function TransactionTable({
 
    useEffect(() => {
     setCurrentPage(1);
-   }, [dateRange, searchQuery, accountId, isGlobalSearch]);
+   }, [dateRange, searchQuery, accountId]);
 
   const getAccountName = (accountId?: string, paymentMethod?: Transaction['paymentMethod']) => {
     if (accountId === 'cash-wallet' || paymentMethod === 'cash') return "Cash Wallet";
@@ -563,15 +559,6 @@ export function TransactionTable({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[320px]"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <Globe className="h-5 w-5 text-muted-foreground" />
-            <Label htmlFor="global-search-switch">Global Search</Label>
-            <Switch
-              id="global-search-switch"
-              checked={isGlobalSearch}
-              onCheckedChange={setIsGlobalSearch}
             />
           </div>
           <Popover>
@@ -1194,5 +1181,3 @@ export function TransactionTable({
     </>
   );
 }
-
-    
