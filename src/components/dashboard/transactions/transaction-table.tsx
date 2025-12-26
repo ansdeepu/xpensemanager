@@ -53,7 +53,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Transaction, Account, Category, Bill } from "@/lib/data";
-import { PlusCircle, Pencil, Trash2, CalendarIcon, Printer, Search } from "lucide-react";
+import { PlusCircle, Pencil, Trash2, CalendarIcon, Printer, Search, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
 import { collection, addDoc, query, where, onSnapshot, doc, runTransaction, orderBy, deleteDoc, getDoc, getDocs, limit, writeBatch, updateDoc } from "firebase/firestore";
 import { useAuthState } from "react-firebase-hooks/auth";
@@ -952,23 +952,45 @@ export function TransactionTable({
         </div>
       </CardContent>
       {totalPages > 1 && (
-        <CardFooter className="flex justify-center items-center gap-4 print-hide">
-            <Button 
-                onClick={() => setCurrentPage(prev => prev - 1)} 
-                disabled={currentPage === 1}
-                variant="outline"
+        <CardFooter className="flex justify-center items-center gap-2 print-hide pt-6">
+            <Button
+              variant="outline"
+              className="h-8 w-8 p-0"
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
             >
-                Previous
+              <span className="sr-only">Go to first page</span>
+              <ChevronsLeft className="h-4 w-4" />
             </Button>
-            <span className="text-sm text-muted-foreground">
-                Page {currentPage} of {totalPages}
-            </span>
-            <Button 
-                onClick={() => setCurrentPage(prev => prev + 1)} 
-                disabled={currentPage === totalPages}
-                variant="outline"
+            <Button
+              variant="outline"
+              className="h-8 w-8 p-0"
+              onClick={() => setCurrentPage(prev => prev - 1)}
+              disabled={currentPage === 1}
             >
-                Next
+              <span className="sr-only">Go to previous page</span>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <div className="flex items-center justify-center text-sm font-medium">
+              Page {currentPage} of {totalPages}
+            </div>
+            <Button
+              variant="outline"
+              className="h-8 w-8 p-0"
+              onClick={() => setCurrentPage(prev => prev + 1)}
+              disabled={currentPage === totalPages}
+            >
+              <span className="sr-only">Go to next page</span>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              className="h-8 w-8 p-0"
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages}
+            >
+              <span className="sr-only">Go to last page</span>
+              <ChevronsRight className="h-4 w-4" />
             </Button>
         </CardFooter>
       )}
@@ -1123,3 +1145,5 @@ export function TransactionTable({
     </>
   );
 }
+
+    
