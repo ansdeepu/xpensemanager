@@ -53,7 +53,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Transaction, Account, Category, Bill } from "@/lib/data";
-import { PlusCircle, Pencil, Trash2, CalendarIcon, Printer, Search, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from "lucide-react";
+import { PlusCircle, Pencil, Trash2, CalendarIcon, Printer, Search, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, Globe } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
 import { collection, addDoc, query, where, onSnapshot, doc, runTransaction, orderBy, deleteDoc, getDoc, getDocs, limit, writeBatch, updateDoc } from "firebase/firestore";
 import { useAuthState } from "react-firebase-hooks/auth";
@@ -63,6 +63,7 @@ import { format, addMonths, addQuarters, addYears, isAfter, isWithinInterval, st
 import { DateRange } from "react-day-picker";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { Switch } from "@/components/ui/switch";
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-IN", {
@@ -110,6 +111,7 @@ export function TransactionTable({
   const [editDate, setEditDate] = useState<Date | undefined>(new Date());
   const [editCategory, setEditCategory] = useState<string | undefined>();
   const [searchQuery, setSearchQuery] = useState("");
+  const [isGlobalSearch, setIsGlobalSearch] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 100;
   const { toast } = useToast();
@@ -184,24 +186,28 @@ export function TransactionTable({
     const primaryAccount = accounts.find(a => a.isPrimary);
     const isPrimaryView = primaryAccount?.id === accountId;
 
-    const relevantTransactions = transactions.filter(t => {
-      if (isPrimaryView) {
-        // Show all transactions from primary account, cash and digital wallets
-        return (t.accountId === accountId && t.paymentMethod === 'online') ||
-               t.paymentMethod === 'cash' ||
-               t.paymentMethod === 'digital' ||
-               t.fromAccountId === accountId || t.toAccountId === accountId ||
-               t.fromAccountId === 'cash-wallet' || t.toAccountId === 'cash-wallet' ||
-               t.fromAccountId === 'digital-wallet' || t.toAccountId === 'digital-wallet';
-      }
-      // For other accounts, show only their specific transactions
-      if (t.type === 'transfer') {
-        return t.fromAccountId === accountId || t.toAccountId === accountId;
-      }
-      return t.accountId === accountId;
-    });
+    let sourceTransactions = transactions;
 
-    let filtered = [...relevantTransactions];
+    if (!isGlobalSearch) {
+        sourceTransactions = transactions.filter(t => {
+            if (isPrimaryView) {
+            // Show all transactions from primary account, cash and digital wallets
+            return (t.accountId === accountId && t.paymentMethod === 'online') ||
+                    t.paymentMethod === 'cash' ||
+                    t.paymentMethod === 'digital' ||
+                    t.fromAccountId === accountId || t.toAccountId === accountId ||
+                    t.fromAccountId === 'cash-wallet' || t.toAccountId === 'cash-wallet' ||
+                    t.fromAccountId === 'digital-wallet' || t.toAccountId === 'digital-wallet';
+            }
+            // For other accounts, show only their specific transactions
+            if (t.type === 'transfer') {
+            return t.fromAccountId === accountId || t.toAccountId === accountId;
+            }
+            return t.accountId === accountId;
+        });
+    }
+
+    let filtered = [...sourceTransactions];
 
     if (dateRange?.from && dateRange?.to) {
         const interval = { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to) };
@@ -218,7 +224,7 @@ export function TransactionTable({
     }
     
     return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [transactions, accountId, dateRange, searchQuery, accounts]);
+  }, [transactions, accountId, dateRange, searchQuery, accounts, isGlobalSearch]);
 
 
   const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
@@ -278,7 +284,7 @@ export function TransactionTable({
 
    useEffect(() => {
     setCurrentPage(1);
-   }, [dateRange, searchQuery, accountId]);
+   }, [dateRange, searchQuery, accountId, isGlobalSearch]);
 
   const getAccountName = (accountId?: string, paymentMethod?: Transaction['paymentMethod']) => {
     if (accountId === 'cash-wallet' || paymentMethod === 'cash') return "Cash Wallet";
@@ -557,6 +563,15 @@ export function TransactionTable({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[320px]"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Globe className="h-5 w-5 text-muted-foreground" />
+            <Label htmlFor="global-search-switch">Global Search</Label>
+            <Switch
+              id="global-search-switch"
+              checked={isGlobalSearch}
+              onCheckedChange={setIsGlobalSearch}
             />
           </div>
           <Popover>
