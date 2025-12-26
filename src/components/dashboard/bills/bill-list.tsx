@@ -106,6 +106,9 @@ const formatDueDate = (bill: Bill) => {
         case 'monthly':
             return `${day} of every month`;
         case 'quarterly': {
+            if (bill.selectedMonths && bill.selectedMonths.length > 0) {
+                return `${day} of ${bill.selectedMonths.join(', ')}`;
+            }
             const firstMonth = format(dueDate, 'MMM');
             const secondMonth = format(addMonths(dueDate, 3), 'MMM');
             const thirdMonth = format(addMonths(dueDate, 6), 'MMM');
@@ -113,6 +116,9 @@ const formatDueDate = (bill: Bill) => {
             return `${day} of ${firstMonth}, ${secondMonth}, ${thirdMonth}, ${fourthMonth}`;
         }
         case 'yearly':
+             if (bill.selectedMonths && bill.selectedMonths.length > 0) {
+                return `${day} of ${bill.selectedMonths.join(', ')}`;
+            }
             return `${day} of ${format(dueDate, 'MMM')}`;
         case 'occasional': {
             if (bill.selectedMonths && bill.selectedMonths.length > 0) {
@@ -285,17 +291,27 @@ export function BillList() {
 
     const getNextPaymentDate = (bill: Bill) => {
         if (bill.recurrence === 'occasional' || bill.type === 'special_day') return null;
-        const dueDate = parseISO(bill.dueDate);
-        switch (bill.recurrence) {
-            case 'monthly':
-                return addMonths(dueDate, 1);
-            case 'quarterly':
-                return addQuarters(dueDate, 1);
-            case 'yearly':
-                return addYears(dueDate, 1);
-            default:
-                return null;
+
+        let dueDate = parseISO(bill.dueDate);
+        const now = new Date();
+
+        // If the due date is in the past, we need to calculate the next one from today.
+        while (isPast(dueDate) || (bill.paidOn && parseISO(bill.paidOn) >= dueDate) ) {
+            switch (bill.recurrence) {
+                case 'monthly':
+                    dueDate = addMonths(dueDate, 1);
+                    break;
+                case 'quarterly':
+                    dueDate = addQuarters(dueDate, 1);
+                    break;
+                case 'yearly':
+                    dueDate = addYears(dueDate, 1);
+                    break;
+                default:
+                    return null; // Should not happen for recurring bills
+            }
         }
+        return dueDate;
     };
 
 
@@ -369,12 +385,8 @@ export function BillList() {
                                                 <SelectContent>
                                                     <SelectItem value="occasional">Occasional</SelectItem>
                                                     <SelectItem value="yearly">Yearly</SelectItem>
-                                                    {addEventType === 'bill' && (
-                                                        <>
-                                                        <SelectItem value="monthly">Monthly</SelectItem>
-                                                        <SelectItem value="quarterly">Quarterly</SelectItem>
-                                                        </>
-                                                    )}
+                                                    <SelectItem value="quarterly">Quarterly</SelectItem>
+                                                    <SelectItem value="monthly">Monthly</SelectItem>
                                                 </SelectContent>
                                             </Select>
                                         </div>
@@ -551,12 +563,8 @@ export function BillList() {
                                         <SelectContent>
                                             <SelectItem value="occasional">Occasional</SelectItem>
                                             <SelectItem value="yearly">Yearly</SelectItem>
-                                             {editEventType === 'bill' && (
-                                                <>
-                                                <SelectItem value="monthly">Monthly</SelectItem>
-                                                <SelectItem value="quarterly">Quarterly</SelectItem>
-                                                </>
-                                            )}
+                                            <SelectItem value="quarterly">Quarterly</SelectItem>
+                                            <SelectItem value="monthly">Monthly</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
