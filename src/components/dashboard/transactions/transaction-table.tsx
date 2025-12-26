@@ -550,6 +550,7 @@ export function TransactionTable({
 
   const DatePickerButton = ({ value, onOpen }: { value?: Date, onOpen: () => void }) => (
     <Button
+      type="button"
       variant={"outline"}
       className={cn(
         "w-full justify-start text-left font-normal",
@@ -950,6 +951,12 @@ export function TransactionTable({
     {/* Add Date Picker Dialog */}
     <Dialog open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
       <DialogContent className="w-auto">
+        <DialogHeader>
+          <DialogTitle>Select a date</DialogTitle>
+          <DialogDescription>
+            Choose a date for your transaction.
+          </DialogDescription>
+        </DialogHeader>
         <Calendar
           mode="single"
           selected={date}
@@ -965,6 +972,12 @@ export function TransactionTable({
     {/* Edit Date Picker Dialog */}
     <Dialog open={isEditCalendarOpen} onOpenChange={setIsEditCalendarOpen}>
       <DialogContent className="w-auto">
+         <DialogHeader>
+          <DialogTitle>Select a date</DialogTitle>
+          <DialogDescription>
+            Choose a new date for your transaction.
+          </DialogDescription>
+        </DialogHeader>
         <Calendar
           mode="single"
           selected={editDate}
