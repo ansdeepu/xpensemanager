@@ -25,6 +25,16 @@ const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
+const tabColors = [
+  "bg-sky-100 dark:bg-sky-900/50",
+  "bg-amber-100 dark:bg-amber-900/50",
+  "bg-emerald-100 dark:bg-emerald-900/50",
+  "bg-rose-100 dark:bg-rose-900/50",
+  "bg-violet-100 dark:bg-violet-900/50",
+  "bg-cyan-100 dark:bg-cyan-900/50",
+  "bg-fuchsia-100 dark:bg-fuchsia-900/50",
+];
+
 export default function TransactionsPage() {
   const [user, userLoading] = useAuthState(auth);
   const [rawAccounts, setRawAccounts] = useState<Omit<Account, 'balance'>[]>([]);
@@ -194,7 +204,7 @@ export default function TransactionsPage() {
       <Tabs defaultValue={primaryAccount?.id || "all-accounts"} className="w-full">
         <TabsList className="grid w-full grid-cols-1 md:grid-cols-3 lg:grid-cols-4 h-auto flex-wrap">
           {primaryAccount && (
-            <TabsTrigger value={primaryAccount.id} className={cn("border flex flex-col h-auto p-3 items-start text-left gap-4", "md:col-span-2")}>
+            <TabsTrigger value={primaryAccount.id} className={cn("border flex flex-col h-auto p-3 items-start text-left gap-4", "md:col-span-2", "bg-lime-100 dark:bg-lime-900/50")}>
               <div className="w-full flex justify-between">
                 <span className="font-semibold text-sm">Primary ({primaryAccount.name})</span>
                 <span className="font-bold text-primary">{formatCurrency(allBalance)}</span>
@@ -281,10 +291,10 @@ export default function TransactionsPage() {
               </div>
             </TabsTrigger>
           )}
-          {accounts.filter(account => !account.isPrimary).map(account => {
+          {accounts.filter(account => !account.isPrimary).map((account, index) => {
             const balanceDifference = account.actualBalance !== undefined && account.actualBalance !== null ? account.balance - account.actualBalance : null;
             return (
-              <TabsTrigger key={account.id} value={account.id} className="border flex flex-col h-auto p-3 items-start text-left gap-2">
+              <TabsTrigger key={account.id} value={account.id} className={cn("border flex flex-col h-auto p-3 items-start text-left gap-2", tabColors[index % tabColors.length])}>
                   <div className="w-full flex justify-between items-center">
                       <span className="font-semibold text-sm">{account.name}</span>
                       <span className="font-bold text-primary">{formatCurrency(account.balance)}</span>
@@ -333,7 +343,5 @@ export default function TransactionsPage() {
     </div>
   );
 }
-
-    
 
     
