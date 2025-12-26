@@ -61,6 +61,17 @@ const formatCurrency = (amount: number) => {
     }).format(amount);
 };
 
+const getDayWithOrdinal = (d: number) => {
+  if (d > 3 && d < 21) return `${d}th`;
+  switch (d % 10) {
+    case 1:  return `${d}st`;
+    case 2:  return `${d}nd`;
+    case 3:  return `${d}rd`;
+    default: return `${d}th`;
+  }
+};
+
+
 export function BillList() {
     const [bills, setBills] = useState<Bill[]>([]);
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -301,7 +312,8 @@ export function BillList() {
                         </TableHeader>
                         <TableBody>
                             {bills.map((bill, index) => {
-                                const daysUntilDue = differenceInDays(new Date(bill.dueDate), new Date());
+                                const dueDate = new Date(bill.dueDate);
+                                const daysUntilDue = differenceInDays(dueDate, new Date());
                                 const isOverdue = bill.type === 'bill' && daysUntilDue < 0 && !bill.paidOn;
                                 const nextPaymentDate = getNextPaymentDate(bill);
                                 return (
@@ -321,7 +333,7 @@ export function BillList() {
                                     </TableCell>
                                     <TableCell className="text-right font-mono">{bill.type === 'bill' ? formatCurrency(bill.amount) : '-'}</TableCell>
                                     <TableCell>
-                                        <div>{format(new Date(bill.dueDate), 'dd/MM/yyyy')}</div>
+                                        <div>{getDayWithOrdinal(dueDate.getDate())} of {format(dueDate, 'MMM, yyyy')}</div>
                                         <div className={cn("text-xs", isOverdue ? "text-red-500" : "text-muted-foreground")}>
                                             {bill.paidOn ? " " : isOverdue ? `Overdue by ${-daysUntilDue} days` : `Due in ${daysUntilDue} days`}
                                         </div>
@@ -430,7 +442,7 @@ export function BillList() {
                                     type="number" 
                                     min="1" 
                                     max="31"
-                                    value={editDay || ''} 
+                                    value={editDay ?? ''} 
                                     onChange={(e) => {
                                         const val = e.target.value;
                                         setEditDay(val === '' ? undefined : parseInt(val, 10));
