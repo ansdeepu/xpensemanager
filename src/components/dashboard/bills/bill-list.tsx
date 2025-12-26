@@ -45,7 +45,7 @@ import { PlusCircle, Pencil, Trash2, CalendarIcon as Calendar, FileText, Repeat,
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "@/lib/firebase";
 import { collection, addDoc, query, where, onSnapshot, doc, deleteDoc, updateDoc, orderBy } from "firebase/firestore";
-import { format, differenceInDays, isPast, addMonths, addQuarters, addYears, setDate as setDayOfMonth, getDate, parseISO, isBefore } from "date-fns";
+import { format, differenceInDays, isPast, addMonths, addQuarters, addYears, setDate as setDayOfMonth, getDate, parseISO, isBefore, isValid } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Bill } from "@/lib/data";
@@ -191,8 +191,13 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
             setEditRecurrence(selectedBill.recurrence || 'occasional');
             setEditSelectedMonths(selectedBill.selectedMonths || []);
             const dueDate = parseISO(selectedBill.dueDate);
-            setEditDay(getDate(dueDate));
-            setEditDate(format(dueDate, 'yyyy-MM-dd'));
+            if (isValid(dueDate)) {
+                setEditDay(getDate(dueDate));
+                setEditDate(format(dueDate, 'yyyy-MM-dd'));
+            } else {
+                setEditDay(undefined);
+                setEditDate('');
+            }
         } else {
             // Reset state when there's no selected bill
             setEditDay(undefined);
@@ -202,6 +207,7 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
             setEditSelectedMonths([]);
         }
     }, [selectedBill, eventType]);
+
 
     const handleMonthToggle = (month: string, setMonths: React.Dispatch<React.SetStateAction<string[]>>) => {
         setMonths(prev => 
@@ -218,7 +224,9 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
         
         let determinedDueDate: Date;
         if (addEventType === 'special_day') {
-             determinedDueDate = parseISO(formData.get("add-date") as string);
+             const dateValue = formData.get("add-date") as string;
+             const [year, month, day] = dateValue.split('-').map(Number);
+             determinedDueDate = new Date(year, month - 1, day);
         } else {
             determinedDueDate = setDayOfMonth(new Date(), addDay);
         }
@@ -258,7 +266,9 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
         
         let determinedDueDate: Date;
         if (editEventType === 'special_day') {
-             determinedDueDate = parseISO(formData.get("edit-date") as string);
+             const dateValue = formData.get("edit-date") as string;
+             const [year, month, day] = dateValue.split('-').map(Number);
+             determinedDueDate = new Date(year, month - 1, day);
         } else {
             determinedDueDate = setDayOfMonth(new Date(selectedBill.dueDate), editDay || 1);
         }
