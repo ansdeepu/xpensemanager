@@ -186,7 +186,7 @@ export default function TransactionsPage() {
 
   return (
     <div className="space-y-6">
-        <div className="w-full sm:w-[280px]">
+        <div className="w-full sm:w-auto">
           <Button
               variant={"outline"}
               className={cn(
@@ -195,13 +195,16 @@ export default function TransactionsPage() {
               )}
           >
               <CalendarIcon className="mr-2 h-4 w-4" />
+              <span className="mr-2">Reconciliation Date:</span>
               <input
                   type="date"
                   value={reconciliationDate ? format(reconciliationDate, 'yyyy-MM-dd') : ''}
                   onChange={(e) => {
                       const date = new Date(e.target.value);
-                      if (!isNaN(date.getTime())) {
-                          setReconciliationDate(date);
+                      const timezoneOffset = date.getTimezoneOffset() * 60000;
+                      const adjustedDate = new Date(date.getTime() + timezoneOffset);
+                      if (!isNaN(adjustedDate.getTime())) {
+                          setReconciliationDate(adjustedDate);
                       }
                   }}
                   className="bg-transparent border-none outline-none"
