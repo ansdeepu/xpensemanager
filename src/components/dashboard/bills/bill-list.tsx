@@ -139,14 +139,14 @@ export function BillList() {
     const [addDay, setAddDay] = useState<number>(getDate(new Date()));
     const [addDate, setAddDate] = useState<Date | undefined>(new Date());
     const [addEventType, setAddEventType] = useState<Bill['type']>('bill');
-    const [addRecurrence, setAddRecurrence] = useState<Bill['recurrence']>('none');
+    const [addRecurrence, setAddRecurrence] = useState<Bill['recurrence']>('occasional');
     const [addSelectedMonths, setAddSelectedMonths] = useState<string[]>([]);
 
     // Edit dialog state
     const [editDay, setEditDay] = useState<number | undefined>();
     const [editDate, setEditDate] = useState<Date | undefined>();
     const [editEventType, setEditEventType] = useState<Bill['type']>('bill');
-    const [editRecurrence, setEditRecurrence] = useState<Bill['recurrence']>('none');
+    const [editRecurrence, setEditRecurrence] = useState<Bill['recurrence']>('occasional');
     const [editSelectedMonths, setEditSelectedMonths] = useState<string[]>([]);
 
 
@@ -173,7 +173,7 @@ export function BillList() {
     useEffect(() => {
         if (selectedBill) {
             setEditEventType(selectedBill.type || 'bill');
-            setEditRecurrence(selectedBill.recurrence || 'none');
+            setEditRecurrence(selectedBill.recurrence || 'occasional');
             setEditSelectedMonths(selectedBill.selectedMonths || []);
             const dueDate = new Date(selectedBill.dueDate);
             setEditDay(getDate(dueDate));
@@ -181,7 +181,7 @@ export function BillList() {
         } else {
             setEditDay(undefined);
             setEditDate(undefined);
-            setEditRecurrence('none');
+            setEditRecurrence('occasional');
             setEditSelectedMonths([]);
         }
     }, [selectedBill]);
@@ -229,7 +229,7 @@ export function BillList() {
             setAddDay(getDate(new Date()));
             setAddDate(new Date());
             setAddEventType('bill');
-            setAddRecurrence('none');
+            setAddRecurrence('occasional');
             setAddSelectedMonths([]);
         } catch (error) {
         }
@@ -366,7 +366,6 @@ export function BillList() {
                                                     <SelectValue placeholder="Select recurrence" />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    <SelectItem value="none">None (One-time)</SelectItem>
                                                     <SelectItem value="occasional">Occasional</SelectItem>
                                                     <SelectItem value="yearly">Yearly</SelectItem>
                                                     {addEventType === 'bill' && (
@@ -430,7 +429,7 @@ export function BillList() {
                                     <DialogClose asChild>
                                         <Button type="button" variant="secondary" onClick={() => {
                                             setAddEventType('bill');
-                                            setAddRecurrence('none');
+                                            setAddRecurrence('occasional');
                                             setAddSelectedMonths([]);
                                         }}>Cancel</Button>
                                     </DialogClose>
@@ -567,7 +566,6 @@ export function BillList() {
                                             <SelectValue placeholder="Select recurrence" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="none">None (One-time)</SelectItem>
                                             <SelectItem value="occasional">Occasional</SelectItem>
                                             <SelectItem value="yearly">Yearly</SelectItem>
                                              {editEventType === 'bill' && (
