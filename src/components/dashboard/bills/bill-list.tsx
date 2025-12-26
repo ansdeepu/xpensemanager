@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
     Card,
     CardContent,
@@ -45,7 +45,7 @@ import { PlusCircle, Pencil, Trash2, CalendarIcon as Calendar, FileText, Repeat,
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "@/lib/firebase";
 import { collection, addDoc, query, where, onSnapshot, doc, deleteDoc, updateDoc, orderBy } from "firebase/firestore";
-import { format, differenceInDays, isPast, addMonths, addQuarters, addYears, setDate as setDayOfMonth, getDate, parseISO } from "date-fns";
+import { format, differenceInDays, isPast, addMonths, addQuarters, addYears, setDate as setDayOfMonth, getDate, parseISO, isBefore } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Bill } from "@/lib/data";
@@ -305,8 +305,8 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
         let dueDate = parseISO(bill.dueDate);
         const now = new Date();
 
-        while (isPast(dueDate) || (bill.paidOn && parseISO(bill.paidOn) >= dueDate) ) {
-            switch (bill.recurrence) {
+        while (isBefore(dueDate, now) || (bill.paidOn && !isBefore(parseISO(bill.paidOn), dueDate))) {
+             switch (bill.recurrence) {
                 case 'monthly':
                     dueDate = addMonths(dueDate, 1);
                     break;
