@@ -430,8 +430,11 @@ export function BillList() {
                                     type="number" 
                                     min="1" 
                                     max="31"
-                                    value={editDay} 
-                                    onChange={(e) => setEditDay(parseInt(e.target.value, 10))} 
+                                    value={editDay || ''} 
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        setEditDay(val === '' ? undefined : parseInt(val, 10));
+                                    }} 
                                     placeholder="e.g. 26" 
                                     required 
                                 />
