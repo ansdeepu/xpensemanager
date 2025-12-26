@@ -94,7 +94,7 @@ function MonthSelector({ selectedMonths, onMonthToggle }: { selectedMonths: stri
 
 
 const formatDueDate = (bill: Bill) => {
-    const dueDate = new Date(bill.dueDate);
+    const dueDate = parseISO(bill.dueDate);
     
     if (bill.type === 'special_day') {
         return format(dueDate, 'dd/MM/yyyy');
@@ -118,7 +118,7 @@ const formatDueDate = (bill: Bill) => {
             if (bill.selectedMonths && bill.selectedMonths.length > 0) {
                 return `${day} of ${bill.selectedMonths.join(', ')}`;
             }
-            return `${day} of ${format(dueDate, 'MMM, yyyy')} (Occasional)`;
+            return `${day} of ${format(dueDate, 'MMM')} (Occasional)`;
         }
         default:
             return format(dueDate, 'dd/MM/yyyy');
@@ -174,7 +174,7 @@ export function BillList() {
             setEditEventType(selectedBill.type || 'bill');
             setEditRecurrence(selectedBill.recurrence || 'occasional');
             setEditSelectedMonths(selectedBill.selectedMonths || []);
-            const dueDate = new Date(selectedBill.dueDate);
+            const dueDate = parseISO(selectedBill.dueDate);
             setEditDay(getDate(dueDate));
             setEditDate(format(dueDate, 'yyyy-MM-dd'));
         } else {
@@ -202,12 +202,7 @@ export function BillList() {
         
         let determinedDueDate: Date;
         if (addEventType === 'special_day') {
-             const dateString = formData.get("add-date") as string;
-             // HTML date input returns 'yyyy-MM-dd', which is parsed in UTC. 
-             // We add timezone offset to keep it in user's local day.
-             const date = new Date(dateString);
-             const timezoneOffset = date.getTimezoneOffset() * 60000;
-             determinedDueDate = new Date(date.getTime() + timezoneOffset);
+             determinedDueDate = parseISO(formData.get("add-date") as string);
         } else {
             determinedDueDate = setDayOfMonth(new Date(), addDay);
         }
@@ -218,12 +213,9 @@ export function BillList() {
             dueDate: determinedDueDate.toISOString(),
             recurrence: addRecurrence,
             type: addEventType,
+            selectedMonths: addSelectedMonths,
         };
         
-        if (addEventType === 'bill' && addRecurrence === 'occasional') {
-            newBill.selectedMonths = addSelectedMonths;
-        }
-
         if (addEventType === 'bill') {
             newBill.amount = parseFloat(formData.get("amount") as string);
         }
@@ -250,10 +242,7 @@ export function BillList() {
         
         let determinedDueDate: Date;
         if (editEventType === 'special_day') {
-             const dateString = formData.get("edit-date") as string;
-             const date = new Date(dateString);
-             const timezoneOffset = date.getTimezoneOffset() * 60000;
-             determinedDueDate = new Date(date.getTime() + timezoneOffset);
+             determinedDueDate = parseISO(formData.get("edit-date") as string);
         } else {
             determinedDueDate = setDayOfMonth(new Date(selectedBill.dueDate), editDay || 1);
         }
@@ -262,14 +251,9 @@ export function BillList() {
             title: title,
             dueDate: determinedDueDate.toISOString(),
             recurrence: editRecurrence,
-            type: editEventType
+            type: editEventType,
+            selectedMonths: editSelectedMonths,
         };
-
-        if (editEventType === 'bill' && editRecurrence === 'occasional') {
-            updatedData.selectedMonths = editSelectedMonths;
-        } else {
-            updatedData.selectedMonths = []; 
-        }
 
         if (editEventType === 'bill') {
             updatedData.amount = parseFloat(formData.get("amount") as string);
@@ -301,7 +285,7 @@ export function BillList() {
 
     const getNextPaymentDate = (bill: Bill) => {
         if (bill.recurrence === 'occasional' || bill.type === 'special_day') return null;
-        const dueDate = new Date(bill.dueDate);
+        const dueDate = parseISO(bill.dueDate);
         switch (bill.recurrence) {
             case 'monthly':
                 return addMonths(dueDate, 1);
@@ -395,9 +379,9 @@ export function BillList() {
                                             </Select>
                                         </div>
                                     </div>
-                                    {addEventType === 'bill' && addRecurrence === 'occasional' && (
-                                        <MonthSelector selectedMonths={addSelectedMonths} onMonthToggle={(month) => handleMonthToggle(month, setAddSelectedMonths)} />
-                                    )}
+                                    
+                                    <MonthSelector selectedMonths={addSelectedMonths} onMonthToggle={(month) => handleMonthToggle(month, setAddSelectedMonths)} />
+                                    
                                     {addEventType === 'special_day' ? (
                                         <div className="space-y-2">
                                             <Label htmlFor="add-date">Date</Label>
@@ -453,7 +437,7 @@ export function BillList() {
                         </TableHeader>
                         <TableBody>
                             {bills.map((bill, index) => {
-                                const dueDate = new Date(bill.dueDate);
+                                const dueDate = parseISO(bill.dueDate);
                                 const daysUntilDue = differenceInDays(dueDate, new Date());
                                 const isOverdue = bill.type === 'bill' && daysUntilDue < 0 && !bill.paidOn;
                                 const nextPaymentDate = getNextPaymentDate(bill);
@@ -482,7 +466,7 @@ export function BillList() {
                                         )}
                                     </TableCell>
                                     <TableCell>
-                                        {bill.paidOn ? format(new Date(bill.paidOn), 'dd/MM/yyyy') : '-'}
+                                        {bill.paidOn ? format(parseISO(bill.paidOn), 'dd/MM/yyyy') : '-'}
                                     </TableCell>
                                     <TableCell>
                                         {nextPaymentDate ? format(nextPaymentDate, 'dd/MM/yyyy') : '-'}
@@ -577,9 +561,9 @@ export function BillList() {
                                     </Select>
                                 </div>
                             </div>
-                             {editEventType === 'bill' && editRecurrence === 'occasional' && (
-                                <MonthSelector selectedMonths={editSelectedMonths} onMonthToggle={(month) => handleMonthToggle(month, setEditSelectedMonths)} />
-                            )}
+                             
+                            <MonthSelector selectedMonths={editSelectedMonths} onMonthToggle={(month) => handleMonthToggle(month, setEditSelectedMonths)} />
+                            
                              {editEventType === 'special_day' ? (
                                 <div className="space-y-2">
                                      <Label htmlFor="edit-date">Date</Label>
