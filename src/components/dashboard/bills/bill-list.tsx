@@ -100,7 +100,7 @@ const formatDueDate = (bill: Bill) => {
         return format(dueDate, 'dd/MM/yyyy');
     }
 
-    const day = getDayWithOrdinal(dueDate.getDate());
+    const day = getDayWithOrdinal(getDate(dueDate));
 
     switch (bill.recurrence) {
         case 'monthly':
@@ -132,18 +132,18 @@ const formatDueDate = (bill: Bill) => {
 };
 
 
-export function BillList() {
-    const [bills, setBills] = useState<Bill[]>([]);
+export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
+    const [allEvents, setAllEvents] = useState<Bill[]>([]);
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
     const [user, loading] = useAuthState(auth);
     const [clientLoaded, setClientLoaded] = useState(false);
     
-    // Add dialog state
+    // Add dialog state - default to the current tab's event type
+    const [addEventType, setAddEventType] = useState<Bill['type']>(eventType);
     const [addDay, setAddDay] = useState<number>(getDate(new Date()));
     const [addDate, setAddDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
-    const [addEventType, setAddEventType] = useState<Bill['type']>('bill');
     const [addRecurrence, setAddRecurrence] = useState<Bill['recurrence']>('occasional');
     const [addSelectedMonths, setAddSelectedMonths] = useState<string[]>([]);
 
@@ -153,6 +153,11 @@ export function BillList() {
     const [editEventType, setEditEventType] = useState<Bill['type']>('bill');
     const [editRecurrence, setEditRecurrence] = useState<Bill['recurrence']>('occasional');
     const [editSelectedMonths, setEditSelectedMonths] = useState<string[]>([]);
+
+    // When the component mounts or the eventType prop changes, update the default for the add dialog
+    useEffect(() => {
+        setAddEventType(eventType);
+    }, [eventType]);
 
 
     useEffect(() => {
@@ -168,12 +173,17 @@ export function BillList() {
                     const data = doc.data();
                     userBills.push({ id: doc.id, ...data } as Bill);
                 });
-                setBills(userBills);
+                setAllEvents(userBills);
             });
             
             return () => unsubscribeBills();
         }
     }, [user, db]);
+
+    const bills = useMemo(() => {
+        return allEvents.filter(event => event.type === eventType);
+    }, [allEvents, eventType]);
+
 
     useEffect(() => {
         if (selectedBill) {
@@ -187,11 +197,11 @@ export function BillList() {
             // Reset state when there's no selected bill
             setEditDay(undefined);
             setEditDate('');
-            setEditEventType('bill');
+            setEditEventType(eventType); // default to current tab
             setEditRecurrence('occasional');
             setEditSelectedMonths([]);
         }
-    }, [selectedBill]);
+    }, [selectedBill, eventType]);
 
     const handleMonthToggle = (month: string, setMonths: React.Dispatch<React.SetStateAction<string[]>>) => {
         setMonths(prev => 
@@ -232,7 +242,7 @@ export function BillList() {
             // Reset form states
             setAddDay(getDate(new Date()));
             setAddDate(format(new Date(), 'yyyy-MM-dd'));
-            setAddEventType('bill');
+            setAddEventType(eventType);
             setAddRecurrence('occasional');
             setAddSelectedMonths([]);
         } catch (error) {
@@ -295,7 +305,6 @@ export function BillList() {
         let dueDate = parseISO(bill.dueDate);
         const now = new Date();
 
-        // If the due date is in the past, we need to calculate the next one from today.
         while (isPast(dueDate) || (bill.paidOn && parseISO(bill.paidOn) >= dueDate) ) {
             switch (bill.recurrence) {
                 case 'monthly':
@@ -308,7 +317,7 @@ export function BillList() {
                     dueDate = addYears(dueDate, 1);
                     break;
                 default:
-                    return null; // Should not happen for recurring bills
+                    return null; 
             }
         }
         return dueDate;
@@ -319,21 +328,22 @@ export function BillList() {
         return <Skeleton className="h-96 w-full" />
     }
 
+    const title = eventType === 'bill' ? 'Bills' : 'Special Days';
+    const description = eventType === 'bill' ? 'Keep track of your upcoming payments.' : 'Keep track of your special days.';
+
     return (
         <>
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                     <div>
-                        <CardTitle>Manage Your Events</CardTitle>
-                        <CardDescription>
-                            Keep track of your upcoming payments and special days.
-                        </CardDescription>
+                        <CardTitle>Manage Your {title}</CardTitle>
+                        <CardDescription>{description}</CardDescription>
                     </div>
                     <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
                         setIsAddDialogOpen(open);
                         if (!open) {
                             // Reset state on close
-                            setAddEventType('bill');
+                            setAddEventType(eventType);
                             setAddRecurrence('occasional');
                             setAddSelectedMonths([]);
                         }
@@ -440,10 +450,10 @@ export function BillList() {
                             <TableRow>
                                 <TableHead>Sl. No.</TableHead>
                                 <TableHead>Title</TableHead>
-                                <TableHead className="text-right">Amount</TableHead>
+                                {eventType === 'bill' && <TableHead className="text-right">Amount</TableHead>}
                                 <TableHead>Due Date</TableHead>
-                                <TableHead>Payment Date</TableHead>
-                                <TableHead>Next Payment date</TableHead>
+                                {eventType === 'bill' && <TableHead>Payment Date</TableHead>}
+                                {eventType === 'bill' && <TableHead>Next Payment date</TableHead>}
                                 <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -468,7 +478,7 @@ export function BillList() {
                                             )}
                                         </div>
                                     </TableCell>
-                                    <TableCell className="text-right font-mono">{bill.type === 'bill' ? formatCurrency(bill.amount) : '-'}</TableCell>
+                                    {eventType === 'bill' && <TableCell className="text-right font-mono">{bill.type === 'bill' ? formatCurrency(bill.amount) : '-'}</TableCell>}
                                     <TableCell>
                                         <div>{formatDueDate(bill)}</div>
                                         {bill.type === 'bill' && (
@@ -477,12 +487,12 @@ export function BillList() {
                                             </div>
                                         )}
                                     </TableCell>
-                                    <TableCell>
+                                    {eventType === 'bill' && <TableCell>
                                         {bill.paidOn ? format(parseISO(bill.paidOn), 'dd/MM/yyyy') : '-'}
-                                    </TableCell>
-                                    <TableCell>
+                                    </TableCell>}
+                                    {eventType === 'bill' && <TableCell>
                                         {nextPaymentDate ? format(nextPaymentDate, 'dd/MM/yyyy') : '-'}
-                                    </TableCell>
+                                    </TableCell>}
                                     <TableCell className="text-right">
                                         <Button variant="ghost" size="icon" onClick={() => openEditDialog(bill)} className="mr-2">
                                             <Pencil className="h-4 w-4" />
@@ -514,7 +524,7 @@ export function BillList() {
                      {bills.length === 0 && (
                         <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-40">
                             <FileText className="h-10 w-10 mb-2"/>
-                            <p>No upcoming events. Click "Add Event" to get started.</p>
+                            <p>No upcoming {eventType === 'bill' ? 'bills' : 'special days'}. Click "Add Event" to get started.</p>
                         </div>
                     )}
                 </CardContent>
