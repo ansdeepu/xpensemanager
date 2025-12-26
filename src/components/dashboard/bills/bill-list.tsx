@@ -47,7 +47,7 @@ import { auth, db } from "@/lib/firebase";
 import { collection, addDoc, query, where, onSnapshot, doc, deleteDoc, updateDoc, orderBy } from "firebase/firestore";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { format, differenceInDays, isPast, addMonths, addQuarters, addYears } from "date-fns";
+import { format, differenceInDays, isPast, addMonths, addQuarters, addYears, setDate as setDayOfMonth, getDate } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Bill } from "@/lib/data";
@@ -66,8 +66,8 @@ export function BillList() {
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
-    const [date, setDate] = useState<Date | undefined>(new Date());
-    const [editDate, setEditDate] = useState<Date | undefined>();
+    const [day, setDay] = useState<number>(getDate(new Date()));
+    const [editDay, setEditDay] = useState<number | undefined>();
     const [addEventType, setAddEventType] = useState<Bill['type']>('bill');
     const [editEventType, setEditEventType] = useState<Bill['type']>('bill');
     const [user, loading] = useAuthState(auth);
@@ -100,22 +100,22 @@ export function BillList() {
 
     useEffect(() => {
         if (selectedBill) {
-            setEditDate(new Date(selectedBill.dueDate));
+            setEditDay(getDate(new Date(selectedBill.dueDate)));
             setEditEventType(selectedBill.type || 'bill');
         } else {
-            setEditDate(undefined);
+            setEditDay(undefined);
         }
     }, [selectedBill]);
 
     const handleAddBill = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        if (!user || !date) return;
+        if (!user || !day) return;
 
         const formData = new FormData(event.currentTarget);
         const newBill: Partial<Bill> & { userId: string } = {
             userId: user.uid,
             title: formData.get("title") as string,
-            dueDate: date.toISOString(),
+            dueDate: setDayOfMonth(new Date(), day).toISOString(),
             recurrence: formData.get("recurrence") as Bill['recurrence'],
             type: addEventType,
         };
@@ -127,7 +127,7 @@ export function BillList() {
         try {
             await addDoc(collection(db, "bills"), newBill);
             setIsAddDialogOpen(false);
-            setDate(new Date());
+            setDay(getDate(new Date()));
             setAddEventType('bill');
         } catch (error) {
         }
@@ -135,12 +135,12 @@ export function BillList() {
 
     const handleEditBill = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        if (!user || !selectedBill || !editDate) return;
+        if (!user || !selectedBill || !editDay) return;
 
         const formData = new FormData(event.currentTarget);
         const updatedData: Partial<Bill> = {
             title: formData.get("title") as string,
-            dueDate: editDate.toISOString(),
+            dueDate: setDayOfMonth(new Date(selectedBill.dueDate), editDay).toISOString(),
             recurrence: formData.get("recurrence") as Bill['recurrence'],
             type: editEventType
         };
@@ -262,24 +262,18 @@ export function BillList() {
                                         </div>
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="date">Due Date</Label>
-                                        <Popover>
-                                            <PopoverTrigger asChild>
-                                                <Button
-                                                    variant={"outline"}
-                                                    className={cn(
-                                                        "w-full justify-start text-left font-normal",
-                                                        !date && "text-muted-foreground"
-                                                    )}
-                                                >
-                                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                                    {date ? format(date, "dd") : <span>Pick a date</span>}
-                                                </Button>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-auto p-0">
-                                                <Calendar mode="single" selected={date} onSelect={setDate} initialFocus />
-                                            </PopoverContent>
-                                        </Popover>
+                                        <Label htmlFor="day">Due Day of Month</Label>
+                                        <Input 
+                                            id="day" 
+                                            name="day" 
+                                            type="number" 
+                                            min="1" 
+                                            max="31"
+                                            value={day} 
+                                            onChange={(e) => setDay(parseInt(e.target.value, 10))} 
+                                            placeholder="e.g. 26" 
+                                            required 
+                                        />
                                     </div>
                                 </div>
                                 <DialogFooter>
@@ -429,21 +423,18 @@ export function BillList() {
                                 </div>
                             </div>
                              <div className="space-y-2">
-                                <Label htmlFor="edit-date">Due Date</Label>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button
-                                            variant={"outline"}
-                                            className={cn("w-full justify-start text-left font-normal", !editDate && "text-muted-foreground")}
-                                        >
-                                            <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {editDate ? format(editDate, "dd") : <span>Pick a date</span>}
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0">
-                                        <Calendar mode="single" selected={editDate} onSelect={setEditDate} initialFocus />
-                                    </PopoverContent>
-                                </Popover>
+                                <Label htmlFor="edit-day">Due Day of Month</Label>
+                                <Input 
+                                    id="edit-day" 
+                                    name="edit-day" 
+                                    type="number" 
+                                    min="1" 
+                                    max="31"
+                                    value={editDay} 
+                                    onChange={(e) => setEditDay(parseInt(e.target.value, 10))} 
+                                    placeholder="e.g. 26" 
+                                    required 
+                                />
                             </div>
                         </div>
                         <DialogFooter>
