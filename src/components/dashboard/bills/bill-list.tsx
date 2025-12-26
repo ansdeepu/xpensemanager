@@ -45,7 +45,7 @@ import { PlusCircle, Pencil, Trash2, CalendarIcon as Calendar, FileText, Repeat,
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "@/lib/firebase";
 import { collection, addDoc, query, where, onSnapshot, doc, deleteDoc, updateDoc, orderBy } from "firebase/firestore";
-import { format, differenceInDays, isPast, addMonths, addQuarters, addYears, setDate as setDayOfMonth, getDate, parseISO, isBefore, isValid } from "date-fns";
+import { format, differenceInDays, isPast, addMonths, addQuarters, addYears, setDate as setDayOfMonth, getDate, parseISO, isBefore, isValid, getYear, setYear } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Bill } from "@/lib/data";
@@ -226,8 +226,10 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
         
         let determinedDueDate: Date;
         if (addEventType === 'special_day') {
-             const dateValue = formData.get("add-date") as string;
+             const dateValue = formData.get("special-date") as string;
              determinedDueDate = new Date(dateValue);
+             const timezoneOffset = determinedDueDate.getTimezoneOffset() * 60000;
+             determinedDueDate = new Date(determinedDueDate.getTime() + timezoneOffset);
         } else {
             determinedDueDate = setDayOfMonth(new Date(), addDay);
         }
@@ -267,8 +269,10 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
         
         let determinedDueDate: Date;
         if (editEventType === 'special_day') {
-             const dateValue = formData.get("edit-date") as string;
+             const dateValue = formData.get("special-date") as string;
              determinedDueDate = new Date(dateValue);
+             const timezoneOffset = determinedDueDate.getTimezoneOffset() * 60000;
+             determinedDueDate = new Date(determinedDueDate.getTime() + timezoneOffset);
         } else {
             determinedDueDate = setDayOfMonth(new Date(selectedBill.dueDate), editDay || 1);
         }
@@ -285,8 +289,8 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
             updatedData.selectedMonths = editSelectedMonths;
         } else {
             updatedData.amount = 0;
-            delete updatedData.recurrence;
-            delete updatedData.selectedMonths;
+            updatedData.recurrence = 'occasional'; // Reset for special days
+            updatedData.selectedMonths = [];
         }
 
         try {
@@ -317,7 +321,7 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
         let dueDate = parseISO(bill.dueDate);
         const now = new Date();
 
-        while (isBefore(dueDate, now) || (bill.paidOn && !isBefore(parseISO(bill.paidOn), dueDate))) {
+        while (isBefore(dueDate, now)) {
              switch (bill.recurrence) {
                 case 'monthly':
                     dueDate = addMonths(dueDate, 1);
@@ -333,6 +337,21 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
             }
         }
         return dueDate;
+    };
+    
+    const getCelebrationDate = (specialDay: Bill) => {
+      const originalDate = parseISO(specialDay.dueDate);
+      if (!isValid(originalDate)) return null;
+
+      const today = new Date();
+      const currentYear = getYear(today);
+      
+      let celebrationDate = setYear(originalDate, currentYear);
+      if (isBefore(celebrationDate, today)) {
+        celebrationDate = addYears(celebrationDate, 1);
+      }
+      
+      return celebrationDate;
     };
 
 
@@ -432,10 +451,10 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                                       </>
                                     ) : (
                                         <div className="space-y-2">
-                                            <Label htmlFor="add-date">Special Date</Label>
+                                            <Label htmlFor="special-date">Special Date</Label>
                                             <Input
-                                                id="add-date"
-                                                name="add-date"
+                                                id="special-date"
+                                                name="special-date"
                                                 type="date"
                                                 value={addDate}
                                                 onChange={(e) => setAddDate(e.target.value)}
@@ -461,10 +480,19 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                             <TableRow>
                                 <TableHead>Sl. No.</TableHead>
                                 <TableHead>Title</TableHead>
-                                {eventType === 'bill' && <TableHead className="text-right">Amount</TableHead>}
-                                <TableHead>Due Date</TableHead>
-                                {eventType === 'bill' && <TableHead>Payment Date</TableHead>}
-                                {eventType === 'bill' && <TableHead>Next Payment date</TableHead>}
+                                {eventType === 'bill' ? (
+                                    <>
+                                        <TableHead className="text-right">Amount</TableHead>
+                                        <TableHead>Due Date</TableHead>
+                                        <TableHead>Payment Date</TableHead>
+                                        <TableHead>Next Payment date</TableHead>
+                                    </>
+                                ) : (
+                                    <>
+                                        <TableHead>Special Date</TableHead>
+                                        <TableHead>Celebration Date</TableHead>
+                                    </>
+                                )}
                                 <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -474,6 +502,7 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                                 const daysUntilDue = isValid(dueDate) ? differenceInDays(dueDate, new Date()) : 0;
                                 const isOverdue = bill.type === 'bill' && daysUntilDue < 0 && !bill.paidOn;
                                 const nextPaymentDate = getNextPaymentDate(bill);
+                                const celebrationDate = bill.type === 'special_day' ? getCelebrationDate(bill) : null;
                                 return (
                                 <TableRow key={bill.id} className={cn(bill.type === 'bill' && bill.paidOn && "text-muted-foreground")}>
                                     <TableCell>{index + 1}</TableCell>
@@ -489,21 +518,24 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                                             )}
                                         </div>
                                     </TableCell>
-                                    {eventType === 'bill' && <TableCell className="text-right font-mono">{bill.type === 'bill' ? formatCurrency(bill.amount) : '-'}</TableCell>}
-                                    <TableCell>
-                                        <div>{formatDueDate(bill)}</div>
-                                        {bill.type === 'bill' && (
-                                            <div className={cn("text-xs", isOverdue ? "text-red-500" : "text-muted-foreground")}>
-                                                {bill.paidOn ? " " : isOverdue ? `Overdue by ${-daysUntilDue} days` : `Due in ${daysUntilDue} days`}
-                                            </div>
-                                        )}
-                                    </TableCell>
-                                    {eventType === 'bill' && <TableCell>
-                                        {bill.paidOn ? format(parseISO(bill.paidOn), 'dd/MM/yyyy') : '-'}
-                                    </TableCell>}
-                                    {eventType === 'bill' && <TableCell>
-                                        {nextPaymentDate ? format(nextPaymentDate, 'dd/MM/yyyy') : '-'}
-                                    </TableCell>}
+                                    {eventType === 'bill' ? (
+                                        <>
+                                            <TableCell className="text-right font-mono">{formatCurrency(bill.amount)}</TableCell>
+                                            <TableCell>
+                                                <div>{formatDueDate(bill)}</div>
+                                                <div className={cn("text-xs", isOverdue ? "text-red-500" : "text-muted-foreground")}>
+                                                    {bill.paidOn ? " " : isOverdue ? `Overdue by ${-daysUntilDue} days` : `Due in ${daysUntilDue} days`}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>{bill.paidOn ? format(parseISO(bill.paidOn), 'dd/MM/yyyy') : '-'}</TableCell>
+                                            <TableCell>{nextPaymentDate ? format(nextPaymentDate, 'dd/MM/yyyy') : '-'}</TableCell>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <TableCell>{isValid(dueDate) ? format(dueDate, 'dd/MM/yyyy') : 'Invalid Date'}</TableCell>
+                                            <TableCell>{celebrationDate ? format(celebrationDate, 'dd/MM/yyyy') : '-'}</TableCell>
+                                        </>
+                                    )}
                                     <TableCell className="text-right">
                                         <Button variant="ghost" size="icon" onClick={() => openEditDialog(bill)} className="mr-2">
                                             <Pencil className="h-4 w-4" />
@@ -612,10 +644,10 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                                 </>
                             ) : (
                                 <div className="space-y-2">
-                                     <Label htmlFor="edit-date">Special Date</Label>
+                                     <Label htmlFor="special-date">Special Date</Label>
                                      <Input
-                                        id="edit-date"
-                                        name="edit-date"
+                                        id="special-date"
+                                        name="special-date"
                                         type="date"
                                         value={editDate}
                                         onChange={(e) => setEditDate(e.target.value)}
@@ -635,5 +667,3 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
         </>
     );
 }
-
-    
