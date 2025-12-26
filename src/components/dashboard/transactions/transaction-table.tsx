@@ -59,7 +59,7 @@ import { collection, addDoc, query, where, onSnapshot, doc, runTransaction, orde
 import { useAuthState } from "react-firebase-hooks/auth";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { format, addMonths, addQuarters, addYears, isAfter, isWithinInterval, startOfDay, endOfDay } from "date-fns";
+import { format, addMonths, addQuarters, addYears, isAfter, isWithinInterval, startOfDay, endOfDay, isBefore } from "date-fns";
 import { DateRange } from "react-day-picker";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -360,7 +360,8 @@ export function TransactionTable({
                 if (newTransaction.type === 'expense') {
                     const billsQuery = query(
                         collection(db, "bills"), 
-                        where("userId", "==", user.uid)
+                        where("userId", "==", user.uid),
+                        where("type", "==", "bill") // Only match bills, not special days
                     );
                     const billsSnapshot = await getDocs(billsQuery);
                     
@@ -368,10 +369,10 @@ export function TransactionTable({
                         const bill = { id: billDoc.id, ...billDoc.data() } as Bill;
                         const dueDate = new Date(bill.dueDate);
 
-                        // Match bill if title and amount are similar and it's not already paid for this cycle.
+                        // Match bill if title and amount are similar and it's currently due (not paid or paid before current due date)
                         if (bill.title.toLowerCase() === description.toLowerCase() && 
                             bill.amount === amount &&
-                            (!bill.paidOn || !isAfter(new Date(bill.paidOn), dueDate)) )
+                            (!bill.paidOn || isBefore(new Date(bill.paidOn), dueDate)) )
                         {
                             const updateData: { paidOn: string, dueDate?: string } = { paidOn: transactionDate.toISOString() };
 
@@ -384,8 +385,7 @@ export function TransactionTable({
                                     default: nextDueDate = dueDate;
                                 }
                                 updateData.dueDate = nextDueDate.toISOString();
-                                // For recurring bills, we also need to clear paidOn for the next cycle,
-                                // but we do that when displaying, not here.
+                                // For recurring bills, the paidOn status is reset implicitly by having a new, future due date.
                             }
                             
                             t.update(doc(db, "bills", bill.id), updateData);
