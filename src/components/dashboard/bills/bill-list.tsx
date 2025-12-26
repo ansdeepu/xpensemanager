@@ -41,7 +41,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PlusCircle, Pencil, Trash2, CalendarIcon, FileText, Repeat, Gift } from "lucide-react";
+import { PlusCircle, Pencil, Trash2, CalendarIcon as Calendar, FileText, Repeat, Gift } from "lucide-react";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "@/lib/firebase";
 import { collection, addDoc, query, where, onSnapshot, doc, deleteDoc, updateDoc, orderBy } from "firebase/firestore";
@@ -51,6 +51,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { Bill } from "@/lib/data";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-IN", {
@@ -110,6 +112,9 @@ const formatDueDate = (bill: Bill) => {
         case 'yearly':
             return `${day} of ${format(dueDate, 'MMM')}`;
         case 'occasional': {
+            if (bill.type === 'special_day') {
+                 return format(dueDate, 'do MMMM');
+            }
             if (bill.selectedMonths && bill.selectedMonths.length > 0) {
                 return `${day} of ${bill.selectedMonths.join(', ')}`;
             }
@@ -117,7 +122,7 @@ const formatDueDate = (bill: Bill) => {
         }
         case 'none':
         default:
-            return `${day} of ${format(dueDate, 'MMM, yyyy')}`;
+            return format(dueDate, 'do MMMM, yyyy');
     }
 };
 
@@ -127,18 +132,20 @@ export function BillList() {
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
-    const [day, setDay] = useState<number>(getDate(new Date()));
-    const [editDay, setEditDay] = useState<number | undefined>();
-    const [addEventType, setAddEventType] = useState<Bill['type']>('bill');
-    const [editEventType, setEditEventType] = useState<Bill['type']>('bill');
     const [user, loading] = useAuthState(auth);
     const [clientLoaded, setClientLoaded] = useState(false);
     
-    // State for Add dialog
+    // Add dialog state
+    const [addDay, setAddDay] = useState<number>(getDate(new Date()));
+    const [addDate, setAddDate] = useState<Date | undefined>(new Date());
+    const [addEventType, setAddEventType] = useState<Bill['type']>('bill');
     const [addRecurrence, setAddRecurrence] = useState<Bill['recurrence']>('none');
     const [addSelectedMonths, setAddSelectedMonths] = useState<string[]>([]);
 
-    // State for Edit dialog
+    // Edit dialog state
+    const [editDay, setEditDay] = useState<number | undefined>();
+    const [editDate, setEditDate] = useState<Date | undefined>();
+    const [editEventType, setEditEventType] = useState<Bill['type']>('bill');
     const [editRecurrence, setEditRecurrence] = useState<Bill['recurrence']>('none');
     const [editSelectedMonths, setEditSelectedMonths] = useState<string[]>([]);
 
@@ -154,11 +161,6 @@ export function BillList() {
                 const userBills: Bill[] = [];
                 querySnapshot.forEach((doc) => {
                     const data = doc.data();
-                    // Reset paidOn if due date is in the future and bill was paid in the past
-                    if (data.paidOn && isPast(new Date(data.dueDate)) && new Date(data.paidOn) < new Date(data.dueDate)) {
-                        // This logic might need adjustment based on how you want to handle recurring bills' paid status.
-                        // For now, if a new due date is set, we can consider it unpaid for the new cycle.
-                    }
                     userBills.push({ id: doc.id, ...data } as Bill);
                 });
                 setBills(userBills);
@@ -170,12 +172,15 @@ export function BillList() {
 
     useEffect(() => {
         if (selectedBill) {
-            setEditDay(getDate(new Date(selectedBill.dueDate)));
             setEditEventType(selectedBill.type || 'bill');
             setEditRecurrence(selectedBill.recurrence || 'none');
             setEditSelectedMonths(selectedBill.selectedMonths || []);
+            const dueDate = new Date(selectedBill.dueDate);
+            setEditDay(getDate(dueDate));
+            setEditDate(dueDate);
         } else {
             setEditDay(undefined);
+            setEditDate(undefined);
             setEditRecurrence('none');
             setEditSelectedMonths([]);
         }
@@ -189,18 +194,27 @@ export function BillList() {
 
     const handleAddBill = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        if (!user || !day) return;
+        if (!user) return;
 
         const formData = new FormData(event.currentTarget);
+        const title = formData.get("title") as string;
+        
+        let determinedDueDate: Date;
+        if (addEventType === 'special_day') {
+            determinedDueDate = addDate || new Date();
+        } else {
+            determinedDueDate = setDayOfMonth(new Date(), addDay);
+        }
+
         const newBill: Partial<Bill> & { userId: string } = {
             userId: user.uid,
-            title: formData.get("title") as string,
-            dueDate: setDayOfMonth(new Date(), day).toISOString(),
+            title: title,
+            dueDate: determinedDueDate.toISOString(),
             recurrence: addRecurrence,
             type: addEventType,
         };
         
-        if (addRecurrence === 'occasional') {
+        if (addEventType === 'bill' && addRecurrence === 'occasional') {
             newBill.selectedMonths = addSelectedMonths;
         }
 
@@ -211,7 +225,9 @@ export function BillList() {
         try {
             await addDoc(collection(db, "bills"), newBill);
             setIsAddDialogOpen(false);
-            setDay(getDate(new Date()));
+            // Reset form states
+            setAddDay(getDate(new Date()));
+            setAddDate(new Date());
             setAddEventType('bill');
             setAddRecurrence('none');
             setAddSelectedMonths([]);
@@ -221,26 +237,35 @@ export function BillList() {
 
     const handleEditBill = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        if (!user || !selectedBill || !editDay) return;
+        if (!user || !selectedBill) return;
 
         const formData = new FormData(event.currentTarget);
+        const title = formData.get("title") as string;
+        
+        let determinedDueDate: Date;
+        if (editEventType === 'special_day') {
+            determinedDueDate = editDate || new Date(selectedBill.dueDate);
+        } else {
+            determinedDueDate = setDayOfMonth(new Date(selectedBill.dueDate), editDay || 1);
+        }
+
         const updatedData: Partial<Bill> = {
-            title: formData.get("title") as string,
-            dueDate: setDayOfMonth(new Date(selectedBill.dueDate), editDay).toISOString(),
+            title: title,
+            dueDate: determinedDueDate.toISOString(),
             recurrence: editRecurrence,
             type: editEventType
         };
 
-        if (editRecurrence === 'occasional') {
+        if (editEventType === 'bill' && editRecurrence === 'occasional') {
             updatedData.selectedMonths = editSelectedMonths;
         } else {
-            updatedData.selectedMonths = []; // Clear months if not occasional
+            updatedData.selectedMonths = []; 
         }
 
         if (editEventType === 'bill') {
             updatedData.amount = parseFloat(formData.get("amount") as string);
         } else {
-            updatedData.amount = 0; // or delete field
+            updatedData.amount = 0; 
         }
 
         try {
@@ -354,23 +379,52 @@ export function BillList() {
                                             </Select>
                                         </div>
                                     </div>
-                                     {addRecurrence === 'occasional' && (
+                                     {addEventType === 'bill' && addRecurrence === 'occasional' && (
                                         <MonthSelector selectedMonths={addSelectedMonths} onMonthToggle={(month) => handleMonthToggle(month, setAddSelectedMonths)} />
                                     )}
-                                    <div className="space-y-2">
-                                        <Label htmlFor="day">Due Day of Month</Label>
-                                        <Input 
-                                            id="day" 
-                                            name="day" 
-                                            type="number" 
-                                            min="1" 
-                                            max="31"
-                                            value={day} 
-                                            onChange={(e) => setDay(parseInt(e.target.value, 10))} 
-                                            placeholder="e.g. 26" 
-                                            required 
-                                        />
-                                    </div>
+                                    {addEventType === 'special_day' ? (
+                                        <div className="space-y-2">
+                                            <Label htmlFor="add-date">Date</Label>
+                                            <Popover>
+                                                <PopoverTrigger asChild>
+                                                    <Button
+                                                        id="add-date"
+                                                        variant={"outline"}
+                                                        className={cn(
+                                                            "w-full justify-start text-left font-normal",
+                                                            !addDate && "text-muted-foreground"
+                                                        )}
+                                                    >
+                                                        <Calendar className="mr-2 h-4 w-4" />
+                                                        {addDate ? format(addDate, "PPP") : <span>Pick a date</span>}
+                                                    </Button>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-auto p-0">
+                                                    <CalendarPicker
+                                                        mode="single"
+                                                        selected={addDate}
+                                                        onSelect={setAddDate}
+                                                        initialFocus
+                                                    />
+                                                </PopoverContent>
+                                            </Popover>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            <Label htmlFor="day">Due Day of Month</Label>
+                                            <Input 
+                                                id="day" 
+                                                name="day" 
+                                                type="number" 
+                                                min="1" 
+                                                max="31"
+                                                value={addDay} 
+                                                onChange={(e) => setAddDay(parseInt(e.target.value, 10))} 
+                                                placeholder="e.g. 26" 
+                                                required 
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                                 <DialogFooter>
                                     <DialogClose asChild>
@@ -423,9 +477,11 @@ export function BillList() {
                                     <TableCell className="text-right font-mono">{bill.type === 'bill' ? formatCurrency(bill.amount) : '-'}</TableCell>
                                     <TableCell>
                                         <div>{formatDueDate(bill)}</div>
-                                        <div className={cn("text-xs", isOverdue ? "text-red-500" : "text-muted-foreground")}>
-                                            {bill.paidOn ? " " : isOverdue ? `Overdue by ${-daysUntilDue} days` : `Due in ${daysUntilDue} days`}
-                                        </div>
+                                        {bill.type === 'bill' && (
+                                            <div className={cn("text-xs", isOverdue ? "text-red-500" : "text-muted-foreground")}>
+                                                {bill.paidOn ? " " : isOverdue ? `Overdue by ${-daysUntilDue} days` : `Due in ${daysUntilDue} days`}
+                                            </div>
+                                        )}
                                     </TableCell>
                                     <TableCell>
                                         {bill.paidOn ? format(new Date(bill.paidOn), 'dd/MM/yyyy') : '-'}
@@ -524,26 +580,55 @@ export function BillList() {
                                     </Select>
                                 </div>
                             </div>
-                             {editRecurrence === 'occasional' && (
+                             {editEventType === 'bill' && editRecurrence === 'occasional' && (
                                 <MonthSelector selectedMonths={editSelectedMonths} onMonthToggle={(month) => handleMonthToggle(month, setEditSelectedMonths)} />
                             )}
-                             <div className="space-y-2">
-                                <Label htmlFor="edit-day">Due Day of Month</Label>
-                                <Input 
-                                    id="edit-day" 
-                                    name="edit-day" 
-                                    type="number" 
-                                    min="1" 
-                                    max="31"
-                                    value={editDay ?? ''} 
-                                    onChange={(e) => {
-                                        const val = e.target.value;
-                                        setEditDay(val === '' ? undefined : parseInt(val, 10));
-                                    }} 
-                                    placeholder="e.g. 26" 
-                                    required 
-                                />
-                            </div>
+                             {editEventType === 'special_day' ? (
+                                <div className="space-y-2">
+                                     <Label htmlFor="edit-date">Date</Label>
+                                     <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button
+                                                id="edit-date"
+                                                variant={"outline"}
+                                                className={cn(
+                                                    "w-full justify-start text-left font-normal",
+                                                    !editDate && "text-muted-foreground"
+                                                )}
+                                            >
+                                                <Calendar className="mr-2 h-4 w-4" />
+                                                {editDate ? format(editDate, "PPP") : <span>Pick a date</span>}
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0">
+                                            <CalendarPicker
+                                                mode="single"
+                                                selected={editDate}
+                                                onSelect={setEditDate}
+                                                initialFocus
+                                            />
+                                        </PopoverContent>
+                                    </Popover>
+                                </div>
+                             ) : (
+                                <div className="space-y-2">
+                                    <Label htmlFor="edit-day">Due Day of Month</Label>
+                                    <Input 
+                                        id="edit-day" 
+                                        name="edit-day" 
+                                        type="number" 
+                                        min="1" 
+                                        max="31"
+                                        value={editDay ?? ''} 
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            setEditDay(val === '' ? undefined : parseInt(val, 10));
+                                        }} 
+                                        placeholder="e.g. 26" 
+                                        required 
+                                    />
+                                </div>
+                             )}
                         </div>
                         <DialogFooter>
                             <DialogClose asChild><Button type="button" variant="secondary" onClick={() => setSelectedBill(null)}>Cancel</Button></DialogClose>
