@@ -300,13 +300,13 @@ export default function TransactionsPage() {
                       <span className="font-bold text-primary">{formatCurrency(account.balance)}</span>
                   </div>
                   <div className="w-full space-y-1">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-between gap-2">
                         <Label htmlFor={`actual-balance-${account.id}`} className="text-xs flex-shrink-0">Actual Balance</Label>
                         <Input
                             id={`actual-balance-${account.id}`}
                             type="number"
                             placeholder="Actual"
-                            className="hide-number-arrows h-7 text-xs"
+                            className="hide-number-arrows h-7 text-xs w-24"
                             defaultValue={account.actualBalance ?? ''}
                             onChange={(e) => {
                                 const value = e.target.value === '' ? null : parseFloat(e.target.value)
