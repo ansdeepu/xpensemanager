@@ -35,6 +35,16 @@ const tabColors = [
   "bg-fuchsia-100 dark:bg-fuchsia-900/50",
 ];
 
+const textColors = [
+  "text-sky-800 dark:text-sky-200",
+  "text-amber-800 dark:text-amber-200",
+  "text-emerald-800 dark:text-emerald-200",
+  "text-rose-800 dark:text-rose-200",
+  "text-violet-800 dark:text-violet-200",
+  "text-cyan-800 dark:text-cyan-200",
+  "text-fuchsia-800 dark:text-fuchsia-200",
+];
+
 export default function TransactionsPage() {
   const [user, userLoading] = useAuthState(auth);
   const [rawAccounts, setRawAccounts] = useState<Omit<Account, 'balance'>[]>([]);
@@ -294,10 +304,10 @@ export default function TransactionsPage() {
           {accounts.filter(account => !account.isPrimary).map((account, index) => {
             const balanceDifference = account.actualBalance !== undefined && account.actualBalance !== null ? account.balance - account.actualBalance : null;
             return (
-              <TabsTrigger key={account.id} value={account.id} className={cn("border flex flex-col h-auto p-3 items-start text-left gap-2", tabColors[index % tabColors.length])}>
+              <TabsTrigger key={account.id} value={account.id} className={cn("border flex flex-col h-auto p-3 items-start text-left gap-2", tabColors[index % tabColors.length], textColors[index % textColors.length])}>
                   <div className="w-full flex justify-between items-center">
                       <span className="font-semibold text-sm">{account.name}</span>
-                      <span className="font-bold text-primary">{formatCurrency(account.balance)}</span>
+                      <span className="font-bold">{formatCurrency(account.balance)}</span>
                   </div>
                   <div className="w-full space-y-1">
                       <div className="flex items-center justify-between gap-2">
@@ -343,5 +353,3 @@ export default function TransactionsPage() {
     </div>
   );
 }
-
-    

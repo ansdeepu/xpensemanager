@@ -175,4 +175,19 @@ body {
 .bg-fuchsia-100 { background-color: #fae8ff; }
 .dark .bg-fuchsia-900\/50 { background-color: rgba(112, 26, 117, 0.5); }
 
+
+.text-sky-800 { color: #075985; }
+.dark .text-sky-200 { color: #bae6fd; }
+.text-amber-800 { color: #92400e; }
+.dark .text-amber-200 { color: #fde68a; }
+.text-emerald-800 { color: #065f46; }
+.dark .text-emerald-200 { color: #a7f3d0; }
+.text-rose-800 { color: #9f1239; }
+.dark .text-rose-200 { color: #fecdd3; }
+.text-violet-800 { color: #5b21b6; }
+.dark .text-violet-200 { color: #ddd6fe; }
+.text-cyan-800 { color: #155e75; }
+.dark .text-cyan-200 { color: #a5f3fc; }
+.text-fuchsia-800 { color: #86198f; }
+.dark .text-fuchsia-200 { color: #f5d0fe; }
     
