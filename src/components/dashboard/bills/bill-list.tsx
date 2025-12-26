@@ -45,14 +45,12 @@ import { PlusCircle, Pencil, Trash2, CalendarIcon as Calendar, FileText, Repeat,
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "@/lib/firebase";
 import { collection, addDoc, query, where, onSnapshot, doc, deleteDoc, updateDoc, orderBy } from "firebase/firestore";
-import { format, differenceInDays, isPast, addMonths, addQuarters, addYears, setDate as setDayOfMonth, getDate } from "date-fns";
+import { format, differenceInDays, isPast, addMonths, addQuarters, addYears, setDate as setDayOfMonth, getDate, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Bill } from "@/lib/data";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-IN", {
@@ -97,6 +95,11 @@ function MonthSelector({ selectedMonths, onMonthToggle }: { selectedMonths: stri
 
 const formatDueDate = (bill: Bill) => {
     const dueDate = new Date(bill.dueDate);
+    
+    if (bill.type === 'special_day') {
+        return format(dueDate, 'dd/MM/yyyy');
+    }
+
     const day = getDayWithOrdinal(dueDate.getDate());
 
     switch (bill.recurrence) {
@@ -112,9 +115,6 @@ const formatDueDate = (bill: Bill) => {
         case 'yearly':
             return `${day} of ${format(dueDate, 'MMM')}`;
         case 'occasional': {
-            if (bill.type === 'special_day') {
-                 return format(dueDate, 'dd/MM/yyyy');
-            }
             if (bill.selectedMonths && bill.selectedMonths.length > 0) {
                 return `${day} of ${bill.selectedMonths.join(', ')}`;
             }
@@ -136,14 +136,14 @@ export function BillList() {
     
     // Add dialog state
     const [addDay, setAddDay] = useState<number>(getDate(new Date()));
-    const [addDate, setAddDate] = useState<Date | undefined>(new Date());
+    const [addDate, setAddDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
     const [addEventType, setAddEventType] = useState<Bill['type']>('bill');
     const [addRecurrence, setAddRecurrence] = useState<Bill['recurrence']>('occasional');
     const [addSelectedMonths, setAddSelectedMonths] = useState<string[]>([]);
 
     // Edit dialog state
     const [editDay, setEditDay] = useState<number | undefined>();
-    const [editDate, setEditDate] = useState<Date | undefined>();
+    const [editDate, setEditDate] = useState<string>('');
     const [editEventType, setEditEventType] = useState<Bill['type']>('bill');
     const [editRecurrence, setEditRecurrence] = useState<Bill['recurrence']>('occasional');
     const [editSelectedMonths, setEditSelectedMonths] = useState<string[]>([]);
@@ -176,10 +176,10 @@ export function BillList() {
             setEditSelectedMonths(selectedBill.selectedMonths || []);
             const dueDate = new Date(selectedBill.dueDate);
             setEditDay(getDate(dueDate));
-            setEditDate(dueDate);
+            setEditDate(format(dueDate, 'yyyy-MM-dd'));
         } else {
             setEditDay(undefined);
-            setEditDate(undefined);
+            setEditDate('');
             setEditRecurrence('occasional');
             setEditSelectedMonths([]);
         }
@@ -200,7 +200,12 @@ export function BillList() {
         
         let determinedDueDate: Date;
         if (addEventType === 'special_day') {
-            determinedDueDate = addDate || new Date();
+             const dateString = formData.get("add-date") as string;
+             // HTML date input returns 'yyyy-MM-dd', which is parsed in UTC. 
+             // We add timezone offset to keep it in user's local day.
+             const date = new Date(dateString);
+             const timezoneOffset = date.getTimezoneOffset() * 60000;
+             determinedDueDate = new Date(date.getTime() + timezoneOffset);
         } else {
             determinedDueDate = setDayOfMonth(new Date(), addDay);
         }
@@ -226,7 +231,7 @@ export function BillList() {
             setIsAddDialogOpen(false);
             // Reset form states
             setAddDay(getDate(new Date()));
-            setAddDate(new Date());
+            setAddDate(format(new Date(), 'yyyy-MM-dd'));
             setAddEventType('bill');
             setAddRecurrence('occasional');
             setAddSelectedMonths([]);
@@ -243,7 +248,10 @@ export function BillList() {
         
         let determinedDueDate: Date;
         if (editEventType === 'special_day') {
-            determinedDueDate = editDate || new Date(selectedBill.dueDate);
+             const dateString = formData.get("edit-date") as string;
+             const date = new Date(dateString);
+             const timezoneOffset = date.getTimezoneOffset() * 60000;
+             determinedDueDate = new Date(date.getTime() + timezoneOffset);
         } else {
             determinedDueDate = setDayOfMonth(new Date(selectedBill.dueDate), editDay || 1);
         }
@@ -290,7 +298,7 @@ export function BillList() {
     };
 
     const getNextPaymentDate = (bill: Bill) => {
-        if (bill.recurrence === 'none' || bill.recurrence === 'occasional') return null;
+        if (bill.recurrence === 'none' || bill.recurrence === 'occasional' || bill.type === 'special_day') return null;
         const dueDate = new Date(bill.dueDate);
         switch (bill.recurrence) {
             case 'monthly':
@@ -383,32 +391,15 @@ export function BillList() {
                                     {addEventType === 'special_day' ? (
                                         <div className="space-y-2">
                                             <Label htmlFor="add-date">Date</Label>
-                                            <Popover>
-                                                <PopoverTrigger asChild>
-                                                    <Button
-                                                        id="add-date"
-                                                        variant={"outline"}
-                                                        className={cn(
-                                                            "w-full justify-start text-left font-normal",
-                                                            !addDate && "text-muted-foreground"
-                                                        )}
-                                                    >
-                                                        <Calendar className="mr-2 h-4 w-4" />
-                                                        {addDate ? format(addDate, "PPP") : <span>Pick a date</span>}
-                                                    </Button>
-                                                </PopoverTrigger>
-                                                <PopoverContent className="w-auto p-0">
-                                                    <CalendarPicker
-                                                        mode="single"
-                                                        selected={addDate}
-                                                        onSelect={setAddDate}
-                                                        initialFocus
-                                                        captionLayout="dropdown-buttons"
-                                                        fromYear={1960}
-                                                        toYear={new Date().getFullYear() + 10}
-                                                    />
-                                                </PopoverContent>
-                                            </Popover>
+                                            <Input
+                                                id="add-date"
+                                                name="add-date"
+                                                type="date"
+                                                value={addDate}
+                                                onChange={(e) => setAddDate(e.target.value)}
+                                                className="w-full"
+                                                required
+                                            />
                                         </div>
                                     ) : (
                                         <div className="space-y-2">
@@ -467,7 +458,7 @@ export function BillList() {
                                         <div className="flex items-center gap-2">
                                             {bill.type === 'special_day' ? <Gift className="h-4 w-4 text-amber-500" /> : <FileText className="h-4 w-4" />}
                                             <span>{bill.title}</span>
-                                             {bill.recurrence !== 'none' && (
+                                             {bill.recurrence !== 'occasional' && bill.recurrence !== 'none' && (
                                                 <Badge variant="outline" className="capitalize flex items-center gap-1">
                                                    <Repeat className="h-3 w-3" />
                                                    {bill.recurrence}
@@ -586,32 +577,15 @@ export function BillList() {
                              {editEventType === 'special_day' ? (
                                 <div className="space-y-2">
                                      <Label htmlFor="edit-date">Date</Label>
-                                     <Popover>
-                                        <PopoverTrigger asChild>
-                                            <Button
-                                                id="edit-date"
-                                                variant={"outline"}
-                                                className={cn(
-                                                    "w-full justify-start text-left font-normal",
-                                                    !editDate && "text-muted-foreground"
-                                                )}
-                                            >
-                                                <Calendar className="mr-2 h-4 w-4" />
-                                                {editDate ? format(editDate, "PPP") : <span>Pick a date</span>}
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0">
-                                            <CalendarPicker
-                                                mode="single"
-                                                selected={editDate}
-                                                onSelect={setEditDate}
-                                                initialFocus
-                                                captionLayout="dropdown-buttons"
-                                                fromYear={1960}
-                                                toYear={new Date().getFullYear() + 10}
-                                            />
-                                        </PopoverContent>
-                                    </Popover>
+                                     <Input
+                                        id="edit-date"
+                                        name="edit-date"
+                                        type="date"
+                                        value={editDate}
+                                        onChange={(e) => setEditDate(e.target.value)}
+                                        className="w-full"
+                                        required
+                                    />
                                 </div>
                              ) : (
                                 <div className="space-y-2">
