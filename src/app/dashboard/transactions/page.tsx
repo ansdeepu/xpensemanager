@@ -166,6 +166,10 @@ export default function TransactionsPage() {
 
 
   const primaryAccount = accounts.find(a => a.isPrimary);
+  
+  const secondaryAccounts = accounts.filter(account => !account.isPrimary && (account.name.toLowerCase().includes('hdfc') || account.name.toLowerCase().includes('fed')));
+  const otherAccounts = accounts.filter(account => !account.isPrimary && !secondaryAccounts.some(sa => sa.id === account.id));
+
 
   if (userLoading || dataLoading) {
     return (
@@ -203,7 +207,9 @@ export default function TransactionsPage() {
                     mode="single"
                     selected={reconciliationDate}
                     onSelect={(date) => {
-                      setReconciliationDate(date);
+                      if (date) {
+                        setReconciliationDate(date);
+                      }
                       setIsDatePickerOpen(false);
                     }}
                     initialFocus
@@ -229,7 +235,7 @@ export default function TransactionsPage() {
                       id={`actual-balance-${primaryAccount.id}`}
                       type="number"
                       placeholder="Actual"
-                      className="hide-number-arrows h-7 mt-1 text-xs"
+                      className="hide-number-arrows h-7 mt-1 text-xs text-right"
                       defaultValue={primaryAccount.actualBalance ?? ''}
                       onChange={(e) => {
                           const value = e.target.value === '' ? null : parseFloat(e.target.value)
@@ -255,7 +261,7 @@ export default function TransactionsPage() {
                       id="actual-balance-cash"
                       type="number"
                       placeholder="Actual"
-                      className="hide-number-arrows h-7"
+                      className="hide-number-arrows h-7 text-right"
                       defaultValue={walletPreferences.cash?.balance ?? ''}
                       onChange={(e) => {
                           const value = e.target.value === '' ? null : parseFloat(e.target.value)
@@ -281,7 +287,7 @@ export default function TransactionsPage() {
                       id="actual-balance-digital"
                       type="number"
                       placeholder="Actual"
-                      className="hide-number-arrows h-7"
+                      className="hide-number-arrows h-7 text-right"
                       defaultValue={walletPreferences.digital?.balance ?? ''}
                       onChange={(e) => {
                           const value = e.target.value === '' ? null : parseFloat(e.target.value)
@@ -301,10 +307,47 @@ export default function TransactionsPage() {
               </div>
             </TabsTrigger>
           )}
-          {accounts.filter(account => !account.isPrimary).map((account, index) => {
+           {secondaryAccounts.map((account, index) => {
             const balanceDifference = account.actualBalance !== undefined && account.actualBalance !== null ? account.balance - account.actualBalance : null;
             return (
               <TabsTrigger key={account.id} value={account.id} className={cn("border flex flex-col h-auto p-3 items-start text-left gap-2", tabColors[index % tabColors.length], textColors[index % textColors.length])}>
+                  <div className="w-full flex justify-between items-center">
+                      <span className="font-semibold text-sm">{account.name}</span>
+                      <span className="font-bold">{formatCurrency(account.balance)}</span>
+                  </div>
+                  <div className="w-full space-y-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <Label htmlFor={`actual-balance-${account.id}`} className="text-xs flex-shrink-0">Actual Balance</Label>
+                        <Input
+                            id={`actual-balance-${account.id}`}
+                            type="number"
+                            placeholder="Actual"
+                            className="hide-number-arrows h-7 text-xs w-24 text-right"
+                            defaultValue={account.actualBalance ?? ''}
+                            onChange={(e) => {
+                                const value = e.target.value === '' ? null : parseFloat(e.target.value)
+                                debouncedUpdateAccount(account.id, { actualBalance: value });
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                      {balanceDifference !== null && (
+                          <div className="w-full pt-1 flex justify-end">
+                              <p className={cn(
+                                  "text-xs font-medium",
+                                  Math.round(balanceDifference * 100) === 0 ? "text-green-600" : "text-red-600"
+                              )}>
+                                  Diff: {formatCurrency(balanceDifference)}
+                              </p>
+                          </div>
+                      )}
+                  </div>
+              </TabsTrigger>
+          )})}
+          {otherAccounts.map((account, index) => {
+            const balanceDifference = account.actualBalance !== undefined && account.actualBalance !== null ? account.balance - account.actualBalance : null;
+            return (
+              <TabsTrigger key={account.id} value={account.id} className={cn("border flex flex-col h-auto p-3 items-start text-left gap-2", tabColors[(secondaryAccounts.length + index) % tabColors.length], textColors[(secondaryAccounts.length + index) % textColors.length])}>
                   <div className="w-full flex justify-between items-center">
                       <span className="font-semibold text-sm">{account.name}</span>
                       <span className="font-bold">{formatCurrency(account.balance)}</span>
@@ -353,5 +396,3 @@ export default function TransactionsPage() {
     </div>
   );
 }
-
-    
