@@ -663,14 +663,16 @@ export function TransactionTable({
                                   {date ? format(date, "dd/MM/yyyy") : <span>Pick a date</span>}
                                   </Button>
                               </PopoverTrigger>
-                              <PopoverContent className="w-auto p-0">
-                                  <Calendar
-                                  mode="single"
-                                  selected={date}
-                                  onSelect={setDate}
-                                  initialFocus
-                                  />
-                              </PopoverContent>
+                              <DialogPortal>
+                                <PopoverContent className="w-auto p-0">
+                                    <Calendar
+                                    mode="single"
+                                    selected={date}
+                                    onSelect={setDate}
+                                    initialFocus
+                                    />
+                                </PopoverContent>
+                              </DialogPortal>
                           </Popover>
                       </div>
                       <div className="space-y-2 col-span-2">
@@ -684,9 +686,11 @@ export function TransactionTable({
                                   <SelectTrigger id="expense-category" className="h-auto">
                                       <SelectValue placeholder="Select category" className="whitespace-normal" />
                                   </SelectTrigger>
-                                  <SelectContent>
-                                      {expenseCategories.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
-                                  </SelectContent>
+                                  <DialogPortal>
+                                    <SelectContent>
+                                        {expenseCategories.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
+                                    </SelectContent>
+                                  </DialogPortal>
                               </Select>
                           </div>
                            <div className="space-y-2">
@@ -695,9 +699,11 @@ export function TransactionTable({
                                   <SelectTrigger id="expense-subcategory" className="h-auto">
                                       <SelectValue placeholder="Select sub-category" className="whitespace-normal" />
                                   </SelectTrigger>
-                                  <SelectContent>
-                                      {expenseSubcategories.map(sub => <SelectItem key={sub.name} value={sub.name}>{sub.name}</SelectItem>)}
-                                  </SelectContent>
+                                  <DialogPortal>
+                                    <SelectContent>
+                                        {expenseSubcategories.map(sub => <SelectItem key={sub.name} value={sub.name}>{sub.name}</SelectItem>)}
+                                    </SelectContent>
+                                  </DialogPortal>
                               </Select>
                           </div>
                       </div>
@@ -708,11 +714,13 @@ export function TransactionTable({
                               <SelectTrigger id="expense-account">
                                 <SelectValue placeholder="Select account" />
                               </SelectTrigger>
-                              <SelectContent>
-                                  <SelectItem value="cash-wallet">Cash Wallet ({formatCurrency(cashWalletBalance)})</SelectItem>
-                                  <SelectItem value="digital-wallet">Digital Wallet ({formatCurrency(digitalWalletBalance)})</SelectItem>
-                                  {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
-                              </SelectContent>
+                              <DialogPortal>
+                                <SelectContent>
+                                    <SelectItem value="cash-wallet">Cash Wallet ({formatCurrency(cashWalletBalance)})</SelectItem>
+                                    <SelectItem value="digital-wallet">Digital Wallet ({formatCurrency(digitalWalletBalance)})</SelectItem>
+                                    {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
+                                </SelectContent>
+                              </DialogPortal>
                             </Select>
                           </div>
                           <div className="space-y-2">
@@ -746,14 +754,16 @@ export function TransactionTable({
                                   {date ? format(date, "dd/MM/yyyy") : <span>Pick a date</span>}
                                   </Button>
                               </PopoverTrigger>
-                              <PopoverContent className="w-auto p-0">
-                                  <Calendar
-                                  mode="single"
-                                  selected={date}
-                                  onSelect={setDate}
-                                  initialFocus
-                                  />
-                              </PopoverContent>
+                              <DialogPortal>
+                                <PopoverContent className="w-auto p-0">
+                                    <Calendar
+                                    mode="single"
+                                    selected={date}
+                                    onSelect={setDate}
+                                    initialFocus
+                                    />
+                                </PopoverContent>
+                              </DialogPortal>
                           </Popover>
                       </div>
                       <div className="space-y-2 col-span-2">
@@ -767,9 +777,11 @@ export function TransactionTable({
                                   <SelectTrigger id="income-category" className="h-auto">
                                       <SelectValue placeholder="Select category" className="whitespace-normal" />
                                   </SelectTrigger>
-                                  <SelectContent>
-                                      {incomeCategories.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
-                                  </SelectContent>
+                                  <DialogPortal>
+                                    <SelectContent>
+                                        {incomeCategories.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
+                                    </SelectContent>
+                                  </DialogPortal>
                               </Select>
                           </div>
                            <div className="space-y-2">
@@ -778,9 +790,11 @@ export function TransactionTable({
                                   <SelectTrigger id="income-subcategory" className="h-auto">
                                       <SelectValue placeholder="Select sub-category" className="whitespace-normal" />
                                   </SelectTrigger>
-                                  <SelectContent>
-                                      {incomeSubcategories.map(sub => <SelectItem key={sub.name} value={sub.name}>{sub.name}</SelectItem>)}
-                                  </SelectContent>
+                                  <DialogPortal>
+                                    <SelectContent>
+                                        {incomeSubcategories.map(sub => <SelectItem key={sub.name} value={sub.name}>{sub.name}</SelectItem>)}
+                                    </SelectContent>
+                                  </DialogPortal>
                               </Select>
                           </div>
                       </div>
@@ -791,9 +805,11 @@ export function TransactionTable({
                               <SelectTrigger id="income-account">
                                 <SelectValue placeholder="Select account" />
                               </SelectTrigger>
-                              <SelectContent>
-                                {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
-                              </SelectContent>
+                              <DialogPortal>
+                                <SelectContent>
+                                  {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
+                                </SelectContent>
+                              </DialogPortal>
                             </Select>
                           </div>
                           <div className="space-y-2">
@@ -827,14 +843,16 @@ export function TransactionTable({
                                   {date ? format(date, "dd/MM/yyyy") : <span>Pick a date</span>}
                                   </Button>
                               </PopoverTrigger>
-                              <PopoverContent className="w-auto p-0">
-                                  <Calendar
-                                  mode="single"
-                                  selected={date}
-                                  onSelect={setDate}
-                                  initialFocus
-                                  />
-                              </PopoverContent>
+                              <DialogPortal>
+                                <PopoverContent className="w-auto p-0">
+                                    <Calendar
+                                    mode="single"
+                                    selected={date}
+                                    onSelect={setDate}
+                                    initialFocus
+                                    />
+                                </PopoverContent>
+                              </DialogPortal>
                           </Popover>
                       </div>
                       <div className="space-y-2 col-span-2">
@@ -848,11 +866,13 @@ export function TransactionTable({
                                     <SelectTrigger id="transfer-from">
                                         <SelectValue placeholder="Select account" />
                                     </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="cash-wallet">Cash Wallet ({formatCurrency(cashWalletBalance)})</SelectItem>
-                                        <SelectItem value="digital-wallet">Digital Wallet ({formatCurrency(digitalWalletBalance)})</SelectItem>
-                                        {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
-                                    </SelectContent>
+                                    <DialogPortal>
+                                      <SelectContent>
+                                          <SelectItem value="cash-wallet">Cash Wallet ({formatCurrency(cashWalletBalance)})</SelectItem>
+                                          <SelectItem value="digital-wallet">Digital Wallet ({formatCurrency(digitalWalletBalance)})</SelectItem>
+                                          {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
+                                      </SelectContent>
+                                    </DialogPortal>
                                 </Select>
                             </div>
                             <div className="space-y-2">
@@ -861,11 +881,13 @@ export function TransactionTable({
                                     <SelectTrigger id="transfer-to">
                                         <SelectValue placeholder="Select account" />
                                     </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="cash-wallet">Cash Wallet</SelectItem>
-                                        <SelectItem value="digital-wallet">Digital Wallet</SelectItem>
-                                        {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
-                                    </SelectContent>
+                                    <DialogPortal>
+                                      <SelectContent>
+                                          <SelectItem value="cash-wallet">Cash Wallet</SelectItem>
+                                          <SelectItem value="digital-wallet">Digital Wallet</SelectItem>
+                                          {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
+                                      </SelectContent>
+                                    </DialogPortal>
                                 </Select>
                             </div>
                         </div>
@@ -1037,14 +1059,16 @@ export function TransactionTable({
                                 {editDate ? format(editDate, "dd/MM/yyyy") : <span>Pick a date</span>}
                                 </Button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0">
-                                <Calendar
-                                mode="single"
-                                selected={editDate}
-                                onSelect={setEditDate}
-                                initialFocus
-                                />
-                            </PopoverContent>
+                            <DialogPortal>
+                                <PopoverContent className="w-auto p-0">
+                                    <Calendar
+                                    mode="single"
+                                    selected={editDate}
+                                    onSelect={setEditDate}
+                                    initialFocus
+                                    />
+                                </PopoverContent>
+                            </DialogPortal>
                         </Popover>
                     </div>
 
@@ -1063,14 +1087,16 @@ export function TransactionTable({
                                     <SelectTrigger id="edit-category">
                                         <SelectValue placeholder="Select category" />
                                     </SelectTrigger>
-                                    <SelectContent>
-                                        {categories.filter(c => {
-                                            if (selectedTransaction?.type === 'expense') {
-                                                return c.type === 'expense' || c.type === 'bank-expense';
-                                            }
-                                            return c.type === selectedTransaction?.type;
-                                        }).map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
-                                    </SelectContent>
+                                    <DialogPortal>
+                                        <SelectContent>
+                                            {categories.filter(c => {
+                                                if (selectedTransaction?.type === 'expense') {
+                                                    return c.type === 'expense' || c.type === 'bank-expense';
+                                                }
+                                                return c.type === selectedTransaction?.type;
+                                            }).map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
+                                        </SelectContent>
+                                    </DialogPortal>
                                 </Select>
                             </div>
                             <div className="space-y-2">
@@ -1079,9 +1105,11 @@ export function TransactionTable({
                                     <SelectTrigger id="edit-subcategory">
                                         <SelectValue placeholder="Select sub-category" />
                                     </SelectTrigger>
-                                    <SelectContent>
-                                        {editSubcategories.map(sub => <SelectItem key={sub.name} value={sub.name}>{sub.name}</SelectItem>)}
-                                    </SelectContent>
+                                    <DialogPortal>
+                                        <SelectContent>
+                                            {editSubcategories.map(sub => <SelectItem key={sub.name} value={sub.name}>{sub.name}</SelectItem>)}
+                                        </SelectContent>
+                                    </DialogPortal>
                                 </Select>
                             </div>
                         </div>
@@ -1096,15 +1124,17 @@ export function TransactionTable({
                                 <SelectTrigger id="edit-account">
                                     <SelectValue placeholder="Select account" />
                                 </SelectTrigger>
-                                <SelectContent>
-                                    {selectedTransaction?.type === 'expense' && (
-                                    <>
-                                        <SelectItem value="cash-wallet">Cash Wallet ({formatCurrency(cashWalletBalance)})</SelectItem>
-                                        <SelectItem value="digital-wallet">Digital Wallet ({formatCurrency(digitalWalletBalance)})</SelectItem>
-                                    </>
-                                    )}
-                                    {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
-                                </SelectContent>
+                                <DialogPortal>
+                                    <SelectContent>
+                                        {selectedTransaction?.type === 'expense' && (
+                                        <>
+                                            <SelectItem value="cash-wallet">Cash Wallet ({formatCurrency(cashWalletBalance)})</SelectItem>
+                                            <SelectItem value="digital-wallet">Digital Wallet ({formatCurrency(digitalWalletBalance)})</SelectItem>
+                                        </>
+                                        )}
+                                        {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
+                                    </SelectContent>
+                                </DialogPortal>
                             </Select>
                         </div>
                     )}
@@ -1115,22 +1145,26 @@ export function TransactionTable({
                                 <Label htmlFor="edit-from-account">From Account</Label>
                                 <Select name="fromAccount" required defaultValue={selectedTransaction.fromAccountId}>
                                     <SelectTrigger id="edit-from-account"><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="cash-wallet">Cash Wallet ({formatCurrency(cashWalletBalance)})</SelectItem>
-                                      <SelectItem value="digital-wallet">Digital Wallet ({formatCurrency(digitalWalletBalance)})</SelectItem>
-                                      {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
-                                    </SelectContent>
+                                    <DialogPortal>
+                                        <SelectContent>
+                                        <SelectItem value="cash-wallet">Cash Wallet ({formatCurrency(cashWalletBalance)})</SelectItem>
+                                        <SelectItem value="digital-wallet">Digital Wallet ({formatCurrency(digitalWalletBalance)})</SelectItem>
+                                        {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
+                                        </SelectContent>
+                                    </DialogPortal>
                                 </Select>
                             </div>
                              <div className="space-y-2">
                                 <Label htmlFor="edit-to-account">To Account</Label>
                                 <Select name="toAccount" required defaultValue={selectedTransaction.toAccountId}>
                                     <SelectTrigger id="edit-to-account"><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="cash-wallet">Cash Wallet</SelectItem>
-                                      <SelectItem value="digital-wallet">Digital Wallet</SelectItem>
-                                      {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
-                                    </SelectContent>
+                                    <DialogPortal>
+                                        <SelectContent>
+                                        <SelectItem value="cash-wallet">Cash Wallet</SelectItem>
+                                        <SelectItem value="digital-wallet">Digital Wallet</SelectItem>
+                                        {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
+                                        </SelectContent>
+                                    </DialogPortal>
                                 </Select>
                             </div>
                         </div>
