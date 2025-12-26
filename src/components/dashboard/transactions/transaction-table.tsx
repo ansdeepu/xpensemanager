@@ -101,8 +101,6 @@ export function TransactionTable({
   const [categories, setCategories] = useState<Category[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const [isEditCalendarOpen, setIsEditCalendarOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [user] = useAuthState(auth);
   const [activeTab, setActiveTab] = useState("expense");
@@ -296,7 +294,8 @@ export function TransactionTable({
     if (!user) return;
     
     const formData = new FormData(event.currentTarget);
-    const transactionDate = date || new Date();
+    const dateString = formData.get("date") as string;
+    const transactionDate = dateString ? new Date(dateString) : new Date();
     const transactionType = activeTab;
 
     try {
@@ -455,10 +454,13 @@ export function TransactionTable({
     if (!user || !selectedTransaction) return;
   
     const formData = new FormData(event.currentTarget);
+    const dateString = formData.get("date") as string;
+    const transactionDate = dateString ? new Date(dateString) : new Date();
+
     const updatedData: Partial<Transaction> = {
       description: formData.get("description") as string,
       amount: parseFloat(editAmount),
-      date: (editDate || new Date()).toISOString(),
+      date: transactionDate.toISOString(),
     };
   
     try {
@@ -548,20 +550,6 @@ export function TransactionTable({
 
   const primaryAccount = useMemo(() => accounts.find(a => a.isPrimary), [accounts]);
 
-  const DatePickerButton = ({ value, onOpen }: { value?: Date, onOpen: () => void }) => (
-    <Button
-      type="button"
-      variant={"outline"}
-      className={cn(
-        "w-full justify-start text-left font-normal",
-        !value && "text-muted-foreground"
-      )}
-      onClick={onOpen}
-    >
-      <CalendarIcon className="mr-2 h-4 w-4" />
-      {value ? format(value, "dd/MM/yyyy") : <span>Pick a date</span>}
-    </Button>
-  );
 
   return (
     <>
@@ -652,8 +640,8 @@ export function TransactionTable({
                   <div className="py-4 space-y-4">
                   <TabsContent value="expense" className="mt-0 space-y-4">
                     <div className="space-y-2 col-span-2">
-                        <Label htmlFor="expense-date">Date</Label>
-                        <DatePickerButton value={date} onOpen={() => setIsCalendarOpen(true)} />
+                        <Label htmlFor="date">Date</Label>
+                        <Input id="date" name="date" type="date" defaultValue={format(date || new Date(), 'yyyy-MM-dd')} required />
                     </div>
                     <div className="space-y-2 col-span-2">
                       <Label htmlFor="expense-description">Description</Label>
@@ -714,8 +702,8 @@ export function TransactionTable({
                   </TabsContent>
                   <TabsContent value="income" className="mt-0 space-y-4">
                      <div className="space-y-2 col-span-2">
-                        <Label htmlFor="income-date">Date</Label>
-                        <DatePickerButton value={date} onOpen={() => setIsCalendarOpen(true)} />
+                        <Label htmlFor="date">Date</Label>
+                         <Input id="date" name="date" type="date" defaultValue={format(date || new Date(), 'yyyy-MM-dd')} required />
                     </div>
                     <div className="space-y-2 col-span-2">
                       <Label htmlFor="income-description">Description</Label>
@@ -774,8 +762,8 @@ export function TransactionTable({
                   </TabsContent>
                   <TabsContent value="transfer" className="mt-0 space-y-4">
                        <div className="space-y-2 col-span-2">
-                        <Label htmlFor="transfer-date">Date</Label>
-                        <DatePickerButton value={date} onOpen={() => setIsCalendarOpen(true)} />
+                        <Label htmlFor="date">Date</Label>
+                        <Input id="date" name="date" type="date" defaultValue={format(date || new Date(), 'yyyy-MM-dd')} required />
                     </div>
                     <div className="space-y-2 col-span-2">
                       <Label htmlFor="transfer-description">Description</Label>
@@ -948,49 +936,6 @@ export function TransactionTable({
       )}
     </Card>
 
-    {/* Add Date Picker Dialog */}
-    <Dialog open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-      <DialogContent className="w-auto">
-        <DialogHeader>
-          <DialogTitle>Select a date</DialogTitle>
-          <DialogDescription>
-            Choose a date for your transaction.
-          </DialogDescription>
-        </DialogHeader>
-        <Calendar
-          mode="single"
-          selected={date}
-          onSelect={(newDate) => {
-            setDate(newDate);
-            setIsCalendarOpen(false);
-          }}
-          initialFocus
-        />
-      </DialogContent>
-    </Dialog>
-    
-    {/* Edit Date Picker Dialog */}
-    <Dialog open={isEditCalendarOpen} onOpenChange={setIsEditCalendarOpen}>
-      <DialogContent className="w-auto">
-         <DialogHeader>
-          <DialogTitle>Select a date</DialogTitle>
-          <DialogDescription>
-            Choose a new date for your transaction.
-          </DialogDescription>
-        </DialogHeader>
-        <Calendar
-          mode="single"
-          selected={editDate}
-          onSelect={(newDate) => {
-            setEditDate(newDate);
-            setIsEditCalendarOpen(false);
-          }}
-          initialFocus
-        />
-      </DialogContent>
-    </Dialog>
-
-
     {/* Edit Transaction Dialog */}
     <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-md">
@@ -1004,7 +949,7 @@ export function TransactionTable({
                 <div className="grid gap-4 py-4">
                     <div className="space-y-2">
                         <Label htmlFor="edit-date">Date</Label>
-                        <DatePickerButton value={editDate} onOpen={() => setIsEditCalendarOpen(true)} />
+                        <Input id="edit-date" name="date" type="date" defaultValue={selectedTransaction ? format(new Date(selectedTransaction.date), 'yyyy-MM-dd') : ''} required />
                     </div>
 
                     
