@@ -203,10 +203,8 @@ export default function TransactionsPage() {
               <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-3 text-left">
                 {/* Bank Column */}
                 <div className="space-y-1">
-                  <div className="flex justify-between items-baseline">
-                    <Label htmlFor={`actual-balance-${primaryAccount.id}`} className="text-xs">Bank Balance</Label>
-                    <span className="font-mono text-xs">{formatCurrency(primaryAccount.balance)}</span>
-                  </div>
+                  <Label htmlFor={`actual-balance-${primaryAccount.id}`} className="text-xs">Bank Balance</Label>
+                  <div className="font-mono text-xs">{formatCurrency(primaryAccount.balance)}</div>
                   <Input
                       id={`actual-balance-${primaryAccount.id}`}
                       type="number"
@@ -231,10 +229,8 @@ export default function TransactionsPage() {
 
                 {/* Cash Column */}
                 <div className="space-y-1">
-                  <div className="flex justify-between items-baseline">
-                    <Label htmlFor="actual-balance-cash" className="text-xs">Cash</Label>
-                    <span className="font-mono text-xs">{formatCurrency(cashWalletBalance)}</span>
-                  </div>
+                  <Label htmlFor="actual-balance-cash" className="text-xs">Cash</Label>
+                   <div className="font-mono text-xs">{formatCurrency(cashWalletBalance)}</div>
                   <Input
                       id="actual-balance-cash"
                       type="number"
@@ -259,10 +255,8 @@ export default function TransactionsPage() {
 
                 {/* Digital Column */}
                 <div className="space-y-1">
-                  <div className="flex justify-between items-baseline">
-                    <Label htmlFor="actual-balance-digital" className="text-xs">Digital</Label>
-                     <span className="font-mono text-xs">{formatCurrency(digitalWalletBalance)}</span>
-                  </div>
+                  <Label htmlFor="actual-balance-digital" className="text-xs">Digital</Label>
+                    <div className="font-mono text-xs">{formatCurrency(digitalWalletBalance)}</div>
                    <Input
                       id="actual-balance-digital"
                       type="number"
@@ -295,7 +289,7 @@ export default function TransactionsPage() {
                     <span className="font-semibold text-sm">{account.name}</span>
                     <span className="font-bold text-primary">{formatCurrency(account.balance)}</span>
                 </div>
-                 <div className="w-full">
+                 <div className="w-full space-y-1">
                     <Label htmlFor={`actual-balance-${account.id}`} className="text-xs">Actual Balance</Label>
                     <Input
                         id={`actual-balance-${account.id}`}
@@ -335,7 +329,3 @@ export default function TransactionsPage() {
     </div>
   );
 }
-
-    
-
-    
