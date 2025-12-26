@@ -316,7 +316,7 @@ export default function TransactionsPage() {
                             id={`actual-balance-${account.id}`}
                             type="number"
                             placeholder="Actual"
-                            className="hide-number-arrows h-7 text-xs w-24"
+                            className="hide-number-arrows h-7 text-xs w-24 text-right"
                             defaultValue={account.actualBalance ?? ''}
                             onChange={(e) => {
                                 const value = e.target.value === '' ? null : parseFloat(e.target.value)
