@@ -284,19 +284,17 @@ export default function TransactionsPage() {
           {accounts.filter(account => !account.isPrimary).map(account => {
             const balanceDifference = account.actualBalance !== undefined && account.actualBalance !== null ? account.balance - account.actualBalance : null;
             return (
-              <TabsTrigger key={account.id} value={account.id} className="border flex flex-col h-auto p-2 items-start text-left gap-1">
-                <span className="font-semibold text-sm w-full">{account.name}</span>
-                <div className="w-full grid grid-cols-2 gap-x-2 text-left">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Balance</Label>
-                    <div className="font-mono text-xs">{formatCurrency(account.balance)}</div>
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor={`actual-balance-${account.id}`} className="text-xs">Actual Balance</Label>
+              <TabsTrigger key={account.id} value={account.id} className="border flex flex-col h-auto p-3 items-start text-left gap-2">
+                <div className="w-full flex justify-between items-center">
+                    <span className="font-semibold text-sm">{account.name}</span>
+                    <span className="font-mono text-xs">{formatCurrency(account.balance)}</span>
+                </div>
+                <div className="w-full space-y-1">
+                    <Label htmlFor={`actual-balance-${account.id}`} className="text-xs sr-only">Actual Balance</Label>
                     <Input
                         id={`actual-balance-${account.id}`}
                         type="number"
-                        placeholder="0.00"
+                        placeholder="Actual Balance"
                         className="hide-number-arrows h-7 text-xs"
                         defaultValue={account.actualBalance ?? ''}
                         onChange={(e) => {
@@ -305,12 +303,11 @@ export default function TransactionsPage() {
                         }}
                         onClick={(e) => e.stopPropagation()}
                     />
-                  </div>
                 </div>
                 {balanceDifference !== null && (
                     <div className="w-full text-right">
                         <p className={cn(
-                            "text-xs font-medium pt-1",
+                            "text-xs font-medium",
                             Math.round(balanceDifference * 100) === 0 ? "text-green-600" : "text-red-600"
                         )}>
                             Diff: {formatCurrency(balanceDifference)}
@@ -334,9 +331,3 @@ export default function TransactionsPage() {
     </div>
   );
 }
-
-    
-
-    
-
-    
