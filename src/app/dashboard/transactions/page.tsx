@@ -306,7 +306,7 @@ export default function TransactionsPage() {
                         />
                       </div>
                       {balanceDifference !== null && (
-                          <div className="w-full pt-1">
+                          <div className="w-full pt-1 flex justify-end">
                               <p className={cn(
                                   "text-xs font-medium",
                                   Math.round(balanceDifference * 100) === 0 ? "text-green-600" : "text-red-600"
