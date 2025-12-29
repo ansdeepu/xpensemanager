@@ -56,7 +56,7 @@ import type { Transaction, Account, Category, Bill } from "@/lib/data";
 import { PlusCircle, Pencil, Trash2, CalendarIcon, Printer, Search, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
 import { collection, addDoc, query, where, onSnapshot, doc, runTransaction, orderBy, deleteDoc, getDoc, getDocs, limit, writeBatch, updateDoc } from "firebase/firestore";
-import { useAuthState } from "react-firebase-hooks/auth";
+import { useAuthState } from "firebase/auth";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format, addMonths, addQuarters, addYears, isAfter, isWithinInterval, startOfDay, endOfDay, isBefore } from "date-fns";
@@ -405,7 +405,7 @@ export function TransactionTable({
                         {
                             const updateData: { paidOn: string, dueDate?: string } = { paidOn: transactionDate.toISOString() };
 
-                            if (bill.recurrence !== 'none') {
+                            if (bill.recurrence !== 'none' && bill.recurrence !== 'occasional') {
                                 let nextDueDate: Date;
                                 switch(bill.recurrence) {
                                     case 'monthly': nextDueDate = addMonths(dueDate, 1); break;
@@ -1097,7 +1097,3 @@ export function TransactionTable({
     </>
   );
 }
-
-
-
-    

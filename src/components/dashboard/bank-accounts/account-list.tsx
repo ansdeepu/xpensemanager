@@ -39,7 +39,7 @@ import type { Account, Transaction } from "@/lib/data";
 import { PlusCircle, Landmark, PiggyBank, CreditCard, Wallet, Star, GripVertical, Pencil, Coins, Trash2 } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
 import { collection, addDoc, query, where, onSnapshot, writeBatch, doc, orderBy, updateDoc, deleteDoc, getDocs, setDoc } from "firebase/firestore";
-import { useAuthState } from "react-firebase-hooks/auth";
+import { useAuthState } from "firebase/auth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import {
