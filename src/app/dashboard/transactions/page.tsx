@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
@@ -198,7 +199,7 @@ export default function TransactionsPage() {
                     if (dateValue) {
                         // Directly create a new Date from the yyyy-MM-dd string.
                         // This avoids timezone issues that parseISO can introduce.
-                        setReconciliationDate(new Date(dateValue));
+                        setReconciliationDate(new Date(e.target.value));
                     } else {
                         setReconciliationDate(undefined);
                     }
