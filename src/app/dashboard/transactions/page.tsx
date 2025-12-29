@@ -49,7 +49,7 @@ export default function TransactionsPage() {
   const [rawAccounts, setRawAccounts] = useState<Omit<Account, 'balance'>[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [walletPreferences, setWalletPreferences] = useState<{ cash?: { balance?: number, date?: string }, digital?: { balance?: number, date?: string } }>({});
-  const [reconciliationDate, setReconciliationDate] = useState<Date | undefined>(new Date());
+  const [reconciliationDate, setReconciliationDate] = useState<Date | undefined>(undefined);
   const [dataLoading, setDataLoading] = useState(true);
 
   const useDebounce = (callback: Function, delay: number) => {
@@ -78,6 +78,13 @@ export default function TransactionsPage() {
     await setDoc(prefRef, { wallets: updatedWallets }, { merge: true });
   }, 500), [user, walletPreferences, reconciliationDate]);
 
+  const handleReconciliationDateChange = async (date: Date | undefined) => {
+    setReconciliationDate(date);
+    if (!user || !date) return;
+    const prefRef = doc(db, "user_preferences", user.uid);
+    await setDoc(prefRef, { reconciliationDate: date.toISOString() }, { merge: true });
+  };
+
 
   useEffect(() => {
     if (user) {
@@ -96,7 +103,15 @@ export default function TransactionsPage() {
       const preferencesDocRef = doc(db, "user_preferences", user.uid);
       const unsubscribePreferences = onSnapshot(preferencesDocRef, (doc) => {
         if (doc.exists()) {
-          setWalletPreferences(doc.data().wallets || {});
+          const prefs = doc.data();
+          setWalletPreferences(prefs.wallets || {});
+           if (prefs.reconciliationDate) {
+              setReconciliationDate(new Date(prefs.reconciliationDate));
+          } else {
+              setReconciliationDate(new Date());
+          }
+        } else {
+             setReconciliationDate(new Date());
         }
       });
       
@@ -169,7 +184,7 @@ export default function TransactionsPage() {
   const otherAccounts = accounts.filter(account => !account.isPrimary && !secondaryAccounts.some(sa => sa.id === account.id));
 
 
-  if (userLoading || dataLoading) {
+  if (userLoading || dataLoading || reconciliationDate === undefined) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-10 w-full" />
@@ -196,12 +211,13 @@ export default function TransactionsPage() {
                 value={reconciliationDate ? format(reconciliationDate, 'yyyy-MM-dd') : ''}
                 onChange={(e) => {
                     const dateValue = e.target.value;
-                    if (dateValue) {
-                        // Directly create a new Date from the yyyy-MM-dd string.
-                        // This avoids timezone issues that parseISO can introduce.
-                        setReconciliationDate(new Date(e.target.value));
+                    const newDate = dateValue ? new Date(dateValue) : undefined;
+                     if (newDate) {
+                        // This accounts for timezone offset when creating date from string
+                        const timezoneOffset = newDate.getTimezoneOffset() * 60000;
+                        handleReconciliationDateChange(new Date(newDate.getTime() + timezoneOffset));
                     } else {
-                        setReconciliationDate(undefined);
+                        handleReconciliationDateChange(undefined);
                     }
                 }}
                 className="w-full sm:w-auto bg-transparent border-none outline-none font-bold text-red-600 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0"
