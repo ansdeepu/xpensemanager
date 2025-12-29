@@ -312,10 +312,7 @@ export function TransactionTable({
     const account = accounts.find((a) => a.id === accountId);
     if (!account) return "N/A";
     
-    const balance = accountBalances[accountId];
-    const formattedBalance = balance !== undefined ? formatCurrency(balance) : '';
-
-    return `${account.name} ${formattedBalance ? `(${formattedBalance})` : ''}`;
+    return account.name;
   };
   
   const handleAddTransaction = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -881,7 +878,7 @@ export function TransactionTable({
                             {t.type}
                         </Badge>
                         </TableCell>
-                        <TableCell style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} -> ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod)}</TableCell>
+                        <TableCell style={{ white Space: 'pre-wrap', wordBreak: 'break-word' }}>{t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} -> ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod)}</TableCell>
                         <TableCell style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                             <div>{t.category}</div>
                             {t.subcategory && <div className="text-sm text-muted-foreground">{t.subcategory}</div>}
@@ -1097,3 +1094,5 @@ export function TransactionTable({
     </>
   );
 }
+
+    
