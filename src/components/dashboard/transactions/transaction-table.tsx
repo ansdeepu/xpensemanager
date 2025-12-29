@@ -180,7 +180,7 @@ export function TransactionTable({
         }
       }
     });
-    return { cashWalletBalance: cash, digitalWalletBalance: digital, accountBalances };
+    return { cashWalletBalance: cash, digitalWalletBalance: digital, accountBalances: calculatedAccountBalances };
   }, [transactions, accounts]);
 
 
@@ -1098,3 +1098,6 @@ export function TransactionTable({
   );
 }
 
+
+
+    
