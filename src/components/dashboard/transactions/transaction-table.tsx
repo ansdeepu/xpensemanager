@@ -712,26 +712,28 @@ export function TransactionTable({
                             <SelectTrigger id="expense-account">
                               <SelectValue placeholder="Select account" />
                             </SelectTrigger>
-                              <SelectContent>
-                                  <SelectItem value="cash-wallet">
-                                    <div className="flex justify-between w-full">
+                            <SelectContent>
+                                <SelectItem value="cash-wallet">
+                                    <div className="flex items-center gap-2">
                                         <span>Cash Wallet</span>
-                                        <span className="text-muted-foreground">{formatCurrency(cashWalletBalance)}</span>
+                                        <span className="text-muted-foreground">({formatCurrency(cashWalletBalance)})</span>
                                     </div>
-                                  </SelectItem>
-                                  <SelectItem value="digital-wallet">
-                                      <div className="flex justify-between w-full">
-                                          <span>Digital Wallet</span>
-                                          <span className="text-muted-foreground">{formatCurrency(digitalWalletBalance)}</span>
-                                      </div>
-                                  </SelectItem>
-                                  {fullAccounts.map(acc => <SelectItem key={acc.id} value={acc.id}>
-                                      <div className="flex justify-between w-full">
-                                          <span>{acc.name}</span>
-                                          <span className="text-muted-foreground">{formatCurrency(acc.balance)}</span>
-                                      </div>
-                                  </SelectItem>)}
-                              </SelectContent>
+                                </SelectItem>
+                                <SelectItem value="digital-wallet">
+                                    <div className="flex items-center gap-2">
+                                        <span>Digital Wallet</span>
+                                        <span className="text-muted-foreground">({formatCurrency(digitalWalletBalance)})</span>
+                                    </div>
+                                </SelectItem>
+                                {fullAccounts.map(acc => (
+                                    <SelectItem key={acc.id} value={acc.id}>
+                                        <div className="flex items-center gap-2">
+                                            <span>{acc.name}</span>
+                                            <span className="text-muted-foreground">({formatCurrency(acc.balance)})</span>
+                                        </div>
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
                           </Select>
                         </div>
                         <div className="space-y-2">
@@ -789,14 +791,16 @@ export function TransactionTable({
                             <SelectTrigger id="income-account">
                               <SelectValue placeholder="Select account" />
                             </SelectTrigger>
-                              <SelectContent>
-                                {fullAccounts.map(acc => <SelectItem key={acc.id} value={acc.id}>
-                                    <div className="flex justify-between w-full">
-                                        <span>{acc.name}</span>
-                                        <span className="text-muted-foreground">{formatCurrency(acc.balance)}</span>
-                                    </div>
-                                </SelectItem>)}
-                              </SelectContent>
+                            <SelectContent>
+                                {fullAccounts.map(acc => (
+                                    <SelectItem key={acc.id} value={acc.id}>
+                                        <div className="flex items-center gap-2">
+                                            <span>{acc.name}</span>
+                                            <span className="text-muted-foreground">({formatCurrency(acc.balance)})</span>
+                                        </div>
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
                           </Select>
                         </div>
                         <div className="space-y-2">
@@ -830,25 +834,27 @@ export function TransactionTable({
                                   <SelectTrigger id="transfer-from">
                                       <SelectValue placeholder="Select account" />
                                   </SelectTrigger>
-                                    <SelectContent>
+                                  <SelectContent>
                                         <SelectItem value="cash-wallet">
-                                            <div className="flex justify-between w-full">
+                                            <div className="flex items-center gap-2">
                                                 <span>Cash Wallet</span>
-                                                <span className="text-muted-foreground">{formatCurrency(cashWalletBalance)}</span>
+                                                <span className="text-muted-foreground">({formatCurrency(cashWalletBalance)})</span>
                                             </div>
                                         </SelectItem>
                                         <SelectItem value="digital-wallet">
-                                            <div className="flex justify-between w-full">
+                                            <div className="flex items-center gap-2">
                                                 <span>Digital Wallet</span>
-                                                <span className="text-muted-foreground">{formatCurrency(digitalWalletBalance)}</span>
+                                                <span className="text-muted-foreground">({formatCurrency(digitalWalletBalance)})</span>
                                             </div>
                                         </SelectItem>
-                                        {fullAccounts.map(acc => <SelectItem key={acc.id} value={acc.id}>
-                                             <div className="flex justify-between w-full">
-                                                <span>{acc.name}</span>
-                                                <span className="text-muted-foreground">{formatCurrency(acc.balance)}</span>
-                                            </div>
-                                        </SelectItem>)}
+                                        {fullAccounts.map(acc => (
+                                            <SelectItem key={acc.id} value={acc.id}>
+                                                <div className="flex items-center gap-2">
+                                                    <span>{acc.name}</span>
+                                                    <span className="text-muted-foreground">({formatCurrency(acc.balance)})</span>
+                                                </div>
+                                            </SelectItem>
+                                        ))}
                                     </SelectContent>
                               </Select>
                           </div>
@@ -860,23 +866,25 @@ export function TransactionTable({
                                   </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="cash-wallet">
-                                             <div className="flex justify-between w-full">
+                                            <div className="flex items-center gap-2">
                                                 <span>Cash Wallet</span>
-                                                <span className="text-muted-foreground">{formatCurrency(cashWalletBalance)}</span>
+                                                <span className="text-muted-foreground">({formatCurrency(cashWalletBalance)})</span>
                                             </div>
                                         </SelectItem>
                                         <SelectItem value="digital-wallet">
-                                             <div className="flex justify-between w-full">
+                                            <div className="flex items-center gap-2">
                                                 <span>Digital Wallet</span>
-                                                <span className="text-muted-foreground">{formatCurrency(digitalWalletBalance)}</span>
+                                                <span className="text-muted-foreground">({formatCurrency(digitalWalletBalance)})</span>
                                             </div>
                                         </SelectItem>
-                                        {fullAccounts.map(acc => <SelectItem key={acc.id} value={acc.id}>
-                                            <div className="flex justify-between w-full">
-                                                <span>{acc.name}</span>
-                                                <span className="text-muted-foreground">{formatCurrency(acc.balance)}</span>
-                                            </div>
-                                        </SelectItem>)}
+                                        {fullAccounts.map(acc => (
+                                            <SelectItem key={acc.id} value={acc.id}>
+                                                <div className="flex items-center gap-2">
+                                                    <span>{acc.name}</span>
+                                                    <span className="text-muted-foreground">({formatCurrency(acc.balance)})</span>
+                                                </div>
+                                            </SelectItem>
+                                        ))}
                                     </SelectContent>
                               </Select>
                           </div>
