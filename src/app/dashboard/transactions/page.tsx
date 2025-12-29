@@ -48,7 +48,7 @@ export default function TransactionsPage() {
   const [rawAccounts, setRawAccounts] = useState<Omit<Account, 'balance'>[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [walletPreferences, setWalletPreferences] = useState<{ cash?: { balance?: number, date?: string }, digital?: { balance?: number, date?: string } }>({});
-  const [reconciliationDate, setReconciliationDate] = useState<Date | undefined>(new Date());
+  const [reconciliationDate, setReconciliationDate] = useState<Date>(new Date());
   const [dataLoading, setDataLoading] = useState(true);
 
   const useDebounce = (callback: Function, delay: number) => {
@@ -98,11 +98,14 @@ export default function TransactionsPage() {
           setWalletPreferences(doc.data().wallets || {});
         }
       });
+      
+      const timer = setInterval(() => setReconciliationDate(new Date()), 60000); // Update every minute
 
       return () => {
         unsubscribeAccounts();
         unsubscribeTransactions();
         unsubscribePreferences();
+        clearInterval(timer);
       };
     } else if (!userLoading) {
       setDataLoading(false);
@@ -196,19 +199,9 @@ export default function TransactionsPage() {
           >
               <CalendarIcon className="mr-2 h-4 w-4" />
               <span className="mr-2">Reconciliation Date:</span>
-              <input
-                  type="date"
-                  value={reconciliationDate ? format(reconciliationDate, 'yyyy-MM-dd') : ''}
-                  onChange={(e) => {
-                      const date = new Date(e.target.value);
-                      const timezoneOffset = date.getTimezoneOffset() * 60000;
-                      const adjustedDate = new Date(date.getTime() + timezoneOffset);
-                      if (!isNaN(adjustedDate.getTime())) {
-                          setReconciliationDate(adjustedDate);
-                      }
-                  }}
-                  className="bg-transparent border-none outline-none font-bold"
-              />
+              <span className="bg-transparent border-none outline-none font-bold">
+                 {format(reconciliationDate, 'PPP')}
+              </span>
           </Button>
         </div>
 
@@ -398,4 +391,5 @@ export default function TransactionsPage() {
   );
 }
 
+    
     
