@@ -54,7 +54,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Transaction, Account, Category, Bill } from "@/lib/data";
-import { PlusCircle, Pencil, Trash2, CalendarIcon, Printer, Search, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from "lucide-react";
+import { PlusCircle, Pencil, Trash2, CalendarIcon, Printer, Search, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, XCircle } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
 import { collection, addDoc, query, where, onSnapshot, doc, runTransaction, orderBy, deleteDoc, getDoc, getDocs, limit, writeBatch, updateDoc } from "firebase/firestore";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -582,6 +582,11 @@ export function TransactionTable({
     window.print();
   }
 
+  const handleClearFilters = () => {
+    setSearchQuery("");
+    setDateRange(undefined);
+  }
+
   const primaryAccount = useMemo(() => accounts.find(a => a.isPrimary), [accounts]);
 
 
@@ -606,7 +611,7 @@ export function TransactionTable({
                 id="date"
                 variant={"outline"}
                 className={cn(
-                    "w-full md:w-[300px] justify-start text-left font-normal",
+                    "w-full md:w-auto justify-start text-left font-normal flex-1",
                     !dateRange && "text-muted-foreground"
                 )}
                 >
@@ -636,9 +641,13 @@ export function TransactionTable({
                 />
             </PopoverContent>
           </Popover>
-          <Button onClick={handlePrint} variant="outline" disabled={!dateRange}>
-            <Printer className="mr-2 h-4 w-4" />
-            Print
+          <Button onClick={handleClearFilters} variant="ghost" size="icon" className="h-10 w-10">
+            <XCircle className="h-5 w-5" />
+            <span className="sr-only">Clear filters</span>
+          </Button>
+          <Button onClick={handlePrint} variant="outline" size="icon" className="h-10 w-10">
+            <Printer className="h-5 w-5" />
+            <span className="sr-only">Print</span>
           </Button>
           <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
             setIsAddDialogOpen(open);
