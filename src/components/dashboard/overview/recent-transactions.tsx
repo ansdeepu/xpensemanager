@@ -12,14 +12,14 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { TrendingDown, TrendingUp } from "lucide-react";
-import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, orderBy, limit } from "firebase/firestore";
 import type { Transaction, Account } from "@/lib/data";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuthState } from "@/hooks/use-auth-state";
 
 export function RecentTransactions() {
-  const [user, userLoading] = useAuthState(auth);
+  const [user, userLoading] = useAuthState();
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);

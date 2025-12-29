@@ -11,7 +11,6 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
 import type { Transaction, Category, SubCategory } from "@/lib/data";
@@ -22,6 +21,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { addMonths, subMonths, format, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useAuthState } from "@/hooks/use-auth-state";
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-IN", {
@@ -47,7 +47,7 @@ const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 type View = 'main' | 'category-details' | 'total-details';
 
 export function CategoryExpenses() {
-  const [user, loading] = useAuthState(auth);
+  const [user, loading] = useAuthState();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [dataLoading, setDataLoading] = useState(true);

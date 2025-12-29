@@ -2,7 +2,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAuthState } from "react-firebase-hooks/auth";
 import { updateProfile, updatePassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -16,6 +15,7 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { useAuthState } from "@/hooks/use-auth-state";
 
 
 const passwordFormSchema = z.object({
@@ -27,7 +27,7 @@ const passwordFormSchema = z.object({
 });
 
 export default function ProfilePage() {
-  const [user, loading] = useAuthState(auth);
+  const [user, loading] = useAuthState();
   const [displayName, setDisplayName] = useState("");
   const [isProfileSubmitting, setIsProfileSubmitting] = useState(false);
   const [isPasswordSubmitting, setIsPasswordSubmitting] = useState(false);

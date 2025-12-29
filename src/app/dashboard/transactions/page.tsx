@@ -1,10 +1,8 @@
 
-
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { TransactionTable } from "@/components/dashboard/transactions/transaction-table";
-import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, orderBy, doc, setDoc, updateDoc } from "firebase/firestore";
 import type { Account, Transaction } from "@/lib/data";
@@ -16,6 +14,7 @@ import { CalendarIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { useAuthState } from "@/hooks/use-auth-state";
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-IN", {
@@ -45,7 +44,7 @@ const textColors = [
 ];
 
 export default function TransactionsPage() {
-  const [user, userLoading] = useAuthState(auth);
+  const [user, userLoading] = useAuthState();
   const [rawAccounts, setRawAccounts] = useState<Omit<Account, 'balance'>[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [walletPreferences, setWalletPreferences] = useState<{ cash?: { balance?: number, date?: string }, digital?: { balance?: number, date?: string } }>({});

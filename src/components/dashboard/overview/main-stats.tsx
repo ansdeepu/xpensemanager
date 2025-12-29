@@ -17,12 +17,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
 import type { Transaction, Account } from "@/lib/data";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuthState } from "@/hooks/use-auth-state";
 
 const formatCurrency = (amount: number) => {
     // Return 0 if the amount is not a number or is 0, to avoid displaying "-₹0.00"
@@ -39,7 +39,7 @@ const formatCurrency = (amount: number) => {
 };
 
 export function MainStats() {
-  const [user, loading] = useAuthState(auth);
+  const [user, loading] = useAuthState();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [dataLoading, setDataLoading] = useState(true);

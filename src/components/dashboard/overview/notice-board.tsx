@@ -4,7 +4,6 @@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Bell, FileText, BadgeCheck, Gift, Calendar as CalendarIcon } from "lucide-react";
-import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
 import type { Bill } from "@/lib/data";
@@ -13,6 +12,7 @@ import { formatDistanceToNow, isAfter, subDays, isWithinInterval, startOfToday, 
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useAuthState } from "@/hooks/use-auth-state";
 
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-IN", {
@@ -23,7 +23,7 @@ const formatCurrency = (amount: number) => {
 
 
 export function NoticeBoard() {
-  const [user] = useAuthState(auth);
+  const [user] = useAuthState();
   const [specialEvents, setSpecialEvents] = useState<Bill[]>([]);
   const [upcomingBills, setUpcomingBills] = useState<Bill[]>([]);
   const [isHovered, setIsHovered] = useState(false);

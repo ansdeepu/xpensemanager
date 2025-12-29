@@ -42,7 +42,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PlusCircle, Pencil, Trash2, CalendarIcon as Calendar, FileText, Repeat, Gift } from "lucide-react";
-import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "@/lib/firebase";
 import { collection, addDoc, query, where, onSnapshot, doc, deleteDoc, updateDoc, orderBy } from "firebase/firestore";
 import { format, differenceInDays, isPast, addMonths, addQuarters, addYears, setDate as setDayOfMonth, getDate, parseISO, isBefore, isValid, getYear, setYear } from "date-fns";
@@ -51,6 +50,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { Bill } from "@/lib/data";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { useAuthState } from "@/hooks/use-auth-state";
 
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-IN", {
@@ -139,7 +139,7 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
-    const [user, loading] = useAuthState(auth);
+    const [user, loading] = useAuthState();
     const [clientLoaded, setClientLoaded] = useState(false);
     
     // Add dialog state - default to the current tab's event type

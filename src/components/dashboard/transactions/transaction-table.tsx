@@ -56,7 +56,6 @@ import type { Transaction, Account, Category, Bill } from "@/lib/data";
 import { PlusCircle, Pencil, Trash2, CalendarIcon, Printer, Search, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
 import { collection, addDoc, query, where, onSnapshot, doc, runTransaction, orderBy, deleteDoc, getDoc, getDocs, limit, writeBatch, updateDoc } from "firebase/firestore";
-import { useAuthState } from "react-firebase-hooks/auth";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format, addMonths, addQuarters, addYears, isAfter, isWithinInterval, startOfDay, endOfDay, isBefore } from "date-fns";
@@ -64,6 +63,7 @@ import { DateRange } from "react-day-picker";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Switch } from "@/components/ui/switch";
+import { useAuthState } from "@/hooks/use-auth-state";
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-IN", {
@@ -102,7 +102,7 @@ export function TransactionTable({
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
-  const [user] = useAuthState(auth);
+  const [user] = useAuthState();
   const [activeTab, setActiveTab] = useState("expense");
   const [selectedExpenseCategory, setSelectedExpenseCategory] = useState<string | undefined>();
   const [selectedIncomeCategory, setSelectedIncomeCategory] = useState<string | undefined>();

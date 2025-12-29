@@ -39,7 +39,6 @@ import type { Account, Transaction } from "@/lib/data";
 import { PlusCircle, Landmark, PiggyBank, CreditCard, Wallet, Star, GripVertical, Pencil, Coins, Trash2 } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
 import { collection, addDoc, query, where, onSnapshot, writeBatch, doc, orderBy, updateDoc, deleteDoc, getDocs, setDoc } from "firebase/firestore";
-import { useAuthState } from "react-firebase-hooks/auth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -59,6 +58,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { restrictToWindowEdges } from '@dnd-kit/modifiers';
 import { useToast } from "@/hooks/use-toast";
+import { useAuthState } from "@/hooks/use-auth-state";
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-IN", {
@@ -170,7 +170,7 @@ export function AccountList() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
 
-  const [user, loading] = useAuthState(auth);
+  const [user, loading] = useAuthState();
   const sensors = useSensors(useSensor(PointerSensor));
   const { toast } = useToast();
 

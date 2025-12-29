@@ -75,7 +75,6 @@ import {
   runTransaction,
   getDocs,
 } from "firebase/firestore";
-import { useAuthState } from "react-firebase-hooks/auth";
 import type { Category, SubCategory } from "@/lib/data";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -99,6 +98,7 @@ import { Badge, badgeVariants } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import * as XLSX from 'xlsx';
 import { useToast } from "@/hooks/use-toast";
+import { useAuthState } from "@/hooks/use-auth-state";
 
 // Map icon names to components
 const iconComponents: { [key: string]: React.ComponentType<{ className?: string }> } = {
@@ -474,7 +474,7 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'inco
   const [editSelectedMonths, setEditSelectedMonths] = useState<string[]>([]);
 
 
-  const [user, loading] = useAuthState(auth);
+  const [user, loading] = useAuthState();
   const [clientLoaded, setClientLoaded] = useState(false);
 
   useEffect(() => {

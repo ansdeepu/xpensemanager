@@ -15,12 +15,12 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { LogOut, User, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "@/lib/firebase";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { useReportDate } from "@/context/report-date-context";
+import { useAuthState } from "@/hooks/use-auth-state";
 
 // Function to generate a color from a string
 const generateColor = (str: string) => {
@@ -38,7 +38,7 @@ const generateColor = (str: string) => {
 
 
 export function Header({ pageTitle, pageDescription }: { pageTitle: string, pageDescription?: string }) {
-  const [user, loading] = useAuthState(auth);
+  const [user, loading] = useAuthState();
   const [clientLoaded, setClientLoaded] = useState(false);
   const [currentDateTime, setCurrentDateTime] = useState<Date | null>(null);
   const pathname = usePathname();

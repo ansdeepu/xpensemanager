@@ -18,7 +18,6 @@ import {
   TableRow,
   TableFooter,
 } from "@/components/ui/table";
-import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import type { Transaction, Category, Account } from "@/lib/data";
@@ -43,6 +42,7 @@ import {
 import { cn } from "@/lib/utils";
 import { format, startOfDay, getYear, getMonth, isSameDay } from "date-fns";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useAuthState } from "@/hooks/use-auth-state";
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-IN", {
@@ -52,7 +52,7 @@ const formatCurrency = (amount: number) => {
 };
 
 export function OverviewChart() {
-  const [user] = useAuthState(auth);
+  const [user] = useAuthState();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);

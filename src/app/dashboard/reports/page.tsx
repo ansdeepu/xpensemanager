@@ -2,7 +2,6 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
 import type { Account, Transaction, Category } from "@/lib/data";
@@ -10,6 +9,7 @@ import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReportView } from "@/components/dashboard/reports/report-view";
+import { useAuthState } from "@/hooks/use-auth-state";
 
 
 const formatCurrency = (amount: number) => {
@@ -20,7 +20,7 @@ const formatCurrency = (amount: number) => {
 };
 
 export default function ReportsPage() {
-  const [user, userLoading] = useAuthState(auth);
+  const [user, userLoading] = useAuthState();
   const [rawAccounts, setRawAccounts] = useState<Omit<Account, 'balance'>[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
