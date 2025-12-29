@@ -10,13 +10,11 @@ import type { Account, Transaction } from "@/lib/data";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-IN", {
@@ -188,32 +186,25 @@ export default function TransactionsPage() {
 
   return (
     <div className="space-y-6">
-        <div className="w-full sm:w-auto">
-            <Popover>
-                <PopoverTrigger asChild>
-                    <Button
-                        variant={"outline"}
-                        className={cn(
-                            "w-full sm:w-[280px] justify-start text-left font-bold text-red-600",
-                            !reconciliationDate && "text-muted-foreground"
-                        )}
-                    >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        <span className="mr-2">Reconciliation Date:</span>
-                        <span className="bg-transparent border-none outline-none font-bold">
-                            {reconciliationDate ? format(reconciliationDate, 'PPP') : <span>Pick a date</span>}
-                        </span>
-                    </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                    <Calendar
-                        mode="single"
-                        selected={reconciliationDate}
-                        onSelect={setReconciliationDate}
-                        initialFocus
-                    />
-                </PopoverContent>
-            </Popover>
+        <div className="flex items-center gap-2 w-full sm:w-auto p-2 rounded-md border bg-card text-card-foreground shadow-sm">
+            <CalendarIcon className="h-5 w-5 text-red-600" />
+            <Label htmlFor="reconciliation-date" className="text-sm font-bold text-red-600 flex-shrink-0">Reconciliation Date:</Label>
+            <Input
+                id="reconciliation-date"
+                type="date"
+                value={reconciliationDate ? format(reconciliationDate, 'yyyy-MM-dd') : ''}
+                onChange={(e) => {
+                    const dateValue = e.target.value;
+                    if (dateValue) {
+                        const parsedDate = parseISO(dateValue);
+                        const timezoneOffset = parsedDate.getTimezoneOffset() * 60000;
+                        setReconciliationDate(new Date(parsedDate.getTime() + timezoneOffset));
+                    } else {
+                        setReconciliationDate(undefined);
+                    }
+                }}
+                className="w-full sm:w-auto bg-transparent border-none outline-none font-bold text-red-600 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0"
+            />
         </div>
 
       <Tabs defaultValue={primaryAccount?.id || "all-accounts"} className="w-full">
@@ -401,5 +392,3 @@ export default function TransactionsPage() {
     </div>
   );
 }
-
-    
