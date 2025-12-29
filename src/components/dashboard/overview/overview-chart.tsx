@@ -18,7 +18,7 @@ import {
   TableRow,
   TableFooter,
 } from "@/components/ui/table";
-import { useAuthState } from "firebase/auth";
+import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import type { Transaction, Category, Account } from "@/lib/data";

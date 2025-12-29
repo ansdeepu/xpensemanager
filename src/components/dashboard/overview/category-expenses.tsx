@@ -11,7 +11,7 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { useAuthState } from "firebase/auth";
+import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
 import type { Transaction, Category, SubCategory } from "@/lib/data";
@@ -47,10 +47,10 @@ const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 type View = 'main' | 'category-details' | 'total-details';
 
 export function CategoryExpenses() {
-  const [user] = useAuthState(auth);
+  const [user, loading] = useAuthState(auth);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<View>('main');
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
@@ -60,7 +60,7 @@ export function CategoryExpenses() {
       const expenseCategoriesQuery = query(collection(db, "categories"), where("userId", "==", user.uid), where("type", "==", "expense"), orderBy("order", "asc"));
       const unsubscribeCategories = onSnapshot(expenseCategoriesQuery, (snapshot) => {
         setCategories(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category)));
-        setLoading(false);
+        setDataLoading(false);
       });
 
       const transactionsQuery = query(collection(db, "transactions"), where("userId", "==", user.uid), where("type", "==", "expense"));
@@ -73,7 +73,7 @@ export function CategoryExpenses() {
         unsubscribeTransactions();
       };
     } else if (!user) {
-        setLoading(false);
+        setDataLoading(false);
     }
   }, [user, db]);
 
@@ -167,7 +167,7 @@ export function CategoryExpenses() {
   }
 
 
-  if (loading) {
+  if (loading || dataLoading) {
       return (
           <Card className="lg:col-span-4 h-[900px]">
               <CardHeader>

@@ -56,7 +56,7 @@ import type { Transaction, Account, Category, Bill } from "@/lib/data";
 import { PlusCircle, Pencil, Trash2, CalendarIcon, Printer, Search, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
 import { collection, addDoc, query, where, onSnapshot, doc, runTransaction, orderBy, deleteDoc, getDoc, getDocs, limit, writeBatch, updateDoc } from "firebase/firestore";
-import { useAuthState } from "firebase/auth";
+import { useAuthState } from "react-firebase-hooks/auth";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format, addMonths, addQuarters, addYears, isAfter, isWithinInterval, startOfDay, endOfDay, isBefore } from "date-fns";
@@ -145,34 +145,34 @@ export function TransactionTable({
   const incomeCategories = useMemo(() => categories.filter(c => c.type === 'income'), [categories]);
 
   const { cashWalletBalance, digitalWalletBalance, accountBalances } = useMemo(() => {
-    const calculatedAccountBalances: { [key: string]: number } = {};
+    const balances: { [key: string]: number } = {};
     accounts.forEach(acc => {
-      calculatedAccountBalances[acc.id] = 0;
+      balances[acc.id] = 0;
     });
 
     let cash = 0;
     let digital = 0;
     transactions.forEach((t) => {
-      if (t.type === 'income' && t.accountId && calculatedAccountBalances[t.accountId] !== undefined) {
-        calculatedAccountBalances[t.accountId] += t.amount;
+      if (t.type === 'income' && t.accountId && balances[t.accountId] !== undefined) {
+        balances[t.accountId] += t.amount;
       } else if (t.type === 'expense') {
-        if (t.paymentMethod === 'online' && t.accountId && calculatedAccountBalances[t.accountId] !== undefined) {
-          calculatedAccountBalances[t.accountId] -= t.amount;
+        if (t.paymentMethod === 'online' && t.accountId && balances[t.accountId] !== undefined) {
+          balances[t.accountId] -= t.amount;
         } else if (t.paymentMethod === 'cash') {
           cash -= t.amount;
         } else if (t.paymentMethod === 'digital') {
           digital -= t.amount;
         }
       } else if (t.type === 'transfer') {
-        if (t.fromAccountId && calculatedAccountBalances[t.fromAccountId] !== undefined) {
-          calculatedAccountBalances[t.fromAccountId] -= t.amount;
+        if (t.fromAccountId && balances[t.fromAccountId] !== undefined) {
+          balances[t.fromAccountId] -= t.amount;
         } else if (t.fromAccountId === 'cash-wallet') {
           cash -= t.amount;
         } else if (t.fromAccountId === 'digital-wallet') {
           digital -= t.amount;
         }
-        if (t.toAccountId && calculatedAccountBalances[t.toAccountId] !== undefined) {
-          calculatedAccountBalances[t.toAccountId] += t.amount;
+        if (t.toAccountId && balances[t.toAccountId] !== undefined) {
+          balances[t.toAccountId] += t.amount;
         } else if (t.toAccountId === 'cash-wallet') {
           cash += t.amount;
         } else if (t.toAccountId === 'digital-wallet') {
@@ -180,7 +180,7 @@ export function TransactionTable({
         }
       }
     });
-    return { cashWalletBalance: cash, digitalWalletBalance: digital, accountBalances: calculatedAccountBalances };
+    return { cashWalletBalance: cash, digitalWalletBalance: digital, accountBalances: balances };
   }, [transactions, accounts]);
 
 

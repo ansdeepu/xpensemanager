@@ -17,7 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useAuthState } from "firebase/auth";
+import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
 import type { Transaction, Account } from "@/lib/data";
@@ -39,17 +39,17 @@ const formatCurrency = (amount: number) => {
 };
 
 export function MainStats() {
-  const [user] = useAuthState(auth);
+  const [user, loading] = useAuthState(auth);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
 
   useEffect(() => {
     if (user && db) {
       const accountsQuery = query(collection(db, "accounts"), where("userId", "==", user.uid), orderBy("order", "asc"));
       const unsubscribeAccounts = onSnapshot(accountsQuery, (snapshot) => {
         setAccounts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Account)));
-        setLoading(false);
+        setDataLoading(false);
       });
 
       const transactionsQuery = query(collection(db, "transactions"), where("userId", "==", user.uid));
@@ -62,7 +62,7 @@ export function MainStats() {
         unsubscribeTransactions();
       };
     } else if (!user) {
-        setLoading(false);
+        setDataLoading(false);
     }
   }, [user, db]);
 
@@ -130,7 +130,7 @@ export function MainStats() {
   }, [accounts, transactions]);
   
 
-  if (loading) {
+  if (loading || dataLoading) {
     return (
         <Card>
              <CardHeader>

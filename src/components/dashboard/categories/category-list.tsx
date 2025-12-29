@@ -75,7 +75,7 @@ import {
   runTransaction,
   getDocs,
 } from "firebase/firestore";
-import { useAuthState } from "firebase/auth";
+import { useAuthState } from "react-firebase-hooks/auth";
 import type { Category, SubCategory } from "@/lib/data";
 import { Skeleton } from "@/components/ui/skeleton";
 import {

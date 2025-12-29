@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { TransactionTable } from "@/components/dashboard/transactions/transaction-table";
-import { useAuthState } from "firebase/auth";
+import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, orderBy, doc, setDoc, updateDoc } from "firebase/firestore";
 import type { Account, Transaction } from "@/lib/data";
@@ -213,7 +213,6 @@ export default function TransactionsPage() {
                     const dateValue = e.target.value;
                     const newDate = dateValue ? new Date(dateValue) : undefined;
                      if (newDate) {
-                        // This accounts for timezone offset when creating date from string
                         const timezoneOffset = newDate.getTimezoneOffset() * 60000;
                         handleReconciliationDateChange(new Date(newDate.getTime() + timezoneOffset));
                     } else {
