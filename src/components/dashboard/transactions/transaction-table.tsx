@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -182,6 +183,13 @@ export function TransactionTable({
     });
     return { cashWalletBalance: cash, digitalWalletBalance: digital, accountBalances: balances };
   }, [transactions, accounts]);
+
+  const fullAccounts = useMemo(() => 
+    accounts.map(acc => ({
+        ...acc,
+        balance: accountBalances[acc.id] ?? 0
+    })), [accounts, accountBalances]
+  );
 
 
   const expenseSubcategories = useMemo(() => {
@@ -705,9 +713,24 @@ export function TransactionTable({
                               <SelectValue placeholder="Select account" />
                             </SelectTrigger>
                               <SelectContent>
-                                  <SelectItem value="cash-wallet">Cash Wallet</SelectItem>
-                                  <SelectItem value="digital-wallet">Digital Wallet</SelectItem>
-                                  {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
+                                  <SelectItem value="cash-wallet">
+                                    <div className="flex justify-between w-full">
+                                        <span>Cash Wallet</span>
+                                        <span className="text-muted-foreground">{formatCurrency(cashWalletBalance)}</span>
+                                    </div>
+                                  </SelectItem>
+                                  <SelectItem value="digital-wallet">
+                                      <div className="flex justify-between w-full">
+                                          <span>Digital Wallet</span>
+                                          <span className="text-muted-foreground">{formatCurrency(digitalWalletBalance)}</span>
+                                      </div>
+                                  </SelectItem>
+                                  {fullAccounts.map(acc => <SelectItem key={acc.id} value={acc.id}>
+                                      <div className="flex justify-between w-full">
+                                          <span>{acc.name}</span>
+                                          <span className="text-muted-foreground">{formatCurrency(acc.balance)}</span>
+                                      </div>
+                                  </SelectItem>)}
                               </SelectContent>
                           </Select>
                         </div>
@@ -767,7 +790,12 @@ export function TransactionTable({
                               <SelectValue placeholder="Select account" />
                             </SelectTrigger>
                               <SelectContent>
-                                {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
+                                {fullAccounts.map(acc => <SelectItem key={acc.id} value={acc.id}>
+                                    <div className="flex justify-between w-full">
+                                        <span>{acc.name}</span>
+                                        <span className="text-muted-foreground">{formatCurrency(acc.balance)}</span>
+                                    </div>
+                                </SelectItem>)}
                               </SelectContent>
                           </Select>
                         </div>
@@ -803,9 +831,24 @@ export function TransactionTable({
                                       <SelectValue placeholder="Select account" />
                                   </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="cash-wallet">Cash Wallet</SelectItem>
-                                        <SelectItem value="digital-wallet">Digital Wallet</SelectItem>
-                                        {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
+                                        <SelectItem value="cash-wallet">
+                                            <div className="flex justify-between w-full">
+                                                <span>Cash Wallet</span>
+                                                <span className="text-muted-foreground">{formatCurrency(cashWalletBalance)}</span>
+                                            </div>
+                                        </SelectItem>
+                                        <SelectItem value="digital-wallet">
+                                            <div className="flex justify-between w-full">
+                                                <span>Digital Wallet</span>
+                                                <span className="text-muted-foreground">{formatCurrency(digitalWalletBalance)}</span>
+                                            </div>
+                                        </SelectItem>
+                                        {fullAccounts.map(acc => <SelectItem key={acc.id} value={acc.id}>
+                                             <div className="flex justify-between w-full">
+                                                <span>{acc.name}</span>
+                                                <span className="text-muted-foreground">{formatCurrency(acc.balance)}</span>
+                                            </div>
+                                        </SelectItem>)}
                                     </SelectContent>
                               </Select>
                           </div>
@@ -816,9 +859,24 @@ export function TransactionTable({
                                       <SelectValue placeholder="Select account" />
                                   </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="cash-wallet">Cash Wallet</SelectItem>
-                                        <SelectItem value="digital-wallet">Digital Wallet</SelectItem>
-                                        {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
+                                        <SelectItem value="cash-wallet">
+                                             <div className="flex justify-between w-full">
+                                                <span>Cash Wallet</span>
+                                                <span className="text-muted-foreground">{formatCurrency(cashWalletBalance)}</span>
+                                            </div>
+                                        </SelectItem>
+                                        <SelectItem value="digital-wallet">
+                                             <div className="flex justify-between w-full">
+                                                <span>Digital Wallet</span>
+                                                <span className="text-muted-foreground">{formatCurrency(digitalWalletBalance)}</span>
+                                            </div>
+                                        </SelectItem>
+                                        {fullAccounts.map(acc => <SelectItem key={acc.id} value={acc.id}>
+                                            <div className="flex justify-between w-full">
+                                                <span>{acc.name}</span>
+                                                <span className="text-muted-foreground">{formatCurrency(acc.balance)}</span>
+                                            </div>
+                                        </SelectItem>)}
                                     </SelectContent>
                               </Select>
                           </div>
