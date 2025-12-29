@@ -705,9 +705,9 @@ export function TransactionTable({
                               <SelectValue placeholder="Select account" />
                             </SelectTrigger>
                               <SelectContent>
-                                  <SelectItem value="cash-wallet">Cash Wallet ({formatCurrency(cashWalletBalance)})</SelectItem>
-                                  <SelectItem value="digital-wallet">Digital Wallet ({formatCurrency(digitalWalletBalance)})</SelectItem>
-                                  {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name} ({formatCurrency(accountBalances[acc.id] ?? 0)})</SelectItem>)}
+                                  <SelectItem value="cash-wallet">Cash Wallet</SelectItem>
+                                  <SelectItem value="digital-wallet">Digital Wallet</SelectItem>
+                                  {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
                               </SelectContent>
                           </Select>
                         </div>
@@ -767,7 +767,7 @@ export function TransactionTable({
                               <SelectValue placeholder="Select account" />
                             </SelectTrigger>
                               <SelectContent>
-                                {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name} ({formatCurrency(accountBalances[acc.id] ?? 0)})</SelectItem>)}
+                                {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
                               </SelectContent>
                           </Select>
                         </div>
@@ -803,9 +803,9 @@ export function TransactionTable({
                                       <SelectValue placeholder="Select account" />
                                   </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="cash-wallet">Cash Wallet ({formatCurrency(cashWalletBalance)})</SelectItem>
-                                        <SelectItem value="digital-wallet">Digital Wallet ({formatCurrency(digitalWalletBalance)})</SelectItem>
-                                        {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name} ({formatCurrency(accountBalances[acc.id] ?? 0)})</SelectItem>)}
+                                        <SelectItem value="cash-wallet">Cash Wallet</SelectItem>
+                                        <SelectItem value="digital-wallet">Digital Wallet</SelectItem>
+                                        {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
                                     </SelectContent>
                               </Select>
                           </div>
@@ -818,7 +818,7 @@ export function TransactionTable({
                                     <SelectContent>
                                         <SelectItem value="cash-wallet">Cash Wallet</SelectItem>
                                         <SelectItem value="digital-wallet">Digital Wallet</SelectItem>
-                                        {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name} ({formatCurrency(accountBalances[acc.id] ?? 0)})</SelectItem>)}
+                                        {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
                                     </SelectContent>
                               </Select>
                           </div>
@@ -878,7 +878,7 @@ export function TransactionTable({
                             {t.type}
                         </Badge>
                         </TableCell>
-                        <TableCell style={{ white Space: 'pre-wrap', wordBreak: 'break-word' }}>{t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} -> ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod)}</TableCell>
+                        <TableCell style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} -> ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod)}</TableCell>
                         <TableCell style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                             <div>{t.category}</div>
                             {t.subcategory && <div className="text-sm text-muted-foreground">{t.subcategory}</div>}
@@ -1033,11 +1033,11 @@ export function TransactionTable({
                                     <SelectContent>
                                         {selectedTransaction?.type === 'expense' && (
                                         <>
-                                            <SelectItem value="cash-wallet">Cash Wallet ({formatCurrency(cashWalletBalance)})</SelectItem>
-                                            <SelectItem value="digital-wallet">Digital Wallet ({formatCurrency(digitalWalletBalance)})</SelectItem>
+                                            <SelectItem value="cash-wallet">Cash Wallet</SelectItem>
+                                            <SelectItem value="digital-wallet">Digital Wallet</SelectItem>
                                         </>
                                         )}
-                                        {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name} ({formatCurrency(accountBalances[acc.id] ?? 0)})</SelectItem>)}
+                                        {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
                                     </SelectContent>
                             </Select>
                         </div>
@@ -1050,9 +1050,9 @@ export function TransactionTable({
                                 <Select name="fromAccount" required defaultValue={selectedTransaction.fromAccountId}>
                                     <SelectTrigger id="edit-from-account"><SelectValue /></SelectTrigger>
                                         <SelectContent>
-                                        <SelectItem value="cash-wallet">Cash Wallet ({formatCurrency(cashWalletBalance)})</SelectItem>
-                                        <SelectItem value="digital-wallet">Digital Wallet ({formatCurrency(digitalWalletBalance)})</SelectItem>
-                                        {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name} ({formatCurrency(accountBalances[acc.id] ?? 0)})</SelectItem>)}
+                                        <SelectItem value="cash-wallet">Cash Wallet</SelectItem>
+                                        <SelectItem value="digital-wallet">Digital Wallet</SelectItem>
+                                        {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
                                         </SelectContent>
                                 </Select>
                             </div>
@@ -1063,7 +1063,7 @@ export function TransactionTable({
                                         <SelectContent>
                                         <SelectItem value="cash-wallet">Cash Wallet</SelectItem>
                                         <SelectItem value="digital-wallet">Digital Wallet</SelectItem>
-                                        {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name} ({formatCurrency(accountBalances[acc.id] ?? 0)})</SelectItem>)}
+                                        {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
                                         </SelectContent>
                                 </Select>
                             </div>
