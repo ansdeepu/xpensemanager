@@ -196,9 +196,9 @@ export default function TransactionsPage() {
                 onChange={(e) => {
                     const dateValue = e.target.value;
                     if (dateValue) {
-                        const parsedDate = parseISO(dateValue);
-                        const timezoneOffset = parsedDate.getTimezoneOffset() * 60000;
-                        setReconciliationDate(new Date(parsedDate.getTime() + timezoneOffset));
+                        // Directly create a new Date from the yyyy-MM-dd string.
+                        // This avoids timezone issues that parseISO can introduce.
+                        setReconciliationDate(new Date(dateValue));
                     } else {
                         setReconciliationDate(undefined);
                     }
