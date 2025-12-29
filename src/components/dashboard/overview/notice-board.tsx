@@ -4,7 +4,7 @@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Bell, FileText, BadgeCheck, Gift, Calendar as CalendarIcon } from "lucide-react";
-import { useAuthState } from "react-firebase-hooks/auth";
+import { useAuthState } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
 import type { Bill } from "@/lib/data";

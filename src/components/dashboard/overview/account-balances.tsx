@@ -29,12 +29,12 @@ type WalletType = 'cash-wallet' | 'digital-wallet';
 type AccountForDetails = (Omit<Account, 'balance'> & { balance: number }) | { id: WalletType, name: string, balance: number };
 
 export function AccountBalances() {
-  const [user] = useAuthState(auth);
+  const [user, loading] = useAuthState(auth);
   const [rawAccounts, setRawAccounts] = useState<Omit<Account, 'balance'>[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [walletPreferences, setWalletPreferences] = useState<{ cash?: { balance?: number, date?: string }, digital?: { balance?: number, date?: string } }>({});
   const [reconciliationDate, setReconciliationDate] = useState<Date | undefined>(new Date());
-  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [selectedAccountForDetails, setSelectedAccountForDetails] = useState<AccountForDetails | null>(null);
 
@@ -48,7 +48,7 @@ export function AccountBalances() {
           userAccounts.push({ id: doc.id, ...data } as Omit<Account, 'balance'>);
         });
         setRawAccounts(userAccounts);
-        if(loading) setLoading(false);
+        if(dataLoading) setDataLoading(false);
       });
 
       const transactionsQuery = query(collection(db, "transactions"), where("userId", "==", user.uid));
@@ -69,10 +69,10 @@ export function AccountBalances() {
         unsubscribeTransactions();
         unsubscribePreferences();
       };
-    } else if (!user && loading) {
-        setLoading(false);
+    } else if (!user && dataLoading) {
+        setDataLoading(false);
     }
-  }, [user, db, loading]);
+  }, [user, db, dataLoading]);
 
   const { cashWalletBalance, digitalWalletBalance, accountBalances } = useMemo(() => {
     const calculatedAccountBalances: { [key: string]: number } = {};
@@ -176,7 +176,7 @@ export function AccountBalances() {
     setIsDetailsDialogOpen(true);
   };
 
-  if (loading) {
+  if (loading || dataLoading) {
       return (
           <Card>
               <CardHeader>
