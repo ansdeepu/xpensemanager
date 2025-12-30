@@ -26,13 +26,12 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  TableFooter,
 } from "@/components/ui/table";
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import type { Transaction } from "@/lib/data";
 import { Skeleton } from "@/components/ui/skeleton";
-import { format, startOfMonth, endOfMonth, isWithinInterval, getDaysInMonth, setDate, isSameDay } from "date-fns";
+import { format, startOfMonth, endOfMonth, isWithinInterval, getDaysInMonth, setDate } from "date-fns";
 import { useAuthState } from "@/hooks/use-auth-state";
 import { Coins } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -151,7 +150,7 @@ export function CurrentMonthDailyExpenses() {
             <p>No expenses recorded for this month yet.</p>
           </div>
         ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-4">
                 {dailyExpenses.map((detail) => (
                     <Card key={detail.day} className="flex flex-col text-center">
                         <CardHeader className="flex flex-row items-center justify-center p-3">
@@ -188,8 +187,8 @@ export function CurrentMonthDailyExpenses() {
             A detailed list of all expenses for this day.
           </DialogDescription>
         </DialogHeader>
-        <div className="flex-1 overflow-y-auto -mx-6 px-6">
-          <ScrollArea className="h-full pr-2">
+        <div className="flex-1 min-h-0">
+          <ScrollArea className="h-full pr-4">
             <Table>
               <TableHeader className="sticky top-0 bg-background">
                 <TableRow>
