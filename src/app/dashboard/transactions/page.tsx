@@ -8,8 +8,7 @@ import { collection, query, where, onSnapshot, orderBy, doc, setDoc, updateDoc }
 import type { Account, Transaction } from "@/lib/data";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { format, parseISO } from "date-fns";
+import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -201,6 +200,28 @@ export default function TransactionsPage() {
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-end p-2 rounded-md border bg-card text-card-foreground shadow-sm">
+        <div className="flex items-center gap-2">
+          <CalendarIcon className="h-5 w-5 text-red-600" />
+          <Label htmlFor="reconciliation-date" className="text-sm font-bold text-red-600 flex-shrink-0">Reconciliation Date:</Label>
+          <Input
+            id="reconciliation-date"
+            type="date"
+            value={reconciliationDate ? format(reconciliationDate, 'yyyy-MM-dd') : ''}
+            onChange={(e) => {
+                const dateValue = e.target.value;
+                const newDate = dateValue ? new Date(dateValue) : undefined;
+                if (newDate) {
+                    const timezoneOffset = newDate.getTimezoneOffset() * 60000;
+                    handleReconciliationDateChange(new Date(newDate.getTime() + timezoneOffset));
+                } else {
+                    handleReconciliationDateChange(undefined);
+                }
+            }}
+            className="w-full sm:w-auto bg-transparent border-none outline-none font-bold text-red-600 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0"
+          />
+        </div>
+      </div>
       <Tabs defaultValue={primaryAccount?.id || "all-accounts"} className="w-full">
         <TabsList className="flex flex-wrap h-auto items-start p-0">
           <div className="w-full md:w-1/2 p-1">
@@ -210,27 +231,7 @@ export default function TransactionsPage() {
                   <span className="font-semibold text-lg">Primary ({primaryAccount.name})</span>
                   <span className="font-bold text-2xl text-primary">{formatCurrency(allBalance)}</span>
                 </div>
-                 <div className="flex items-center gap-2 w-full sm:w-auto p-2 rounded-md border bg-card text-card-foreground shadow-sm">
-                    <CalendarIcon className="h-5 w-5 text-red-600" />
-                    <Label htmlFor="reconciliation-date" className="text-sm font-bold text-red-600 flex-shrink-0">Reconciliation Date:</Label>
-                    <Input
-                        id="reconciliation-date"
-                        type="date"
-                        value={reconciliationDate ? format(reconciliationDate, 'yyyy-MM-dd') : ''}
-                        onChange={(e) => {
-                            const dateValue = e.target.value;
-                            const newDate = dateValue ? new Date(dateValue) : undefined;
-                            if (newDate) {
-                                const timezoneOffset = newDate.getTimezoneOffset() * 60000;
-                                handleReconciliationDateChange(new Date(newDate.getTime() + timezoneOffset));
-                            } else {
-                                handleReconciliationDateChange(undefined);
-                            }
-                        }}
-                        className="w-full sm:w-auto bg-transparent border-none outline-none font-bold text-red-600 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0"
-                    />
-                </div>
-
+                
                 <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-6 text-left py-4">
                   {/* Bank Column */}
                   <div className="space-y-2">
@@ -406,5 +407,3 @@ export default function TransactionsPage() {
     </div>
   );
 }
-
-    
