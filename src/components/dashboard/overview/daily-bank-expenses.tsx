@@ -25,7 +25,7 @@ import type { Transaction, Account } from "@/lib/data";
 import { Skeleton } from "@/components/ui/skeleton";
 import { isToday, parseISO } from "date-fns";
 import { useAuthState } from "@/hooks/use-auth-state";
-import { Banknote, Landmark } from "lucide-react";
+import { Banknote, Landmark, BadgeCheck } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 
 const formatCurrency = (amount: number) => {
@@ -112,10 +112,7 @@ export function DailyBankExpenses() {
 
   const hasPrimaryExpenses = primaryAccountExpenses.length > 0;
   const hasOtherExpenses = otherBankExpenses.length > 0;
-
-  if (!hasPrimaryExpenses && !hasOtherExpenses) {
-    return null; // Don't render the component if there are no daily bank expenses
-  }
+  const hasAnyExpenses = hasPrimaryExpenses || hasOtherExpenses;
 
   return (
     <Card>
@@ -127,45 +124,13 @@ export function DailyBankExpenses() {
         <CardDescription>A summary of today's expenses from your bank accounts.</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="space-y-6">
-            {hasPrimaryExpenses && (
-                <div>
-                    <h3 className="text-lg font-semibold mb-2">Primary Account</h3>
-                    {primaryAccountExpenses.map(expense => (
-                         <Table key={expense.id}>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="w-[60%]">Description ({expense.name})</TableHead>
-                                    <TableHead>Category</TableHead>
-                                    <TableHead className="text-right">Amount</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {expense.transactions.map(t => (
-                                    <TableRow key={t.id}>
-                                        <TableCell>{t.description}</TableCell>
-                                        <TableCell className="text-muted-foreground">{t.subcategory || t.category}</TableCell>
-                                        <TableCell className="text-right font-mono">{formatCurrency(t.amount)}</TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                            <TableFooter>
-                                <TableRow>
-                                    <TableHead colSpan={2}>Total</TableHead>
-                                    <TableHead className="text-right font-bold">{formatCurrency(expense.total)}</TableHead>
-                                </TableRow>
-                            </TableFooter>
-                        </Table>
-                    ))}
-                </div>
-            )}
-             {hasPrimaryExpenses && hasOtherExpenses && <Separator />}
-             {hasOtherExpenses && (
-                <div>
-                     <h3 className="text-lg font-semibold mb-2">Other Banks</h3>
-                     <div className="space-y-4">
-                        {otherBankExpenses.map(expense => (
-                            <Table key={expense.id}>
+        {hasAnyExpenses ? (
+            <div className="space-y-6">
+                {hasPrimaryExpenses && (
+                    <div>
+                        <h3 className="text-lg font-semibold mb-2">Primary Account</h3>
+                        {primaryAccountExpenses.map(expense => (
+                             <Table key={expense.id}>
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead className="w-[60%]">Description ({expense.name})</TableHead>
@@ -190,17 +155,58 @@ export function DailyBankExpenses() {
                                 </TableFooter>
                             </Table>
                         ))}
-                     </div>
-                </div>
-             )}
-        </div>
-      </CardContent>
-       <CardFooter className="pt-6">
-            <div className="w-full flex justify-between font-bold text-lg">
-                <span>Grand Total</span>
-                <span className="text-red-600">{formatCurrency(totalPrimary + totalOther)}</span>
+                    </div>
+                )}
+                 {hasPrimaryExpenses && hasOtherExpenses && <Separator />}
+                 {hasOtherExpenses && (
+                    <div>
+                         <h3 className="text-lg font-semibold mb-2">Other Banks</h3>
+                         <div className="space-y-4">
+                            {otherBankExpenses.map(expense => (
+                                <Table key={expense.id}>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead className="w-[60%]">Description ({expense.name})</TableHead>
+                                            <TableHead>Category</TableHead>
+                                            <TableHead className="text-right">Amount</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {expense.transactions.map(t => (
+                                            <TableRow key={t.id}>
+                                                <TableCell>{t.description}</TableCell>
+                                                <TableCell className="text-muted-foreground">{t.subcategory || t.category}</TableCell>
+                                                <TableCell className="text-right font-mono">{formatCurrency(t.amount)}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                    <TableFooter>
+                                        <TableRow>
+                                            <TableHead colSpan={2}>Total</TableHead>
+                                            <TableHead className="text-right font-bold">{formatCurrency(expense.total)}</TableHead>
+                                        </TableRow>
+                                    </TableFooter>
+                                </Table>
+                            ))}
+                         </div>
+                    </div>
+                 )}
             </div>
-      </CardFooter>
+        ) : (
+            <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-24">
+                <BadgeCheck className="h-8 w-8 mb-2 text-green-500" />
+                <p>No bank expenses recorded for today.</p>
+            </div>
+        )}
+      </CardContent>
+       {hasAnyExpenses && (
+            <CardFooter className="pt-6">
+                <div className="w-full flex justify-between font-bold text-lg">
+                    <span>Grand Total</span>
+                    <span className="text-red-600">{formatCurrency(totalPrimary + totalOther)}</span>
+                </div>
+            </CardFooter>
+       )}
     </Card>
   );
 }
