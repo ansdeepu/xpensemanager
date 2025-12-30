@@ -323,37 +323,11 @@ export function ReportView({ transactions, categories, accounts, isOverallSummar
             </Card>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
-            <FinancialAdvice 
-              totalIncome={grandTotalIncome}
-              totalExpense={grandTotalExpense}
-              expenseByCategory={Object.fromEntries(Object.entries(monthlyReport.expenseByCategory).map(([k, v]) => [k, v.total]))}
-            />
-             <Card className="lg:col-span-2">
-                 <CardHeader>
-                    <CardTitle>Regular Expense Breakdown</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <ChartContainer config={{
-                      value: { label: "Amount" },
-                    }} className="h-[300px] w-full">
-                      <ResponsiveContainer width="100%" height={300}>
-                          <BarChart
-                              data={expenseChartData}
-                              layout="vertical"
-                              margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
-                          >
-                              <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                              <YAxis dataKey="name" type="category" tick={{ fontSize: 12 }} interval={0} width={80} />
-                              <XAxis type="number" tickFormatter={(value) => `${Number(value) / 1000}k`} />
-                              <ChartTooltip cursor={{ fill: 'hsl(var(--muted))' }} content={<ChartTooltipContent formatter={(value) => formatCurrency(value as number)} />} />
-                              <Bar dataKey="value" fill="hsl(var(--chart-1))" radius={[0, 4, 4, 0]} barSize={20} />
-                          </BarChart>
-                      </ResponsiveContainer>
-                    </ChartContainer>
-                </CardContent>
-            </Card>
-        </div>
+        <FinancialAdvice 
+          totalIncome={grandTotalIncome}
+          totalExpense={grandTotalExpense}
+          expenseByCategory={Object.fromEntries(Object.entries(monthlyReport.expenseByCategory).map(([k, v]) => [k, v.total]))}
+        />
         
         <div className="grid gap-6 md:grid-cols-2">
             <Card>
@@ -592,6 +566,7 @@ export function ReportView({ transactions, categories, accounts, isOverallSummar
     </>
   );
 }
+
 
 
 
