@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Landmark, Wallet, Coins } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
-import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, getDoc, setDoc } from "firebase/firestore";
+import { collection, query, where, onSnapshot, orderBy, doc } from "firebase/firestore";
 import type { Account, Transaction } from "@/lib/data";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AccountDetailsDialog } from "@/components/dashboard/account-details-dialog";
@@ -138,7 +138,7 @@ export function AccountBalances() {
                   <Skeleton className="h-6 w-1/4" />
                   <Skeleton className="h-4 w-1/2" />
               </CardHeader>
-              <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <CardContent className="grid gap-4 md:grid-cols-1">
                   <Skeleton className="h-24 w-full" />
                   <Skeleton className="h-24 w-full" />
                   <Skeleton className="h-24 w-full" />
@@ -155,7 +155,7 @@ export function AccountBalances() {
             <CardDescription>Click any account to see a detailed balance breakdown.</CardDescription>
         </CardHeader>
         <CardContent>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 grid-cols-1">
                  <Card className="cursor-pointer hover:bg-muted/50" onClick={() => handleAccountClick('cash-wallet')}>
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                     <CardTitle className="text-sm font-medium">Cash Wallet</CardTitle>
