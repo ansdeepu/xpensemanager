@@ -10,6 +10,24 @@ import {
   CardTitle,
   CardFooter,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter as DialogFooterComponent,
+  DialogClose,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  TableFooter,
+} from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
@@ -17,10 +35,10 @@ import type { Transaction, Category, SubCategory } from "@/lib/data";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tag, ShoppingBasket, Car, Home, Heart, BookOpen, Banknote, Briefcase, Gift, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { addMonths, subMonths, format, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import { useAuthState } from "@/hooks/use-auth-state";
+import { Badge } from "@/components/ui/badge";
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-IN", {
@@ -43,6 +61,12 @@ const iconComponents: { [key: string]: React.ComponentType<{ className?: string 
 
 const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
+type CategoryDetail = {
+  name: string;
+  total: number;
+  subcategories: { [key: string]: number };
+};
+
 export function CategoryExpenses() {
   const [user, loading] = useAuthState();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -50,12 +74,15 @@ export function CategoryExpenses() {
   const [dataLoading, setDataLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());
 
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+  const [selectedCategoryDetail, setSelectedCategoryDetail] = useState<CategoryDetail | null>(null);
+
   useEffect(() => {
     if (user && db) {
       const expenseCategoriesQuery = query(collection(db, "categories"), where("userId", "==", user.uid), where("type", "==", "expense"), orderBy("order", "asc"));
       const unsubscribeCategories = onSnapshot(expenseCategoriesQuery, (snapshot) => {
         setCategories(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category)));
-        setDataLoading(false);
+        if(dataLoading) setDataLoading(false);
       });
 
       const transactionsQuery = query(collection(db, "transactions"), where("userId", "==", user.uid), where("type", "==", "expense"));
@@ -68,9 +95,9 @@ export function CategoryExpenses() {
         unsubscribeTransactions();
       };
     } else if (!user) {
-        setDataLoading(false);
+        if(dataLoading) setDataLoading(false);
     }
-  }, [user, db]);
+  }, [user, db, dataLoading]);
 
   const monthInterval = useMemo(() => ({ start: startOfMonth(currentDate), end: endOfMonth(currentDate) }), [currentDate]);
   const currentMonthName = useMemo(() => months[currentDate.getMonth()], [currentDate]);
@@ -80,7 +107,7 @@ export function CategoryExpenses() {
 
 
   const categoryStats = useMemo(() => {
-    const stats: Record<string, { id: string; spent: number; budget: number; name: string, icon: string, subcategories: SubCategory[] }> = {};
+    const stats: Record<string, { id: string; spent: number; budget: number; name: string, icon: string, subcategories: { [key: string]: number }, subcategoryCount: number }> = {};
 
     categories.forEach(cat => {
       const categoryBudget = cat.subcategories
@@ -90,13 +117,23 @@ export function CategoryExpenses() {
         )
         .reduce((sum, sub) => sum + (sub.amount || 0), 0);
 
-      stats[cat.id] = { id: cat.id, spent: 0, budget: categoryBudget, name: cat.name, icon: cat.icon, subcategories: cat.subcategories };
+      stats[cat.id] = { 
+        id: cat.id, 
+        spent: 0, 
+        budget: categoryBudget, 
+        name: cat.name, 
+        icon: cat.icon,
+        subcategories: {},
+        subcategoryCount: cat.subcategories.length
+      };
     });
 
     monthlyTransactions.forEach(t => {
       const category = categories.find(c => c.id === t.categoryId || c.name === t.category);
       if (category && stats[category.id]) {
         stats[category.id].spent += t.amount;
+        const subCategoryName = t.subcategory || "Unspecified";
+        stats[category.id].subcategories[subCategoryName] = (stats[category.id].subcategories[subCategoryName] || 0) + t.amount;
       }
     });
     
@@ -123,6 +160,16 @@ export function CategoryExpenses() {
   const goToNextMonth = () => {
     setCurrentDate(addMonths(currentDate, 1));
   };
+  
+  const handleCategoryClick = (categoryStat: {name: string, spent: number, subcategories: { [key: string]: number }}) => {
+    setSelectedCategoryDetail({
+      name: categoryStat.name,
+      total: categoryStat.spent,
+      subcategories: categoryStat.subcategories
+    });
+    setIsDetailDialogOpen(true);
+  };
+
 
   if (loading || dataLoading) {
       return (
@@ -141,6 +188,7 @@ export function CategoryExpenses() {
   }
 
   return (
+    <>
     <Card className="h-full flex flex-col">
     <CardHeader>
         <CardTitle>Category Expenses</CardTitle>
@@ -164,24 +212,35 @@ export function CategoryExpenses() {
                 <p>No expense categories or transactions found for this month.</p>
             </div>
         ) : (
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {categoryStats.map(stat => {
                       const IconComponent = iconComponents[stat.icon] || Tag;
                       const percentage = stat.budget > 0 ? Math.min((stat.spent / stat.budget) * 100, 100) : 0;
                       return (
-                          <div key={stat.id} className="space-y-2">
-                              <div className="flex justify-between items-center">
-                                  <div className="flex items-center gap-2">
-                                      <IconComponent className="h-5 w-5 text-muted-foreground" />
-                                      <span className="font-medium">{stat.name}</span>
-                                  </div>
-                                  <div className="text-right">
-                                      <div className="font-medium">{formatCurrency(stat.spent)}</div>
-                                      {stat.budget > 0 && <div className="text-xs text-muted-foreground"> of {formatCurrency(stat.budget)}</div>}
-                                  </div>
-                              </div>
-                              {stat.budget > 0 && <Progress value={percentage} />}
-                          </div>
+                        <Card key={stat.id}>
+                            <CardHeader className="pb-2">
+                                <div className="flex justify-between items-start">
+                                    <div className="flex items-center gap-2">
+                                        <IconComponent className="h-5 w-5 text-muted-foreground" />
+                                        <span className="font-semibold">{stat.name}</span>
+                                    </div>
+                                    <Badge 
+                                      variant="secondary" 
+                                      className="cursor-pointer"
+                                      onClick={() => handleCategoryClick(stat)}
+                                    >
+                                      {stat.subcategoryCount}
+                                    </Badge>
+                                </div>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-right">
+                                    <div className="font-bold text-lg">{formatCurrency(stat.spent)}</div>
+                                    {stat.budget > 0 && <div className="text-xs text-muted-foreground"> of {formatCurrency(stat.budget)}</div>}
+                                </div>
+                                {stat.budget > 0 && <Progress value={percentage} className="mt-2" />}
+                            </CardContent>
+                        </Card>
                       )
                   })}
               </div>
@@ -207,5 +266,51 @@ export function CategoryExpenses() {
         </CardFooter>
     )}
   </Card>
+
+  <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
+    <DialogContent>
+        <DialogHeader>
+        <DialogTitle>{selectedCategoryDetail?.name} - Sub-category Breakdown</DialogTitle>
+        <DialogDescription>
+            Details of your spending in this category for {format(currentDate, "MMMM yyyy")}.
+        </DialogDescription>
+        </DialogHeader>
+        <Table>
+            <TableHeader>
+                <TableRow>
+                    <TableHead>Sub-category</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {selectedCategoryDetail && Object.keys(selectedCategoryDetail.subcategories).length > 0 ? (
+                    Object.entries(selectedCategoryDetail.subcategories)
+                    .sort(([,a],[,b]) => b - a)
+                    .map(([name, amount]) => (
+                    <TableRow key={name}>
+                        <TableCell>{name}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(amount)}</TableCell>
+                    </TableRow>
+                ))) : (
+                    <TableRow>
+                        <TableCell colSpan={2} className="text-center text-muted-foreground">No sub-category spending for this period.</TableCell>
+                    </TableRow>
+                )}
+            </TableBody>
+            <TableFooter>
+                <TableRow>
+                    <TableHead>Total</TableHead>
+                    <TableHead className="text-right">{formatCurrency(selectedCategoryDetail?.total || 0)}</TableHead>
+                </TableRow>
+            </TableFooter>
+        </Table>
+          <DialogFooterComponent>
+            <DialogClose asChild>
+                <Button type="button" variant="secondary">Close</Button>
+            </DialogClose>
+        </DialogFooterComponent>
+    </DialogContent>
+  </Dialog>
+  </>
   )
 }
