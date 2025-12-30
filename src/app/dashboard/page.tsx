@@ -2,6 +2,7 @@
 import { AccountBalances } from "@/components/dashboard/overview/account-balances";
 import { CategoryExpenses } from "@/components/dashboard/overview/category-expenses";
 import { NoticeBoard } from "@/components/dashboard/overview/notice-board";
+import { DailyBankExpenses } from "@/components/dashboard/overview/daily-bank-expenses";
 
 
 export default function DashboardPage() {
@@ -16,6 +17,7 @@ export default function DashboardPage() {
         </div>
       </div>
       <CategoryExpenses />
+      <DailyBankExpenses />
     </div>
   );
 }
