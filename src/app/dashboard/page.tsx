@@ -1,6 +1,7 @@
 
 import { AccountBalances } from "@/components/dashboard/overview/account-balances";
 import { CategoryExpenses } from "@/components/dashboard/overview/category-expenses";
+import { DateWiseExpenses } from "@/components/dashboard/overview/date-wise-expenses";
 import { NoticeBoard } from "@/components/dashboard/overview/notice-board";
 
 
@@ -16,6 +17,7 @@ export default function DashboardPage() {
         </div>
       </div>
       <CategoryExpenses />
+      <DateWiseExpenses />
     </div>
   );
 }
