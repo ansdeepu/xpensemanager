@@ -181,46 +181,48 @@ export function CurrentMonthDailyExpenses() {
     </Card>
 
     <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-      <DialogContent className="max-h-[90vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle>Expenses for {selectedDayDetail ? format(setDate(new Date(), selectedDayDetail.day), 'MMMM dd, yyyy') : ''}</DialogTitle>
-          <DialogDescription>
-            A detailed list of all expenses for this day.
-          </DialogDescription>
-        </DialogHeader>
-        <ScrollArea className="flex-1 min-h-0">
-            <Table>
-            <TableHeader className="sticky top-0 bg-background">
-                <TableRow>
-                <TableHead>Description</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-                </TableRow>
-            </TableHeader>
-            <TableBody>
-                {selectedDayDetail && selectedDayDetail.transactions.map(t => (
-                <TableRow key={t.id}>
-                    <TableCell>
-                    <p className="font-medium">{t.description}</p>
-                    <p className="text-xs text-muted-foreground">{t.category}{t.subcategory ? ` / ${t.subcategory}` : ''}</p>
-                    </TableCell>
-                    <TableCell className="text-right font-mono">{formatCurrency(t.amount)}</TableCell>
-                </TableRow>
-                ))}
-            </TableBody>
-            <TableFooter>
-                <TableRow>
-                <TableHead>Total</TableHead>
-                <TableHead className="text-right font-bold">{formatCurrency(selectedDayDetail?.total || 0)}</TableHead>
-                </TableRow>
-            </TableFooter>
-            </Table>
-        </ScrollArea>
-        <DialogFooterComponent className="mt-auto pt-4">
-          <DialogClose asChild>
-            <Button type="button" variant="secondary">Close</Button>
-          </DialogClose>
-        </DialogFooterComponent>
-      </DialogContent>
+        <DialogContent className="max-h-[80vh] flex flex-col">
+            <DialogHeader>
+            <DialogTitle>Expenses for {selectedDayDetail ? format(setDate(new Date(), selectedDayDetail.day), 'MMMM dd, yyyy') : ''}</DialogTitle>
+            <DialogDescription>
+                A detailed list of all expenses for this day.
+            </DialogDescription>
+            </DialogHeader>
+            <div className="flex-1 overflow-hidden">
+                <ScrollArea className="h-full pr-6">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                            <TableHead>Description</TableHead>
+                            <TableHead className="text-right">Amount</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {selectedDayDetail && selectedDayDetail.transactions.map(t => (
+                            <TableRow key={t.id}>
+                                <TableCell>
+                                <p className="font-medium">{t.description}</p>
+                                <p className="text-xs text-muted-foreground">{t.category}{t.subcategory ? ` / ${t.subcategory}` : ''}</p>
+                                </TableCell>
+                                <TableCell className="text-right font-mono">{formatCurrency(t.amount)}</TableCell>
+                            </TableRow>
+                            ))}
+                        </TableBody>
+                        <TableFooter>
+                            <TableRow>
+                            <TableHead>Total</TableHead>
+                            <TableHead className="text-right font-bold">{formatCurrency(selectedDayDetail?.total || 0)}</TableHead>
+                            </TableRow>
+                        </TableFooter>
+                    </Table>
+                </ScrollArea>
+            </div>
+            <DialogFooterComponent>
+            <DialogClose asChild>
+                <Button type="button" variant="secondary">Close</Button>
+            </DialogClose>
+            </DialogFooterComponent>
+        </DialogContent>
     </Dialog>
     </>
   );
