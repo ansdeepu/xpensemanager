@@ -226,15 +226,16 @@ export function CategoryExpenses() {
                                     </div>
                                     <Badge 
                                       variant="secondary" 
-                                      className="cursor-pointer"
-                                      onClick={() => handleCategoryClick(stat)}
                                     >
                                       {stat.subcategoryCount}
                                     </Badge>
                                 </div>
                             </CardHeader>
                             <CardContent>
-                                <div className="text-right">
+                                <div 
+                                  className="text-right cursor-pointer"
+                                  onClick={() => handleCategoryClick(stat)}
+                                >
                                     <div className="font-bold text-lg">{formatCurrency(stat.spent)}</div>
                                     {stat.budget > 0 && <div className="text-xs text-muted-foreground"> of {formatCurrency(stat.budget)}</div>}
                                 </div>
