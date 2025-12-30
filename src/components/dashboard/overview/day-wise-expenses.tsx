@@ -73,18 +73,19 @@ export function DayWiseExpenses() {
     if (!selectedDate) {
       return { primaryAccountExpenses: [], otherBankExpenses: [], totalPrimary: 0, totalOther: 0 };
     }
+    
+    // The input provides a date string like "2024-07-25". Create a Date object from it.
+    // This will be interpreted as midnight in the local timezone if constructed this way.
+    const [year, month, day] = selectedDate.split('-').map(Number);
+    const dateToFilter = new Date(year, month - 1, day);
 
-    // By parsing the date string directly, we get a Date object at midnight in the local timezone.
-    const dateToFilter = new Date(selectedDate);
-     // The timezoneOffset ensures that when we create the date, it is interpreted as local time, not UTC.
-    const timezoneOffset = dateToFilter.getTimezoneOffset() * 60000;
-    const adjustedDate = new Date(dateToFilter.getTime() + timezoneOffset);
-
-    const dailyTransactions = transactions.filter(t => 
-        t.type === 'expense' && 
-        t.paymentMethod === 'online' && 
-        isSameDay(parseISO(t.date), adjustedDate)
-    );
+    const dailyTransactions = transactions.filter(t => {
+        // Parse the stored ISO date string into a Date object.
+        const transactionDate = parseISO(t.date);
+        return t.type === 'expense' && 
+               t.paymentMethod === 'online' && 
+               isSameDay(transactionDate, dateToFilter);
+    });
     
     const primaryAccount = accounts.find(acc => acc.isPrimary);
     
