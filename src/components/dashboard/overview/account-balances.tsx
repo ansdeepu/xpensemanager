@@ -138,7 +138,8 @@ export function AccountBalances() {
                   <Skeleton className="h-6 w-1/4" />
                   <Skeleton className="h-4 w-1/2" />
               </CardHeader>
-              <CardContent className="grid gap-4 md:grid-cols-1">
+              <CardContent className="grid gap-4 md:grid-cols-2">
+                  <Skeleton className="h-24 w-full" />
                   <Skeleton className="h-24 w-full" />
                   <Skeleton className="h-24 w-full" />
                   <Skeleton className="h-24 w-full" />
@@ -155,34 +156,34 @@ export function AccountBalances() {
             <CardDescription>Click any account to see a detailed balance breakdown.</CardDescription>
         </CardHeader>
         <CardContent>
-            <div className="grid gap-4 grid-cols-1">
+            <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
                  <Card className="cursor-pointer hover:bg-muted/50" onClick={() => handleAccountClick('cash-wallet')}>
-                    <CardHeader className="flex flex-row items-center justify-between p-4">
-                    <CardTitle className="text-sm font-medium">Cash Wallet</CardTitle>
+                    <CardHeader className="flex flex-row items-center justify-between p-3">
+                    <CardTitle className="text-xs font-medium">Cash Wallet</CardTitle>
                     <Coins className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
-                    <CardContent className="p-4 pt-0">
-                        <div className="text-xl font-bold">{formatCurrency(cashWalletBalance)}</div>
+                    <CardContent className="p-3 pt-0">
+                        <div className="text-lg font-bold">{formatCurrency(cashWalletBalance)}</div>
                     </CardContent>
                 </Card>
                  <Card className="cursor-pointer hover:bg-muted/50" onClick={() => handleAccountClick('digital-wallet')}>
-                    <CardHeader className="flex flex-row items-center justify-between p-4">
-                    <CardTitle className="text-sm font-medium">Digital Wallet</CardTitle>
+                    <CardHeader className="flex flex-row items-center justify-between p-3">
+                    <CardTitle className="text-xs font-medium">Digital Wallet</CardTitle>
                     <Wallet className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
-                    <CardContent className="p-4 pt-0">
-                        <div className="text-xl font-bold">{formatCurrency(digitalWalletBalance)}</div>
+                    <CardContent className="p-3 pt-0">
+                        <div className="text-lg font-bold">{formatCurrency(digitalWalletBalance)}</div>
                     </CardContent>
                 </Card>
                 {accounts.map(account => {
                     return (
                      <Card key={account.id} className="cursor-pointer hover:bg-muted/50" onClick={() => handleAccountClick(account)}>
-                        <CardHeader className="flex flex-row items-center justify-between p-4">
-                        <CardTitle className="text-sm font-medium">{account.name}</CardTitle>
+                        <CardHeader className="flex flex-row items-center justify-between p-3">
+                        <CardTitle className="text-xs font-medium">{account.name}</CardTitle>
                         <Landmark className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
-                        <CardContent className="p-4 pt-0">
-                            <div className="text-xl font-bold">{formatCurrency(account.balance)}</div>
+                        <CardContent className="p-3 pt-0">
+                            <div className="text-lg font-bold">{formatCurrency(account.balance)}</div>
                         </CardContent>
                     </Card>
                 )})}
@@ -199,5 +200,3 @@ export function AccountBalances() {
     </>
   );
 }
-
-    
