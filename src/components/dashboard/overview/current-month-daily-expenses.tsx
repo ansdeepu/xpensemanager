@@ -211,13 +211,13 @@ export function CurrentMonthDailyExpenses() {
             </Table>
           </ScrollArea>
         </div>
-        <DialogFooterComponent className="pt-4 border-t">
+        <DialogFooterComponent className="pt-4 border-t flex-col items-center">
             <div className="flex justify-between w-full font-bold">
                 <span>Total</span>
                 <span>{formatCurrency(selectedDayDetail?.total || 0)}</span>
             </div>
             <DialogClose asChild>
-                <Button type="button" variant="secondary" className="mt-4 w-full">Close</Button>
+                <Button type="button" variant="secondary" size="sm" className="mt-4 w-full">Close</Button>
             </DialogClose>
         </DialogFooterComponent>
       </DialogContent>
