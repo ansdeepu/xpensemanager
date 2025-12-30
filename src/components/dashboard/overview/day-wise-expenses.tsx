@@ -70,12 +70,21 @@ export function DayWiseExpenses() {
   }, [user, db, dataLoading]);
 
   const { primaryAccountExpenses, otherBankExpenses, totalPrimary, totalOther } = useMemo(() => {
+    if (!selectedDate) {
+      return { primaryAccountExpenses: [], otherBankExpenses: [], totalPrimary: 0, totalOther: 0 };
+    }
+
+    // By parsing the date string directly, we get a Date object at midnight in the local timezone.
     const dateToFilter = new Date(selectedDate);
-    // Adjust for timezone differences
+     // The timezoneOffset ensures that when we create the date, it is interpreted as local time, not UTC.
     const timezoneOffset = dateToFilter.getTimezoneOffset() * 60000;
     const adjustedDate = new Date(dateToFilter.getTime() + timezoneOffset);
 
-    const dailyTransactions = transactions.filter(t => t.type === 'expense' && t.paymentMethod === 'online' && isSameDay(parseISO(t.date), adjustedDate));
+    const dailyTransactions = transactions.filter(t => 
+        t.type === 'expense' && 
+        t.paymentMethod === 'online' && 
+        isSameDay(parseISO(t.date), adjustedDate)
+    );
     
     const primaryAccount = accounts.find(acc => acc.isPrimary);
     

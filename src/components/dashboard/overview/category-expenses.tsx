@@ -224,11 +224,6 @@ export function CategoryExpenses() {
                                         <IconComponent className="h-5 w-5 text-muted-foreground" />
                                         <span className="font-semibold">{stat.name}</span>
                                     </div>
-                                    <Badge 
-                                      variant="secondary" 
-                                    >
-                                      {stat.subcategoryCount}
-                                    </Badge>
                                 </div>
                             </CardHeader>
                             <CardContent>
