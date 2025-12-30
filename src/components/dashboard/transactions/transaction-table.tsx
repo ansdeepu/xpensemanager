@@ -605,42 +605,30 @@ export function TransactionTable({
               className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[320px]"
             />
           </div>
-          <Popover>
-            <PopoverTrigger asChild>
-                <Button
-                id="date"
-                variant={"outline"}
-                className={cn(
-                    "w-full md:w-auto justify-start text-left font-normal flex-1",
-                    !dateRange && "text-muted-foreground"
-                )}
-                >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {dateRange?.from ? (
-                    dateRange.to ? (
-                    <>
-                        {format(dateRange.from, "LLL dd, y")} -{" "}
-                        {format(dateRange.to, "LLL dd, y")}
-                    </>
-                    ) : (
-                    format(dateRange.from, "LLL dd, y")
-                    )
-                ) : (
-                    <span>Pick a date range</span>
-                )}
-                </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="end">
-                <Calendar
-                initialFocus
-                mode="range"
-                defaultMonth={dateRange?.from}
-                selected={dateRange}
-                onSelect={setDateRange}
-                numberOfMonths={2}
-                />
-            </PopoverContent>
-          </Popover>
+          <div className="flex w-full md:w-auto items-center gap-2">
+            <Label htmlFor="from-date" className="text-sm shrink-0">Pick a date range:</Label>
+            <Input 
+                id="from-date"
+                type="date"
+                className="w-full"
+                value={dateRange?.from ? format(dateRange.from, 'yyyy-MM-dd') : ''}
+                onChange={(e) => {
+                    const newFromDate = e.target.value ? new Date(e.target.value) : undefined;
+                    setDateRange(prev => ({ from: newFromDate, to: prev?.to }))
+                }}
+            />
+             <Label htmlFor="to-date" className="sr-only">To Date</Label>
+            <Input 
+                id="to-date"
+                type="date"
+                className="w-full"
+                value={dateRange?.to ? format(dateRange.to, 'yyyy-MM-dd') : ''}
+                onChange={(e) => {
+                    const newToDate = e.target.value ? new Date(e.target.value) : undefined;
+                    setDateRange(prev => ({ from: prev?.from, to: newToDate }))
+                }}
+            />
+          </div>
           <Button onClick={handleClearFilters} variant="ghost" size="icon" className="h-10 w-10">
             <XCircle className="h-5 w-5" />
             <span className="sr-only">Clear filters</span>
@@ -663,7 +651,7 @@ export function TransactionTable({
             <DialogTrigger asChild>
               <Button className="w-full md:w-auto">
                 <PlusCircle className="mr-2 h-4 w-4" />
-                Add Transaction
+                Add
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
