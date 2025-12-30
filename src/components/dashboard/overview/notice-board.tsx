@@ -8,7 +8,7 @@ import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
 import type { Bill } from "@/lib/data";
 import { useState, useEffect } from "react";
-import { formatDistanceToNow, isAfter, subDays, isWithinInterval, startOfToday, endOfDay, addDays } from "date-fns";
+import { formatDistanceToNow, isAfter, subDays, isWithinInterval, startOfToday, endOfDay, addDays, parseISO, isValid, isBefore, addMonths, addQuarters, addYears, getYear, setYear } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -23,60 +23,74 @@ const formatCurrency = (amount: number) => {
 
 
 export function NoticeBoard() {
-  const [user] = useAuthState();
-  const [specialEvents, setSpecialEvents] = useState<Bill[]>([]);
-  const [upcomingBills, setUpcomingBills] = useState<Bill[]>([]);
+  const [user] = useAuthState(auth);
+  const [allEvents, setAllEvents] = useState<Bill[]>([]);
   const [isHovered, setIsHovered] = useState(false);
 
   useEffect(() => {
     if (user && db) {
-      const today = startOfToday();
-      const fiveDaysFromNow = addDays(today, 5);
-      const tenDaysFromNow = addDays(today, 10);
-
       const q = query(
         collection(db, "bills"),
         where("userId", "==", user.uid),
-        where("dueDate", ">=", today.toISOString()),
         orderBy("dueDate", "asc")
       );
       
       const unsubscribe = onSnapshot(q, (snapshot) => {
-        const allEvents = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Bill));
-        
-        const events = allEvents.filter(event => 
-            event.type === 'special_day' && isWithinInterval(new Date(event.dueDate), { start: today, end: fiveDaysFromNow })
-        );
-
-        const bills = allEvents.filter(event => {
-            if (event.type !== 'bill' || event.paidOn) return false;
-            // Only show bills due within the next 10 days
-            return isWithinInterval(new Date(event.dueDate), { start: today, end: tenDaysFromNow });
-        });
-
-        setSpecialEvents(events);
-        setUpcomingBills(bills);
+        const events = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Bill));
+        setAllEvents(events);
       });
       return () => unsubscribe();
     }
   }, [user, db]);
 
-  const billContent = upcomingBills.map((event, index) => {
-    return (
-      <Alert key={`${event.id}-${index}`} className="border-l-primary border-l-4">
-        <FileText className="h-4 w-4" />
-        <AlertTitle className="flex justify-between">
-          <span>{event.title}</span>
-          <span className="text-muted-foreground font-normal">
-            {formatDistanceToNow(new Date(event.dueDate), { addSuffix: true })}
-          </span>
-        </AlertTitle>
-        <AlertDescription>
-           Your payment of {formatCurrency(event.amount)} is due soon.
-        </AlertDescription>
-      </Alert>
-    );
-  });
+  const { upcomingBills, specialEvents } = useEffect(() => {
+    const today = startOfToday();
+    const tenDaysFromNow = addDays(today, 10);
+    const fiveDaysFromNow = addDays(today, 5);
+
+    const upcomingBills: { event: Bill, nextDueDate: Date }[] = [];
+    const specialEvents: { event: Bill, celebrationDate: Date }[] = [];
+
+    allEvents.forEach(event => {
+      const originalDueDate = parseISO(event.dueDate);
+      if (!isValid(originalDueDate)) return;
+
+      if (event.type === 'bill') {
+        if (event.recurrence === 'occasional' || event.recurrence === 'none') {
+            if (!event.paidOn && isWithinInterval(originalDueDate, { start: today, end: tenDaysFromNow })) {
+                upcomingBills.push({ event, nextDueDate: originalDueDate });
+            }
+        } else { // Recurring bills
+            let nextDueDate = originalDueDate;
+            while (isBefore(nextDueDate, today)) {
+                switch(event.recurrence) {
+                    case 'monthly': nextDueDate = addMonths(nextDueDate, 1); break;
+                    case 'quarterly': nextDueDate = addQuarters(nextDueDate, 1); break;
+                    case 'yearly': nextDueDate = addYears(nextDueDate, 1); break;
+                }
+            }
+            if (isWithinInterval(nextDueDate, { start: today, end: tenDaysFromNow })) {
+                upcomingBills.push({ event, nextDueDate });
+            }
+        }
+      } else if (event.type === 'special_day') {
+          const currentYear = getYear(today);
+          let celebrationDate = setYear(originalDueDate, currentYear);
+          if (isBefore(celebrationDate, today)) {
+              celebrationDate = addYears(celebrationDate, 1);
+          }
+          if (isWithinInterval(celebrationDate, { start: today, end: fiveDaysFromNow })) {
+              specialEvents.push({ event, celebrationDate });
+          }
+      }
+    });
+    
+    upcomingBills.sort((a,b) => a.nextDueDate.getTime() - b.nextDueDate.getTime());
+    specialEvents.sort((a,b) => a.celebrationDate.getTime() - b.celebrationDate.getTime());
+
+    return { upcomingBills, specialEvents };
+  }, [allEvents]);
+
 
   return (
     <Card className="h-full flex flex-col">
@@ -95,13 +109,13 @@ export function NoticeBoard() {
             <ScrollArea className="flex-1 pt-2 pr-4">
                 {specialEvents.length > 0 ? (
                     <div className="space-y-2">
-                        {specialEvents.map(event => (
+                        {specialEvents.map(({ event, celebrationDate }) => (
                             <Alert key={event.id} variant="default" className="bg-amber-50 border-amber-200">
                                 <CalendarIcon className="h-4 w-4 text-amber-600" />
                                 <AlertTitle className="text-amber-800 flex justify-between">
                                 <span>{event.title}</span>
                                 <span className="text-amber-700 font-normal">
-                                    {formatDistanceToNow(new Date(event.dueDate), { addSuffix: true })}
+                                    {formatDistanceToNow(celebrationDate, { addSuffix: true })}
                                 </span>
                                 </AlertTitle>
                                 <AlertDescription className="text-amber-700">
@@ -127,7 +141,20 @@ export function NoticeBoard() {
                 {upcomingBills.length > 0 ? (
                     <ScrollArea className="h-full pr-4">
                         <div className="space-y-4">
-                        {billContent}
+                          {upcomingBills.map(({ event, nextDueDate }) => (
+                            <Alert key={event.id} className="border-l-primary border-l-4">
+                              <FileText className="h-4 w-4" />
+                              <AlertTitle className="flex justify-between">
+                                <span>{event.title}</span>
+                                <span className="text-muted-foreground font-normal">
+                                  {formatDistanceToNow(nextDueDate, { addSuffix: true })}
+                                </span>
+                              </AlertTitle>
+                              <AlertDescription>
+                                 Your payment of {formatCurrency(event.amount)} is due soon.
+                              </AlertDescription>
+                            </Alert>
+                          ))}
                         </div>
                     </ScrollArea>
                 ) : (
