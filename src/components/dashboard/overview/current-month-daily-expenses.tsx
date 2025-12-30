@@ -10,22 +10,14 @@ import {
   CardTitle,
   CardFooter,
 } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import type { Transaction } from "@/lib/data";
 import { Skeleton } from "@/components/ui/skeleton";
-import { format, startOfMonth, endOfMonth, isWithinInterval, getDate, getMonth, getYear } from "date-fns";
+import { format, startOfMonth, endOfMonth, isWithinInterval, getDaysInMonth } from "date-fns";
 import { useAuthState } from "@/hooks/use-auth-state";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Coins } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-IN", {
@@ -68,13 +60,17 @@ export function CurrentMonthDailyExpenses() {
 
     const expensesByDay: { [day: number]: number } = {};
     expensesForMonth.forEach(t => {
-      const dayOfMonth = getDate(new Date(t.date));
+      const dayOfMonth = new Date(t.date).getDate();
       expensesByDay[dayOfMonth] = (expensesByDay[dayOfMonth] || 0) + t.amount;
     });
 
-    return Object.entries(expensesByDay)
-      .map(([day, total]) => ({ day: parseInt(day, 10), total }))
-      .sort((a, b) => a.day - b.day);
+    const daysInMonth = getDaysInMonth(today);
+    const result = [];
+    for (let i = 1; i <= daysInMonth; i++) {
+        result.push({ day: i, total: expensesByDay[i] || 0 });
+    }
+
+    return result;
   }, [transactions]);
 
   const grandTotal = useMemo(() => {
@@ -104,33 +100,23 @@ export function CurrentMonthDailyExpenses() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {dailyExpenses.length === 0 ? (
+        {grandTotal === 0 ? (
           <div className="text-center text-muted-foreground py-10 flex flex-col items-center">
             <Coins className="h-10 w-10 mb-2"/>
             <p>No expenses recorded for this month yet.</p>
           </div>
         ) : (
-          <ScrollArea className="h-72">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead className="text-right">Total Expense</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                 {dailyExpenses.map(({ day, total }) => (
-                  <TableRow key={day}>
-                    <TableCell className="font-medium">{format(new Date(getYear(new Date()), getMonth(new Date()), day), 'MMMM dd, yyyy')}</TableCell>
-                    <TableCell className="text-right font-mono">{formatCurrency(total)}</TableCell>
-                  </TableRow>
+                    <div key={day} className={cn("flex justify-between items-center p-2 rounded-md", total > 0 ? "bg-muted/50" : "bg-transparent")}>
+                        <span className="text-sm font-medium text-muted-foreground">{day}</span>
+                        <span className={cn("text-sm font-mono", total > 0 ? "text-foreground font-semibold" : "text-muted-foreground")}>{formatCurrency(total)}</span>
+                    </div>
                 ))}
-              </TableBody>
-            </Table>
-          </ScrollArea>
+            </div>
         )}
       </CardContent>
-      {dailyExpenses.length > 0 && (
+      {grandTotal > 0 && (
          <CardFooter className="pt-6 border-t">
             <div className="flex justify-between items-center w-full font-bold text-lg">
                 <span>Month Total</span>
