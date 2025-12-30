@@ -23,10 +23,12 @@ import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
 import type { Transaction, Account } from "@/lib/data";
 import { Skeleton } from "@/components/ui/skeleton";
-import { isToday, parseISO } from "date-fns";
+import { isSameDay, parseISO, format } from "date-fns";
 import { useAuthState } from "@/hooks/use-auth-state";
-import { Banknote, Landmark, BadgeCheck } from "lucide-react";
+import { Banknote, BadgeCheck } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-IN", {
@@ -35,11 +37,12 @@ const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
-export function DailyBankExpenses() {
+export function DayWiseExpenses() {
   const [user, userLoading] = useAuthState();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
 
   useEffect(() => {
     if (user && db) {
@@ -67,7 +70,12 @@ export function DailyBankExpenses() {
   }, [user, db, dataLoading]);
 
   const { primaryAccountExpenses, otherBankExpenses, totalPrimary, totalOther } = useMemo(() => {
-    const dailyTransactions = transactions.filter(t => t.type === 'expense' && t.paymentMethod === 'online' && isToday(parseISO(t.date)));
+    const dateToFilter = new Date(selectedDate);
+    // Adjust for timezone differences
+    const timezoneOffset = dateToFilter.getTimezoneOffset() * 60000;
+    const adjustedDate = new Date(dateToFilter.getTime() + timezoneOffset);
+
+    const dailyTransactions = transactions.filter(t => t.type === 'expense' && t.paymentMethod === 'online' && isSameDay(parseISO(t.date), adjustedDate));
     
     const primaryAccount = accounts.find(acc => acc.isPrimary);
     
@@ -94,7 +102,7 @@ export function DailyBankExpenses() {
     
     return { primaryAccountExpenses, otherBankExpenses, totalPrimary, totalOther };
 
-  }, [transactions, accounts]);
+  }, [transactions, accounts, selectedDate]);
 
   if (userLoading || dataLoading) {
     return (
@@ -117,11 +125,25 @@ export function DailyBankExpenses() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-            <Banknote />
-            Daily Bank Expenses
-        </CardTitle>
-        <CardDescription>A summary of today's expenses from your bank accounts.</CardDescription>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+                <CardTitle className="flex items-center gap-2">
+                    <Banknote />
+                    Day-wise Bank Expenses
+                </CardTitle>
+                <CardDescription>Select a date to view expenses from your bank accounts.</CardDescription>
+            </div>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+                <Label htmlFor="expense-date" className="sr-only">Select Date</Label>
+                <Input 
+                    id="expense-date"
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="w-full sm:w-auto"
+                />
+            </div>
+        </div>
       </CardHeader>
       <CardContent>
         {hasAnyExpenses ? (
@@ -195,7 +217,7 @@ export function DailyBankExpenses() {
         ) : (
             <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-24">
                 <BadgeCheck className="h-8 w-8 mb-2 text-green-500" />
-                <p>No bank expenses recorded for today.</p>
+                <p>No bank expenses recorded for the selected date.</p>
             </div>
         )}
       </CardContent>
