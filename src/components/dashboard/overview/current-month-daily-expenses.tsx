@@ -37,6 +37,7 @@ import { useAuthState } from "@/hooks/use-auth-state";
 import { Coins } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-IN", {
@@ -150,22 +151,18 @@ export function CurrentMonthDailyExpenses() {
             <p>No expenses recorded for this month yet.</p>
           </div>
         ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                 {dailyExpenses.map((detail) => (
-                    <Card key={detail.day} className="flex flex-col">
-                        <CardHeader className="flex flex-row items-center justify-between p-3">
-                            <CardTitle className="text-sm font-medium">Date</CardTitle>
-                            <span className="text-sm font-semibold">{format(setDate(new Date(), detail.day), 'dd MMM')}</span>
+                    <Card key={detail.day} className="flex flex-col text-center">
+                        <CardHeader className="flex flex-row items-center justify-center p-3">
+                            <CardTitle className="text-xl font-bold">{detail.day}</CardTitle>
                         </CardHeader>
                          <CardContent className="p-3 pt-0 flex-1">
-                             <div className="flex flex-col items-end">
-                                <div className="text-xs text-muted-foreground">Expense</div>
-                                <div 
-                                    className={cn("text-lg font-bold", detail.total > 0 && "cursor-pointer hover:underline")}
-                                    onClick={() => handleDayClick(detail)}
-                                >
-                                    {formatCurrency(detail.total)}
-                                </div>
+                             <div 
+                                className={cn("text-lg font-bold", detail.total > 0 && "cursor-pointer hover:underline")}
+                                onClick={() => handleDayClick(detail)}
+                            >
+                                {formatCurrency(detail.total)}
                             </div>
                         </CardContent>
                     </Card>
@@ -184,39 +181,41 @@ export function CurrentMonthDailyExpenses() {
     </Card>
 
     <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Expenses for {selectedDayDetail ? format(setDate(new Date(), selectedDayDetail.day), 'MMMM dd, yyyy') : ''}</DialogTitle>
           <DialogDescription>
             A detailed list of all expenses for this day.
           </DialogDescription>
         </DialogHeader>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Description</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {selectedDayDetail && selectedDayDetail.transactions.map(t => (
-              <TableRow key={t.id}>
-                <TableCell>
-                  <p className="font-medium">{t.description}</p>
-                  <p className="text-xs text-muted-foreground">{t.category}{t.subcategory ? ` / ${t.subcategory}` : ''}</p>
-                </TableCell>
-                <TableCell className="text-right font-mono">{formatCurrency(t.amount)}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-          <TableFooter>
-            <TableRow>
-              <TableHead>Total</TableHead>
-              <TableHead className="text-right font-bold">{formatCurrency(selectedDayDetail?.total || 0)}</TableHead>
-            </TableRow>
-          </TableFooter>
-        </Table>
-        <DialogFooterComponent>
+        <ScrollArea className="flex-1 min-h-0">
+            <Table>
+            <TableHeader className="sticky top-0 bg-background">
+                <TableRow>
+                <TableHead>Description</TableHead>
+                <TableHead className="text-right">Amount</TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {selectedDayDetail && selectedDayDetail.transactions.map(t => (
+                <TableRow key={t.id}>
+                    <TableCell>
+                    <p className="font-medium">{t.description}</p>
+                    <p className="text-xs text-muted-foreground">{t.category}{t.subcategory ? ` / ${t.subcategory}` : ''}</p>
+                    </TableCell>
+                    <TableCell className="text-right font-mono">{formatCurrency(t.amount)}</TableCell>
+                </TableRow>
+                ))}
+            </TableBody>
+            <TableFooter>
+                <TableRow>
+                <TableHead>Total</TableHead>
+                <TableHead className="text-right font-bold">{formatCurrency(selectedDayDetail?.total || 0)}</TableHead>
+                </TableRow>
+            </TableFooter>
+            </Table>
+        </ScrollArea>
+        <DialogFooterComponent className="mt-auto pt-4">
           <DialogClose asChild>
             <Button type="button" variant="secondary">Close</Button>
           </DialogClose>
