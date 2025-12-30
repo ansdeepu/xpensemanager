@@ -79,7 +79,7 @@ export function NoticeBoard() {
   });
 
   return (
-    <Card className="lg:col-span-3 h-[900px] flex flex-col">
+    <Card className="h-full flex flex-col">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Bell className="h-6 w-6" />
@@ -89,10 +89,10 @@ export function NoticeBoard() {
       </CardHeader>
       <CardContent className="flex-1 min-h-0 flex flex-col gap-4">
         {/* Special Events Section */}
-        <div className="h-[250px] flex flex-col">
+        <div className="h-1/2 flex flex-col">
             <h3 className="text-lg font-semibold flex items-center gap-2 mb-2"><Gift className="h-5 w-5 text-amber-500" />Upcoming Special Events</h3>
             <Separator />
-            <div className="flex-1 pt-2">
+            <ScrollArea className="flex-1 pt-2 pr-4">
                 {specialEvents.length > 0 ? (
                     <div className="space-y-2">
                         {specialEvents.map(event => (
@@ -116,7 +116,7 @@ export function NoticeBoard() {
                         <p>No special events in the next 5 days.</p>
                     </div>
                 )}
-            </div>
+            </ScrollArea>
         </div>
 
         {/* Upcoming Bills Section */}
