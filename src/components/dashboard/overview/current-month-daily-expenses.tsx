@@ -188,8 +188,8 @@ export function CurrentMonthDailyExpenses() {
             A detailed list of all expenses for this day.
           </DialogDescription>
         </DialogHeader>
-        <div className="flex-1 min-h-0">
-          <ScrollArea className="h-full pr-6">
+        <div className="flex-1 overflow-y-auto -mx-6 px-6">
+          <ScrollArea className="h-full pr-2">
             <Table>
               <TableHeader className="sticky top-0 bg-background">
                 <TableRow>
@@ -208,19 +208,17 @@ export function CurrentMonthDailyExpenses() {
                   </TableRow>
                 ))}
               </TableBody>
-              <TableFooter className="sticky bottom-0 bg-background">
-                <TableRow>
-                  <TableHead>Total</TableHead>
-                  <TableHead className="text-right font-bold">{formatCurrency(selectedDayDetail?.total || 0)}</TableHead>
-                </TableRow>
-              </TableFooter>
             </Table>
           </ScrollArea>
         </div>
-        <DialogFooterComponent className="pt-4">
-          <DialogClose asChild>
-            <Button type="button" variant="secondary">Close</Button>
-          </DialogClose>
+        <DialogFooterComponent className="pt-4 border-t">
+            <div className="flex justify-between w-full font-bold">
+                <span>Total</span>
+                <span>{formatCurrency(selectedDayDetail?.total || 0)}</span>
+            </div>
+            <DialogClose asChild>
+                <Button type="button" variant="secondary" className="mt-4 w-full">Close</Button>
+            </DialogClose>
         </DialogFooterComponent>
       </DialogContent>
     </Dialog>
