@@ -180,46 +180,44 @@ export function CurrentMonthDailyExpenses() {
     </Card>
 
     <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-        <DialogContent className="max-h-[80vh] flex flex-col">
-            <DialogHeader>
-            <DialogTitle>Expenses for {selectedDayDetail ? format(setDate(new Date(), selectedDayDetail.day), 'MMMM dd, yyyy') : ''}</DialogTitle>
-            <DialogDescription>
-                A detailed list of all expenses for this day.
-            </DialogDescription>
-            </DialogHeader>
-            <div className="flex-1 min-h-0">
-            <ScrollArea className="h-full pr-4">
-                <Table>
-                <TableHeader className="sticky top-0 bg-background">
-                    <TableRow>
-                    <TableHead>Description</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {selectedDayDetail && selectedDayDetail.transactions.map(t => (
-                    <TableRow key={t.id}>
-                        <TableCell>
-                        <p className="font-medium">{t.description}</p>
-                        <p className="text-xs text-muted-foreground">{t.category}{t.subcategory ? ` / ${t.subcategory}` : ''}</p>
-                        </TableCell>
-                        <TableCell className="text-right font-mono">{formatCurrency(t.amount)}</TableCell>
-                    </TableRow>
-                    ))}
-                </TableBody>
-                </Table>
-            </ScrollArea>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Expenses for {selectedDayDetail ? format(setDate(new Date(), selectedDayDetail.day), 'MMMM dd, yyyy') : ''}</DialogTitle>
+          <DialogDescription>
+            A detailed list of all expenses for this day.
+          </DialogDescription>
+        </DialogHeader>
+        <ScrollArea className="h-72 w-full pr-4">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Description</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {selectedDayDetail && selectedDayDetail.transactions.map(t => (
+                  <TableRow key={t.id}>
+                    <TableCell>
+                      <p className="font-medium">{t.description}</p>
+                      <p className="text-xs text-muted-foreground">{t.category}{t.subcategory ? ` / ${t.subcategory}` : ''}</p>
+                    </TableCell>
+                    <TableCell className="text-right font-mono">{formatCurrency(t.amount)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+        </ScrollArea>
+        <DialogFooterComponent className="sm:justify-between items-center pt-4 border-t">
+            <div className="flex justify-between w-full font-bold text-lg">
+                <span>Total</span>
+                <span>{formatCurrency(selectedDayDetail?.total || 0)}</span>
             </div>
-            <DialogFooterComponent className="pt-4 border-t">
-                <div className="flex justify-between w-full font-bold text-lg">
-                    <span>Total</span>
-                    <span>{formatCurrency(selectedDayDetail?.total || 0)}</span>
-                </div>
-                 <DialogClose asChild>
-                    <Button type="button" variant="secondary" size="sm" className="mt-2 w-full sm:w-auto">Close</Button>
-                </DialogClose>
-            </DialogFooterComponent>
-        </DialogContent>
+            <DialogClose asChild>
+                <Button type="button" variant="secondary" size="sm">Close</Button>
+            </DialogClose>
+        </DialogFooterComponent>
+      </DialogContent>
     </Dialog>
     </>
   );
