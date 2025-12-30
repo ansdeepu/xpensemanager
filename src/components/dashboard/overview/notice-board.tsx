@@ -101,40 +101,9 @@ export function NoticeBoard() {
         </CardTitle>
         <CardDescription>A feed of your upcoming bills and special events.</CardDescription>
       </CardHeader>
-      <CardContent className="flex-1 min-h-0 flex flex-col gap-4">
-        {/* Special Events Section */}
-        <div className="h-1/2 flex flex-col">
-            <h3 className="text-lg font-semibold flex items-center gap-2 mb-2"><Gift className="h-5 w-5 text-amber-500" />Upcoming Special Events</h3>
-            <Separator />
-            <ScrollArea className="flex-1 pt-2 pr-4">
-                {specialEvents.length > 0 ? (
-                    <div className="space-y-2">
-                        {specialEvents.map(({ event, celebrationDate }) => (
-                            <Alert key={event.id} variant="default" className="bg-amber-50 border-amber-200">
-                                <CalendarIcon className="h-4 w-4 text-amber-600" />
-                                <AlertTitle className="text-amber-800 flex justify-between">
-                                <span>{event.title}</span>
-                                <span className="text-amber-700 font-normal">
-                                    {formatDistanceToNow(celebrationDate, { addSuffix: true })}
-                                </span>
-                                </AlertTitle>
-                                <AlertDescription className="text-amber-700">
-                                    This special day is just around the corner!
-                                </AlertDescription>
-                            </Alert>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-full">
-                        <BadgeCheck className="h-8 w-8 mb-2 text-green-500" />
-                        <p>No special events in the next 5 days.</p>
-                    </div>
-                )}
-            </ScrollArea>
-        </div>
-
+      <CardContent className="flex-1 min-h-0 flex flex-col lg:flex-row gap-6">
         {/* Upcoming Bills Section */}
-        <div className="flex-1 min-h-0 flex flex-col">
+        <div className="lg:w-1/2 flex flex-col">
             <h3 className="text-lg font-semibold flex items-center gap-2 mb-2"><FileText className="h-5 w-5 text-primary" />Upcoming Bills</h3>
             <Separator />
              <div className="flex-1 pt-2 min-h-0">
@@ -164,6 +133,40 @@ export function NoticeBoard() {
                     </div>
                 )}
             </div>
+        </div>
+
+        <Separator orientation="vertical" className="hidden lg:block mx-3" />
+        <Separator className="lg:hidden" />
+
+        {/* Special Events Section */}
+        <div className="lg:w-1/2 flex flex-col">
+            <h3 className="text-lg font-semibold flex items-center gap-2 mb-2"><Gift className="h-5 w-5 text-amber-500" />Upcoming Special Events</h3>
+            <Separator />
+            <ScrollArea className="flex-1 pt-2 pr-4">
+                {specialEvents.length > 0 ? (
+                    <div className="space-y-2">
+                        {specialEvents.map(({ event, celebrationDate }) => (
+                            <Alert key={event.id} variant="default" className="bg-amber-50 border-amber-200">
+                                <CalendarIcon className="h-4 w-4 text-amber-600" />
+                                <AlertTitle className="text-amber-800 flex justify-between">
+                                <span>{event.title}</span>
+                                <span className="text-amber-700 font-normal">
+                                    {formatDistanceToNow(celebrationDate, { addSuffix: true })}
+                                </span>
+                                </AlertTitle>
+                                <AlertDescription className="text-amber-700">
+                                    This special day is just around the corner!
+                                </AlertDescription>
+                            </Alert>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-full">
+                        <BadgeCheck className="h-8 w-8 mb-2 text-green-500" />
+                        <p>No special events in the next 5 days.</p>
+                    </div>
+                )}
+            </ScrollArea>
         </div>
       </CardContent>
     </Card>
