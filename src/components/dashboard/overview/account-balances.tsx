@@ -157,32 +157,32 @@ export function AccountBalances() {
         <CardContent>
             <div className="grid gap-4 grid-cols-1">
                  <Card className="cursor-pointer hover:bg-muted/50" onClick={() => handleAccountClick('cash-wallet')}>
-                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardHeader className="flex flex-row items-center justify-between p-4">
                     <CardTitle className="text-sm font-medium">Cash Wallet</CardTitle>
                     <Coins className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{formatCurrency(cashWalletBalance)}</div>
+                    <CardContent className="p-4 pt-0">
+                        <div className="text-xl font-bold">{formatCurrency(cashWalletBalance)}</div>
                     </CardContent>
                 </Card>
                  <Card className="cursor-pointer hover:bg-muted/50" onClick={() => handleAccountClick('digital-wallet')}>
-                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardHeader className="flex flex-row items-center justify-between p-4">
                     <CardTitle className="text-sm font-medium">Digital Wallet</CardTitle>
                     <Wallet className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{formatCurrency(digitalWalletBalance)}</div>
+                    <CardContent className="p-4 pt-0">
+                        <div className="text-xl font-bold">{formatCurrency(digitalWalletBalance)}</div>
                     </CardContent>
                 </Card>
                 {accounts.map(account => {
                     return (
                      <Card key={account.id} className="cursor-pointer hover:bg-muted/50" onClick={() => handleAccountClick(account)}>
-                        <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardHeader className="flex flex-row items-center justify-between p-4">
                         <CardTitle className="text-sm font-medium">{account.name}</CardTitle>
                         <Landmark className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{formatCurrency(account.balance)}</div>
+                        <CardContent className="p-4 pt-0">
+                            <div className="text-xl font-bold">{formatCurrency(account.balance)}</div>
                         </CardContent>
                     </Card>
                 )})}
@@ -199,3 +199,5 @@ export function AccountBalances() {
     </>
   );
 }
+
+    
