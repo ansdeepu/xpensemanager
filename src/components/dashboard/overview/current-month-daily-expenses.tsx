@@ -10,14 +10,33 @@ import {
   CardTitle,
   CardFooter,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter as DialogFooterComponent,
+  DialogClose,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  TableFooter,
+} from "@/components/ui/table";
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import type { Transaction } from "@/lib/data";
 import { Skeleton } from "@/components/ui/skeleton";
-import { format, startOfMonth, endOfMonth, isWithinInterval, getDaysInMonth } from "date-fns";
+import { format, startOfMonth, endOfMonth, isWithinInterval, getDaysInMonth, setDate, isSameDay } from "date-fns";
 import { useAuthState } from "@/hooks/use-auth-state";
 import { Coins } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-IN", {
@@ -26,10 +45,18 @@ const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
+type DailyDetail = {
+    day: number;
+    total: number;
+    transactions: Transaction[];
+}
+
 export function CurrentMonthDailyExpenses() {
   const [user, userLoading] = useAuthState();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+  const [selectedDayDetail, setSelectedDayDetail] = useState<DailyDetail | null>(null);
 
   useEffect(() => {
     if (user && db) {
@@ -58,16 +85,24 @@ export function CurrentMonthDailyExpenses() {
         isWithinInterval(new Date(t.date), { start: monthStart, end: monthEnd })
     );
 
-    const expensesByDay: { [day: number]: number } = {};
+    const expensesByDay: { [day: number]: { total: number, transactions: Transaction[]} } = {};
     expensesForMonth.forEach(t => {
       const dayOfMonth = new Date(t.date).getDate();
-      expensesByDay[dayOfMonth] = (expensesByDay[dayOfMonth] || 0) + t.amount;
+      if (!expensesByDay[dayOfMonth]) {
+          expensesByDay[dayOfMonth] = { total: 0, transactions: [] };
+      }
+      expensesByDay[dayOfMonth].total += t.amount;
+      expensesByDay[dayOfMonth].transactions.push(t);
     });
 
     const daysInMonth = getDaysInMonth(today);
-    const result = [];
+    const result: DailyDetail[] = [];
     for (let i = 1; i <= daysInMonth; i++) {
-        result.push({ day: i, total: expensesByDay[i] || 0 });
+        result.push({ 
+            day: i, 
+            total: expensesByDay[i]?.total || 0,
+            transactions: expensesByDay[i]?.transactions || []
+        });
     }
 
     return result;
@@ -76,6 +111,14 @@ export function CurrentMonthDailyExpenses() {
   const grandTotal = useMemo(() => {
     return dailyExpenses.reduce((sum, item) => sum + item.total, 0);
   }, [dailyExpenses]);
+
+  const handleDayClick = (dayDetail: DailyDetail) => {
+    if (dayDetail.total > 0) {
+      setSelectedDayDetail(dayDetail);
+      setIsDetailDialogOpen(true);
+    }
+  };
+
 
   if (userLoading || dataLoading) {
     return (
@@ -92,6 +135,7 @@ export function CurrentMonthDailyExpenses() {
   }
 
   return (
+    <>
     <Card>
       <CardHeader>
         <CardTitle>Current Month's Daily Expenses</CardTitle>
@@ -106,12 +150,25 @@ export function CurrentMonthDailyExpenses() {
             <p>No expenses recorded for this month yet.</p>
           </div>
         ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                {dailyExpenses.map(({ day, total }) => (
-                    <div key={day} className={cn("flex justify-between items-center p-2 rounded-md", total > 0 ? "bg-muted/50" : "bg-transparent")}>
-                        <span className="text-sm font-medium text-muted-foreground">{day}</span>
-                        <span className={cn("text-sm font-mono", total > 0 ? "text-foreground font-semibold" : "text-muted-foreground")}>{formatCurrency(total)}</span>
-                    </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                {dailyExpenses.map((detail) => (
+                    <Card key={detail.day} className="flex flex-col">
+                        <CardHeader className="flex flex-row items-center justify-between p-3">
+                            <CardTitle className="text-sm font-medium">Date</CardTitle>
+                            <span className="text-sm font-semibold">{format(setDate(new Date(), detail.day), 'dd MMM')}</span>
+                        </CardHeader>
+                         <CardContent className="p-3 pt-0 flex-1">
+                             <div className="flex flex-col items-end">
+                                <div className="text-xs text-muted-foreground">Expense</div>
+                                <div 
+                                    className={cn("text-lg font-bold", detail.total > 0 && "cursor-pointer hover:underline")}
+                                    onClick={() => handleDayClick(detail)}
+                                >
+                                    {formatCurrency(detail.total)}
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
                 ))}
             </div>
         )}
@@ -125,5 +182,47 @@ export function CurrentMonthDailyExpenses() {
         </CardFooter>
       )}
     </Card>
+
+    <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Expenses for {selectedDayDetail ? format(setDate(new Date(), selectedDayDetail.day), 'MMMM dd, yyyy') : ''}</DialogTitle>
+          <DialogDescription>
+            A detailed list of all expenses for this day.
+          </DialogDescription>
+        </DialogHeader>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Description</TableHead>
+              <TableHead className="text-right">Amount</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {selectedDayDetail && selectedDayDetail.transactions.map(t => (
+              <TableRow key={t.id}>
+                <TableCell>
+                  <p className="font-medium">{t.description}</p>
+                  <p className="text-xs text-muted-foreground">{t.category}{t.subcategory ? ` / ${t.subcategory}` : ''}</p>
+                </TableCell>
+                <TableCell className="text-right font-mono">{formatCurrency(t.amount)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+          <TableFooter>
+            <TableRow>
+              <TableHead>Total</TableHead>
+              <TableHead className="text-right font-bold">{formatCurrency(selectedDayDetail?.total || 0)}</TableHead>
+            </TableRow>
+          </TableFooter>
+        </Table>
+        <DialogFooterComponent>
+          <DialogClose asChild>
+            <Button type="button" variant="secondary">Close</Button>
+          </DialogClose>
+        </DialogFooterComponent>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

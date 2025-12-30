@@ -18,8 +18,8 @@ export default function DashboardPage() {
         </div>
       </div>
       <CategoryExpenses />
-      <DateWiseExpenses />
       <CurrentMonthDailyExpenses />
+      <DateWiseExpenses />
     </div>
   );
 }
