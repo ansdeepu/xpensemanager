@@ -7,7 +7,7 @@ import { Bell, FileText, BadgeCheck, Gift, Calendar as CalendarIcon } from "luci
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
 import type { Bill } from "@/lib/data";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { formatDistanceToNow, isAfter, subDays, isWithinInterval, startOfToday, endOfDay, addDays, parseISO, isValid, isBefore, addMonths, addQuarters, addYears, getYear, setYear } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -43,7 +43,7 @@ export function NoticeBoard() {
     }
   }, [user, db]);
 
-  const { upcomingBills, specialEvents } = useEffect(() => {
+  const { upcomingBills, specialEvents } = useMemo(() => {
     const today = startOfToday();
     const tenDaysFromNow = addDays(today, 10);
     const fiveDaysFromNow = addDays(today, 5);
@@ -56,7 +56,7 @@ export function NoticeBoard() {
       if (!isValid(originalDueDate)) return;
 
       if (event.type === 'bill') {
-        if (event.recurrence === 'occasional' || event.recurrence === 'none') {
+        if (event.recurrence === 'occasional' || event.recurrence === 'none' || !event.recurrence) {
             if (!event.paidOn && isWithinInterval(originalDueDate, { start: today, end: tenDaysFromNow })) {
                 upcomingBills.push({ event, nextDueDate: originalDueDate });
             }
