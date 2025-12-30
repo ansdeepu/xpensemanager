@@ -4,7 +4,7 @@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Bell, FileText, BadgeCheck, Gift, Calendar as CalendarIcon } from "lucide-react";
-import { auth, db } from "@/lib/firebase";
+import { db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
 import type { Bill } from "@/lib/data";
 import { useState, useEffect, useMemo } from "react";
@@ -23,7 +23,7 @@ const formatCurrency = (amount: number) => {
 
 
 export function NoticeBoard() {
-  const [user] = useAuthState(auth);
+  const [user] = useAuthState();
   const [allEvents, setAllEvents] = useState<Bill[]>([]);
   const [isHovered, setIsHovered] = useState(false);
 
