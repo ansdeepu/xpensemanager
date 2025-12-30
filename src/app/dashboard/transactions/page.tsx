@@ -200,7 +200,7 @@ export default function TransactionsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-end p-2 rounded-md border bg-card text-card-foreground shadow-sm">
+      <div className="flex justify-start p-2 rounded-md border bg-card text-card-foreground shadow-sm">
         <div className="flex items-center gap-2">
           <CalendarIcon className="h-5 w-5 text-red-600" />
           <Label htmlFor="reconciliation-date" className="text-sm font-bold text-red-600 flex-shrink-0">Reconciliation Date:</Label>
@@ -407,3 +407,5 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+    
