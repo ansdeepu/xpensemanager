@@ -74,13 +74,10 @@ export function DayWiseExpenses() {
       return { primaryAccountExpenses: [], otherBankExpenses: [], totalPrimary: 0, totalOther: 0 };
     }
     
-    // The input provides a date string like "2024-07-25". Create a Date object from it.
-    // This will be interpreted as midnight in the local timezone if constructed this way.
     const [year, month, day] = selectedDate.split('-').map(Number);
     const dateToFilter = new Date(year, month - 1, day);
 
     const dailyTransactions = transactions.filter(t => {
-        // Parse the stored ISO date string into a Date object.
         const transactionDate = parseISO(t.date);
         return t.type === 'expense' && 
                t.paymentMethod === 'online' && 
