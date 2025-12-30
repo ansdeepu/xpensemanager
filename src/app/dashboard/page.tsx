@@ -6,13 +6,15 @@ import { NoticeBoard } from "@/components/dashboard/overview/notice-board";
 export default function DashboardPage() {
   return (
     <div className="flex flex-col gap-6">
-      <AccountBalances />
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
-        <CategoryExpenses />
-        <div className="lg:col-span-3 flex flex-col gap-6">
-          <NoticeBoard />
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+           <AccountBalances />
+        </div>
+        <div className="lg:col-span-1">
+           <NoticeBoard />
         </div>
       </div>
+      <CategoryExpenses />
     </div>
   );
 }

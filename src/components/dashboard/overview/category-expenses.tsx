@@ -169,7 +169,7 @@ export function CategoryExpenses() {
 
   if (loading || dataLoading) {
       return (
-          <Card className="lg:col-span-4 h-full">
+          <Card>
               <CardHeader>
                   <Skeleton className="h-6 w-1/4" />
                   <Skeleton className="h-4 w-1/2" />
@@ -183,129 +183,9 @@ export function CategoryExpenses() {
       )
   }
 
-  const renderContent = () => {
-    switch (view) {
-        case 'category-details': {
-            const IconComponent = selectedCategory ? iconComponents[selectedCategory.icon] || Tag : Tag;
-            const categoryTotalSpent = subCategoryStats.reduce((sum, s) => sum + s.spent, 0);
-            const categoryTotalBudget = subCategoryStats.reduce((sum, s) => sum + s.budget, 0);
-            return (
-                <div className="flex flex-col h-full">
-                    <div className="flex items-center gap-2 mb-4">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleBackClick}>
-                            <ArrowLeft className="h-4 w-4" />
-                        </Button>
-                        <IconComponent className="h-5 w-5 text-muted-foreground" />
-                        <h3 className="font-semibold">{selectedCategory?.name} Details</h3>
-                    </div>
-                    <ScrollArea className="flex-1 pr-4">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Sl. No.</TableHead>
-                                    <TableHead>Sub-category</TableHead>
-                                    <TableHead className="text-right">Spent</TableHead>
-                                    <TableHead className="text-right">Budget</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {subCategoryStats.map((stat, index) => (
-                                    <TableRow key={stat.name}>
-                                        <TableCell>{index + 1}</TableCell>
-                                        <TableCell>{stat.name}</TableCell>
-                                        <TableCell className="text-right">{formatCurrency(stat.spent)}</TableCell>
-                                        <TableCell className="text-right">{stat.budget > 0 ? formatCurrency(stat.budget) : '-'}</TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </ScrollArea>
-                     <div className="pt-4 border-t mt-4 space-y-2">
-                        <div className="flex justify-between w-full font-medium">
-                            <span>Total Spent</span>
-                            <span>{formatCurrency(categoryTotalSpent)}</span>
-                        </div>
-                        <div className="flex justify-between w-full text-sm text-muted-foreground">
-                            <span>Total Budget for this month</span>
-                            <span>{formatCurrency(categoryTotalBudget)}</span>
-                        </div>
-                    </div>
-                </div>
-            );
-        }
-        case 'total-details':
-             return (
-                <div className="flex flex-col h-full">
-                    <div className="flex items-center gap-2 mb-4">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleBackClick}>
-                            <ArrowLeft className="h-4 w-4" />
-                        </Button>
-                        <h3 className="font-semibold">Total Expenses Breakdown</h3>
-                    </div>
-                    <ScrollArea className="flex-1 pr-4">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Sl. No.</TableHead>
-                                    <TableHead>Category</TableHead>
-                                    <TableHead className="text-right">Spent</TableHead>
-                                    <TableHead className="text-right">Budget</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                             <TableBody>
-                                {categoryStats.map((stat, index) => (
-                                    <TableRow key={stat.id}>
-                                        <TableCell>{index + 1}</TableCell>
-                                        <TableCell>{stat.name}</TableCell>
-                                        <TableCell className="text-right">{formatCurrency(stat.spent)}</TableCell>
-                                        <TableCell className="text-right">{formatCurrency(stat.budget)}</TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </ScrollArea>
-                </div>
-            );
-        case 'main':
-        default:
-            return (
-                categoryStats.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-full">
-                        <Tag className="h-10 w-10 mb-2"/>
-                        <p>No expense categories or transactions found for this month.</p>
-                    </div>
-                ) : (
-                    <ScrollArea className="h-full pr-4">
-                      <div className="space-y-6">
-                          {categoryStats.map(stat => {
-                              const IconComponent = iconComponents[stat.icon] || Tag;
-                              const percentage = stat.budget > 0 ? Math.min((stat.spent / stat.budget) * 100, 100) : 0;
-                              return (
-                                  <div key={stat.id} className="space-y-2 cursor-pointer" onClick={() => handleCategoryClick(stat.id)}>
-                                      <div className="flex justify-between items-center">
-                                          <div className="flex items-center gap-2">
-                                              <IconComponent className="h-5 w-5 text-muted-foreground" />
-                                              <span className="font-medium">{stat.name}</span>
-                                          </div>
-                                          <div className="text-right">
-                                              <div className="font-medium">{formatCurrency(stat.spent)}</div>
-                                              {stat.budget > 0 && <div className="text-xs text-muted-foreground"> of {formatCurrency(stat.budget)}</div>}
-                                          </div>
-                                      </div>
-                                      {stat.budget > 0 && <Progress value={percentage} />}
-                                  </div>
-                              )
-                          })}
-                      </div>
-                    </ScrollArea>
-                )
-            );
-    }
-  }
-
-
-  return (
-    <Card className="lg:col-span-4 h-full flex flex-col">
+  const renderMainView = () => {
+    return (
+      <Card className="h-full flex flex-col">
         <CardHeader>
             <CardTitle>Category Expenses</CardTitle>
             <div className="flex justify-between items-center">
@@ -322,9 +202,38 @@ export function CategoryExpenses() {
             </div>
         </CardHeader>
         <CardContent className="flex-1 min-h-0">
-            {renderContent()}
+            {categoryStats.length === 0 ? (
+                <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-full">
+                    <Tag className="h-10 w-10 mb-2"/>
+                    <p>No expense categories or transactions found for this month.</p>
+                </div>
+            ) : (
+                <ScrollArea className="h-full pr-4">
+                  <div className="space-y-6">
+                      {categoryStats.map(stat => {
+                          const IconComponent = iconComponents[stat.icon] || Tag;
+                          const percentage = stat.budget > 0 ? Math.min((stat.spent / stat.budget) * 100, 100) : 0;
+                          return (
+                              <div key={stat.id} className="space-y-2 cursor-pointer" onClick={() => handleCategoryClick(stat.id)}>
+                                  <div className="flex justify-between items-center">
+                                      <div className="flex items-center gap-2">
+                                          <IconComponent className="h-5 w-5 text-muted-foreground" />
+                                          <span className="font-medium">{stat.name}</span>
+                                      </div>
+                                      <div className="text-right">
+                                          <div className="font-medium">{formatCurrency(stat.spent)}</div>
+                                          {stat.budget > 0 && <div className="text-xs text-muted-foreground"> of {formatCurrency(stat.budget)}</div>}
+                                      </div>
+                                  </div>
+                                  {stat.budget > 0 && <Progress value={percentage} />}
+                              </div>
+                          )
+                      })}
+                  </div>
+                </ScrollArea>
+            )}
         </CardContent>
-        {categoryStats.length > 0 && view === 'main' && (
+        {categoryStats.length > 0 && (
              <CardFooter className="flex flex-col items-start pt-4 border-t gap-2 cursor-pointer" onClick={handleTotalClick}>
                 <div className="w-full space-y-2">
                     <div className="flex justify-between w-full font-medium">
@@ -343,6 +252,123 @@ export function CategoryExpenses() {
                 </div>
             </CardFooter>
         )}
-    </Card>
-  );
+      </Card>
+    )
+  }
+
+  const renderDetailsView = (title: string, data: { name: string; spent: number; budget: number }[], totalSpent: number, totalBudget: number) => {
+    const IconComponent = selectedCategory ? iconComponents[selectedCategory.icon] || Tag : Tag;
+
+    return (
+        <Card className="h-full flex flex-col">
+            <CardHeader>
+                <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleBackClick}>
+                        <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                    {selectedCategory && <IconComponent className="h-5 w-5 text-muted-foreground" />}
+                    <CardTitle>{title}</CardTitle>
+                </div>
+            </CardHeader>
+            <CardContent className="flex-1 min-h-0">
+                <ScrollArea className="h-full pr-4">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Sl. No.</TableHead>
+                                <TableHead>Sub-category</TableHead>
+                                <TableHead className="text-right">Spent</TableHead>
+                                <TableHead className="text-right">Budget</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {data.map((stat, index) => (
+                                <TableRow key={stat.name}>
+                                    <TableCell>{index + 1}</TableCell>
+                                    <TableCell>{stat.name}</TableCell>
+                                    <TableCell className="text-right">{formatCurrency(stat.spent)}</TableCell>
+                                    <TableCell className="text-right">{stat.budget > 0 ? formatCurrency(stat.budget) : '-'}</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </ScrollArea>
+            </CardContent>
+             <CardFooter className="flex-col items-start pt-4 border-t gap-2">
+                <div className="flex justify-between w-full font-medium">
+                    <span>Total Spent</span>
+                    <span>{formatCurrency(totalSpent)}</span>
+                </div>
+                <div className="flex justify-between w-full text-sm text-muted-foreground">
+                    <span>Total Budget for this month</span>
+                    <span>{formatCurrency(totalBudget)}</span>
+                </div>
+            </CardFooter>
+        </Card>
+    )
+  }
+  
+    const renderTotalDetailsView = () => {
+    return (
+        <Card className="h-full flex flex-col">
+            <CardHeader>
+                <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleBackClick}>
+                        <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                    <h3 className="font-semibold text-lg">Total Expenses Breakdown</h3>
+                </div>
+            </CardHeader>
+            <CardContent className="flex-1 min-h-0">
+                <ScrollArea className="h-full pr-4">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Sl. No.</TableHead>
+                                <TableHead>Category</TableHead>
+                                <TableHead className="text-right">Spent</TableHead>
+                                <TableHead className="text-right">Budget</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                            <TableBody>
+                            {categoryStats.map((stat, index) => (
+                                <TableRow key={stat.id}>
+                                    <TableCell>{index + 1}</TableCell>
+                                    <TableCell>{stat.name}</TableCell>
+                                    <TableCell className="text-right">{formatCurrency(stat.spent)}</TableCell>
+                                    <TableCell className="text-right">{formatCurrency(stat.budget)}</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </ScrollArea>
+            </CardContent>
+        </Card>
+    )
+  }
+
+
+  const renderContent = () => {
+    const columns = [
+      { view: 'main', content: renderMainView() },
+      { view: 'category-details', content: selectedCategory ? renderDetailsView(`${selectedCategory.name} Details`, subCategoryStats, subCategoryStats.reduce((sum, s) => sum + s.spent, 0), subCategoryStats.reduce((sum, s) => sum + s.budget, 0)) : null },
+      { view: 'total-details', content: renderTotalDetailsView() }
+    ];
+
+    const currentView = columns.find(c => c.view === view);
+
+    return (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className={cn("lg:col-span-1", view !== 'main' && "hidden lg:block")}>{columns[0].content}</div>
+          <div className={cn("lg:col-span-1", view !== 'category-details' && "hidden lg:block")}>{columns[1].content}</div>
+          <div className={cn("lg:col-span-1", view !== 'total-details' && "hidden lg:block")}>{columns[2].content}</div>
+          
+           <div className={cn("lg:col-span-3 lg:hidden", view === 'main' && "hidden")}>
+                {currentView?.content}
+           </div>
+        </div>
+    )
+  }
+
+  return renderContent();
 }
