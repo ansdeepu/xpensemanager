@@ -453,7 +453,12 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
                         <AccordionItem value={loan.id} key={loan.id}>
                             <AccordionTrigger>
                                 <div className="flex justify-between items-center w-full pr-4">
-                                    <span className="font-semibold text-lg">{loan.personName}</span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-semibold text-lg">{loan.personName}</span>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => {e.stopPropagation(); openEditLoanNameDialog(loan);}}>
+                                            <Pencil className="h-4 w-4" />
+                                        </Button>
+                                    </div>
                                     <Badge variant={loan.balance > 0 ? 'destructive' : 'default'} className="text-base">{formatCurrency(loan.balance)}</Badge>
                                 </div>
                             </AccordionTrigger>
@@ -465,9 +470,6 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
                                             <span>Total Repayment: <span className="font-semibold text-foreground">{formatCurrency(loan.totalRepayment)}</span></span>
                                         </CardDescription>
                                         <div className="flex items-center">
-                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditLoanNameDialog(loan)}>
-                                                <Pencil className="h-4 w-4" />
-                                            </Button>
                                             <AlertDialog>
                                                 <AlertDialogTrigger asChild>
                                                     <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
