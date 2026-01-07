@@ -41,7 +41,9 @@ interface AccountForDetailsBase {
 }
 
 interface RegularAccountForDetails extends AccountForDetailsBase, Omit<Account, 'id' | 'name' | 'balance'> {}
-interface WalletAccountForDetails extends AccountForDetailsBase {}
+interface WalletAccountForDetails extends AccountForDetailsBase {
+    walletPreferences?: any;
+}
 
 type AccountForDetails = RegularAccountForDetails | WalletAccountForDetails;
 
@@ -58,7 +60,7 @@ export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChan
 
         if (isWallet) {
             const walletType = account.id === 'cash-wallet' ? 'cash' : 'digital';
-            const walletPrefs = (account as any).walletPreferences?.[walletType];
+            const walletPrefs = (account as WalletAccountForDetails).walletPreferences?.[walletType];
             reconDate = walletPrefs?.date ? parseISO(walletPrefs.date) : new Date(0);
             runningBalance = walletPrefs?.balance ?? 0;
         } else {
@@ -70,7 +72,7 @@ export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChan
         const relevantTransactions = transactions
             .filter(t => {
                 const transactionDate = parseISO(t.date);
-                if (isAfter(reconDate, transactionDate)) return false;
+                if (isBefore(transactionDate, reconDate)) return false;
 
                 if (account.id === 'cash-wallet') {
                     return t.paymentMethod === 'cash' || t.fromAccountId === 'cash-wallet' || t.toAccountId === 'cash-wallet';
@@ -138,7 +140,7 @@ export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChan
 
     if (isWallet) {
         const walletType = account.id === 'cash-wallet' ? 'cash' : 'digital';
-        const walletPrefs = (account as any).walletPreferences?.[walletType];
+        const walletPrefs = (account as WalletAccountForDetails).walletPreferences?.[walletType];
         initialBalance = walletPrefs?.balance ?? 0;
         reconDate = walletPrefs?.date ? parseISO(walletPrefs.date) : new Date(0);
     } else {
