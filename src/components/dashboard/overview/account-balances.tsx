@@ -16,8 +16,6 @@ import type { Account, Transaction } from "@/lib/data";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AccountDetailsDialog } from "@/components/dashboard/account-details-dialog";
 import { useAuthState } from "@/hooks/use-auth-state";
-import { isAfter, parseISO } from "date-fns";
-
 
 type WalletType = 'cash-wallet' | 'digital-wallet';
 type AccountForDetails = (Omit<Account, 'balance'> & { balance: number }) | { id: WalletType, name: string, balance: number, walletPreferences?: any };
@@ -69,48 +67,38 @@ export function AccountBalances() {
   const { accountBalances, cashWalletBalance, digitalWalletBalance } = useMemo(() => {
     const calculatedAccountBalances: { [key: string]: number } = {};
     rawAccounts.forEach(acc => {
-      const reconDate = acc.actualBalanceDate ? parseISO(acc.actualBalanceDate) : new Date(0);
-      calculatedAccountBalances[acc.id] = acc.actualBalance ?? 0;
-      transactions.forEach(t => {
-        const transactionDate = parseISO(t.date);
-        if (isAfter(transactionDate, reconDate)) {
-          if (t.type === 'income' && t.accountId === acc.id) {
-            calculatedAccountBalances[acc.id] += t.amount;
-          } else if (t.type === 'expense' && t.paymentMethod === 'online' && t.accountId === acc.id) {
-            calculatedAccountBalances[acc.id] -= t.amount;
-          } else if (t.type === 'transfer') {
-            if (t.fromAccountId === acc.id) {
-              calculatedAccountBalances[acc.id] -= t.amount;
-            }
-            if (t.toAccountId === acc.id) {
-              calculatedAccountBalances[acc.id] += t.amount;
-            }
-          }
-        }
-      });
+      calculatedAccountBalances[acc.id] = 0; 
     });
 
-    const cashReconDate = walletPreferences.cash?.date ? parseISO(walletPreferences.cash.date) : new Date(0);
-    let calculatedCashBalance = walletPreferences.cash?.balance ?? 0;
-    const digitalReconDate = walletPreferences.digital?.date ? parseISO(walletPreferences.digital.date) : new Date(0);
-    let calculatedDigitalBalance = walletPreferences.digital?.balance ?? 0;
+    let calculatedCashBalance = 0;
+    let calculatedDigitalBalance = 0;
 
     transactions.forEach(t => {
-      const transactionDate = parseISO(t.date);
-      if (t.paymentMethod === 'cash' && isAfter(transactionDate, cashReconDate)) {
-        calculatedCashBalance -= t.amount;
-      } else if (t.fromAccountId === 'cash-wallet' && isAfter(transactionDate, cashReconDate)) {
-        calculatedCashBalance -= t.amount;
-      } else if (t.toAccountId === 'cash-wallet' && isAfter(transactionDate, cashReconDate)) {
-        calculatedCashBalance += t.amount;
-      }
-
-      if (t.paymentMethod === 'digital' && isAfter(transactionDate, digitalReconDate)) {
-        calculatedDigitalBalance -= t.amount;
-      } else if (t.fromAccountId === 'digital-wallet' && isAfter(transactionDate, digitalReconDate)) {
-        calculatedDigitalBalance -= t.amount;
-      } else if (t.toAccountId === 'digital-wallet' && isAfter(transactionDate, digitalReconDate)) {
-        calculatedDigitalBalance += t.amount;
+      if (t.type === 'income' && t.accountId && calculatedAccountBalances[t.accountId] !== undefined) {
+        calculatedAccountBalances[t.accountId] += t.amount;
+      } else if (t.type === 'expense') {
+        if (t.paymentMethod === 'online' && t.accountId && calculatedAccountBalances[t.accountId] !== undefined) {
+          calculatedAccountBalances[t.accountId] -= t.amount;
+        } else if (t.paymentMethod === 'cash') {
+          calculatedCashBalance -= t.amount;
+        } else if (t.paymentMethod === 'digital') {
+          calculatedDigitalBalance -= t.amount;
+        }
+      } else if (t.type === 'transfer') {
+        if (t.fromAccountId && calculatedAccountBalances[t.fromAccountId] !== undefined) {
+          calculatedAccountBalances[t.fromAccountId] -= t.amount;
+        } else if (t.fromAccountId === 'cash-wallet') {
+          calculatedCashBalance -= t.amount;
+        } else if (t.fromAccountId === 'digital-wallet') {
+          calculatedDigitalBalance -= t.amount;
+        }
+        if (t.toAccountId && calculatedAccountBalances[t.toAccountId] !== undefined) {
+          calculatedAccountBalances[t.toAccountId] += t.amount;
+        } else if (t.toAccountId === 'cash-wallet') {
+          calculatedCashBalance += t.amount;
+        } else if (t.toAccountId === 'digital-wallet') {
+          calculatedDigitalBalance += t.amount;
+        }
       }
     });
 
@@ -124,7 +112,7 @@ export function AccountBalances() {
   const accounts = useMemo(() => {
     return rawAccounts.map(acc => ({
         ...acc,
-        balance: accountBalances[acc.id] ?? (acc.actualBalance ?? 0),
+        balance: accountBalances[acc.id] ?? 0,
     }));
   }, [rawAccounts, accountBalances]);
 
