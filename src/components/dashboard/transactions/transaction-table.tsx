@@ -216,22 +216,24 @@ export function TransactionTable({
         const isPrimaryView = primaryAccount?.id === accountId;
 
         let sourceTransactions = transactions.filter(t => {
-            const isLoanVirtualAccount = (accId: string | undefined) => accId?.startsWith('loan-virtual-account');
-            
             if (isPrimaryView) {
-                // Show all transactions from primary account, cash, and digital wallets, plus any loan transfers they are part of.
-                return (t.accountId === accountId && t.paymentMethod === 'online') ||
+                // For the primary view, show everything related to the primary account, cash, and digital wallets.
+                return (
+                    (t.accountId === accountId && t.paymentMethod === 'online') ||
                     t.paymentMethod === 'cash' ||
                     t.paymentMethod === 'digital' ||
                     t.fromAccountId === accountId || t.toAccountId === accountId ||
                     t.fromAccountId === 'cash-wallet' || t.toAccountId === 'cash-wallet' ||
-                    t.fromAccountId === 'digital-wallet' || t.toAccountId === 'digital-wallet';
+                    t.fromAccountId === 'digital-wallet' || t.toAccountId === 'digital-wallet'
+                );
+            } else {
+                // For non-primary accounts, show transactions where this account is directly involved.
+                return (
+                    (t.accountId === accountId) || // Income/Expense on this account
+                    (t.fromAccountId === accountId) || // Transfer from this account
+                    (t.toAccountId === accountId) // Transfer to this account
+                );
             }
-            // For other accounts, show only their specific transactions, including transfers.
-            if (t.type === 'transfer') {
-                return t.fromAccountId === accountId || t.toAccountId === accountId;
-            }
-            return t.accountId === accountId;
         });
 
         let filtered = [...sourceTransactions];
