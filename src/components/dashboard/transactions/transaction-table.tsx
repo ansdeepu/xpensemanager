@@ -599,31 +599,33 @@ export function TransactionTable({
 
   const getLoanDisplayInfo = (t: Transaction) => {
     if (t.type !== 'transfer') {
-      return { isLoan: false, type: t.type, category: t.category, colorClass: '' };
+        return { isLoan: false, type: t.type, category: t.category, colorClass: '' };
     }
-  
+
     for (const loan of loans) {
-      for (const loanTx of loan.transactions) {
-        const txDate = format(parseISO(t.date), 'yyyy-MM-dd');
-        const loanTxDate = format(parseISO(loanTx.date), 'yyyy-MM-dd');
-        
-        if (
-          txDate === loanTxDate &&
-          t.amount === loanTx.amount &&
-          t.description === loanTx.description
-        ) {
-          if (loan.type === 'taken') {
-            return { isLoan: true, type: 'Loan Taken', category: 'Loan', colorClass: 'bg-orange-100 dark:bg-orange-900/50' };
-          }
-          if (loan.type === 'given') {
-            return { isLoan: true, type: 'Loan Given', category: 'Loan', colorClass: 'bg-orange-100 dark:bg-orange-900/50' };
-          }
+        for (const loanTx of loan.transactions) {
+            const txDate = format(parseISO(t.date), 'yyyy-MM-dd');
+            const loanTxDate = format(parseISO(loanTx.date), 'yyyy-MM-dd');
+            
+            if (
+                txDate === loanTxDate &&
+                t.amount === loanTx.amount &&
+                t.description === loanTx.description
+            ) {
+                // Check if the current account is the one receiving or giving the loan
+                if (t.toAccountId === accountId) {
+                    return { isLoan: true, type: 'Loan Taken', category: 'Loan', colorClass: 'bg-orange-100 dark:bg-orange-900/50' };
+                }
+                if (t.fromAccountId === accountId) {
+                    return { isLoan: true, type: 'Loan Given', category: 'Loan', colorClass: 'bg-orange-100 dark:bg-orange-900/50' };
+                }
+            }
         }
-      }
     }
     
     return { isLoan: false, type: t.type, category: t.category, colorClass: '' };
-  }
+};
+
 
   return (
     <>
