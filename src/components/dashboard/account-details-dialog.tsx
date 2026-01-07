@@ -52,16 +52,25 @@ export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChan
         if (!account) return { breakdown: [], finalBalance: 0 };
         
         const isWallet = account.id === 'cash-wallet' || account.id === 'digital-wallet';
-        const reconDate = !isWallet && 'actualBalanceDate' in account && account.actualBalanceDate 
-            ? parseISO(account.actualBalanceDate) 
-            : new Date(0);
-        
-        let runningBalance = isWallet ? 0 : (('actualBalance' in account ? account.actualBalance : 0) ?? 0);
 
+        let reconDate: Date;
+        let runningBalance: number;
+
+        if (isWallet) {
+            const walletType = account.id === 'cash-wallet' ? 'cash' : 'digital';
+            const walletPrefs = (account as any).walletPreferences?.[walletType];
+            reconDate = walletPrefs?.date ? parseISO(walletPrefs.date) : new Date(0);
+            runningBalance = walletPrefs?.balance ?? 0;
+        } else {
+            const regularAccount = account as RegularAccountForDetails;
+            reconDate = regularAccount.actualBalanceDate ? parseISO(regularAccount.actualBalanceDate) : new Date(0);
+            runningBalance = regularAccount.actualBalance ?? 0;
+        }
+        
         const relevantTransactions = transactions
             .filter(t => {
                 const transactionDate = parseISO(t.date);
-                if (!isWallet && isAfter(reconDate, transactionDate)) return false;
+                if (isAfter(reconDate, transactionDate)) return false;
 
                 if (account.id === 'cash-wallet') {
                     return t.paymentMethod === 'cash' || t.fromAccountId === 'cash-wallet' || t.toAccountId === 'cash-wallet';
@@ -114,8 +123,7 @@ export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChan
                 balance: runningBalance,
             };
         });
-
-        // For wallets, we show the full history balance. For reconciled accounts, this is the balance change since reconciliation.
+        
         return { breakdown: breakdown.reverse(), finalBalance: runningBalance };
 
     }, [account, transactions]);
@@ -124,10 +132,21 @@ export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChan
     if (!account) return null;
 
     const isWallet = account.id === 'cash-wallet' || account.id === 'digital-wallet';
-    const initialBalance = isWallet ? 0 : (('actualBalance' in account ? account.actualBalance : 0) ?? 0);
-    const reconDate = !isWallet && 'actualBalanceDate' in account && account.actualBalanceDate 
-        ? parseISO(account.actualBalanceDate) 
-        : null;
+    
+    let initialBalance: number;
+    let reconDate: Date | null;
+
+    if (isWallet) {
+        const walletType = account.id === 'cash-wallet' ? 'cash' : 'digital';
+        const walletPrefs = (account as any).walletPreferences?.[walletType];
+        initialBalance = walletPrefs?.balance ?? 0;
+        reconDate = walletPrefs?.date ? parseISO(walletPrefs.date) : new Date(0);
+    } else {
+        const regularAccount = account as RegularAccountForDetails;
+        initialBalance = regularAccount.actualBalance ?? 0;
+        reconDate = regularAccount.actualBalanceDate ? parseISO(regularAccount.actualBalanceDate) : null;
+    }
+
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -151,15 +170,13 @@ export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChan
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {!isWallet && (
-                                <TableRow className="bg-muted/50 font-semibold">
-                                    <TableCell>{reconDate ? format(reconDate, 'dd/MM/yyyy') : 'Start'}</TableCell>
-                                    <TableCell>Starting Balance</TableCell>
-                                    <TableCell></TableCell>
-                                    <TableCell></TableCell>
-                                    <TableCell className="text-right font-mono">{formatCurrency(initialBalance)}</TableCell>
-                                </TableRow>
-                            )}
+                            <TableRow className="bg-muted/50 font-semibold">
+                                <TableCell>{reconDate ? format(reconDate, 'dd/MM/yyyy') : 'Start'}</TableCell>
+                                <TableCell>Starting Balance</TableCell>
+                                <TableCell></TableCell>
+                                <TableCell></TableCell>
+                                <TableCell className="text-right font-mono">{formatCurrency(initialBalance)}</TableCell>
+                            </TableRow>
                             {calculationResults.breakdown.length > 0 ? (
                                 calculationResults.breakdown.map(item => (
                                     <TableRow key={item.id}>
@@ -179,7 +196,7 @@ export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChan
                             ) : (
                                 <TableRow>
                                     <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
-                                        No transactions found for this period.
+                                        No transactions found since last reconciliation.
                                     </TableCell>
                                 </TableRow>
                             )}
@@ -195,5 +212,3 @@ export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChan
         </Dialog>
     )
 }
-
-    
