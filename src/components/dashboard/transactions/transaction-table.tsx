@@ -606,11 +606,31 @@ export function TransactionTable({
       const loanTx = loan.transactions.find(lt => lt.id === t.loanTransactionId);
       if (loanTx) {
         let type: string;
+        // Logic for "Loan Given" vs "Loan Taken" from the perspective of the entire user's finances
         if (loan.type === 'given') {
+          // If the user GAVE a loan...
+          if (t.fromAccountId === accountId) {
             type = loanTx.type === 'loan' ? "Loan Given" : "Repayment Received";
+          } else {
+            type = loanTx.type === 'loan' ? "Loan Received (as repayment)" : "Repayment Sent";
+          }
         } else { // loan.type === 'taken'
+          // If the user TOOK a loan...
+          if (t.toAccountId === accountId) {
             type = loanTx.type === 'loan' ? "Loan Taken" : "Repayment Made";
+          } else {
+            type = loanTx.type === 'loan' ? "Loan Disbursed" : "Repayment Received";
+          }
         }
+
+        // More specific override based on the current account view
+        if (t.fromAccountId === accountId) {
+            type = loanTx.type === 'loan' ? 'Loan Given' : 'Repayment Received'
+        } else if (t.toAccountId === accountId) {
+            type = loanTx.type === 'loan' ? 'Loan Taken' : 'Repayment Made'
+        }
+
+
         return { isLoan: true, type, category: 'Loan', colorClass: 'bg-orange-100 dark:bg-orange-900/50' };
       }
     }
