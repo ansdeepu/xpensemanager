@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import type { Account, Transaction } from "@/lib/data";
-import { format, isAfter, parseISO, isBefore } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "../ui/scroll-area";
 
@@ -53,27 +53,10 @@ export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChan
     const calculationResults = useMemo(() => {
         if (!account) return { breakdown: [], finalBalance: 0 };
         
-        const isWallet = account.id === 'cash-wallet' || account.id === 'digital-wallet';
-
-        let reconDate: Date;
-        let runningBalance: number;
-
-        if (isWallet) {
-            const walletType = account.id === 'cash-wallet' ? 'cash' : 'digital';
-            const walletPrefs = (account as WalletAccountForDetails).walletPreferences?.[walletType];
-            reconDate = walletPrefs?.date ? parseISO(walletPrefs.date) : new Date(0);
-            runningBalance = walletPrefs?.balance ?? 0;
-        } else {
-            const regularAccount = account as RegularAccountForDetails;
-            reconDate = regularAccount.actualBalanceDate ? parseISO(regularAccount.actualBalanceDate) : new Date(0);
-            runningBalance = regularAccount.actualBalance ?? 0;
-        }
+        let runningBalance = 0;
         
         const relevantTransactions = transactions
             .filter(t => {
-                const transactionDate = parseISO(t.date);
-                if (isBefore(transactionDate, reconDate)) return false;
-
                 if (account.id === 'cash-wallet') {
                     return t.paymentMethod === 'cash' || t.fromAccountId === 'cash-wallet' || t.toAccountId === 'cash-wallet';
                 }
@@ -133,31 +116,13 @@ export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChan
 
     if (!account) return null;
 
-    const isWallet = account.id === 'cash-wallet' || account.id === 'digital-wallet';
-    
-    let initialBalance: number;
-    let reconDate: Date | null;
-
-    if (isWallet) {
-        const walletType = account.id === 'cash-wallet' ? 'cash' : 'digital';
-        const walletPrefs = (account as WalletAccountForDetails).walletPreferences?.[walletType];
-        initialBalance = walletPrefs?.balance ?? 0;
-        reconDate = walletPrefs?.date ? parseISO(walletPrefs.date) : new Date(0);
-    } else {
-        const regularAccount = account as RegularAccountForDetails;
-        initialBalance = regularAccount.actualBalance ?? 0;
-        reconDate = regularAccount.actualBalanceDate ? parseISO(regularAccount.actualBalanceDate) : null;
-    }
-
-
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-3xl">
                 <DialogHeader>
                     <DialogTitle>{account.name} - Balance Details</DialogTitle>
                     <DialogDescription>
-                       A detailed breakdown of transactions affecting this account's balance. 
-                       The current calculated balance is {formatCurrency(account.balance)}.
+                       A detailed breakdown of transactions affecting this account's balance. The current calculated balance is {formatCurrency(calculationResults.finalBalance)}.
                     </DialogDescription>
                 </DialogHeader>
                 <ScrollArea className="max-h-[60vh]">
@@ -172,13 +137,6 @@ export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChan
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            <TableRow className="bg-muted/50 font-semibold">
-                                <TableCell>{reconDate ? format(reconDate, 'dd/MM/yyyy') : 'Start'}</TableCell>
-                                <TableCell>Starting Balance</TableCell>
-                                <TableCell></TableCell>
-                                <TableCell></TableCell>
-                                <TableCell className="text-right font-mono">{formatCurrency(initialBalance)}</TableCell>
-                            </TableRow>
                             {calculationResults.breakdown.length > 0 ? (
                                 calculationResults.breakdown.map(item => (
                                     <TableRow key={item.id}>
@@ -198,10 +156,14 @@ export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChan
                             ) : (
                                 <TableRow>
                                     <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
-                                        No transactions found since last reconciliation.
+                                        No transactions found for this account.
                                     </TableCell>
                                 </TableRow>
                             )}
+                             <TableRow className="bg-muted/50 font-semibold">
+                                <TableCell colSpan={4}>Opening Balance</TableCell>
+                                <TableCell className="text-right font-mono">{formatCurrency(0)}</TableCell>
+                            </TableRow>
                         </TableBody>
                     </Table>
                 </ScrollArea>
