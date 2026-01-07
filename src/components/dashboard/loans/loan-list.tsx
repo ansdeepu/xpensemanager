@@ -220,7 +220,6 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
   const handleDeleteLoan = async (loanId: string) => {
     if (!user) return;
     try {
-        // We can add logic to delete related transactions later if needed
         await deleteDoc(doc(db, "loans", loanId));
     } catch (error) {
         console.error("Error deleting loan:", error);
@@ -262,13 +261,13 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
                 Add Record
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-lg">
               <form onSubmit={handleAddLoanTransaction}>
                 <DialogHeader>
                   <DialogTitle>Add Loan / Repayment</DialogTitle>
                 </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-4 py-4">
+                  <div className="space-y-2 col-span-2">
                     <Label>Select Person</Label>
                      <Select onValueChange={value => {
                         if (value === 'new') {
@@ -288,13 +287,13 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
                   </div>
 
                   {isNewPerson && (
-                    <div className="space-y-2">
+                    <div className="space-y-2 col-span-2">
                         <Label htmlFor="personName">New Person's Name</Label>
                         <Input id="personName" name="personName" value={personName} onChange={e => setPersonName(e.target.value)} required />
                     </div>
                   )}
 
-                  <div className="space-y-2">
+                  <div className="space-y-2 col-span-2">
                     <Label>Transaction Type</Label>
                     <Select name="transactionType" value={transactionType} onValueChange={(v) => setTransactionType(v as 'loan' | 'repayment')}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
@@ -309,8 +308,13 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
                     <Label htmlFor="amount">Amount</Label>
                     <Input id="amount" name="amount" type="number" step="0.01" required />
                   </div>
-
+                  
                   <div className="space-y-2">
+                    <Label htmlFor="date">Date</Label>
+                    <Input id="date" name="date" type="date" defaultValue={format(new Date(), 'yyyy-MM-dd')} required />
+                  </div>
+
+                  <div className="space-y-2 col-span-2">
                     <Label htmlFor="accountId">Account</Label>
                     <Select name="accountId" required>
                         <SelectTrigger><SelectValue placeholder="Select account..."/></SelectTrigger>
@@ -320,11 +324,7 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
                     </Select>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="date">Date</Label>
-                    <Input id="date" name="date" type="date" defaultValue={format(new Date(), 'yyyy-MM-dd')} required />
-                  </div>
-                   <div className="space-y-2">
+                   <div className="space-y-2 col-span-2">
                     <Label htmlFor="description">Description</Label>
                     <Textarea id="description" name="description" placeholder="Optional notes" />
                   </div>
