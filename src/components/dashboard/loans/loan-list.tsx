@@ -350,11 +350,19 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
                             <AccordionTrigger>
                                 <div className="flex justify-between items-center w-full pr-4">
                                     <span className="font-semibold text-lg">{loan.personName}</span>
-                                    <div className="flex items-center gap-4">
-                                        <Badge variant={loan.balance > 0 ? 'destructive' : 'default'} className="text-base">{formatCurrency(loan.balance)}</Badge>
+                                    <Badge variant={loan.balance > 0 ? 'destructive' : 'default'} className="text-base">{formatCurrency(loan.balance)}</Badge>
+                                </div>
+                            </AccordionTrigger>
+                            <AccordionContent>
+                                <Card className="bg-muted/50">
+                                    <CardHeader className="pb-2 flex-row justify-between items-center">
+                                        <CardDescription className="flex gap-4">
+                                            <span>Total Loan: <span className="font-semibold text-foreground">{formatCurrency(loan.totalLoan)}</span></span>
+                                            <span>Total Repayment: <span className="font-semibold text-foreground">{formatCurrency(loan.totalRepayment)}</span></span>
+                                        </CardDescription>
                                         <AlertDialog>
                                             <AlertDialogTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={(e) => e.stopPropagation()}>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
                                                     <Trash2 className="h-4 w-4" />
                                                 </Button>
                                             </AlertDialogTrigger>
@@ -369,16 +377,6 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
                                                 </AlertDialogFooter>
                                             </AlertDialogContent>
                                         </AlertDialog>
-                                    </div>
-                                </div>
-                            </AccordionTrigger>
-                            <AccordionContent>
-                                <Card className="bg-muted/50">
-                                    <CardHeader className="pb-2">
-                                        <CardDescription className="flex justify-around">
-                                            <span>Total Loan: <span className="font-semibold text-foreground">{formatCurrency(loan.totalLoan)}</span></span>
-                                            <span>Total Repayment: <span className="font-semibold text-foreground">{formatCurrency(loan.totalRepayment)}</span></span>
-                                        </CardDescription>
                                     </CardHeader>
                                     <CardContent>
                                         <Table>
