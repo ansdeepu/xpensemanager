@@ -607,9 +607,9 @@ export function TransactionTable({
       if (loanTx) {
         let type: string;
         if (loan.type === 'given') {
-            type = (t.fromAccountId === accountId) ? "Loan Given" : "Repayment Received";
+            type = loanTx.type === 'loan' ? "Loan Given" : "Repayment Received";
         } else { // loan.type === 'taken'
-            type = (t.toAccountId === accountId) ? "Loan Taken" : "Repayment Made";
+            type = loanTx.type === 'loan' ? "Loan Taken" : "Repayment Made";
         }
         return { isLoan: true, type, category: 'Loan', colorClass: 'bg-orange-100 dark:bg-orange-900/50' };
       }
