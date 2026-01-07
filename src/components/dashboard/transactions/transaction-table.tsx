@@ -225,10 +225,9 @@ export function TransactionTable({
                     t.paymentMethod === 'digital' ||
                     t.fromAccountId === accountId || t.toAccountId === accountId ||
                     t.fromAccountId === 'cash-wallet' || t.toAccountId === 'cash-wallet' ||
-                    t.fromAccountId === 'digital-wallet' || t.toAccountId === 'digital-wallet' ||
-                    (t.type === 'transfer' && (isLoanVirtualAccount(t.fromAccountId) || isLoanVirtualAccount(t.toAccountId)));
+                    t.fromAccountId === 'digital-wallet' || t.toAccountId === 'digital-wallet';
             }
-            // For other accounts, show only their specific transactions, including loans.
+            // For other accounts, show only their specific transactions, including transfers.
             if (t.type === 'transfer') {
                 return t.fromAccountId === accountId || t.toAccountId === accountId;
             }
