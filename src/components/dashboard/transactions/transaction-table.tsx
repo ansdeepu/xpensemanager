@@ -212,44 +212,47 @@ export function TransactionTable({
     }, [editCategory, categories]);
 
     const filteredTransactions = useMemo(() => {
-    const primaryAccount = accounts.find(a => a.isPrimary);
-    const isPrimaryView = primaryAccount?.id === accountId;
+        const primaryAccount = accounts.find(a => a.isPrimary);
+        const isPrimaryView = primaryAccount?.id === accountId;
 
-    let sourceTransactions = transactions.filter(t => {
-      if (isPrimaryView) {
-        // Show all transactions from primary account, cash and digital wallets
-        return (t.accountId === accountId && t.paymentMethod === 'online') ||
-               t.paymentMethod === 'cash' ||
-               t.paymentMethod === 'digital' ||
-               t.fromAccountId === accountId || t.toAccountId === accountId ||
-               t.fromAccountId === 'cash-wallet' || t.toAccountId === 'cash-wallet' ||
-               t.fromAccountId === 'digital-wallet' || t.toAccountId === 'digital-wallet';
-      }
-      // For other accounts, show only their specific transactions
-      if (t.type === 'transfer') {
-        return t.fromAccountId === accountId || t.toAccountId === accountId;
-      }
-      return t.accountId === accountId;
-    });
+        let sourceTransactions = transactions.filter(t => {
+            const isLoanVirtualAccount = (accId: string | undefined) => accId?.startsWith('loan-virtual-account');
+            
+            if (isPrimaryView) {
+                // Show all transactions from primary account, cash, and digital wallets, plus any loan transfers they are part of.
+                return (t.accountId === accountId && t.paymentMethod === 'online') ||
+                    t.paymentMethod === 'cash' ||
+                    t.paymentMethod === 'digital' ||
+                    t.fromAccountId === accountId || t.toAccountId === accountId ||
+                    t.fromAccountId === 'cash-wallet' || t.toAccountId === 'cash-wallet' ||
+                    t.fromAccountId === 'digital-wallet' || t.toAccountId === 'digital-wallet' ||
+                    (t.type === 'transfer' && (isLoanVirtualAccount(t.fromAccountId) || isLoanVirtualAccount(t.toAccountId)));
+            }
+            // For other accounts, show only their specific transactions, including loans.
+            if (t.type === 'transfer') {
+                return t.fromAccountId === accountId || t.toAccountId === accountId;
+            }
+            return t.accountId === accountId;
+        });
 
-    let filtered = [...sourceTransactions];
+        let filtered = [...sourceTransactions];
 
-    if (dateRange?.from && dateRange?.to) {
-        const interval = { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to) };
-        filtered = filtered.filter(t => isWithinInterval(new Date(t.date), interval));
-    }
+        if (dateRange?.from && dateRange?.to) {
+            const interval = { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to) };
+            filtered = filtered.filter(t => isWithinInterval(new Date(t.date), interval));
+        }
 
-    if (searchQuery) {
-        const lowercasedQuery = searchQuery.toLowerCase();
-        filtered = filtered.filter(t => 
-            t.description.toLowerCase().includes(lowercasedQuery) ||
-            t.category.toLowerCase().includes(lowercasedQuery) ||
-            (t.subcategory && t.subcategory.toLowerCase().includes(lowercasedQuery)) ||
-            t.amount.toString().toLowerCase().includes(lowercasedQuery)
-        );
-    }
-    
-    return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        if (searchQuery) {
+            const lowercasedQuery = searchQuery.toLowerCase();
+            filtered = filtered.filter(t => 
+                t.description.toLowerCase().includes(lowercasedQuery) ||
+                t.category.toLowerCase().includes(lowercasedQuery) ||
+                (t.subcategory && t.subcategory.toLowerCase().includes(lowercasedQuery)) ||
+                t.amount.toString().toLowerCase().includes(lowercasedQuery)
+            );
+        }
+        
+        return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }, [transactions, accountId, dateRange, searchQuery, accounts]);
 
 
@@ -315,6 +318,7 @@ export function TransactionTable({
   const getAccountName = (accountId?: string, paymentMethod?: Transaction['paymentMethod']) => {
     if (accountId === 'cash-wallet' || paymentMethod === 'cash') return "Cash Wallet";
     if (accountId === 'digital-wallet' || paymentMethod === 'digital') return "Digital Wallet";
+    if (accountId?.startsWith('loan-virtual-account-')) return accountId.replace('loan-virtual-account-', '').replace(/-/g, ' ');
     if (!accountId) return "-";
     
     const account = accounts.find((a) => a.id === accountId);
@@ -1157,5 +1161,3 @@ export function TransactionTable({
     </>
   );
 }
-
-    
