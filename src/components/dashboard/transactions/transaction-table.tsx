@@ -590,6 +590,17 @@ export function TransactionTable({
 
   const primaryAccount = useMemo(() => accounts.find(a => a.isPrimary), [accounts]);
 
+  const getLoanDisplayInfo = (t: Transaction) => {
+    if (t.type === 'transfer' && t.description.toLowerCase().includes('loan')) {
+      if (t.description.toLowerCase().includes('loan to')) {
+        return { isLoan: true, type: 'Loan Given', category: 'Loan', colorClass: 'bg-orange-100 dark:bg-orange-900/50' };
+      }
+      if (t.description.toLowerCase().includes('loan from')) {
+        return { isLoan: true, type: 'Loan Taken', category: 'Loan', colorClass: 'bg-orange-100 dark:bg-orange-900/50' };
+      }
+    }
+    return { isLoan: false, type: t.type, category: t.category, colorClass: '' };
+  }
 
   return (
     <>
@@ -929,22 +940,24 @@ export function TransactionTable({
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {pagedTransactions.map((t, index) => (
-                    <TableRow key={t.id}>
+                {pagedTransactions.map((t, index) => {
+                  const loanInfo = getLoanDisplayInfo(t);
+                  return (
+                    <TableRow key={t.id} className={loanInfo.colorClass}>
                         <TableCell className="font-medium">{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
                         <TableCell>{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
                         <TableCell className="font-medium" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{t.description}</TableCell>
                         <TableCell>
-                        <Badge 
-                            variant={getBadgeVariant(t.type)}
-                            className="capitalize"
-                            >
-                            {t.type}
-                        </Badge>
+                          <Badge 
+                              variant={getBadgeVariant(t.type)}
+                              className="capitalize"
+                              >
+                              {loanInfo.type}
+                          </Badge>
                         </TableCell>
                         <TableCell style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} -> ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod)}</TableCell>
                         <TableCell style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                            <div>{t.category}</div>
+                            <div>{loanInfo.category}</div>
                             {t.subcategory && <div className="text-sm text-muted-foreground">{t.subcategory}</div>}
                         </TableCell>
                         <TableCell className={cn("text-right font-mono", t.type === 'income' ? 'text-green-600' : 'text-red-600')}>
@@ -980,7 +993,8 @@ export function TransactionTable({
                             </div>
                         </TableCell>
                     </TableRow>
-                ))}
+                  );
+                })}
             </TableBody>
           </Table>
         </div>
@@ -1158,3 +1172,5 @@ export function TransactionTable({
     </>
   );
 }
+
+    
