@@ -162,7 +162,9 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
       toast({ variant: "destructive", title: "Person or account name is required" });
       return;
     }
-  
+    
+    const isLoanBetweenOwnAccounts = accounts.some(acc => acc.id === selectedPersonId);
+
     const newTransaction: Omit<LoanTransaction, 'id'> & {id: string} = {
       id: new Date().getTime().toString() + Math.random().toString(36).substring(2, 9), // simple unique id
       date,
@@ -194,27 +196,27 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
         };
         batch.set(loanDocRef, newLoanData);
       }
-  
-      const isWallet = accountId === 'cash-wallet' || accountId === 'digital-wallet';
       
-      const financialTransaction = {
-          userId: user.uid,
-          date,
-          description: description || `${transactionType === 'loan' ? 'Loan' : 'Repayment'} ${loanType === 'given' ? 'to' : 'from'} ${finalPersonName}`,
-          amount,
-          type: 'transfer',
-          fromAccountId: loanType === 'given' && transactionType === 'loan' 
-            ? accountId
-            : (loanType === 'taken' && transactionType === 'repayment' ? accountId : `loan-virtual-account-${finalPersonName.replace(/ /g, '-')}`),
-          toAccountId: loanType === 'taken' && transactionType === 'loan'
-            ? accountId
-            : (loanType === 'given' && transactionType === 'repayment' ? accountId : `loan-virtual-account-${finalPersonName.replace(/ /g, '-')}`),
-          category: 'Loan',
-          paymentMethod: isWallet ? accountId.split('-')[0] : 'online'
-      };
-      
-      const transactionRef = doc(collection(db, "transactions"));
-      batch.set(transactionRef, financialTransaction as any);
+      if (isLoanBetweenOwnAccounts) {
+          const fromAccountId = loanType === 'given' ? accountId : selectedPersonId;
+          const toAccountId = loanType === 'given' ? selectedPersonId : accountId;
+
+          const transferDescription = description || `${transactionType === 'loan' ? 'Loan' : 'Repayment'} ${loanType === 'given' ? 'to' : 'from'} ${finalPersonName}`;
+          
+          const financialTransaction = {
+              userId: user.uid,
+              date,
+              description: transferDescription,
+              amount,
+              type: 'transfer',
+              fromAccountId: transactionType === 'loan' ? fromAccountId : toAccountId,
+              toAccountId: transactionType === 'loan' ? toAccountId : fromAccountId,
+              category: 'Transfer',
+              paymentMethod: 'online'
+          };
+           const transactionRef = doc(collection(db, "transactions"));
+           batch.set(transactionRef, financialTransaction as any);
+      }
   
       await batch.commit();
       setIsAddDialogOpen(false);
@@ -447,22 +449,22 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
                         <AccordionItem value={loan.id} key={loan.id}>
                             <AccordionTrigger>
                                 <div className="flex justify-between items-center w-full pr-4">
-                                    <div className="flex items-center gap-2">
-                                        <span className="font-semibold text-lg">{loan.personName}</span>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => {e.stopPropagation(); openEditLoanNameDialog(loan);}}>
-                                            <Pencil className="h-4 w-4" />
-                                        </Button>
-                                    </div>
+                                    <span className="font-semibold text-lg">{loan.personName}</span>
                                     <Badge variant={loan.balance > 0 ? 'destructive' : 'default'} className="text-base">{formatCurrency(loan.balance)}</Badge>
                                 </div>
                             </AccordionTrigger>
                             <AccordionContent>
                                 <Card className="bg-muted/50">
                                     <CardHeader className="pb-2 flex-row justify-between items-center">
+                                      <div className="flex items-center gap-2">
                                         <CardDescription className="flex gap-4">
                                             <span>Total Loan: <span className="font-semibold text-foreground">{formatCurrency(loan.totalLoan)}</span></span>
                                             <span>Total Repayment: <span className="font-semibold text-foreground">{formatCurrency(loan.totalRepayment)}</span></span>
                                         </CardDescription>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => {e.stopPropagation(); openEditLoanNameDialog(loan);}}>
+                                            <Pencil className="h-4 w-4" />
+                                        </Button>
+                                      </div>
                                         <div className="flex items-center">
                                             <AlertDialog>
                                                 <AlertDialogTrigger asChild>
@@ -608,3 +610,5 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
     </>
   );
 }
+
+    
