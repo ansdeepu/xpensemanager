@@ -48,7 +48,7 @@ import {
 } from "@/components/ui/accordion";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PlusCircle, HandCoins, Info, Trash2 } from "lucide-react";
+import { PlusCircle, HandCoins, Info, Trash2, Pencil } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
 import { collection, addDoc, query, where, onSnapshot, doc, updateDoc, writeBatch, getDocs, deleteDoc } from "firebase/firestore";
 import { format, parseISO, isValid } from "date-fns";
@@ -67,6 +67,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useAuthState } from "@/hooks/use-auth-state";
 import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-IN", {
@@ -79,8 +80,13 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
   const [loans, setLoans] = useState<Loan[]>([]);
   const [accounts, setAccounts] = useState<Omit<Account, 'balance'>[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
+  const [selectedTransaction, setSelectedTransaction] = useState<LoanTransaction | null>(null);
   const [user, loading] = useAuthState();
   const [clientLoaded, setClientLoaded] = useState(false);
+  const { toast } = useToast();
+
 
   // States for the add dialog
   const [personName, setPersonName] = useState("");
@@ -158,27 +164,25 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
     }
   
     if (!finalPersonName) {
-      console.error("Person or account not selected or name not entered");
+      toast({ variant: "destructive", title: "Person name is required" });
       return;
     }
   
-    const newTransaction: Omit<LoanTransaction, 'id'> = {
+    const newTransaction: Omit<LoanTransaction, 'id'> & {id: string} = {
+      id: new Date().getTime().toString() + Math.random().toString(36).substring(2, 9), // simple unique id
       date,
       amount,
       accountId,
       description,
       type: transactionType,
-      id: new Date().getTime().toString() // simple unique id
     };
   
     try {
       const batch = writeBatch(db);
   
-      // Find or create the main loan document
       let loanDocRef;
       let existingTransactions: LoanTransaction[] = [];
   
-      // If an account was selected or it's a new person, find or create
       const existingLoan = loans.find(l => l.personName === finalPersonName);
       
       if (existingLoan) {
@@ -196,8 +200,6 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
         batch.set(loanDocRef, newLoanData);
       }
   
-      // Create the corresponding financial transaction
-      const account = accounts.find(a => a.id === accountId);
       const isWallet = accountId === 'cash-wallet' || accountId === 'digital-wallet';
       
       const financialTransaction = {
@@ -205,13 +207,13 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
           date,
           description: description || `${transactionType === 'loan' ? 'Loan' : 'Repayment'} ${loanType === 'given' ? 'to' : 'from'} ${finalPersonName}`,
           amount,
-          type: 'transfer', // All loan activities are treated as transfers
+          type: 'transfer',
           fromAccountId: loanType === 'given' && transactionType === 'loan' 
-            ? accountId // Money leaving bank
-            : (loanType === 'taken' && transactionType === 'repayment' ? accountId : `loan-virtual-account`), // Money leaving bank
+            ? accountId
+            : (loanType === 'taken' && transactionType === 'repayment' ? accountId : `loan-virtual-account-${finalPersonName.replace(/ /g, '-')}`),
           toAccountId: loanType === 'taken' && transactionType === 'loan'
-            ? accountId // Money entering bank
-            : (loanType === 'given' && transactionType === 'repayment' ? accountId : 'loan-virtual-account'), // Money entering bank
+            ? accountId
+            : (loanType === 'given' && transactionType === 'repayment' ? accountId : `loan-virtual-account-${finalPersonName.replace(/ /g, '-')}`),
           category: 'Loan',
           paymentMethod: isWallet ? accountId.split('-')[0] : 'online'
       };
@@ -222,8 +224,48 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
       await batch.commit();
       setIsAddDialogOpen(false);
       resetAddDialog();
-    } catch (error) {
-      console.error("Error adding loan transaction:", error);
+      toast({ title: "Transaction added successfully" });
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Failed to add transaction", description: error.message });
+    }
+  };
+
+  const handleEditLoanTransaction = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!user || !selectedLoan || !selectedTransaction) return;
+
+    const formData = new FormData(event.currentTarget);
+    const updatedTransaction = {
+      ...selectedTransaction,
+      date: formData.get("date") as string,
+      amount: parseFloat(formData.get("amount") as string),
+      accountId: formData.get("accountId") as string,
+      description: formData.get("description") as string,
+    };
+
+    const newTransactions = selectedLoan.transactions.map(t => 
+        t.id === selectedTransaction.id ? updatedTransaction : t
+    );
+
+    try {
+        const loanRef = doc(db, "loans", selectedLoan.id);
+        await updateDoc(loanRef, { transactions: newTransactions });
+        setIsEditDialogOpen(false);
+        toast({ title: "Transaction updated successfully" });
+    } catch(error: any) {
+        toast({ variant: "destructive", title: "Failed to update transaction", description: error.message });
+    }
+  };
+
+  const handleDeleteLoanTransaction = async (loan: Loan, transactionToDelete: LoanTransaction) => {
+    if (!user) return;
+    const newTransactions = loan.transactions.filter(t => t.id !== transactionToDelete.id);
+    try {
+        const loanRef = doc(db, "loans", loan.id);
+        await updateDoc(loanRef, { transactions: newTransactions });
+        toast({ title: "Transaction deleted successfully" });
+    } catch(error: any) {
+        toast({ variant: "destructive", title: "Failed to delete transaction", description: error.message });
     }
   };
   
@@ -231,9 +273,16 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
     if (!user) return;
     try {
         await deleteDoc(doc(db, "loans", loanId));
-    } catch (error) {
-        console.error("Error deleting loan:", error);
+        toast({ title: "Loan record deleted successfully" });
+    } catch (error: any) {
+        toast({ variant: "destructive", title: "Failed to delete loan", description: error.message });
     }
+  };
+
+  const openEditDialog = (loan: Loan, transaction: LoanTransaction) => {
+    setSelectedLoan(loan);
+    setSelectedTransaction(transaction);
+    setIsEditDialogOpen(true);
   };
 
   const secondaryAccounts = useMemo(() => accounts.filter(a => !a.isPrimary), [accounts]);
@@ -286,6 +335,7 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
                           if (value === 'new') {
                               setIsNewPerson(true);
                               setSelectedPersonId(null);
+                              setPersonName("");
                           } else {
                               setIsNewPerson(false);
                               setSelectedPersonId(value);
@@ -307,7 +357,6 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
                           </SelectContent>
                       </Select>
                     </div>
-
                     {isNewPerson && (
                       <div className="space-y-2">
                           <Label htmlFor="personName">New Person's Name</Label>
@@ -315,7 +364,6 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
                       </div>
                     )}
                   </div>
-                  
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label>Transaction Type</Label>
@@ -327,18 +375,15 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
                           </SelectContent>
                       </Select>
                     </div>
-                    
                     <div className="space-y-2">
                       <Label htmlFor="amount">Amount</Label>
                       <Input id="amount" name="amount" type="number" step="0.01" required />
                     </div>
-                    
                     <div className="space-y-2">
                       <Label htmlFor="date">Date</Label>
                       <Input id="date" name="date" type="date" defaultValue={format(new Date(), 'yyyy-MM-dd')} required />
                     </div>
                   </div>
-
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="accountId">Account</Label>
@@ -349,7 +394,6 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
                           </SelectContent>
                       </Select>
                     </div>
-
                     <div className="space-y-2">
                       <Label htmlFor="description">Description</Label>
                       <Textarea id="description" name="description" placeholder="Optional notes" />
@@ -411,8 +455,10 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
                                                 <TableRow>
                                                     <TableHead>Date</TableHead>
                                                     <TableHead>Type</TableHead>
+                                                    <TableHead>Description</TableHead>
                                                     <TableHead>Account</TableHead>
                                                     <TableHead className="text-right">Amount</TableHead>
+                                                    <TableHead className="text-right">Actions</TableHead>
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
@@ -422,9 +468,32 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
                                                         <TableCell>
                                                           <Badge variant={t.type === 'loan' ? 'outline' : 'secondary'} className="capitalize">{t.type}</Badge>
                                                         </TableCell>
+                                                        <TableCell>{t.description || '-'}</TableCell>
                                                         <TableCell>{allAccountsForTx.find(a => a.id === t.accountId)?.name}</TableCell>
                                                         <TableCell className={cn("text-right font-mono", t.type === 'loan' ? 'text-red-500' : 'text-green-600')}>
                                                             {formatCurrency(t.amount)}
+                                                        </TableCell>
+                                                        <TableCell className="text-right">
+                                                           <Button variant="ghost" size="icon" onClick={() => openEditDialog(loan, t)} className="h-8 w-8">
+                                                                <Pencil className="h-4 w-4" />
+                                                            </Button>
+                                                            <AlertDialog>
+                                                                <AlertDialogTrigger asChild>
+                                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
+                                                                        <Trash2 className="h-4 w-4" />
+                                                                    </Button>
+                                                                </AlertDialogTrigger>
+                                                                <AlertDialogContent>
+                                                                    <AlertDialogHeader>
+                                                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                                        <AlertDialogDescription>This will delete this transaction and cannot be undone.</AlertDialogDescription>
+                                                                    </AlertDialogHeader>
+                                                                    <AlertDialogFooter>
+                                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                                        <AlertDialogAction onClick={() => handleDeleteLoanTransaction(loan, t)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                                                    </AlertDialogFooter>
+                                                                </AlertDialogContent>
+                                                            </AlertDialog>
                                                         </TableCell>
                                                     </TableRow>
                                                 ))}
@@ -439,6 +508,50 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
             )}
         </CardContent>
       </Card>
+      
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+            <form onSubmit={handleEditLoanTransaction}>
+                <DialogHeader>
+                    <DialogTitle>Edit Loan Transaction</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="edit-date">Date</Label>
+                          <Input id="edit-date" name="date" type="date" defaultValue={selectedTransaction ? format(parseISO(selectedTransaction.date), 'yyyy-MM-dd') : ''} required />
+                        </div>
+                        <div className="space-y-2">
+                           <Label htmlFor="edit-amount">Amount</Label>
+                           <Input id="edit-amount" name="amount" type="number" step="0.01" defaultValue={selectedTransaction?.amount} required />
+                        </div>
+                    </div>
+                     <div className="grid grid-cols-2 gap-4">
+                         <div className="space-y-2">
+                              <Label htmlFor="edit-accountId">Account</Label>
+                              <Select name="accountId" required defaultValue={selectedTransaction?.accountId}>
+                                  <SelectTrigger><SelectValue placeholder="Select account..."/></SelectTrigger>
+                                  <SelectContent>
+                                      {allAccountsForTx.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
+                                  </SelectContent>
+                              </Select>
+                         </div>
+                         <div className="space-y-2">
+                              <Label htmlFor="edit-description">Description</Label>
+                              <Textarea id="edit-description" name="description" placeholder="Optional notes" defaultValue={selectedTransaction?.description} />
+                         </div>
+                     </div>
+                </div>
+                <DialogFooter>
+                    <DialogClose asChild><Button type="button" variant="secondary">Cancel</Button></DialogClose>
+                    <Button type="submit">Save Changes</Button>
+                </DialogFooter>
+            </form>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
+
+    
