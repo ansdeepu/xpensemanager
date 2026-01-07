@@ -131,11 +131,16 @@ export default function TransactionsPage() {
 
     let calculatedCashBalance = walletPreferences.cash?.balance ?? 0;
     let calculatedDigitalBalance = walletPreferences.digital?.balance ?? 0;
-
+    
     const cashReconDate = walletPreferences.cash?.date ? parseISO(walletPreferences.cash.date) : new Date(0);
     const digitalReconDate = walletPreferences.digital?.date ? parseISO(walletPreferences.digital.date) : new Date(0);
     
-    transactions.forEach(t => {
+    const transactionsAfterReconDate = transactions.filter(t => {
+      const reconDate = reconciliationDate ? reconciliationDate : new Date(0);
+      return isAfter(parseISO(t.date), reconDate);
+    });
+    
+    transactionsAfterReconDate.forEach(t => {
       const transactionDate = parseISO(t.date);
 
       if (t.type === 'income' && t.accountId && calculatedAccountBalances[t.accountId] !== undefined) {
@@ -185,7 +190,7 @@ export default function TransactionsPage() {
       cashWalletBalance: calculatedCashBalance,
       digitalWalletBalance: calculatedDigitalBalance 
     };
-  }, [rawAccounts, transactions, walletPreferences]);
+  }, [rawAccounts, transactions, walletPreferences, reconciliationDate]);
   
   const accounts = useMemo(() => {
     return rawAccounts.map(acc => ({
