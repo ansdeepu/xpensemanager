@@ -54,7 +54,7 @@ import { collection, addDoc, query, where, onSnapshot, doc, updateDoc, writeBatc
 import { format, parseISO, isValid } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { Loan, LoanTransaction, Account } from "@/lib/data";
+import type { Loan, LoanTransaction, Account, Transaction } from "@/lib/data";
 import {
   Select,
   SelectContent,
@@ -256,24 +256,77 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
 
   const handleDeleteLoanTransaction = async (loan: Loan, transactionToDelete: LoanTransaction) => {
     if (!user) return;
+
     const newTransactions = loan.transactions.filter(t => t.id !== transactionToDelete.id);
+
     try {
+        const batch = writeBatch(db);
         const loanRef = doc(db, "loans", loan.id);
+
         if (newTransactions.length > 0) {
-            await updateDoc(loanRef, { transactions: newTransactions });
+            batch.update(loanRef, { transactions: newTransactions });
         } else {
-            await deleteDoc(loanRef);
+            batch.delete(loanRef); // Delete the loan doc if no transactions left
         }
+
+        // Find and delete the corresponding financial transaction
+        const isLoanBetweenOwnAccounts = accounts.some(acc => acc.name === loan.personName);
+        if (isLoanBetweenOwnAccounts) {
+            const transferDescription = transactionToDelete.description || `${transactionToDelete.type === 'loan' ? 'Loan' : 'Repayment'} ${loan.type === 'given' ? 'to' : 'from'} ${loan.personName}`;
+            
+            const q = query(collection(db, "transactions"), 
+                where("userId", "==", user.uid),
+                where("type", "==", "transfer"),
+                where("date", "==", transactionToDelete.date),
+                where("amount", "==", transactionToDelete.amount),
+                where("description", "==", transferDescription)
+            );
+
+            const querySnapshot = await getDocs(q);
+            if (!querySnapshot.empty) {
+                const financialTransactionDoc = querySnapshot.docs[0];
+                batch.delete(financialTransactionDoc.ref);
+            }
+        }
+        
+        await batch.commit();
         toast({ title: "Transaction deleted successfully" });
     } catch(error: any) {
         toast({ variant: "destructive", title: "Failed to delete transaction", description: error.message });
     }
   };
   
-  const handleDeleteLoan = async (loanId: string) => {
+  const handleDeleteLoan = async (loan: Loan) => {
     if (!user) return;
     try {
-        await deleteDoc(doc(db, "loans", loanId));
+        const batch = writeBatch(db);
+
+        // Delete the loan document
+        const loanRef = doc(db, "loans", loan.id);
+        batch.delete(loanRef);
+        
+        // Find and delete all associated financial transactions
+        const isLoanBetweenOwnAccounts = accounts.some(acc => acc.name === loan.personName);
+        if (isLoanBetweenOwnAccounts) {
+            for (const loanTx of loan.transactions) {
+                 const transferDescription = loanTx.description || `${loanTx.type === 'loan' ? 'Loan' : 'Repayment'} ${loan.type === 'given' ? 'to' : 'from'} ${loan.personName}`;
+                 
+                 const q = query(collection(db, "transactions"), 
+                    where("userId", "==", user.uid),
+                    where("type", "==", "transfer"),
+                    where("date", "==", loanTx.date),
+                    where("amount", "==", loanTx.amount),
+                    where("description", "==", transferDescription)
+                );
+                const querySnapshot = await getDocs(q);
+                 if (!querySnapshot.empty) {
+                    const financialTransactionDoc = querySnapshot.docs[0];
+                    batch.delete(financialTransactionDoc.ref);
+                }
+            }
+        }
+
+        await batch.commit();
         toast({ title: "Loan record deleted successfully" });
     } catch (error: any) {
         toast({ variant: "destructive", title: "Failed to delete loan", description: error.message });
@@ -479,7 +532,7 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
                                                     </AlertDialogHeader>
                                                     <AlertDialogFooter>
                                                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={() => handleDeleteLoan(loan.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                                        <AlertDialogAction onClick={() => handleDeleteLoan(loan)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
                                                     </AlertDialogFooter>
                                                 </AlertDialogContent>
                                             </AlertDialog>
@@ -610,5 +663,3 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
     </>
   );
 }
-
-    
