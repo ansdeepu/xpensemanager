@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import type { Account, Transaction } from "@/lib/data";
-import { format } from "date-fns";
+import { format, isAfter, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "../ui/scroll-area";
 
@@ -33,7 +33,17 @@ const formatCurrency = (amount: number) => {
 };
 
 type WalletType = 'cash-wallet' | 'digital-wallet';
-type AccountForDetails = (Omit<Account, 'balance'> & { balance: number }) | { id: WalletType, name: string, balance: number };
+
+interface AccountForDetailsBase {
+    id: string;
+    name: string;
+    balance: number;
+}
+
+interface RegularAccountForDetails extends AccountForDetailsBase, Omit<Account, 'id' | 'name' | 'balance'> {}
+interface WalletAccountForDetails extends AccountForDetailsBase {}
+
+type AccountForDetails = RegularAccountForDetails | WalletAccountForDetails;
 
 
 export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChange }: { account: AccountForDetails | null, transactions: Transaction[], isOpen: boolean, onOpenChange: (open: boolean) => void }) {
@@ -41,8 +51,18 @@ export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChan
     const calculationResults = useMemo(() => {
         if (!account) return { breakdown: [], finalBalance: 0 };
         
+        const isWallet = account.id === 'cash-wallet' || account.id === 'digital-wallet';
+        const reconDate = !isWallet && 'actualBalanceDate' in account && account.actualBalanceDate 
+            ? parseISO(account.actualBalanceDate) 
+            : new Date(0);
+        
+        let runningBalance = isWallet ? 0 : (('actualBalance' in account ? account.actualBalance : 0) ?? 0);
+
         const relevantTransactions = transactions
             .filter(t => {
+                const transactionDate = parseISO(t.date);
+                if (!isWallet && isAfter(reconDate, transactionDate)) return false;
+
                 if (account.id === 'cash-wallet') {
                     return t.paymentMethod === 'cash' || t.fromAccountId === 'cash-wallet' || t.toAccountId === 'cash-wallet';
                 }
@@ -50,33 +70,24 @@ export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChan
                     return t.paymentMethod === 'digital' || t.fromAccountId === 'digital-wallet' || t.toAccountId === 'digital-wallet';
                 }
                 // For regular accounts, include their income/expenses and transfers
-                return (t.accountId === account.id && (t.type === 'income' || t.type === 'expense')) ||
+                return (t.accountId === account.id && (t.type === 'income' || (t.type === 'expense' && t.paymentMethod === 'online'))) ||
                        t.fromAccountId === account.id ||
                        t.toAccountId === account.id;
             })
             .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-        let runningBalance = 0;
         const breakdown = relevantTransactions.map(t => {
             let credit = 0;
             let debit = 0;
 
             if (account.id === 'cash-wallet') {
-                if (t.type === 'transfer' && t.toAccountId === 'cash-wallet') {
-                    credit = t.amount;
-                } else if (t.type === 'transfer' && t.fromAccountId === 'cash-wallet') {
-                    debit = t.amount;
-                } else if (t.type === 'expense' && t.paymentMethod === 'cash') {
-                    debit = t.amount;
-                }
+                if(t.type === 'transfer' && t.toAccountId === 'cash-wallet') credit = t.amount;
+                if(t.type === 'transfer' && t.fromAccountId === 'cash-wallet') debit = t.amount;
+                if(t.type === 'expense' && t.paymentMethod === 'cash') debit = t.amount;
             } else if (account.id === 'digital-wallet') {
-                 if (t.type === 'transfer' && t.toAccountId === 'digital-wallet') {
-                    credit = t.amount;
-                } else if (t.type === 'transfer' && t.fromAccountId === 'digital-wallet') {
-                    debit = t.amount;
-                } else if (t.type === 'expense' && t.paymentMethod === 'digital') {
-                    debit = t.amount;
-                }
+                if(t.type === 'transfer' && t.toAccountId === 'digital-wallet') credit = t.amount;
+                if(t.type === 'transfer' && t.fromAccountId === 'digital-wallet') debit = t.amount;
+                if(t.type === 'expense' && t.paymentMethod === 'digital') debit = t.amount;
             } else { // Regular bank account logic
                 if (t.type === 'income' && t.accountId === account.id) {
                     credit = t.amount;
@@ -104,6 +115,7 @@ export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChan
             };
         });
 
+        // For wallets, we show the full history balance. For reconciled accounts, this is the balance change since reconciliation.
         return { breakdown: breakdown.reverse(), finalBalance: runningBalance };
 
     }, [account, transactions]);
@@ -111,13 +123,20 @@ export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChan
 
     if (!account) return null;
 
+    const isWallet = account.id === 'cash-wallet' || account.id === 'digital-wallet';
+    const initialBalance = isWallet ? 0 : (('actualBalance' in account ? account.actualBalance : 0) ?? 0);
+    const reconDate = !isWallet && 'actualBalanceDate' in account && account.actualBalanceDate 
+        ? parseISO(account.actualBalanceDate) 
+        : null;
+
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-3xl">
                 <DialogHeader>
                     <DialogTitle>{account.name} - Balance Details</DialogTitle>
                     <DialogDescription>
-                       A detailed breakdown of transactions affecting this account's balance, which is currently {formatCurrency(calculationResults.finalBalance)}.
+                       A detailed breakdown of transactions affecting this account's balance. 
+                       The current calculated balance is {formatCurrency(account.balance)}.
                     </DialogDescription>
                 </DialogHeader>
                 <ScrollArea className="max-h-[60vh]">
@@ -132,6 +151,15 @@ export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChan
                             </TableRow>
                         </TableHeader>
                         <TableBody>
+                            {!isWallet && (
+                                <TableRow className="bg-muted/50 font-semibold">
+                                    <TableCell>{reconDate ? format(reconDate, 'dd/MM/yyyy') : 'Start'}</TableCell>
+                                    <TableCell>Starting Balance</TableCell>
+                                    <TableCell></TableCell>
+                                    <TableCell></TableCell>
+                                    <TableCell className="text-right font-mono">{formatCurrency(initialBalance)}</TableCell>
+                                </TableRow>
+                            )}
                             {calculationResults.breakdown.length > 0 ? (
                                 calculationResults.breakdown.map(item => (
                                     <TableRow key={item.id}>
@@ -151,7 +179,7 @@ export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChan
                             ) : (
                                 <TableRow>
                                     <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
-                                        No transactions found for this account.
+                                        No transactions found for this period.
                                     </TableCell>
                                 </TableRow>
                             )}
@@ -167,3 +195,5 @@ export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChan
         </Dialog>
     )
 }
+
+    
