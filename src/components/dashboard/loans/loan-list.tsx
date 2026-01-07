@@ -81,6 +81,7 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
   const [accounts, setAccounts] = useState<Omit<Account, 'balance'>[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isEditLoanNameDialogOpen, setIsEditLoanNameDialogOpen] = useState(false);
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
   const [selectedTransaction, setSelectedTransaction] = useState<LoanTransaction | null>(null);
   const [user, loading] = useAuthState();
@@ -262,7 +263,11 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
     const newTransactions = loan.transactions.filter(t => t.id !== transactionToDelete.id);
     try {
         const loanRef = doc(db, "loans", loan.id);
-        await updateDoc(loanRef, { transactions: newTransactions });
+        if (newTransactions.length > 0) {
+            await updateDoc(loanRef, { transactions: newTransactions });
+        } else {
+            await deleteDoc(loanRef);
+        }
         toast({ title: "Transaction deleted successfully" });
     } catch(error: any) {
         toast({ variant: "destructive", title: "Failed to delete transaction", description: error.message });
@@ -279,11 +284,39 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
     }
   };
 
+  const handleEditLoanName = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!user || !selectedLoan) return;
+
+    const formData = new FormData(event.currentTarget);
+    const newPersonName = formData.get("personName") as string;
+
+    if (!newPersonName || newPersonName.trim() === '') {
+        toast({ variant: 'destructive', title: 'Person name cannot be empty' });
+        return;
+    }
+
+    try {
+        const loanRef = doc(db, 'loans', selectedLoan.id);
+        await updateDoc(loanRef, { personName: newPersonName });
+        setIsEditLoanNameDialogOpen(false);
+        setSelectedLoan(null);
+        toast({ title: 'Loan updated successfully' });
+    } catch (error: any) {
+        toast({ variant: 'destructive', title: 'Failed to update loan', description: error.message });
+    }
+  };
+
   const openEditDialog = (loan: Loan, transaction: LoanTransaction) => {
     setSelectedLoan(loan);
     setSelectedTransaction(transaction);
     setIsEditDialogOpen(true);
   };
+  
+  const openEditLoanNameDialog = (loan: Loan) => {
+      setSelectedLoan(loan);
+      setIsEditLoanNameDialogOpen(true);
+  }
 
   const secondaryAccounts = useMemo(() => accounts.filter(a => !a.isPrimary), [accounts]);
 
@@ -431,23 +464,28 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
                                             <span>Total Loan: <span className="font-semibold text-foreground">{formatCurrency(loan.totalLoan)}</span></span>
                                             <span>Total Repayment: <span className="font-semibold text-foreground">{formatCurrency(loan.totalRepayment)}</span></span>
                                         </CardDescription>
-                                        <AlertDialog>
-                                            <AlertDialogTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
-                                            </AlertDialogTrigger>
-                                            <AlertDialogContent>
-                                                <AlertDialogHeader>
-                                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                    <AlertDialogDescription>This will delete all loan records for {loan.personName} and cannot be undone.</AlertDialogDescription>
-                                                </AlertDialogHeader>
-                                                <AlertDialogFooter>
-                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                    <AlertDialogAction onClick={() => handleDeleteLoan(loan.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                                                </AlertDialogFooter>
-                                            </AlertDialogContent>
-                                        </AlertDialog>
+                                        <div className="flex items-center">
+                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditLoanNameDialog(loan)}>
+                                                <Pencil className="h-4 w-4" />
+                                            </Button>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                        <AlertDialogDescription>This will delete all loan records for {loan.personName} and cannot be undone.</AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={() => handleDeleteLoan(loan.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        </div>
                                     </CardHeader>
                                     <CardContent>
                                         <Table>
@@ -509,7 +547,7 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
         </CardContent>
       </Card>
       
-      {/* Edit Dialog */}
+      {/* Edit Transaction Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>
             <form onSubmit={handleEditLoanTransaction}>
@@ -550,8 +588,27 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
             </form>
         </DialogContent>
       </Dialog>
+      
+      {/* Edit Loan Name Dialog */}
+        <Dialog open={isEditLoanNameDialogOpen} onOpenChange={setIsEditLoanNameDialogOpen}>
+            <DialogContent>
+                <form onSubmit={handleEditLoanName}>
+                    <DialogHeader>
+                        <DialogTitle>Edit Person Name</DialogTitle>
+                    </DialogHeader>
+                    <div className="py-4 space-y-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="edit-personName">Person's Name</Label>
+                            <Input id="edit-personName" name="personName" defaultValue={selectedLoan?.personName} required />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <DialogClose asChild><Button type="button" variant="secondary">Cancel</Button></DialogClose>
+                        <Button type="submit">Save Changes</Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
     </>
   );
 }
-
-    
