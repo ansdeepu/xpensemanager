@@ -156,15 +156,10 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
     const date = formData.get("date") as string;
     const description = formData.get("description") as string;
   
-    let finalPersonName = isNewPerson ? personName : loans.find(l => l.id === selectedPersonId)?.personName;
-
-    if (selectedPersonId && accounts.some(acc => acc.id === selectedPersonId)) {
-        toast({ variant: "destructive", title: "Invalid Operation", description: "Cannot record a loan between your own accounts in this module. Please use the 'Transfer' feature on the Transactions page for moving funds between your own accounts." });
-        return;
-    }
+    let finalPersonName = isNewPerson ? personName : loans.find(l => l.id === selectedPersonId)?.personName || accounts.find(a => a.id === selectedPersonId)?.name;
   
     if (!finalPersonName) {
-      toast({ variant: "destructive", title: "Person name is required" });
+      toast({ variant: "destructive", title: "Person or account name is required" });
       return;
     }
   
@@ -361,34 +356,34 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Select Person / Account</Label>
-                      <Select onValueChange={value => {
-                          if (value === 'new') {
-                              setIsNewPerson(true);
-                              setSelectedPersonId(null);
-                              setPersonName("");
-                          } else {
-                              setIsNewPerson(false);
-                              setSelectedPersonId(value);
-                          }
-                      }}>
-                          <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
-                          <SelectContent>
-                            <SelectGroup>
-                              <SelectLabel>People</SelectLabel>
-                              {loans.map(l => <SelectItem key={l.id} value={l.id}>{l.personName}</SelectItem>)}
-                            </SelectGroup>
-                            <SelectGroup>
-                              <SelectLabel>Your Other Accounts</SelectLabel>
-                               {otherAccounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
-                            </SelectGroup>
-                            <SelectGroup>
-                              <SelectItem value="new">Add a new person</SelectItem>
-                            </SelectGroup>
-                          </SelectContent>
-                      </Select>
-                    </div>
+                     <div className="space-y-2">
+                        <Label>Select Person / Account</Label>
+                        <Select onValueChange={value => {
+                            if (value === 'new') {
+                                setIsNewPerson(true);
+                                setSelectedPersonId(null);
+                                setPersonName("");
+                            } else {
+                                setIsNewPerson(false);
+                                setSelectedPersonId(value);
+                            }
+                        }}>
+                            <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                            <SelectContent>
+                              <SelectGroup>
+                                <SelectLabel>People</SelectLabel>
+                                {loans.map(l => <SelectItem key={l.id} value={l.id}>{l.personName}</SelectItem>)}
+                              </SelectGroup>
+                              <SelectGroup>
+                                <SelectLabel>Your Other Accounts</SelectLabel>
+                                 {otherAccounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
+                              </SelectGroup>
+                              <SelectGroup>
+                                <SelectItem value="new">Add a new person</SelectItem>
+                              </SelectGroup>
+                            </SelectContent>
+                        </Select>
+                      </div>
                     {isNewPerson && (
                       <div className="space-y-2">
                           <Label htmlFor="personName">New Person's Name</Label>
@@ -454,6 +449,9 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
                                 <div className="flex justify-between items-center w-full pr-4">
                                     <div className="flex items-center gap-2">
                                         <span className="font-semibold text-lg">{loan.personName}</span>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => {e.stopPropagation(); openEditLoanNameDialog(loan);}}>
+                                            <Pencil className="h-4 w-4" />
+                                        </Button>
                                     </div>
                                     <Badge variant={loan.balance > 0 ? 'destructive' : 'default'} className="text-base">{formatCurrency(loan.balance)}</Badge>
                                 </div>
@@ -466,9 +464,6 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
                                             <span>Total Repayment: <span className="font-semibold text-foreground">{formatCurrency(loan.totalRepayment)}</span></span>
                                         </CardDescription>
                                         <div className="flex items-center">
-                                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => {e.stopPropagation(); openEditLoanNameDialog(loan);}}>
-                                                <Pencil className="h-4 w-4" />
-                                            </Button>
                                             <AlertDialog>
                                                 <AlertDialogTrigger asChild>
                                                     <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
@@ -595,11 +590,11 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
             <DialogContent>
                 <form onSubmit={handleEditLoanName}>
                     <DialogHeader>
-                        <DialogTitle>Edit Person Name</DialogTitle>
+                        <DialogTitle>Edit Person/Account Name</DialogTitle>
                     </DialogHeader>
                     <div className="py-4 space-y-4">
                         <div className="space-y-2">
-                            <Label htmlFor="edit-personName">Person's Name</Label>
+                            <Label htmlFor="edit-personName">Name</Label>
                             <Input id="edit-personName" name="personName" defaultValue={selectedLoan?.personName} required />
                         </div>
                     </div>
@@ -613,5 +608,3 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
     </>
   );
 }
-
-    
