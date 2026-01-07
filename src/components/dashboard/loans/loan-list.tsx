@@ -279,9 +279,9 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
                   <DialogTitle>Add Loan / Repayment</DialogTitle>
                 </DialogHeader>
                 <div className="grid grid-cols-2 gap-4 py-4">
-                   <div className="space-y-2 col-span-2">
+                  <div className="space-y-2 col-span-2">
                     <Label>Select Person / Account</Label>
-                     <Select onValueChange={value => {
+                    <Select onValueChange={value => {
                         if (value === 'new') {
                             setIsNewPerson(true);
                             setSelectedPersonId(null);
@@ -289,7 +289,7 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
                             setIsNewPerson(false);
                             setSelectedPersonId(value);
                         }
-                     }}>
+                    }}>
                         <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
                         <SelectContent>
                           <SelectGroup>
@@ -304,7 +304,7 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
                              <SelectItem value="new">Add a new person</SelectItem>
                           </SelectGroup>
                         </SelectContent>
-                     </Select>
+                    </Select>
                   </div>
 
                   {isNewPerson && (
@@ -436,5 +436,3 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
     </>
   );
 }
-
-    
