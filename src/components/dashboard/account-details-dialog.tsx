@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import type { Account, Transaction } from "@/lib/data";
-import { format, isAfter, parseISO } from "date-fns";
+import { format, isAfter, parseISO, isBefore } from "date-fns";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "../ui/scroll-area";
 
