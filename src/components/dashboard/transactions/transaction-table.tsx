@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -53,13 +52,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { Transaction, Account, Category, Bill } from "@/lib/data";
+import type { Transaction, Account, Category, Bill, Loan } from "@/lib/data";
 import { PlusCircle, Pencil, Trash2, CalendarIcon, Printer, Search, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, XCircle } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
 import { collection, addDoc, query, where, onSnapshot, doc, runTransaction, orderBy, deleteDoc, getDoc, getDocs, limit, writeBatch, updateDoc } from "firebase/firestore";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { format, addMonths, addQuarters, addYears, isAfter, isWithinInterval, startOfDay, endOfDay, isBefore } from "date-fns";
+import { format, addMonths, addQuarters, addYears, isAfter, isWithinInterval, startOfDay, endOfDay, isBefore, parseISO } from "date-fns";
 import { DateRange } from "react-day-picker";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -100,6 +99,7 @@ export function TransactionTable({
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [loans, setLoans] = useState<Loan[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
@@ -284,11 +284,18 @@ export function TransactionTable({
         const userCategories = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
         setCategories(userCategories);
       });
+      
+      const loansQuery = query(collection(db, "loans"), where("userId", "==", user.uid));
+      const unsubscribeLoans = onSnapshot(loansQuery, (snapshot) => {
+        const userLoans = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Loan));
+        setLoans(userLoans);
+      });
 
       return () => {
         unsubscribeAccounts();
         unsubscribeTransactions();
         unsubscribeCategories();
+        unsubscribeLoans();
       };
     }
   }, [user, db]);
@@ -591,14 +598,30 @@ export function TransactionTable({
   const primaryAccount = useMemo(() => accounts.find(a => a.isPrimary), [accounts]);
 
   const getLoanDisplayInfo = (t: Transaction) => {
-    if (t.type === 'transfer' && t.description.toLowerCase().includes('loan')) {
-      if (t.description.toLowerCase().includes('loan to')) {
-        return { isLoan: true, type: 'Loan Given', category: 'Loan', colorClass: 'bg-orange-100 dark:bg-orange-900/50' };
-      }
-      if (t.description.toLowerCase().includes('loan from')) {
-        return { isLoan: true, type: 'Loan Taken', category: 'Loan', colorClass: 'bg-orange-100 dark:bg-orange-900/50' };
+    if (t.type !== 'transfer') {
+      return { isLoan: false, type: t.type, category: t.category, colorClass: '' };
+    }
+  
+    for (const loan of loans) {
+      for (const loanTx of loan.transactions) {
+        const txDate = format(parseISO(t.date), 'yyyy-MM-dd');
+        const loanTxDate = format(parseISO(loanTx.date), 'yyyy-MM-dd');
+        
+        if (
+          txDate === loanTxDate &&
+          t.amount === loanTx.amount &&
+          t.description === loanTx.description
+        ) {
+          if (loan.type === 'taken') {
+            return { isLoan: true, type: 'Loan Taken', category: 'Loan', colorClass: 'bg-orange-100 dark:bg-orange-900/50' };
+          }
+          if (loan.type === 'given') {
+            return { isLoan: true, type: 'Loan Given', category: 'Loan', colorClass: 'bg-orange-100 dark:bg-orange-900/50' };
+          }
+        }
       }
     }
+    
     return { isLoan: false, type: t.type, category: t.category, colorClass: '' };
   }
 
