@@ -8,6 +8,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from "@/components/ui/card";
 import {
   Table,
@@ -37,27 +38,22 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PlusCircle, Pencil, Trash2, HandCoins } from "lucide-react";
+import { PlusCircle, HandCoins, Info, Trash2 } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
-import {
-  collection,
-  addDoc,
-  query,
-  where,
-  onSnapshot,
-  doc,
-  deleteDoc,
-  updateDoc,
-  orderBy,
-} from "firebase/firestore";
+import { collection, addDoc, query, where, onSnapshot, doc, updateDoc, writeBatch, getDocs, deleteDoc } from "firebase/firestore";
 import { format, parseISO, isValid } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { Loan } from "@/lib/data";
+import type { Loan, LoanTransaction, Account } from "@/lib/data";
 import {
   Select,
   SelectContent,
@@ -77,12 +73,18 @@ const formatCurrency = (amount: number) => {
 };
 
 export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
-  const [allLoans, setAllLoans] = useState<Loan[]>([]);
+  const [loans, setLoans] = useState<Loan[]>([]);
+  const [accounts, setAccounts] = useState<Omit<Account, 'balance'>[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
   const [user, loading] = useAuthState();
   const [clientLoaded, setClientLoaded] = useState(false);
+
+  // States for the add dialog
+  const [personName, setPersonName] = useState("");
+  const [isNewPerson, setIsNewPerson] = useState(false);
+  const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
+  const [transactionType, setTransactionType] = useState<'loan' | 'repayment'>('loan');
+
 
   useEffect(() => {
     setClientLoaded(true);
@@ -93,92 +95,137 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
       const q = query(
         collection(db, "loans"),
         where("userId", "==", user.uid),
-        where("type", "==", loanType),
-        orderBy("loanDate", "desc")
+        where("type", "==", loanType)
       );
-      const unsubscribe = onSnapshot(
-        q,
-        (snapshot) => {
-          const userLoans = snapshot.docs.map(
-            (doc) => ({ id: doc.id, ...doc.data() } as Loan)
-          );
-          setAllLoans(userLoans);
-        },
-        (error) => {
-          console.error("Error fetching loans:", error);
-        }
-      );
-      return () => unsubscribe();
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+          const userLoans = snapshot.docs.map(doc => {
+            const data = doc.data();
+            const transactions = (data.transactions || []).sort((a: LoanTransaction, b: LoanTransaction) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            
+            const totalLoan = transactions.filter(t => t.type === 'loan').reduce((sum: number, t: LoanTransaction) => sum + t.amount, 0);
+            const totalRepayment = transactions.filter(t => t.type === 'repayment').reduce((sum: number, t: LoanTransaction) => sum + t.amount, 0);
+            
+            return {
+              id: doc.id,
+              ...data,
+              transactions,
+              totalLoan,
+              totalRepayment,
+              balance: totalLoan - totalRepayment,
+            } as Loan;
+          });
+          setLoans(userLoans.sort((a, b) => b.balance - a.balance));
+        });
+
+      const accountsQuery = query(collection(db, "accounts"), where("userId", "==", user.uid));
+      const unsubscribeAccounts = onSnapshot(accountsQuery, (snapshot) => {
+          setAccounts(snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}) as Omit<Account, 'balance'>));
+      });
+
+      return () => {
+        unsubscribe();
+        unsubscribeAccounts();
+      };
     }
   }, [user, loanType]);
 
-  const handleAddLoan = async (event: React.FormEvent<HTMLFormElement>) => {
+  const resetAddDialog = () => {
+    setIsNewPerson(false);
+    setPersonName("");
+    setSelectedPersonId(null);
+    setTransactionType('loan');
+  }
+
+  const handleAddLoanTransaction = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!user) return;
-
+  
     const formData = new FormData(event.currentTarget);
-    const loanDateValue = formData.get("loanDate") as string;
-    const dueDateValue = formData.get("dueDate") as string;
-
-    const newLoan = {
-      userId: user.uid,
-      type: loanType,
-      personName: formData.get("personName") as string,
-      amount: parseFloat(formData.get("amount") as string),
-      loanDate: loanDateValue,
-      dueDate: dueDateValue,
-      status: formData.get("status") as "open" | "closed",
-      description: formData.get("description") as string,
+    const amount = parseFloat(formData.get("amount") as string);
+    const accountId = formData.get("accountId") as string;
+    const date = formData.get("date") as string;
+    const description = formData.get("description") as string;
+  
+    const finalPersonName = isNewPerson ? personName : loans.find(l => l.id === selectedPersonId)?.personName;
+  
+    if (!finalPersonName || (!isNewPerson && !selectedPersonId)) {
+      console.error("Person not selected or name not entered");
+      return;
+    }
+  
+    const newTransaction: Omit<LoanTransaction, 'id'> = {
+      date,
+      amount,
+      accountId,
+      description,
+      type: transactionType,
+      id: new Date().getTime().toString() // simple unique id
     };
-
+  
     try {
-      await addDoc(collection(db, "loans"), newLoan);
+      const batch = writeBatch(db);
+  
+      // Find or create the main loan document
+      let loanDocRef;
+      let existingTransactions: LoanTransaction[] = [];
+  
+      if (isNewPerson) {
+        loanDocRef = doc(collection(db, "loans"));
+        const newLoanData = {
+          userId: user.uid,
+          personName: finalPersonName,
+          type: loanType,
+          transactions: [newTransaction]
+        };
+        batch.set(loanDocRef, newLoanData);
+      } else {
+        loanDocRef = doc(db, "loans", selectedPersonId!);
+        const loanDoc = loans.find(l => l.id === selectedPersonId);
+        existingTransactions = loanDoc?.transactions || [];
+        batch.update(loanDocRef, { transactions: [...existingTransactions, newTransaction] });
+      }
+  
+      // Create the corresponding financial transaction
+      const account = accounts.find(a => a.id === accountId);
+      const isWallet = accountId === 'cash-wallet' || accountId === 'digital-wallet';
+      
+      const financialTransaction = {
+          userId: user.uid,
+          date,
+          description: description || `${transactionType === 'loan' ? 'Loan' : 'Repayment'} ${loanType === 'given' ? 'to' : 'from'} ${finalPersonName}`,
+          amount,
+          type: 'transfer', // All loan activities are treated as transfers
+          fromAccountId: loanType === 'given' && transactionType === 'loan' 
+            ? accountId // Money leaving bank
+            : (loanType === 'taken' && transactionType === 'repayment' ? accountId : `loan-virtual-account`), // Money leaving bank
+          toAccountId: loanType === 'taken' && transactionType === 'loan'
+            ? accountId // Money entering bank
+            : (loanType === 'given' && transactionType === 'repayment' ? accountId : 'loan-virtual-account'), // Money entering bank
+          category: 'Loan',
+          paymentMethod: isWallet ? accountId.split('-')[0] : 'online'
+      };
+      
+      const transactionRef = doc(collection(db, "transactions"));
+      batch.set(transactionRef, financialTransaction as any);
+  
+      await batch.commit();
       setIsAddDialogOpen(false);
+      resetAddDialog();
     } catch (error) {
-      console.error("Error adding loan:", error);
+      console.error("Error adding loan transaction:", error);
     }
   };
-
-  const handleEditLoan = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!user || !selectedLoan) return;
-
-    const formData = new FormData(event.currentTarget);
-    const loanDateValue = formData.get("loanDate") as string;
-    const dueDateValue = formData.get("dueDate") as string;
-
-    const updatedData = {
-      personName: formData.get("personName") as string,
-      amount: parseFloat(formData.get("amount") as string),
-      loanDate: loanDateValue,
-      dueDate: dueDateValue,
-      status: formData.get("status") as "open" | "closed",
-      description: formData.get("description") as string,
-    };
-
-    try {
-      const loanRef = doc(db, "loans", selectedLoan.id);
-      await updateDoc(loanRef, updatedData);
-      setIsEditDialogOpen(false);
-      setSelectedLoan(null);
-    } catch (error) {
-      console.error("Error updating loan:", error);
-    }
-  };
-
+  
   const handleDeleteLoan = async (loanId: string) => {
     if (!user) return;
     try {
-      await deleteDoc(doc(db, "loans", loanId));
+        // We can add logic to delete related transactions later if needed
+        await deleteDoc(doc(db, "loans", loanId));
     } catch (error) {
-      console.error("Error deleting loan:", error);
+        console.error("Error deleting loan:", error);
     }
   };
 
-  const openEditDialog = (loan: Loan) => {
-    setSelectedLoan(loan);
-    setIsEditDialogOpen(true);
-  };
 
   if (loading || !clientLoaded) {
     return <Skeleton className="h-96 w-full" />;
@@ -187,8 +234,14 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
   const title = loanType === "taken" ? "Loans Taken" : "Loans Given";
   const description =
     loanType === "taken"
-      ? "Keep track of money you have borrowed."
-      : "Keep track of money you have lent.";
+      ? "Consolidated view of money you have borrowed."
+      : "Consolidated view of money you have lent.";
+  
+  const allAccounts = [
+    { id: 'cash-wallet', name: 'Cash Wallet' },
+    { id: 'digital-wallet', name: 'Digital Wallet' },
+    ...accounts
+  ];
 
   return (
     <>
@@ -198,207 +251,168 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
             <CardTitle>{title}</CardTitle>
             <CardDescription>{description}</CardDescription>
           </div>
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+            setIsAddDialogOpen(open);
+            if (!open) resetAddDialog();
+          }}>
             <DialogTrigger asChild>
               <Button>
                 <PlusCircle className="mr-2 h-4 w-4" />
-                Add Loan
+                Add Record
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
-              <form onSubmit={handleAddLoan}>
+              <form onSubmit={handleAddLoanTransaction}>
                 <DialogHeader>
-                  <DialogTitle>Add New Loan</DialogTitle>
+                  <DialogTitle>Add Loan / Repayment</DialogTitle>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                   <div className="space-y-2">
-                    <Label htmlFor="personName">Person's Name</Label>
-                    <Input id="personName" name="personName" required />
+                    <Label>Select Person</Label>
+                     <Select onValueChange={value => {
+                        if (value === 'new') {
+                            setIsNewPerson(true);
+                            setSelectedPersonId(null);
+                        } else {
+                            setIsNewPerson(false);
+                            setSelectedPersonId(value);
+                        }
+                     }}>
+                        <SelectTrigger><SelectValue placeholder="Select a person..." /></SelectTrigger>
+                        <SelectContent>
+                            {loans.map(l => <SelectItem key={l.id} value={l.id}>{l.personName}</SelectItem>)}
+                            <SelectItem value="new">Add a new person</SelectItem>
+                        </SelectContent>
+                     </Select>
                   </div>
+
+                  {isNewPerson && (
+                    <div className="space-y-2">
+                        <Label htmlFor="personName">New Person's Name</Label>
+                        <Input id="personName" name="personName" value={personName} onChange={e => setPersonName(e.target.value)} required />
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    <Label>Transaction Type</Label>
+                    <Select name="transactionType" value={transactionType} onValueChange={(v) => setTransactionType(v as 'loan' | 'repayment')}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="loan">{loanType === 'taken' ? 'I took a loan' : 'I gave a loan'}</SelectItem>
+                            <SelectItem value="repayment">{loanType === 'taken' ? 'I repaid' : 'I received repayment'}</SelectItem>
+                        </SelectContent>
+                    </Select>
+                  </div>
+                  
                   <div className="space-y-2">
                     <Label htmlFor="amount">Amount</Label>
                     <Input id="amount" name="amount" type="number" step="0.01" required />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="loanDate">Loan Date</Label>
-                        <Input id="loanDate" name="loanDate" type="date" defaultValue={format(new Date(), 'yyyy-MM-dd')} required />
-                    </div>
-                     <div className="space-y-2">
-                        <Label htmlFor="dueDate">Due Date</Label>
-                        <Input id="dueDate" name="dueDate" type="date" />
-                    </div>
-                  </div>
-                   <div className="space-y-2">
-                    <Label htmlFor="status">Status</Label>
-                    <Select name="status" defaultValue="open">
-                      <SelectTrigger id="status">
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="open">Open</SelectItem>
-                        <SelectItem value="closed">Closed</SelectItem>
-                      </SelectContent>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="accountId">Account</Label>
+                    <Select name="accountId" required>
+                        <SelectTrigger><SelectValue placeholder="Select account..."/></SelectTrigger>
+                        <SelectContent>
+                            {allAccounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
+                        </SelectContent>
                     </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="date">Date</Label>
+                    <Input id="date" name="date" type="date" defaultValue={format(new Date(), 'yyyy-MM-dd')} required />
                   </div>
                    <div className="space-y-2">
                     <Label htmlFor="description">Description</Label>
-                    <Textarea id="description" name="description" placeholder="Optional notes about the loan" />
+                    <Textarea id="description" name="description" placeholder="Optional notes" />
                   </div>
                 </div>
                 <DialogFooter>
-                  <DialogClose asChild>
-                    <Button type="button" variant="secondary">
-                      Cancel
-                    </Button>
-                  </DialogClose>
-                  <Button type="submit">Add Loan</Button>
+                  <DialogClose asChild><Button type="button" variant="secondary">Cancel</Button></DialogClose>
+                  <Button type="submit">Add Record</Button>
                 </DialogFooter>
               </form>
             </DialogContent>
           </Dialog>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Sl. No.</TableHead>
-                <TableHead>Person</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-                <TableHead>Loan Date</TableHead>
-                <TableHead>Due Date</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {allLoans.map((loan, index) => (
-                <TableRow key={loan.id}>
-                  <TableCell>{index + 1}</TableCell>
-                  <TableCell className="font-medium">{loan.personName}</TableCell>
-                  <TableCell>{loan.description}</TableCell>
-                  <TableCell className="text-right font-mono">
-                    {formatCurrency(loan.amount)}
-                  </TableCell>
-                  <TableCell>
-                    {isValid(parseISO(loan.loanDate)) ? format(parseISO(loan.loanDate), "dd/MM/yyyy") : 'Invalid Date'}
-                  </TableCell>
-                   <TableCell>
-                    {loan.dueDate && isValid(parseISO(loan.dueDate)) ? format(parseISO(loan.dueDate), "dd/MM/yyyy") : '-'}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={loan.status === 'open' ? 'destructive' : 'default'} className="capitalize">
-                      {loan.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => openEditDialog(loan)}
-                      className="mr-2"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This will permanently delete this loan record. This action cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => handleDeleteLoan(loan.id)}
-                            className="bg-destructive hover:bg-destructive/90"
-                          >
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          {allLoans.length === 0 && (
-            <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-40">
-              <HandCoins className="h-10 w-10 mb-2" />
-              <p>
-                No loans recorded yet. Click "Add Loan" to get started.
-              </p>
-            </div>
-          )}
+            {loans.length === 0 ? (
+                <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-40">
+                    <HandCoins className="h-10 w-10 mb-2" />
+                    <p>No loans recorded yet. Click "Add Record" to get started.</p>
+                </div>
+            ) : (
+                <Accordion type="single" collapsible className="w-full">
+                    {loans.map(loan => (
+                        <AccordionItem value={loan.id} key={loan.id}>
+                            <AccordionTrigger>
+                                <div className="flex justify-between items-center w-full pr-4">
+                                    <span className="font-semibold text-lg">{loan.personName}</span>
+                                    <div className="flex items-center gap-4">
+                                        <Badge variant={loan.balance > 0 ? 'destructive' : 'default'} className="text-base">{formatCurrency(loan.balance)}</Badge>
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={(e) => e.stopPropagation()}>
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                    <AlertDialogDescription>This will delete all loan records for {loan.personName} and cannot be undone.</AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                    <AlertDialogAction onClick={() => handleDeleteLoan(loan.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
+                                    </div>
+                                </div>
+                            </AccordionTrigger>
+                            <AccordionContent>
+                                <Card className="bg-muted/50">
+                                    <CardHeader className="pb-2">
+                                        <CardDescription className="flex justify-around">
+                                            <span>Total Loan: <span className="font-semibold text-foreground">{formatCurrency(loan.totalLoan)}</span></span>
+                                            <span>Total Repayment: <span className="font-semibold text-foreground">{formatCurrency(loan.totalRepayment)}</span></span>
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>Date</TableHead>
+                                                    <TableHead>Type</TableHead>
+                                                    <TableHead>Account</TableHead>
+                                                    <TableHead className="text-right">Amount</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {loan.transactions.map(t => (
+                                                    <TableRow key={t.id}>
+                                                        <TableCell>{isValid(parseISO(t.date)) ? format(parseISO(t.date), "dd/MM/yyyy") : '-'}</TableCell>
+                                                        <TableCell>
+                                                          <Badge variant={t.type === 'loan' ? 'outline' : 'secondary'} className="capitalize">{t.type}</Badge>
+                                                        </TableCell>
+                                                        <TableCell>{allAccounts.find(a => a.id === t.accountId)?.name}</TableCell>
+                                                        <TableCell className={cn("text-right font-mono", t.type === 'loan' ? 'text-red-500' : 'text-green-600')}>
+                                                            {formatCurrency(t.amount)}
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    </CardContent>
+                                </Card>
+                            </AccordionContent>
+                        </AccordionItem>
+                    ))}
+                </Accordion>
+            )}
         </CardContent>
       </Card>
-
-      {/* Edit Loan Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <form onSubmit={handleEditLoan}>
-            <DialogHeader>
-              <DialogTitle>Edit Loan</DialogTitle>
-            </DialogHeader>
-             <div className="grid gap-4 py-4">
-                <div className="space-y-2">
-                    <Label htmlFor="edit-personName">Person's Name</Label>
-                    <Input id="edit-personName" name="personName" defaultValue={selectedLoan?.personName} required />
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="edit-amount">Amount</Label>
-                    <Input id="edit-amount" name="amount" type="number" step="0.01" defaultValue={selectedLoan?.amount} required />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="edit-loanDate">Loan Date</Label>
-                        <Input id="edit-loanDate" name="loanDate" type="date" defaultValue={selectedLoan?.loanDate} required />
-                    </div>
-                        <div className="space-y-2">
-                        <Label htmlFor="edit-dueDate">Due Date</Label>
-                        <Input id="edit-dueDate" name="dueDate" type="date" defaultValue={selectedLoan?.dueDate} />
-                    </div>
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="edit-status">Status</Label>
-                    <Select name="status" defaultValue={selectedLoan?.status}>
-                        <SelectTrigger id="edit-status">
-                        <SelectValue placeholder="Select status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                        <SelectItem value="open">Open</SelectItem>
-                        <SelectItem value="closed">Closed</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="edit-description">Description</Label>
-                    <Textarea id="edit-description" name="description" defaultValue={selectedLoan?.description} placeholder="Optional notes about the loan" />
-                </div>
-            </div>
-            <DialogFooter>
-              <DialogClose asChild>
-                <Button type="button" variant="secondary" onClick={() => setSelectedLoan(null)}>
-                  Cancel
-                </Button>
-              </DialogClose>
-              <Button type="submit">Save Changes</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
     </>
   );
 }

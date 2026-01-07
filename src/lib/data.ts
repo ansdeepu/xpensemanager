@@ -61,16 +61,24 @@ export type Category = {
   type: 'expense' | 'income' | 'bank-expense';
 };
 
+export type LoanTransaction = {
+  id: string;
+  date: string;
+  amount: number;
+  type: 'loan' | 'repayment';
+  accountId: string; // which bank/cash/digital account was used
+  description?: string;
+};
+
 export type Loan = {
   id: string;
   userId: string;
-  type: 'taken' | 'given';
   personName: string;
-  amount: number;
-  loanDate: string;
-  dueDate: string;
-  status: 'open' | 'closed';
-  description?: string;
+  type: 'taken' | 'given';
+  totalLoan: number;
+  totalRepayment: number;
+  balance: number;
+  transactions: LoanTransaction[];
 }
 
 
@@ -81,6 +89,3 @@ export const accounts: Account[] = [];
 export const transactions: Transaction[] = [];
 
 export const categories: Category[] = [];
-
-    
-    
