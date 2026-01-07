@@ -215,7 +215,7 @@ export function TransactionTable({
         const primaryAccount = accounts.find(a => a.isPrimary);
         const isPrimaryView = primaryAccount?.id === accountId;
 
-        let sourceTransactions = transactions.filter(t => {
+        const sourceTransactions = transactions.filter(t => {
             if (isPrimaryView) {
                 // For the primary view, show everything related to the primary account, cash, and digital wallets.
                 return (
@@ -227,12 +227,8 @@ export function TransactionTable({
                     t.fromAccountId === 'digital-wallet' || t.toAccountId === 'digital-wallet'
                 );
             } else {
-                // For non-primary accounts, show transactions where this account is directly involved.
-                return (
-                    (t.accountId === accountId) || // Income/Expense on this account
-                    (t.fromAccountId === accountId) || // Transfer from this account
-                    (t.toAccountId === accountId) // Transfer to this account
-                );
+                 // For non-primary accounts, show transactions where this account is directly involved.
+                return t.accountId === accountId || t.fromAccountId === accountId || t.toAccountId === accountId;
             }
         });
 
