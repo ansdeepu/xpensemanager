@@ -38,7 +38,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
   Accordion,
@@ -61,6 +60,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SelectGroup,
+  SelectLabel,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useAuthState } from "@/hooks/use-auth-state";
@@ -147,10 +148,16 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
     const date = formData.get("date") as string;
     const description = formData.get("description") as string;
   
-    const finalPersonName = isNewPerson ? personName : loans.find(l => l.id === selectedPersonId)?.personName;
+    let finalPersonName = isNewPerson ? personName : loans.find(l => l.id === selectedPersonId)?.personName;
+
+    // Check if an account was selected instead of a person
+    if (!isNewPerson && selectedPersonId?.startsWith('account-')) {
+      const selectedAccountId = selectedPersonId.replace('account-', '');
+      finalPersonName = accounts.find(a => a.id === selectedAccountId)?.name;
+    }
   
-    if (!finalPersonName || (!isNewPerson && !selectedPersonId)) {
-      console.error("Person not selected or name not entered");
+    if (!finalPersonName) {
+      console.error("Person or account not selected or name not entered");
       return;
     }
   
@@ -170,7 +177,14 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
       let loanDocRef;
       let existingTransactions: LoanTransaction[] = [];
   
-      if (isNewPerson) {
+      // If an account was selected or it's a new person, find or create
+      const existingLoan = loans.find(l => l.personName === finalPersonName);
+      
+      if (existingLoan) {
+        loanDocRef = doc(db, "loans", existingLoan.id);
+        existingTransactions = existingLoan.transactions || [];
+        batch.update(loanDocRef, { transactions: [...existingTransactions, newTransaction] });
+      } else {
         loanDocRef = doc(collection(db, "loans"));
         const newLoanData = {
           userId: user.uid,
@@ -179,11 +193,6 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
           transactions: [newTransaction]
         };
         batch.set(loanDocRef, newLoanData);
-      } else {
-        loanDocRef = doc(db, "loans", selectedPersonId!);
-        const loanDoc = loans.find(l => l.id === selectedPersonId);
-        existingTransactions = loanDoc?.transactions || [];
-        batch.update(loanDocRef, { transactions: [...existingTransactions, newTransaction] });
       }
   
       // Create the corresponding financial transaction
@@ -226,6 +235,8 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
     }
   };
 
+  const secondaryAccounts = useMemo(() => accounts.filter(a => !a.isPrimary), [accounts]);
+
 
   if (loading || !clientLoaded) {
     return <Skeleton className="h-96 w-full" />;
@@ -237,7 +248,7 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
       ? "Consolidated view of money you have borrowed."
       : "Consolidated view of money you have lent.";
   
-  const allAccounts = [
+  const allAccountsForTx = [
     { id: 'cash-wallet', name: 'Cash Wallet' },
     { id: 'digital-wallet', name: 'Digital Wallet' },
     ...accounts
@@ -267,8 +278,8 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
                   <DialogTitle>Add Loan / Repayment</DialogTitle>
                 </DialogHeader>
                 <div className="grid grid-cols-2 gap-4 py-4">
-                  <div className="space-y-2 col-span-2">
-                    <Label>Select Person</Label>
+                   <div className="space-y-2 col-span-2">
+                    <Label>Select Person / Account</Label>
                      <Select onValueChange={value => {
                         if (value === 'new') {
                             setIsNewPerson(true);
@@ -278,10 +289,19 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
                             setSelectedPersonId(value);
                         }
                      }}>
-                        <SelectTrigger><SelectValue placeholder="Select a person..." /></SelectTrigger>
+                        <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
                         <SelectContent>
+                          <SelectGroup>
+                            <SelectLabel>People</SelectLabel>
                             {loans.map(l => <SelectItem key={l.id} value={l.id}>{l.personName}</SelectItem>)}
-                            <SelectItem value="new">Add a new person</SelectItem>
+                          </SelectGroup>
+                          <SelectGroup>
+                            <SelectLabel>Bank Accounts</SelectLabel>
+                            {secondaryAccounts.map(acc => <SelectItem key={acc.id} value={`account-${acc.id}`}>{acc.name}</SelectItem>)}
+                          </SelectGroup>
+                          <SelectGroup>
+                             <SelectItem value="new">Add a new person</SelectItem>
+                          </SelectGroup>
                         </SelectContent>
                      </Select>
                   </div>
@@ -319,7 +339,7 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
                     <Select name="accountId" required>
                         <SelectTrigger><SelectValue placeholder="Select account..."/></SelectTrigger>
                         <SelectContent>
-                            {allAccounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
+                            {allAccountsForTx.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
                         </SelectContent>
                     </Select>
                   </div>
@@ -395,7 +415,7 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
                                                         <TableCell>
                                                           <Badge variant={t.type === 'loan' ? 'outline' : 'secondary'} className="capitalize">{t.type}</Badge>
                                                         </TableCell>
-                                                        <TableCell>{allAccounts.find(a => a.id === t.accountId)?.name}</TableCell>
+                                                        <TableCell>{allAccountsForTx.find(a => a.id === t.accountId)?.name}</TableCell>
                                                         <TableCell className={cn("text-right font-mono", t.type === 'loan' ? 'text-red-500' : 'text-green-600')}>
                                                             {formatCurrency(t.amount)}
                                                         </TableCell>
