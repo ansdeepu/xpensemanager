@@ -40,6 +40,7 @@ export type Transaction = {
   category: string;
   categoryId?: string;
   subcategory?: string;
+  loanTransactionId?: string; // Link to the specific transaction in a loan document
 };
 
 export type SubCategory = {

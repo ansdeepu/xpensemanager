@@ -52,7 +52,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { Transaction, Account, Category, Bill, Loan } from "@/lib/data";
+import type { Transaction, Account, Category, Bill, Loan, LoanTransaction } from "@/lib/data";
 import { PlusCircle, Pencil, Trash2, CalendarIcon, Printer, Search, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, XCircle } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
 import { collection, addDoc, query, where, onSnapshot, doc, runTransaction, orderBy, deleteDoc, getDoc, getDocs, limit, writeBatch, updateDoc } from "firebase/firestore";
@@ -598,33 +598,25 @@ export function TransactionTable({
   const primaryAccount = useMemo(() => accounts.find(a => a.isPrimary), [accounts]);
 
   const getLoanDisplayInfo = (t: Transaction) => {
-    if (t.type !== 'transfer') {
-        return { isLoan: false, type: t.type, category: t.category, colorClass: '' };
+    if (t.type !== 'transfer' || !t.loanTransactionId) {
+      return { isLoan: false, type: t.type, category: t.category, colorClass: '' };
     }
-
+  
     for (const loan of loans) {
-        for (const loanTx of loan.transactions) {
-            const txDate = format(parseISO(t.date), 'yyyy-MM-dd');
-            const loanTxDate = format(parseISO(loanTx.date), 'yyyy-MM-dd');
-            
-            if (
-                txDate === loanTxDate &&
-                t.amount === loanTx.amount &&
-                t.description === loanTx.description
-            ) {
-                // Check if the current account is the one receiving or giving the loan
-                if (t.toAccountId === accountId) {
-                    return { isLoan: true, type: 'Loan Taken', category: 'Loan', colorClass: 'bg-orange-100 dark:bg-orange-900/50' };
-                }
-                if (t.fromAccountId === accountId) {
-                    return { isLoan: true, type: 'Loan Given', category: 'Loan', colorClass: 'bg-orange-100 dark:bg-orange-900/50' };
-                }
-            }
+      const loanTx = loan.transactions.find(lt => lt.id === t.loanTransactionId);
+      if (loanTx) {
+        let type: string;
+        if (loan.type === 'given') {
+            type = (t.fromAccountId === accountId) ? "Loan Given" : "Repayment Received";
+        } else { // loan.type === 'taken'
+            type = (t.toAccountId === accountId) ? "Loan Taken" : "Repayment Made";
         }
+        return { isLoan: true, type, category: 'Loan', colorClass: 'bg-orange-100 dark:bg-orange-900/50' };
+      }
     }
     
     return { isLoan: false, type: t.type, category: t.category, colorClass: '' };
-};
+  };
 
 
   return (
@@ -1197,5 +1189,3 @@ export function TransactionTable({
     </>
   );
 }
-
-    

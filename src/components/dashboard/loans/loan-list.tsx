@@ -164,9 +164,10 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
     }
     
     const isLoanBetweenOwnAccounts = accounts.some(acc => acc.id === selectedPersonId);
+    const loanTransactionId = new Date().getTime().toString() + Math.random().toString(36).substring(2, 9);
 
-    const newTransaction: Omit<LoanTransaction, 'id'> & {id: string} = {
-      id: new Date().getTime().toString() + Math.random().toString(36).substring(2, 9), // simple unique id
+    const newTransaction: LoanTransaction = {
+      id: loanTransactionId,
       date,
       amount,
       accountId,
@@ -203,7 +204,7 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
 
           const transferDescription = description || `${transactionType === 'loan' ? 'Loan' : 'Repayment'} ${loanType === 'given' ? 'to' : 'from'} ${finalPersonName}`;
           
-          const financialTransaction = {
+          const financialTransaction: Partial<Transaction> = {
               userId: user.uid,
               date,
               description: transferDescription,
@@ -212,7 +213,8 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
               fromAccountId: transactionType === 'loan' ? fromAccountId : toAccountId,
               toAccountId: transactionType === 'loan' ? toAccountId : fromAccountId,
               category: 'Transfer',
-              paymentMethod: 'online'
+              paymentMethod: 'online',
+              loanTransactionId: newTransaction.id,
           };
            const transactionRef = doc(collection(db, "transactions"));
            batch.set(transactionRef, financialTransaction as any);
@@ -245,8 +247,31 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
     );
 
     try {
+        const batch = writeBatch(db);
         const loanRef = doc(db, "loans", selectedLoan.id);
-        await updateDoc(loanRef, { transactions: newTransactions });
+        batch.update(loanRef, { transactions: newTransactions });
+
+        // If it's a loan between own accounts, update the corresponding financial transaction
+        const isLoanBetweenOwnAccounts = accounts.some(acc => acc.name === selectedLoan.personName);
+        if (isLoanBetweenOwnAccounts) {
+            const financialTxQuery = query(collection(db, "transactions"), where("loanTransactionId", "==", selectedTransaction.id), where("userId", "==", user.uid));
+            const financialTxSnapshot = await getDocs(financialTxQuery);
+            if (!financialTxSnapshot.empty) {
+                const financialTxDoc = financialTxSnapshot.docs[0];
+                const fromAccountId = loanType === 'given' ? updatedTransaction.accountId : selectedLoan.id;
+                const toAccountId = loanType === 'given' ? selectedLoan.id : updatedTransaction.accountId;
+                const updatedFinancialData = {
+                    date: updatedTransaction.date,
+                    amount: updatedTransaction.amount,
+                    description: updatedTransaction.description || `${updatedTransaction.type === 'loan' ? 'Loan' : 'Repayment'} ${loanType === 'given' ? 'to' : 'from'} ${selectedLoan.personName}`,
+                    fromAccountId: updatedTransaction.type === 'loan' ? fromAccountId : toAccountId,
+                    toAccountId: updatedTransaction.type === 'loan' ? toAccountId : fromAccountId,
+                };
+                batch.update(financialTxDoc.ref, updatedFinancialData);
+            }
+        }
+
+        await batch.commit();
         setIsEditDialogOpen(false);
         toast({ title: "Transaction updated successfully" });
     } catch(error: any) {
@@ -270,23 +295,11 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
         }
 
         // Find and delete the corresponding financial transaction
-        const isLoanBetweenOwnAccounts = accounts.some(acc => acc.name === loan.personName);
-        if (isLoanBetweenOwnAccounts) {
-            const transferDescription = transactionToDelete.description || `${transactionToDelete.type === 'loan' ? 'Loan' : 'Repayment'} ${loan.type === 'given' ? 'to' : 'from'} ${loan.personName}`;
-            
-            const q = query(collection(db, "transactions"), 
-                where("userId", "==", user.uid),
-                where("type", "==", "transfer"),
-                where("date", "==", transactionToDelete.date),
-                where("amount", "==", transactionToDelete.amount),
-                where("description", "==", transferDescription)
-            );
-
-            const querySnapshot = await getDocs(q);
-            if (!querySnapshot.empty) {
-                const financialTransactionDoc = querySnapshot.docs[0];
-                batch.delete(financialTransactionDoc.ref);
-            }
+        const financialTxQuery = query(collection(db, "transactions"), where("loanTransactionId", "==", transactionToDelete.id), where("userId", "==", user.uid));
+        const querySnapshot = await getDocs(financialTxQuery);
+        if (!querySnapshot.empty) {
+            const financialTransactionDoc = querySnapshot.docs[0];
+            batch.delete(financialTransactionDoc.ref);
         }
         
         await batch.commit();
@@ -306,23 +319,12 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
         batch.delete(loanRef);
         
         // Find and delete all associated financial transactions
-        const isLoanBetweenOwnAccounts = accounts.some(acc => acc.name === loan.personName);
-        if (isLoanBetweenOwnAccounts) {
-            for (const loanTx of loan.transactions) {
-                 const transferDescription = loanTx.description || `${loanTx.type === 'loan' ? 'Loan' : 'Repayment'} ${loan.type === 'given' ? 'to' : 'from'} ${loan.personName}`;
-                 
-                 const q = query(collection(db, "transactions"), 
-                    where("userId", "==", user.uid),
-                    where("type", "==", "transfer"),
-                    where("date", "==", loanTx.date),
-                    where("amount", "==", loanTx.amount),
-                    where("description", "==", transferDescription)
-                );
-                const querySnapshot = await getDocs(q);
-                 if (!querySnapshot.empty) {
-                    const financialTransactionDoc = querySnapshot.docs[0];
-                    batch.delete(financialTransactionDoc.ref);
-                }
+        for (const loanTx of loan.transactions) {
+            const financialTxQuery = query(collection(db, "transactions"), where("loanTransactionId", "==", loanTx.id), where("userId", "==", user.uid));
+            const querySnapshot = await getDocs(financialTxQuery);
+            if (!querySnapshot.empty) {
+                const financialTransactionDoc = querySnapshot.docs[0];
+                batch.delete(financialTransactionDoc.ref);
             }
         }
 
