@@ -13,6 +13,7 @@ import {
   HelpCircle,
   User,
   BookText,
+  HandCoins,
 } from "lucide-react";
 
 import {
@@ -39,6 +40,7 @@ const menuItems = [
   { href: "/dashboard/bank-accounts", label: "Bank Accounts", description: "Manage your bank accounts and wallets.", icon: Landmark },
   { href: "/dashboard/categories", label: "Categories", description: "Organize your income and expenses.", icon: Shapes },
   { href: "/dashboard/bills-and-events", label: "Bills & Events", description: "Track upcoming payments and special days.", icon: FileText },
+  { href: "/dashboard/loans", label: "Loans", description: "Track loans taken and given.", icon: HandCoins },
   { href: "/dashboard/reports", label: "Financial Reports", description: "An overview of your financial performance for each account.", icon: BookText },
   { href: "/dashboard/help", label: "Help", description: "Get help on how to use the app.", icon: HelpCircle },
   { href: "/dashboard/profile", label: "User Profile", description: "Manage your profile settings.", icon: User },

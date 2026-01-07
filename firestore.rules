@@ -1,3 +1,4 @@
+
 rules_version = '2';
 
 service cloud.firestore {
@@ -44,6 +45,18 @@ service cloud.firestore {
       allow create: if isOwner(request.resource.data.userId)
                     && request.resource.data.title is string
                     && request.resource.data.dueDate is string;
+      allow update: if isOwner(resource.data.userId);
+      allow delete: if isOwner(resource.data.userId);
+    }
+
+    match /loans/{docId} {
+      allow read: if isOwner(resource.data.userId);
+      allow create: if isOwner(request.resource.data.userId)
+                    && request.resource.data.personName is string
+                    && request.resource.data.amount is number
+                    && request.resource.data.loanDate is string
+                    && request.resource.data.type in ['taken', 'given']
+                    && request.resource.data.status in ['open', 'closed'];
       allow update: if isOwner(resource.data.userId);
       allow delete: if isOwner(resource.data.userId);
     }

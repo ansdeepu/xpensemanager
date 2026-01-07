@@ -61,6 +61,18 @@ export type Category = {
   type: 'expense' | 'income' | 'bank-expense';
 };
 
+export type Loan = {
+  id: string;
+  userId: string;
+  type: 'taken' | 'given';
+  personName: string;
+  amount: number;
+  loanDate: string;
+  dueDate: string;
+  status: 'open' | 'closed';
+  description?: string;
+}
+
 
 // The following are mock data and will be replaced by Firestore data.
 // We keep them here for reference and for components that haven't been migrated yet.
