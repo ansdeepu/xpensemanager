@@ -205,19 +205,19 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
 
       if (loanType === 'given') { // User is GIVING a loan
         if (transactionType === 'loan') { // Giving the initial amount
-          fromAccountId = accountId; // Money goes FROM user's account
-          toAccountId = finalPersonId!; // TO the borrower
+          fromAccountId = accountId;
+          toAccountId = finalPersonId!;
         } else { // Receiving a repayment
-          fromAccountId = finalPersonId!; // Money comes FROM the borrower
-          toAccountId = accountId; // TO the user's account
+          fromAccountId = finalPersonId!;
+          toAccountId = accountId;
         }
       } else { // loanType === 'taken' // User is TAKING a loan
         if (transactionType === 'loan') { // Receiving the loan amount
-          fromAccountId = finalPersonId!; // Money comes FROM the lender
-          toAccountId = accountId; // TO the user's account
+          fromAccountId = finalPersonId!;
+          toAccountId = accountId;
         } else { // Making a repayment
-          fromAccountId = accountId; // Money goes FROM the user's account
-          toAccountId = finalPersonId!; // TO the lender
+          fromAccountId = accountId;
+          toAccountId = finalPersonId!;
         }
       }
 
