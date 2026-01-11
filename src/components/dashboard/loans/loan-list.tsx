@@ -201,12 +201,22 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
       if (isLoanBetweenOwnAccounts) {
           let fromAccountId: string, toAccountId: string;
 
-          if (loanType === 'given') {
-              fromAccountId = transactionType === 'loan' ? accountId : selectedPersonId!;
-              toAccountId = transactionType === 'loan' ? selectedPersonId! : accountId;
-          } else { // loanType === 'taken'
-              fromAccountId = transactionType === 'loan' ? selectedPersonId! : accountId;
-              toAccountId = transactionType === 'loan' ? accountId : selectedPersonId!;
+          if (loanType === 'given') { // User is giving a loan
+              if (transactionType === 'loan') { // Giving the initial loan
+                  fromAccountId = accountId;
+                  toAccountId = selectedPersonId!;
+              } else { // Receiving a repayment
+                  fromAccountId = selectedPersonId!;
+                  toAccountId = accountId;
+              }
+          } else { // loanType === 'taken' // User is taking a loan
+              if (transactionType === 'loan') { // Receiving the loan amount
+                  fromAccountId = selectedPersonId!;
+                  toAccountId = accountId;
+              } else { // Making a repayment
+                  fromAccountId = accountId;
+                  toAccountId = selectedPersonId!;
+              }
           }
 
           const transferDescription = description || `${transactionType === 'loan' ? 'Loan' : 'Repayment'} ${loanType === 'given' ? 'to' : 'from'} ${finalPersonName}`;
@@ -672,3 +682,5 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
     </>
   );
 }
+
+    
