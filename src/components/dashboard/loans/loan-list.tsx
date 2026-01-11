@@ -199,8 +199,15 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
       }
       
       if (isLoanBetweenOwnAccounts) {
-          const fromAccountId = loanType === 'given' ? accountId : selectedPersonId;
-          const toAccountId = loanType === 'given' ? selectedPersonId : accountId;
+          let fromAccountId: string, toAccountId: string;
+
+          if (loanType === 'given') {
+              fromAccountId = transactionType === 'loan' ? accountId : selectedPersonId!;
+              toAccountId = transactionType === 'loan' ? selectedPersonId! : accountId;
+          } else { // loanType === 'taken'
+              fromAccountId = transactionType === 'loan' ? selectedPersonId! : accountId;
+              toAccountId = transactionType === 'loan' ? accountId : selectedPersonId!;
+          }
 
           const transferDescription = description || `${transactionType === 'loan' ? 'Loan' : 'Repayment'} ${loanType === 'given' ? 'to' : 'from'} ${finalPersonName}`;
           
@@ -210,8 +217,8 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
               description: transferDescription,
               amount,
               type: 'transfer',
-              fromAccountId: transactionType === 'loan' ? fromAccountId : toAccountId,
-              toAccountId: transactionType === 'loan' ? toAccountId : fromAccountId,
+              fromAccountId,
+              toAccountId,
               category: 'Transfer',
               paymentMethod: 'online',
               loanTransactionId: newTransaction.id,
