@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import type { Account, Transaction } from "@/lib/data";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, isAfter } from "date-fns";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "../ui/scroll-area";
 
@@ -51,12 +51,29 @@ type AccountForDetails = RegularAccountForDetails | WalletAccountForDetails;
 export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChange }: { account: AccountForDetails | null, transactions: Transaction[], isOpen: boolean, onOpenChange: (open: boolean) => void }) {
 
     const calculationResults = useMemo(() => {
-        if (!account) return { breakdown: [], finalBalance: 0 };
+        if (!account) return { breakdown: [], finalBalance: 0, openingBalance: 0 };
         
-        let runningBalance = 0;
+        let reconDate: Date;
+        let openingBalance = 0;
+
+        if (account.id === 'cash-wallet') {
+            reconDate = (account as WalletAccountForDetails).walletPreferences?.cash?.date ? parseISO((account as WalletAccountForDetails).walletPreferences.cash.date) : new Date(0);
+            openingBalance = (account as WalletAccountForDetails).walletPreferences?.cash?.balance ?? 0;
+        } else if (account.id === 'digital-wallet') {
+            reconDate = (account as WalletAccountForDetails).walletPreferences?.digital?.date ? parseISO((account as WalletAccountForDetails).walletPreferences.digital.date) : new Date(0);
+            openingBalance = (account as WalletAccountForDetails).walletPreferences?.digital?.balance ?? 0;
+        } else {
+            reconDate = (account as RegularAccountForDetails).actualBalanceDate ? parseISO((account as RegularAccountForDetails).actualBalanceDate!) : new Date(0);
+            openingBalance = (account as RegularAccountForDetails).actualBalance ?? 0;
+        }
+        
+        let runningBalance = openingBalance;
         
         const relevantTransactions = transactions
             .filter(t => {
+                const transactionDate = parseISO(t.date);
+                if (!isAfter(transactionDate, reconDate)) return false;
+
                 if (account.id === 'cash-wallet') {
                     return t.paymentMethod === 'cash' || t.fromAccountId === 'cash-wallet' || t.toAccountId === 'cash-wallet';
                 }
@@ -109,12 +126,22 @@ export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChan
             };
         });
         
-        return { breakdown: breakdown.reverse(), finalBalance: runningBalance };
+        return { breakdown: breakdown.reverse(), finalBalance: runningBalance, openingBalance };
 
     }, [account, transactions]);
 
 
     if (!account) return null;
+    
+    let reconDate: Date | undefined;
+    if (account.id === 'cash-wallet') {
+        reconDate = (account as WalletAccountForDetails).walletPreferences?.cash?.date ? parseISO((account as WalletAccountForDetails).walletPreferences.cash.date) : undefined;
+    } else if (account.id === 'digital-wallet') {
+        reconDate = (account as WalletAccountForDetails).walletPreferences?.digital?.date ? parseISO((account as WalletAccountForDetails).walletPreferences.digital.date) : undefined;
+    } else {
+        reconDate = (account as RegularAccountForDetails).actualBalanceDate ? parseISO((account as RegularAccountForDetails).actualBalanceDate!) : undefined;
+    }
+
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -156,13 +183,13 @@ export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChan
                             ) : (
                                 <TableRow>
                                     <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
-                                        No transactions found for this account.
+                                        No transactions found for this account after the reconciliation date.
                                     </TableCell>
                                 </TableRow>
                             )}
                              <TableRow className="bg-muted/50 font-semibold">
-                                <TableCell colSpan={4}>Opening Balance</TableCell>
-                                <TableCell className="text-right font-mono">{formatCurrency(0)}</TableCell>
+                                <TableCell colSpan={4}>Opening Balance {reconDate ? `as of ${format(reconDate, 'dd/MM/yyyy')}`: ''}</TableCell>
+                                <TableCell className="text-right font-mono">{formatCurrency(calculationResults.openingBalance)}</TableCell>
                             </TableRow>
                         </TableBody>
                     </Table>
