@@ -215,12 +215,10 @@ export function TransactionTable({
         const primaryAccount = accounts.find(a => a.isPrimary);
         const isPrimaryView = primaryAccount?.id === accountId;
         
-        // Get the name of the current account being viewed, if it's not a primary/wallet one.
         const currentVirtualAccountName = accounts.find(a => a.id === accountId)?.name;
 
         const sourceTransactions = transactions.filter(t => {
             if (isPrimaryView) {
-                // For the primary view, show everything related to the primary account, cash, and digital wallets.
                 return (
                     (t.accountId === accountId && t.paymentMethod === 'online') ||
                     t.paymentMethod === 'cash' ||
@@ -230,10 +228,8 @@ export function TransactionTable({
                     t.fromAccountId === 'digital-wallet' || t.toAccountId === 'digital-wallet'
                 );
             } else {
-                 // For non-primary accounts, show transactions where this account is directly involved.
                  const isDirectlyInvolved = t.accountId === accountId || t.fromAccountId === accountId || t.toAccountId === accountId;
 
-                 // Also include if it's a loan transaction involving this virtual account name
                  const involvedLoanParty = loans.find(l => {
                     if (l.personName === currentVirtualAccountName) {
                         return l.transactions.some(lt => lt.id === t.loanTransactionId);
@@ -447,7 +443,6 @@ export function TransactionTable({
                                     default: nextDueDate = dueDate;
                                 }
                                 updateData.dueDate = nextDueDate.toISOString();
-                                // For recurring bills, the paidOn status is reset implicitly by having a new, future due date.
                             }
                             
                             t.update(doc(db, "bills", bill.id), updateData);
@@ -651,8 +646,9 @@ export function TransactionTable({
   const primaryAccount = useMemo(() => accounts.find(a => a.isPrimary), [accounts]);
 
   const getLoanDisplayInfo = (t: Transaction) => {
+    const defaultInfo = { isLoan: false, type: t.type, category: t.category, description: t.description, colorClass: '' };
     if (t.type !== 'transfer' || !t.loanTransactionId) {
-        return { isLoan: false, type: t.type, category: t.category, colorClass: '' };
+        return defaultInfo;
     }
 
     const currentAccount = accounts.find(a => a.id === accountId);
@@ -662,13 +658,17 @@ export function TransactionTable({
         const loanTx = loan.transactions.find(lt => lt.id === t.loanTransactionId);
         if (loanTx) {
             let type: string;
+            let description: string = t.description;
 
             if (isVirtualAccountView && currentAccount?.name === loan.personName) {
-                // We are viewing from the perspective of the other party
-                if (loan.type === 'taken') { // User took a loan from this person
+                // Viewing from the other party's perspective
+                const otherPartyAccountName = getAccountName(loanTx.accountId);
+                if (loan.type === 'taken') { // User took a loan from this person (Post Bank)
                     type = loanTx.type === 'loan' ? 'Loan Given' : 'Repayment Received';
+                    description = `${type} ${loanTx.type === 'loan' ? 'to' : 'from'} ${otherPartyAccountName}`;
                 } else { // User gave a loan to this person
                     type = loanTx.type === 'loan' ? 'Loan Taken' : 'Repayment Made';
+                    description = `${type} ${loanTx.type === 'loan' ? 'from' : 'to'} ${otherPartyAccountName}`;
                 }
             } else {
                 // Viewing from the user's main account perspective
@@ -678,12 +678,10 @@ export function TransactionTable({
                     type = loanTx.type === 'loan' ? "Loan Taken" : "Repayment Made";
                 }
             }
-
-            return { isLoan: true, type, category: 'Loan', colorClass: 'bg-orange-100 dark:bg-orange-900/50' };
+            return { isLoan: true, type, category: 'Loan', description, colorClass: 'bg-orange-100 dark:bg-orange-900/50' };
         }
     }
-
-    return { isLoan: false, type: t.type, category: t.category, colorClass: '' };
+    return defaultInfo;
   };
 
 
@@ -1031,7 +1029,7 @@ export function TransactionTable({
                     <TableRow key={t.id} className={loanInfo.colorClass}>
                         <TableCell className="font-medium">{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
                         <TableCell>{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
-                        <TableCell className="font-medium" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{t.description}</TableCell>
+                        <TableCell className="font-medium" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{loanInfo.description}</TableCell>
                         <TableCell>
                           <Badge 
                               variant={getBadgeVariant(t.type)}
@@ -1257,3 +1255,5 @@ export function TransactionTable({
     </>
   );
 }
+
+    
