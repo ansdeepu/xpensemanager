@@ -213,7 +213,6 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
         batch.set(loanDocRef, newLoanData);
       }
       
-      // Virtual ID for the person/lender for the transfer transaction
       const personVirtualId = `loan-virtual-account-${finalPersonName.replace(/\s+/g, '-')}`;
       
       let fromAccountId: string | undefined;
@@ -226,6 +225,7 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
         fromAccountId = transactionType === 'loan' ? personVirtualId : accountId;
         toAccountId = transactionType === 'loan' ? accountId : personVirtualId;
       }
+
 
       if (fromAccountId && toAccountId) {
         const transferDescription = description || `${transactionType === 'loan' ? 'Loan' : 'Repayment'} ${loanType === 'given' ? 'to' : 'from'} ${finalPersonName}`;
