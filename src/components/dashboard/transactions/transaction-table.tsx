@@ -325,15 +325,15 @@ export function TransactionTable({
     
     if (accountId?.startsWith('loan-virtual-account-')) {
         const personName = accountId.replace('loan-virtual-account-', '').replace(/-/g, ' ');
-        // Check if this person exists in loans
-        const loan = loans.find(l => l.personName === personName);
+        const loan = loans.find(l => l.personName.toLowerCase() === personName.toLowerCase());
         if (loan) return loan.personName;
+        return personName;
     }
 
     if (!accountId) return "-";
     
     const account = accounts.find((a) => a.id === accountId);
-    if (!account) return "N/A"; // This should now be less frequent
+    if (!account) return "N/A";
     
     return account.name;
   };
@@ -568,11 +568,44 @@ export function TransactionTable({
   };
 
 
-  const handleDeleteTransaction = async (transaction: Transaction) => {
+  const handleDeleteTransaction = async (transactionToDelete: Transaction) => {
     if (!user) return;
     try {
-        await deleteDoc(doc(db, "transactions", transaction.id));
-    } catch (error) {
+        const batch = writeBatch(db);
+        const transactionRef = doc(db, "transactions", transactionToDelete.id);
+
+        if (transactionToDelete.loanTransactionId) {
+            // Find the parent loan document
+            const loansQuery = query(collection(db, "loans"), where("userId", "==", user.uid));
+            const loansSnapshot = await getDocs(loansQuery);
+
+            for (const loanDoc of loansSnapshot.docs) {
+                const loan = { id: loanDoc.id, ...loanDoc.data() } as Loan;
+                const txIndex = loan.transactions.findIndex(t => t.id === transactionToDelete.loanTransactionId);
+
+                if (txIndex !== -1) {
+                    const updatedTransactions = loan.transactions.filter(t => t.id !== transactionToDelete.loanTransactionId);
+                    
+                    if (updatedTransactions.length > 0) {
+                        batch.update(loanDoc.ref, { transactions: updatedTransactions });
+                    } else {
+                        // If no transactions are left, delete the entire loan document
+                        batch.delete(loanDoc.ref);
+                    }
+                    break; // Exit loop once found and updated
+                }
+            }
+        }
+
+        batch.delete(transactionRef);
+        await batch.commit();
+        toast({ title: "Transaction deleted successfully." });
+    } catch (error: any) {
+        toast({
+            variant: "destructive",
+            title: "Deletion failed",
+            description: error.message || "An unexpected error occurred."
+        });
     }
   };
 
@@ -1198,3 +1231,5 @@ export function TransactionTable({
     </>
   );
 }
+
+    
