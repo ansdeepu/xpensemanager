@@ -157,7 +157,18 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
     const description = formData.get("description") as string;
   
     let finalPersonName = isNewPerson ? personName : loans.find(l => l.id === selectedPersonId)?.personName || accounts.find(a => a.id === selectedPersonId)?.name;
-    let finalPersonId = isNewPerson ? `loan-virtual-account-${personName.replace(/\s+/g, '-')}` : selectedPersonId;
+    let finalPersonId = selectedPersonId;
+    
+    if (isNewPerson) {
+        // Find if a loan doc for this person already exists to prevent duplicates
+        const existingLoan = loans.find(l => l.personName.toLowerCase() === personName.toLowerCase());
+        if (existingLoan) {
+            finalPersonId = existingLoan.id;
+        } else {
+            // For a truly new person, we will create a new loan doc later
+            finalPersonId = null; 
+        }
+    }
 
 
     if (!finalPersonName) {
@@ -182,7 +193,10 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
       let loanDocRef;
       let existingTransactions: LoanTransaction[] = [];
   
-      const existingLoan = loans.find(l => l.personName === finalPersonName);
+      // Find loan document by ID if a person was selected, or by name if a new person was entered but already exists
+      const existingLoan = finalPersonId 
+        ? loans.find(l => l.id === finalPersonId) 
+        : loans.find(l => l.personName.toLowerCase() === finalPersonName!.toLowerCase());
       
       if (existingLoan) {
         loanDocRef = doc(db, "loans", existingLoan.id);
@@ -199,25 +213,18 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
         batch.set(loanDocRef, newLoanData);
       }
       
+      // Virtual ID for the person/lender for the transfer transaction
+      const personVirtualId = `loan-virtual-account-${finalPersonName.replace(/\s+/g, '-')}`;
+      
       let fromAccountId: string | undefined;
       let toAccountId: string | undefined;
 
       if (loanType === 'given') { // User is GIVING a loan
-        if (transactionType === 'loan') { // Giving the initial amount
-          fromAccountId = accountId;
-          toAccountId = finalPersonId!;
-        } else { // Receiving a repayment
-          fromAccountId = finalPersonId!;
-          toAccountId = accountId;
-        }
+        fromAccountId = transactionType === 'loan' ? accountId : personVirtualId;
+        toAccountId = transactionType === 'loan' ? personVirtualId : accountId;
       } else { // loanType === 'taken' // User is TAKING a loan
-        if (transactionType === 'loan') { // Receiving the loan amount
-          fromAccountId = finalPersonId!;
-          toAccountId = accountId;
-        } else { // Making a repayment
-          fromAccountId = accountId;
-          toAccountId = finalPersonId!;
-        }
+        fromAccountId = transactionType === 'loan' ? personVirtualId : accountId;
+        toAccountId = transactionType === 'loan' ? accountId : personVirtualId;
       }
 
       if (fromAccountId && toAccountId) {
@@ -275,17 +282,17 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
         
         if (!financialTxSnapshot.empty) {
             const financialTxDoc = financialTxSnapshot.docs[0];
-            const finalPersonId = accounts.find(a => a.name === selectedLoan.personName)?.id || `loan-virtual-account-${selectedLoan.personName.replace(/\s+/g, '-')}`;
+            const personVirtualId = `loan-virtual-account-${selectedLoan.personName.replace(/\s+/g, '-')}`;
 
             let fromAccountId: string | undefined;
             let toAccountId: string | undefined;
 
             if (selectedLoan.type === 'given') {
-                fromAccountId = updatedTransaction.type === 'loan' ? updatedTransaction.accountId : finalPersonId;
-                toAccountId = updatedTransaction.type === 'loan' ? finalPersonId : updatedTransaction.accountId;
+                fromAccountId = updatedTransaction.type === 'loan' ? updatedTransaction.accountId : personVirtualId;
+                toAccountId = updatedTransaction.type === 'loan' ? personVirtualId : updatedTransaction.accountId;
             } else { // taken
-                fromAccountId = updatedTransaction.type === 'loan' ? finalPersonId : updatedTransaction.accountId;
-                toAccountId = updatedTransaction.type === 'loan' ? updatedTransaction.accountId : finalPersonId;
+                fromAccountId = updatedTransaction.type === 'loan' ? personVirtualId : updatedTransaction.accountId;
+                toAccountId = updatedTransaction.type === 'loan' ? updatedTransaction.accountId : personVirtualId;
             }
 
             if (fromAccountId && toAccountId) {
@@ -694,5 +701,3 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
     </>
   );
 }
-
-    
