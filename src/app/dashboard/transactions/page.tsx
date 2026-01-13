@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
@@ -139,7 +138,7 @@ export default function TransactionsPage() {
     
     const transactionsToConsider = transactions.filter(t => {
       const transactionDate = parseISO(t.date);
-      return isAfter(transactionDate, reconDate) || isSameDay(transactionDate, reconDate);
+      return isAfter(transactionDate, reconDate);
     });
 
     transactionsToConsider.forEach(t => {
@@ -419,3 +418,4 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
