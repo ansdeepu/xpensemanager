@@ -161,7 +161,14 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
       otherPartyName = personName;
     } else if (selectedPersonId) {
         const existingLoan = loans.find(l => l.id === selectedPersonId);
-        otherPartyName = existingLoan?.personName;
+        if (existingLoan) {
+            otherPartyName = existingLoan.personName;
+        } else {
+            const existingAccount = accounts.find(a => a.id === selectedPersonId);
+            if (existingAccount) {
+                otherPartyName = existingAccount.name;
+            }
+        }
     }
 
     if (!otherPartyName) {
@@ -204,10 +211,10 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
       let fromAccountId: string;
       let toAccountId: string;
 
-      if (loanType === 'taken') { // Loan taken by me
+      if (loanType === 'taken') {
           fromAccountId = transactionType === 'loan' ? otherPartyVirtualId : yourAccountId;
           toAccountId = transactionType === 'loan' ? yourAccountId : otherPartyVirtualId;
-      } else { // Loan given by me
+      } else { // Loan Given
           fromAccountId = transactionType === 'loan' ? yourAccountId : otherPartyVirtualId;
           toAccountId = transactionType === 'loan' ? otherPartyVirtualId : yourAccountId;
       }
@@ -407,10 +414,10 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
   const getLoanTransactionDescription = (loan: Loan, transaction: LoanTransaction) => {
     if (transaction.description) return transaction.description;
 
-    if (loan.type === 'taken') {
-        return transaction.type === 'loan' ? `Loan from ${loan.personName}` : `Repayment to ${loan.personName}`;
-    } else { // given
+    if (loanType === 'given') {
         return transaction.type === 'loan' ? `Loan to ${loan.personName}` : `Repayment from ${loan.personName}`;
+    } else { // loan.type === 'taken'
+        return transaction.type === 'loan' ? `Loan from ${loan.personName}` : `Repayment to ${loan.personName}`;
     }
   }
 
