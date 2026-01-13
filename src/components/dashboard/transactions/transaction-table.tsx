@@ -214,9 +214,9 @@ export function TransactionTable({
     const filteredTransactions = useMemo(() => {
         const primaryAccount = accounts.find(a => a.isPrimary);
         const isPrimaryView = primaryAccount?.id === accountId;
-        const currentAccount = accounts.find(a => a.id === accountId);
-        const currentAccountVirtualId = currentAccount ? `loan-virtual-account-${currentAccount.name.replace(/\s+/g, '-')}` : null;
-
+        
+        // Get the name of the current account being viewed, if it's not a primary/wallet one.
+        const currentVirtualAccountName = accounts.find(a => a.id === accountId)?.name;
 
         const sourceTransactions = transactions.filter(t => {
             if (isPrimaryView) {
@@ -232,8 +232,16 @@ export function TransactionTable({
             } else {
                  // For non-primary accounts, show transactions where this account is directly involved.
                  const isDirectlyInvolved = t.accountId === accountId || t.fromAccountId === accountId || t.toAccountId === accountId;
-                 const isLoanParty = t.type === 'transfer' && (t.fromAccountId === currentAccountVirtualId || t.toAccountId === currentAccountVirtualId);
-                 return isDirectlyInvolved || isLoanParty;
+
+                 // Also include if it's a loan transaction involving this virtual account name
+                 const involvedLoanParty = loans.find(l => {
+                    if (l.personName === currentVirtualAccountName) {
+                        return l.transactions.some(lt => lt.id === t.loanTransactionId);
+                    }
+                    return false;
+                 });
+                 
+                 return isDirectlyInvolved || !!involvedLoanParty;
             }
         });
 
@@ -255,7 +263,7 @@ export function TransactionTable({
         }
         
         return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    }, [transactions, accountId, dateRange, searchQuery, accounts]);
+    }, [transactions, accountId, dateRange, searchQuery, accounts, loans]);
 
 
   const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
@@ -644,24 +652,37 @@ export function TransactionTable({
 
   const getLoanDisplayInfo = (t: Transaction) => {
     if (t.type !== 'transfer' || !t.loanTransactionId) {
-      return { isLoan: false, type: t.type, category: t.category, colorClass: '' };
+        return { isLoan: false, type: t.type, category: t.category, colorClass: '' };
     }
-  
-    for (const loan of loans) {
-      const loanTx = loan.transactions.find(lt => lt.id === t.loanTransactionId);
-      if (loanTx) {
-        let type: string;
-        
-        if (loan.type === 'given') {
-            type = loanTx.type === 'loan' ? "Loan Given" : "Repayment Received";
-        } else { // loan.type === 'taken'
-            type = loanTx.type === 'loan' ? "Loan Taken" : "Repayment Made";
-        }
 
-        return { isLoan: true, type, category: 'Loan', colorClass: 'bg-orange-100 dark:bg-orange-900/50' };
-      }
+    const currentAccount = accounts.find(a => a.id === accountId);
+    const isVirtualAccountView = currentAccount && !currentAccount.isPrimary;
+
+    for (const loan of loans) {
+        const loanTx = loan.transactions.find(lt => lt.id === t.loanTransactionId);
+        if (loanTx) {
+            let type: string;
+
+            if (isVirtualAccountView && currentAccount?.name === loan.personName) {
+                // We are viewing from the perspective of the other party
+                if (loan.type === 'taken') { // User took a loan from this person
+                    type = loanTx.type === 'loan' ? 'Loan Given' : 'Repayment Received';
+                } else { // User gave a loan to this person
+                    type = loanTx.type === 'loan' ? 'Loan Taken' : 'Repayment Made';
+                }
+            } else {
+                // Viewing from the user's main account perspective
+                if (loan.type === 'given') {
+                    type = loanTx.type === 'loan' ? "Loan Given" : "Repayment Received";
+                } else { // loan.type === 'taken'
+                    type = loanTx.type === 'loan' ? "Loan Taken" : "Repayment Made";
+                }
+            }
+
+            return { isLoan: true, type, category: 'Loan', colorClass: 'bg-orange-100 dark:bg-orange-900/50' };
+        }
     }
-    
+
     return { isLoan: false, type: t.type, category: t.category, colorClass: '' };
   };
 
@@ -1236,7 +1257,3 @@ export function TransactionTable({
     </>
   );
 }
-
-    
-
-    
