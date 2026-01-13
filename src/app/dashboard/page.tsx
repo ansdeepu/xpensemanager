@@ -3,6 +3,7 @@ import { AccountBalances } from "@/components/dashboard/overview/account-balance
 import { CategoryExpenses } from "@/components/dashboard/overview/category-expenses";
 import { CurrentMonthDailyExpenses } from "@/components/dashboard/overview/current-month-daily-expenses";
 import { DateWiseExpenses } from "@/components/dashboard/overview/date-wise-expenses";
+import { LoanSummary } from "@/components/dashboard/overview/loan-summary";
 import { NoticeBoard } from "@/components/dashboard/overview/notice-board";
 
 
@@ -17,6 +18,7 @@ export default function DashboardPage() {
            <NoticeBoard />
         </div>
       </div>
+      <LoanSummary />
       <CategoryExpenses />
       <CurrentMonthDailyExpenses />
       <DateWiseExpenses />
