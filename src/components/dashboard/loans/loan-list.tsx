@@ -165,7 +165,6 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
       return;
     }
     
-    const isLoanBetweenOwnAccounts = accounts.some(acc => acc.id === selectedPersonId);
     const loanTransactionId = new Date().getTime().toString() + Math.random().toString(36).substring(2, 9);
 
     const newTransaction: LoanTransaction = {
@@ -695,3 +694,5 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
     </>
   );
 }
+
+    
