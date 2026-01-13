@@ -689,6 +689,19 @@ export function TransactionTable({
     }
     return defaultInfo;
   };
+  
+  const getLoanAmountColor = (loanInfo: { type: string }) => {
+    if (loanInfo.type.includes('Repayment')) {
+      return 'text-blue-600';
+    }
+    if (loanInfo.type.includes('Loan Given')) {
+      return 'text-red-600';
+    }
+    if (loanInfo.type.includes('Loan from') || loanInfo.type.includes('Loan Taken')) {
+      return 'text-green-600';
+    }
+    return 'text-blue-600'; // Default for transfers
+  };
 
 
   return (
@@ -1052,7 +1065,7 @@ export function TransactionTable({
                         <TableCell className={cn("text-right font-mono", t.type === 'income' ? 'text-green-600' : 'text-red-600')}>
                             {t.type !== 'transfer' ? formatCurrency(t.amount) : null}
                         </TableCell>
-                        <TableCell className="text-right font-mono text-blue-600">
+                        <TableCell className={cn("text-right font-mono", loanInfo.isLoan ? getLoanAmountColor(loanInfo) : 'text-blue-600')}>
                             {t.type === 'transfer' ? formatCurrency(t.amount) : null}
                         </TableCell>
                         <TableCell className="text-right print-hide">
@@ -1261,5 +1274,3 @@ export function TransactionTable({
     </>
   );
 }
-
-    
