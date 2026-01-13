@@ -342,7 +342,11 @@ export function TransactionTable({
     if (!accountId) return "-";
     
     const account = accounts.find((a) => a.id === accountId);
-    if (!account) return "N/A";
+    if (!account) {
+         const loan = loans.find(l => l.id === accountId);
+         if (loan) return loan.personName;
+         return "N/A";
+    }
     
     return account.name;
   };
@@ -674,8 +678,10 @@ export function TransactionTable({
                 // Viewing from the user's main account perspective
                 if (loan.type === 'given') {
                     type = loanTx.type === 'loan' ? "Loan Given" : "Repayment Received";
+                    description = `${type} ${loanTx.type === 'loan' ? 'to' : 'from'} ${loan.personName}`;
                 } else { // loan.type === 'taken'
-                    type = loanTx.type === 'loan' ? "Loan Taken" : "Repayment Made";
+                    type = loanTx.type === 'loan' ? "Loan from" : "Repayment to";
+                    description = `${type} ${loan.personName}`;
                 }
             }
             return { isLoan: true, type, category: 'Loan', description, colorClass: 'bg-orange-100 dark:bg-orange-900/50' };
