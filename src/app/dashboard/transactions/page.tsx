@@ -8,7 +8,7 @@ import { collection, query, where, onSnapshot, orderBy, doc, setDoc, updateDoc }
 import type { Account, Transaction } from "@/lib/data";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { format, isAfter, parseISO } from "date-fns";
+import { format, isAfter, isSameDay, parseISO } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,6 +16,9 @@ import { cn } from "@/lib/utils";
 import { useAuthState } from "@/hooks/use-auth-state";
 
 const formatCurrency = (amount: number) => {
+  if (Object.is(amount, -0)) {
+    amount = 0;
+  }
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
@@ -125,14 +128,21 @@ export default function TransactionsPage() {
 
  const { accountBalances, cashWalletBalance, digitalWalletBalance } = useMemo(() => {
     const calculatedAccountBalances: { [key: string]: number } = {};
+    const reconDate = reconciliationDate ? parseISO(reconciliationDate.toISOString()) : new Date(0);
+
     rawAccounts.forEach(acc => {
-      calculatedAccountBalances[acc.id] = 0; 
+      calculatedAccountBalances[acc.id] = acc.actualBalance ?? 0;
     });
 
-    let calculatedCashBalance = 0;
-    let calculatedDigitalBalance = 0;
+    let calculatedCashBalance = walletPreferences.cash?.balance ?? 0;
+    let calculatedDigitalBalance = walletPreferences.digital?.balance ?? 0;
+    
+    const transactionsToConsider = transactions.filter(t => {
+      const transactionDate = parseISO(t.date);
+      return isAfter(transactionDate, reconDate) || isSameDay(transactionDate, reconDate);
+    });
 
-    transactions.forEach(t => {
+    transactionsToConsider.forEach(t => {
       if (t.type === 'income' && t.accountId && calculatedAccountBalances[t.accountId] !== undefined) {
         calculatedAccountBalances[t.accountId] += t.amount;
       } else if (t.type === 'expense') {
@@ -144,6 +154,7 @@ export default function TransactionsPage() {
           calculatedDigitalBalance -= t.amount;
         }
       } else if (t.type === 'transfer') {
+        // From Account
         if (t.fromAccountId && calculatedAccountBalances[t.fromAccountId] !== undefined) {
           calculatedAccountBalances[t.fromAccountId] -= t.amount;
         } else if (t.fromAccountId === 'cash-wallet') {
@@ -151,6 +162,7 @@ export default function TransactionsPage() {
         } else if (t.fromAccountId === 'digital-wallet') {
           calculatedDigitalBalance -= t.amount;
         }
+        // To Account
         if (t.toAccountId && calculatedAccountBalances[t.toAccountId] !== undefined) {
           calculatedAccountBalances[t.toAccountId] += t.amount;
         } else if (t.toAccountId === 'cash-wallet') {
@@ -166,12 +178,12 @@ export default function TransactionsPage() {
       cashWalletBalance: calculatedCashBalance,
       digitalWalletBalance: calculatedDigitalBalance 
     };
-  }, [rawAccounts, transactions]);
+  }, [rawAccounts, transactions, walletPreferences, reconciliationDate]);
   
   const accounts = useMemo(() => {
     return rawAccounts.map(acc => ({
         ...acc,
-        balance: accountBalances[acc.id] ?? 0,
+        balance: accountBalances[acc.id] ?? (acc.actualBalance ?? 0),
     }));
   }, [rawAccounts, accountBalances]);
 
@@ -191,7 +203,7 @@ export default function TransactionsPage() {
     );
   }
 
-  const allBalance = (primaryAccount?.balance || 0) + cashWalletBalance + digitalWalletBalance;
+  const allBalance = (primaryAccount ? primaryAccount.balance : 0) + cashWalletBalance + digitalWalletBalance;
 
   const cashBalanceDifference = walletPreferences.cash?.balance !== undefined && walletPreferences.cash.balance !== null ? cashWalletBalance - walletPreferences.cash.balance : null;
   const digitalBalanceDifference = walletPreferences.digital?.balance !== undefined && walletPreferences.digital.balance !== null ? digitalWalletBalance - walletPreferences.digital.balance : null;
