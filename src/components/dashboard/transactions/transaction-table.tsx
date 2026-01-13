@@ -214,6 +214,9 @@ export function TransactionTable({
     const filteredTransactions = useMemo(() => {
         const primaryAccount = accounts.find(a => a.isPrimary);
         const isPrimaryView = primaryAccount?.id === accountId;
+        const currentAccount = accounts.find(a => a.id === accountId);
+        const currentAccountVirtualId = currentAccount ? `loan-virtual-account-${currentAccount.name.replace(/\s+/g, '-')}` : null;
+
 
         const sourceTransactions = transactions.filter(t => {
             if (isPrimaryView) {
@@ -228,7 +231,9 @@ export function TransactionTable({
                 );
             } else {
                  // For non-primary accounts, show transactions where this account is directly involved.
-                return t.accountId === accountId || t.fromAccountId === accountId || t.toAccountId === accountId;
+                 const isDirectlyInvolved = t.accountId === accountId || t.fromAccountId === accountId || t.toAccountId === accountId;
+                 const isLoanParty = t.type === 'transfer' && (t.fromAccountId === currentAccountVirtualId || t.toAccountId === currentAccountVirtualId);
+                 return isDirectlyInvolved || isLoanParty;
             }
         });
 
@@ -1231,5 +1236,7 @@ export function TransactionTable({
     </>
   );
 }
+
+    
 
     
