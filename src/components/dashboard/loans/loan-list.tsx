@@ -157,13 +157,13 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
     const description = formData.get("description") as string;
   
     // Determine the name of the other party (the person/entity)
-    let otherPartyName: string | undefined;
+    let otherPartyName: string;
     if (isNewPerson) {
       otherPartyName = personName;
     } else {
-      const selectedLoan = loans.find(l => l.id === selectedPersonId);
-      const selectedAccount = accounts.find(a => a.id === selectedPersonId);
-      otherPartyName = selectedLoan?.personName || selectedAccount?.name;
+      const existingLoan = loans.find(l => l.id === selectedPersonId);
+      const existingAccount = otherAccounts.find(a => a.id === selectedPersonId);
+      otherPartyName = existingLoan?.personName || existingAccount?.name || "";
     }
 
     if (!otherPartyName) {
@@ -171,7 +171,6 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
       return;
     }
     
-    // This is the virtual account ID for the other party in the loan.
     const otherPartyVirtualId = `loan-virtual-account-${otherPartyName.replace(/\s+/g, '-')}`;
 
     const newLoanTransaction: LoanTransaction = {
@@ -189,7 +188,7 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
       // Find or create the main loan document
       let loanDocRef;
       let existingLoan = isNewPerson
-        ? loans.find(l => l.personName.toLowerCase() === otherPartyName!.toLowerCase())
+        ? loans.find(l => l.personName.toLowerCase() === otherPartyName.toLowerCase())
         : loans.find(l => l.id === selectedPersonId);
       
       if (existingLoan) {
@@ -211,22 +210,22 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
       let fromAccountId: string;
       let toAccountId: string;
 
-      if (loanType === 'taken') {
-        if (transactionType === 'loan') { // You receive money
-          fromAccountId = otherPartyVirtualId;
-          toAccountId = payingAccountId;
-        } else { // You repay money
-          fromAccountId = payingAccountId;
-          toAccountId = otherPartyVirtualId;
-        }
-      } else { // loanType === 'given'
-        if (transactionType === 'loan') { // You give money
-          fromAccountId = payingAccountId;
-          toAccountId = otherPartyVirtualId;
-        } else { // You receive repayment
-          fromAccountId = otherPartyVirtualId;
-          toAccountId = payingAccountId;
-        }
+      if (loanType === 'taken') { // Loan taken by me
+          if (transactionType === 'loan') { // I receive money
+              fromAccountId = otherPartyVirtualId;
+              toAccountId = payingAccountId; // my account
+          } else { // I repay money
+              fromAccountId = payingAccountId; // my account
+              toAccountId = otherPartyVirtualId;
+          }
+      } else { // Loan given by me
+          if (transactionType === 'loan') { // I give money
+              fromAccountId = payingAccountId; // my account
+              toAccountId = otherPartyVirtualId;
+          } else { // I receive repayment
+              fromAccountId = otherPartyVirtualId;
+              toAccountId = payingAccountId; // my account
+          }
       }
 
       // Create the underlying financial transaction
