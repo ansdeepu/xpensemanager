@@ -8,7 +8,7 @@ import { collection, query, where, onSnapshot, orderBy, doc, setDoc, updateDoc }
 import type { Account, Transaction } from "@/lib/data";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { format, isAfter, parseISO } from "date-fns";
+import { format, isAfter, isSameDay, parseISO } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -134,11 +134,12 @@ export default function TransactionsPage() {
     let calculatedCashBalance = walletPreferences.cash?.balance ?? 0;
     let calculatedDigitalBalance = walletPreferences.digital?.balance ?? 0;
     
-    const transactionsAfterRecon = transactions.filter(t => isAfter(parseISO(t.date), reconDate));
-
-    transactionsAfterRecon.forEach(t => {
+    const transactionsToConsider = transactions.filter(t => {
       const transactionDate = parseISO(t.date);
+      return isAfter(transactionDate, reconDate) || isSameDay(transactionDate, reconDate);
+    });
 
+    transactionsToConsider.forEach(t => {
       if (t.type === 'income' && t.accountId && calculatedAccountBalances[t.accountId] !== undefined) {
         calculatedAccountBalances[t.accountId] += t.amount;
       } else if (t.type === 'expense') {
