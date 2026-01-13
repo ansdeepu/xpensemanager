@@ -160,16 +160,13 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
     let finalPersonId = selectedPersonId;
     
     if (isNewPerson) {
-        // Find if a loan doc for this person already exists to prevent duplicates
         const existingLoan = loans.find(l => l.personName.toLowerCase() === personName.toLowerCase());
         if (existingLoan) {
             finalPersonId = existingLoan.id;
         } else {
-            // For a truly new person, we will create a new loan doc later
             finalPersonId = null; 
         }
     }
-
 
     if (!finalPersonName) {
       toast({ variant: "destructive", title: "Person or account name is required" });
@@ -193,7 +190,6 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
       let loanDocRef;
       let existingTransactions: LoanTransaction[] = [];
   
-      // Find loan document by ID if a person was selected, or by name if a new person was entered but already exists
       const existingLoan = finalPersonId 
         ? loans.find(l => l.id === finalPersonId) 
         : loans.find(l => l.personName.toLowerCase() === finalPersonName!.toLowerCase());
@@ -218,14 +214,27 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
       let fromAccountId: string | undefined;
       let toAccountId: string | undefined;
 
-      if (loanType === 'given') { // User is GIVING a loan
-        fromAccountId = transactionType === 'loan' ? accountId : personVirtualId;
-        toAccountId = transactionType === 'loan' ? personVirtualId : accountId;
-      } else { // loanType === 'taken' // User is TAKING a loan
-        fromAccountId = transactionType === 'loan' ? personVirtualId : accountId;
-        toAccountId = transactionType === 'loan' ? accountId : personVirtualId;
+      if (loanType === 'taken') {
+        if (transactionType === 'loan') {
+          // You took a loan, money comes FROM lender TO you
+          fromAccountId = personVirtualId;
+          toAccountId = accountId;
+        } else { // repayment
+          // You repay, money goes FROM you TO lender
+          fromAccountId = accountId;
+          toAccountId = personVirtualId;
+        }
+      } else { // loanType === 'given'
+        if (transactionType === 'loan') {
+          // You gave a loan, money goes FROM you TO borrower
+          fromAccountId = accountId;
+          toAccountId = personVirtualId;
+        } else { // repayment
+          // You receive repayment, money comes FROM borrower TO you
+          fromAccountId = personVirtualId;
+          toAccountId = accountId;
+        }
       }
-
 
       if (fromAccountId && toAccountId) {
         const transferDescription = description || `${transactionType === 'loan' ? 'Loan' : 'Repayment'} ${loanType === 'given' ? 'to' : 'from'} ${finalPersonName}`;
@@ -287,12 +296,12 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
             let fromAccountId: string | undefined;
             let toAccountId: string | undefined;
 
-            if (selectedLoan.type === 'given') {
-                fromAccountId = updatedTransaction.type === 'loan' ? updatedTransaction.accountId : personVirtualId;
-                toAccountId = updatedTransaction.type === 'loan' ? personVirtualId : updatedTransaction.accountId;
-            } else { // taken
+            if (selectedLoan.type === 'taken') {
                 fromAccountId = updatedTransaction.type === 'loan' ? personVirtualId : updatedTransaction.accountId;
                 toAccountId = updatedTransaction.type === 'loan' ? updatedTransaction.accountId : personVirtualId;
+            } else { // given
+                fromAccountId = updatedTransaction.type === 'loan' ? updatedTransaction.accountId : personVirtualId;
+                toAccountId = updatedTransaction.type === 'loan' ? personVirtualId : updatedTransaction.accountId;
             }
 
             if (fromAccountId && toAccountId) {
@@ -701,3 +710,5 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
     </>
   );
 }
+
+    
