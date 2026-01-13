@@ -146,24 +146,22 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
     setTransactionType('loan');
   }
 
-  const handleAddLoanTransaction = async (event: React.FormEvent<HTMLFormElement>) => {
+ const handleAddLoanTransaction = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!user) return;
   
     const formData = new FormData(event.currentTarget);
     const amount = parseFloat(formData.get("amount") as string);
-    const yourAccountId = formData.get("accountId") as string; // The user's own account involved
+    const yourAccountId = formData.get("accountId") as string;
     const date = formData.get("date") as string;
     const description = formData.get("description") as string;
   
-    // Determine the name of the other party (the person/entity)
     let otherPartyName: string | undefined;
     if (isNewPerson) {
       otherPartyName = personName;
     } else if (selectedPersonId) {
         const existingLoan = loans.find(l => l.id === selectedPersonId);
-        const existingAccount = otherAccounts.find(a => a.id === selectedPersonId);
-        otherPartyName = existingLoan?.personName || existingAccount?.name;
+        otherPartyName = existingLoan?.personName;
     }
 
     if (!otherPartyName) {
@@ -185,7 +183,6 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
     try {
       const batch = writeBatch(db);
   
-      // Find or create the main loan document
       let loanDocRef;
       let existingLoan = loans.find(l => l.personName.toLowerCase() === otherPartyName?.toLowerCase());
       
@@ -204,41 +201,27 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
         batch.set(loanDocRef, newLoanData);
       }
       
-      // Determine the direction of the financial transfer
       let fromAccountId: string;
       let toAccountId: string;
 
       if (loanType === 'taken') { // Loan taken by me
-          if (transactionType === 'loan') { // I receive money
-              fromAccountId = otherPartyVirtualId;
-              toAccountId = yourAccountId;
-          } else { // I repay money
-              fromAccountId = yourAccountId;
-              toAccountId = otherPartyVirtualId;
-          }
+          fromAccountId = transactionType === 'loan' ? otherPartyVirtualId : yourAccountId;
+          toAccountId = transactionType === 'loan' ? yourAccountId : otherPartyVirtualId;
       } else { // Loan given by me
-          if (transactionType === 'loan') { // I give money
-              fromAccountId = yourAccountId; 
-              toAccountId = otherPartyVirtualId;
-          } else { // I receive repayment
-              fromAccountId = otherPartyVirtualId;
-              toAccountId = yourAccountId;
-          }
+          fromAccountId = transactionType === 'loan' ? yourAccountId : otherPartyVirtualId;
+          toAccountId = transactionType === 'loan' ? otherPartyVirtualId : yourAccountId;
       }
 
-      // Create the underlying financial transaction
-      const transferDescription = description || `${transactionType === 'loan' ? 'Loan' : 'Repayment'} ${loanType === 'given' ? 'to' : 'from'} ${otherPartyName}`;
-      
       const financialTransaction: Partial<Transaction> = {
           userId: user.uid,
           date,
-          description: transferDescription,
+          description: description,
           amount,
           type: 'transfer',
           fromAccountId,
           toAccountId,
-          category: 'Loan', // Standardized category
-          paymentMethod: 'online', // Transfers are considered 'online'
+          category: 'Loan',
+          paymentMethod: 'online',
           loanTransactionId: newLoanTransaction.id,
       };
 
@@ -283,8 +266,8 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
             const financialTxDoc = financialTxSnapshot.docs[0];
             const personVirtualId = `loan-virtual-account-${selectedLoan.personName.replace(/\s+/g, '-')}`;
 
-            let fromAccountId: string | undefined;
-            let toAccountId: string | undefined;
+            let fromAccountId: string;
+            let toAccountId: string;
 
             if (selectedLoan.type === 'taken') {
                 fromAccountId = updatedTransaction.type === 'loan' ? personVirtualId : updatedTransaction.accountId;
@@ -294,16 +277,14 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
                 toAccountId = updatedTransaction.type === 'loan' ? personVirtualId : updatedTransaction.accountId;
             }
 
-            if (fromAccountId && toAccountId) {
-                const updatedFinancialData = {
-                    date: updatedTransaction.date,
-                    amount: updatedTransaction.amount,
-                    description: updatedTransaction.description || `${updatedTransaction.type === 'loan' ? 'Loan' : 'Repayment'} ${selectedLoan.type === 'given' ? 'to' : 'from'} ${selectedLoan.personName}`,
-                    fromAccountId,
-                    toAccountId,
-                };
-                batch.update(financialTxDoc.ref, updatedFinancialData);
-            }
+            const updatedFinancialData = {
+                date: updatedTransaction.date,
+                amount: updatedTransaction.amount,
+                description: updatedTransaction.description,
+                fromAccountId,
+                toAccountId,
+            };
+            batch.update(financialTxDoc.ref, updatedFinancialData);
         }
 
         await batch.commit();
@@ -422,6 +403,16 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
     { id: 'digital-wallet', name: 'Digital Wallet' },
     ...accounts
   ];
+  
+  const getLoanTransactionDescription = (loan: Loan, transaction: LoanTransaction) => {
+    if (transaction.description) return transaction.description;
+
+    if (loan.type === 'taken') {
+        return transaction.type === 'loan' ? `Loan from ${loan.personName}` : `Repayment to ${loan.personName}`;
+    } else { // given
+        return transaction.type === 'loan' ? `Loan to ${loan.personName}` : `Repayment from ${loan.personName}`;
+    }
+  }
 
   return (
     <>
@@ -594,7 +585,7 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
                                                         <TableCell>
                                                           <Badge variant={t.type === 'loan' ? 'outline' : 'secondary'} className="capitalize">{t.type}</Badge>
                                                         </TableCell>
-                                                        <TableCell>{t.description || '-'}</TableCell>
+                                                        <TableCell>{getLoanTransactionDescription(loan, t)}</TableCell>
                                                         <TableCell>{allAccountsForTx.find(a => a.id === t.accountId)?.name}</TableCell>
                                                         <TableCell className={cn("text-right font-mono", t.type === 'loan' ? 'text-red-500' : 'text-green-600')}>
                                                             {formatCurrency(t.amount)}
@@ -700,3 +691,5 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
     </>
   );
 }
+
+    
