@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -157,20 +158,18 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
     const description = formData.get("description") as string;
   
     let otherPartyName: string | undefined;
-    let otherPartyIsVirtual = true;
+    
+    const allLoanParties = [
+      ...loans,
+      ...accounts.filter(a => !a.isPrimary)
+    ];
 
     if (isNewPerson) {
       otherPartyName = personName;
     } else if (selectedPersonId) {
-        const existingLoan = loans.find(l => l.id === selectedPersonId);
-        if (existingLoan) {
-            otherPartyName = existingLoan.personName;
-        } else {
-            const existingAccount = accounts.find(a => a.id === selectedPersonId);
-            if (existingAccount) {
-                otherPartyName = existingAccount.name;
-                otherPartyIsVirtual = false; // It's one of the user's own accounts
-            }
+        const existingParty = allLoanParties.find(l => l.id === selectedPersonId);
+        if (existingParty) {
+            otherPartyName = existingParty.name || (existingParty as Loan).personName;
         }
     }
 
@@ -180,9 +179,7 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
     }
     
     // The other party's ID for the transfer transaction
-    const otherPartyAccountIdForTransfer = otherPartyIsVirtual 
-        ? `loan-virtual-account-${otherPartyName.replace(/\s+/g, '-')}` 
-        : selectedPersonId;
+    const otherPartyAccountIdForTransfer = `loan-virtual-account-${otherPartyName.replace(/\s+/g, '-')}` 
 
     const newLoanTransaction: LoanTransaction = {
       id: new Date().getTime().toString() + Math.random().toString(36).substring(2, 9),
@@ -426,14 +423,26 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
   const getLoanTransactionDescription = (loan: Loan, transaction: LoanTransaction) => {
     if (transaction.description) return transaction.description;
 
-    const myAccountName = allAccountsForTx.find(a => a.id === transaction.accountId)?.name;
-
     if (loan.type === 'given') {
         return transaction.type === 'loan' ? `Loan to ${loan.personName}` : `Repayment from ${loan.personName}`;
     } else { // loan.type === 'taken'
         return transaction.type === 'loan' ? `Loan from ${loan.personName}` : `Repayment to ${loan.personName}`;
     }
   }
+
+  const getAmountColor = (loan: Loan, transaction: LoanTransaction) => {
+    if (transaction.type === 'repayment') {
+      return 'text-blue-600';
+    }
+    if (loan.type === 'given') {
+      return 'text-red-600';
+    }
+    if (loan.type === 'taken') {
+      return 'text-green-600';
+    }
+    return '';
+  };
+
 
   return (
     <>
@@ -478,12 +487,12 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
                                 <SelectLabel>People</SelectLabel>
                                 {loans.map(l => <SelectItem key={l.id} value={l.id}>{l.personName}</SelectItem>)}
                               </SelectGroup>
-                              {loanType === 'taken' && (
+                              
                                 <SelectGroup>
                                     <SelectLabel>Your Other Accounts</SelectLabel>
                                     {otherAccounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
                                 </SelectGroup>
-                              )}
+                              
                               <SelectGroup>
                                 <SelectItem value="new">Add a new person</SelectItem>
                               </SelectGroup>
@@ -610,7 +619,7 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
                                                         </TableCell>
                                                         <TableCell>{getLoanTransactionDescription(loan, t)}</TableCell>
                                                         <TableCell>{allAccountsForTx.find(a => a.id === t.accountId)?.name}</TableCell>
-                                                        <TableCell className={cn("text-right font-mono", t.type === 'loan' ? 'text-red-500' : 'text-green-600')}>
+                                                        <TableCell className={cn("text-right font-mono", getAmountColor(loan, t))}>
                                                             {formatCurrency(t.amount)}
                                                         </TableCell>
                                                         <TableCell className="text-right">
