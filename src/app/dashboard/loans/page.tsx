@@ -19,6 +19,7 @@ const formatCurrency = (amount: number) => {
 export default function LoansPage() {
   const [user] = useAuthState();
   const [loans, setLoans] = useState<Loan[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (user) {
@@ -35,28 +36,31 @@ export default function LoansPage() {
           } as Loan;
         });
         setLoans(userLoans);
+        setLoading(false);
       });
       return () => unsubscribe();
+    } else {
+        setLoading(false);
     }
   }, [user]);
 
-  const totalLoanTaken = loans
+  const totalLoanTaken = !loading ? loans
     .filter((l) => l.type === 'taken')
-    .reduce((sum, l) => sum + l.balance, 0);
+    .reduce((sum, l) => sum + l.balance, 0) : 0;
 
-  const totalLoanGiven = loans
+  const totalLoanGiven = !loading ? loans
     .filter((l) => l.type === 'given')
-    .reduce((sum, l) => sum + l.balance, 0);
+    .reduce((sum, l) => sum + l.balance, 0) : 0;
 
   return (
     <div className="space-y-6">
       <Tabs defaultValue="taken" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="taken">
-            Loan Taken <span className="ml-2 font-bold text-red-600">{formatCurrency(totalLoanTaken)}</span>
+            Loan Taken <span className="ml-2 font-bold text-red-600">{!loading && formatCurrency(totalLoanTaken)}</span>
           </TabsTrigger>
           <TabsTrigger value="given">
-            Loan Given <span className="ml-2 font-bold text-green-600">{formatCurrency(totalLoanGiven)}</span>
+            Loan Given <span className="ml-2 font-bold text-green-600">{!loading && formatCurrency(totalLoanGiven)}</span>
           </TabsTrigger>
         </TabsList>
         <TabsContent value="taken" className="mt-6">
@@ -69,5 +73,3 @@ export default function LoansPage() {
     </div>
   );
 }
-
-    

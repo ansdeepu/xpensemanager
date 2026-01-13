@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -111,10 +110,10 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
       const unsubscribe = onSnapshot(q, (snapshot) => {
           const userLoans = snapshot.docs.map(doc => {
             const data = doc.data();
-            const transactions = (data.transactions || []).sort((a: LoanTransaction, b: LoanTransaction) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            const transactions: LoanTransaction[] = (data.transactions || []).sort((a: LoanTransaction, b: LoanTransaction) => new Date(b.date).getTime() - new Date(a.date).getTime());
             
-            const totalLoan = transactions.filter(t => t.type === 'loan').reduce((sum: number, t: LoanTransaction) => sum + t.amount, 0);
-            const totalRepayment = transactions.filter(t => t.type === 'repayment').reduce((sum: number, t: LoanTransaction) => sum + t.amount, 0);
+            const totalLoan = transactions.filter((t: LoanTransaction) => t.type === 'loan').reduce((sum: number, t: LoanTransaction) => sum + t.amount, 0);
+            const totalRepayment = transactions.filter((t: LoanTransaction) => t.type === 'repayment').reduce((sum: number, t: LoanTransaction) => sum + t.amount, 0);
             
             return {
               id: doc.id,
@@ -723,5 +722,3 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
     </>
   );
 }
-
-    
