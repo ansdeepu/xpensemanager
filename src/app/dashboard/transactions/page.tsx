@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
@@ -48,43 +49,7 @@ export default function TransactionsPage() {
   const [user, userLoading] = useAuthState();
   const [rawAccounts, setRawAccounts] = useState<Omit<Account, 'balance'>[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [walletPreferences, setWalletPreferences] = useState<{ cash?: { balance?: number, date?: string }, digital?: { balance?: number, date?: string } }>({});
-  const [reconciliationDate, setReconciliationDate] = useState<Date | undefined>(undefined);
   const [dataLoading, setDataLoading] = useState(true);
-
-  const useDebounce = (callback: Function, delay: number) => {
-    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-    return (...args: any) => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      timeoutRef.current = setTimeout(() => {
-        callback(...args);
-      }, delay);
-    };
-  };
-
-  const debouncedUpdateAccount = useCallback(useDebounce(async (accountId: string, data: { actualBalance?: number | null }) => {
-        if (!user) return;
-        const accountRef = doc(db, "accounts", accountId);
-        await updateDoc(accountRef, { ...data, actualBalanceDate: reconciliationDate?.toISOString() });
-    }, 500), [user, reconciliationDate]);
-    
-  const debouncedUpdateWallet = useCallback(useDebounce(async (walletType: 'cash' | 'digital', data: { balance?: number | null }) => {
-    if (!user) return;
-    const prefRef = doc(db, "user_preferences", user.uid);
-    const updatedWallets = { 
-        ...walletPreferences, 
-        [walletType]: { ...walletPreferences[walletType], ...data, date: reconciliationDate?.toISOString() } 
-    };
-    await setDoc(prefRef, { wallets: updatedWallets }, { merge: true });
-  }, 500), [user, walletPreferences, reconciliationDate]);
-
-  const handleReconciliationDateChange = async (date: Date | undefined) => {
-    setReconciliationDate(date);
-    if (!user || !date) return;
-    const prefRef = doc(db, "user_preferences", user.uid);
-    await setDoc(prefRef, { reconciliationDate: date.toISOString() }, { merge: true });
-  };
-
 
   useEffect(() => {
     if (user) {
@@ -100,25 +65,9 @@ export default function TransactionsPage() {
         setTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction)));
       });
       
-      const preferencesDocRef = doc(db, "user_preferences", user.uid);
-      const unsubscribePreferences = onSnapshot(preferencesDocRef, (doc) => {
-        if (doc.exists()) {
-          const prefs = doc.data();
-          setWalletPreferences(prefs.wallets || {});
-           if (prefs.reconciliationDate) {
-              setReconciliationDate(new Date(prefs.reconciliationDate));
-          } else {
-              setReconciliationDate(new Date());
-          }
-        } else {
-             setReconciliationDate(new Date());
-        }
-      });
-      
       return () => {
         unsubscribeAccounts();
         unsubscribeTransactions();
-        unsubscribePreferences();
       };
     } else if (!userLoading) {
       setDataLoading(false);
@@ -127,62 +76,51 @@ export default function TransactionsPage() {
 
  const { accountBalances, cashWalletBalance, digitalWalletBalance } = useMemo(() => {
     const calculatedAccountBalances: { [key: string]: number } = {};
-    const reconDate = reconciliationDate ? parseISO(reconciliationDate.toISOString()) : new Date(0);
-
     rawAccounts.forEach(acc => {
-      calculatedAccountBalances[acc.id] = acc.actualBalance ?? 0;
+        calculatedAccountBalances[acc.id] = 0; // Start with 0
     });
 
-    let calculatedCashBalance = walletPreferences.cash?.balance ?? 0;
-    let calculatedDigitalBalance = walletPreferences.digital?.balance ?? 0;
-    
-    const transactionsToConsider = transactions.filter(t => {
-      const transactionDate = parseISO(t.date);
-      return isAfter(transactionDate, reconDate);
-    });
+    let calculatedCashWalletBalance = 0;
+    let calculatedDigitalWalletBalance = 0;
 
-    transactionsToConsider.forEach(t => {
-      if (t.type === 'income' && t.accountId && calculatedAccountBalances[t.accountId] !== undefined) {
-        calculatedAccountBalances[t.accountId] += t.amount;
+    transactions.forEach(t => {
+      // Wallet balance calculation
+      if (t.type === 'transfer') {
+        if (t.toAccountId === 'cash-wallet') calculatedCashWalletBalance += t.amount;
+        if (t.fromAccountId === 'cash-wallet') calculatedCashWalletBalance -= t.amount;
+        if (t.toAccountId === 'digital-wallet') calculatedDigitalWalletBalance += t.amount;
+        if (t.fromAccountId === 'digital-wallet') calculatedDigitalWalletBalance -= t.amount;
       } else if (t.type === 'expense') {
-        if (t.paymentMethod === 'online' && t.accountId && calculatedAccountBalances[t.accountId] !== undefined) {
-          calculatedAccountBalances[t.accountId] -= t.amount;
-        } else if (t.paymentMethod === 'cash') {
-          calculatedCashBalance -= t.amount;
-        } else if (t.paymentMethod === 'digital') {
-          calculatedDigitalBalance -= t.amount;
-        }
-      } else if (t.type === 'transfer') {
-        // From Account
-        if (t.fromAccountId && calculatedAccountBalances[t.fromAccountId] !== undefined) {
-          calculatedAccountBalances[t.fromAccountId] -= t.amount;
-        } else if (t.fromAccountId === 'cash-wallet') {
-          calculatedCashBalance -= t.amount;
-        } else if (t.fromAccountId === 'digital-wallet') {
-          calculatedDigitalBalance -= t.amount;
-        }
-        // To Account
-        if (t.toAccountId && calculatedAccountBalances[t.toAccountId] !== undefined) {
-          calculatedAccountBalances[t.toAccountId] += t.amount;
-        } else if (t.toAccountId === 'cash-wallet') {
-          calculatedCashBalance += t.amount;
-        } else if (t.toAccountId === 'digital-wallet') {
-          calculatedDigitalBalance += t.amount;
-        }
+        if (t.paymentMethod === 'cash') calculatedCashWalletBalance -= t.amount;
+        if (t.paymentMethod === 'digital') calculatedDigitalWalletBalance -= t.amount;
       }
+
+        // Bank account balance calculation
+        if (t.type === 'income' && t.accountId && calculatedAccountBalances[t.accountId] !== undefined) {
+            calculatedAccountBalances[t.accountId] += t.amount;
+        } else if (t.type === 'expense' && t.accountId && t.paymentMethod === 'online' && calculatedAccountBalances[t.accountId] !== undefined) {
+            calculatedAccountBalances[t.accountId] -= t.amount;
+        } else if (t.type === 'transfer') {
+            if (t.fromAccountId && calculatedAccountBalances[t.fromAccountId] !== undefined) {
+                calculatedAccountBalances[t.fromAccountId] -= t.amount;
+            }
+            if (t.toAccountId && calculatedAccountBalances[t.toAccountId] !== undefined) {
+                calculatedAccountBalances[t.toAccountId] += t.amount;
+            }
+        }
     });
 
     return { 
       accountBalances: calculatedAccountBalances, 
-      cashWalletBalance: calculatedCashBalance,
-      digitalWalletBalance: calculatedDigitalBalance 
+      cashWalletBalance: calculatedCashWalletBalance,
+      digitalWalletBalance: calculatedDigitalWalletBalance 
     };
-  }, [rawAccounts, transactions, walletPreferences, reconciliationDate]);
+  }, [rawAccounts, transactions]);
   
   const accounts = useMemo(() => {
     return rawAccounts.map(acc => ({
         ...acc,
-        balance: accountBalances[acc.id] ?? (acc.actualBalance ?? 0),
+        balance: accountBalances[acc.id] ?? 0,
     }));
   }, [rawAccounts, accountBalances]);
 
@@ -193,7 +131,7 @@ export default function TransactionsPage() {
   const otherAccounts = accounts.filter(account => !account.isPrimary && !secondaryAccounts.some(sa => sa.id === account.id));
 
 
-  if (userLoading || dataLoading || reconciliationDate === undefined) {
+  if (userLoading || dataLoading) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-10 w-full" />
@@ -204,35 +142,8 @@ export default function TransactionsPage() {
 
   const allBalance = (primaryAccount ? primaryAccount.balance : 0) + cashWalletBalance + digitalWalletBalance;
 
-  const cashBalanceDifference = walletPreferences.cash?.balance !== undefined && walletPreferences.cash.balance !== null ? cashWalletBalance - walletPreferences.cash.balance : null;
-  const digitalBalanceDifference = walletPreferences.digital?.balance !== undefined && walletPreferences.digital.balance !== null ? digitalWalletBalance - walletPreferences.digital.balance : null;
-  const primaryAccountBalanceDifference = primaryAccount?.actualBalance !== undefined && primaryAccount?.actualBalance !== null ? primaryAccount.balance - primaryAccount.actualBalance : null;
-
-
   return (
     <div className="space-y-6">
-      <div className="flex justify-start p-2 rounded-md border bg-card text-card-foreground shadow-sm">
-        <div className="flex items-center gap-2">
-          <CalendarIcon className="h-5 w-5 text-red-600" />
-          <Label htmlFor="reconciliation-date" className="text-sm font-bold text-red-600 flex-shrink-0">Reconciliation Date:</Label>
-          <Input
-            id="reconciliation-date"
-            type="date"
-            value={reconciliationDate ? format(reconciliationDate, 'yyyy-MM-dd') : ''}
-            onChange={(e) => {
-                const dateValue = e.target.value;
-                const newDate = dateValue ? new Date(dateValue) : undefined;
-                if (newDate) {
-                    const timezoneOffset = newDate.getTimezoneOffset() * 60000;
-                    handleReconciliationDateChange(new Date(newDate.getTime() + timezoneOffset));
-                } else {
-                    handleReconciliationDateChange(undefined);
-                }
-            }}
-            className="w-full sm:w-auto bg-transparent border-none outline-none font-bold text-red-600 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0"
-          />
-        </div>
-      </div>
       <Tabs defaultValue={primaryAccount?.id || "all-accounts"} className="w-full">
         <TabsList className="flex flex-wrap h-auto items-start p-0">
           <div className="w-full md:w-1/2 p-1">
@@ -246,80 +157,20 @@ export default function TransactionsPage() {
                 <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-6 text-left py-4">
                   {/* Bank Column */}
                   <div className="space-y-2">
-                    <Label htmlFor={`actual-balance-${primaryAccount.id}`} className="text-xs">Bank Balance</Label>
+                    <Label className="text-xs">Bank Balance</Label>
                     <div className="font-mono text-base">{formatCurrency(primaryAccount.balance)}</div>
-                    <Input
-                        id={`actual-balance-${primaryAccount.id}`}
-                        type="number"
-                        placeholder="Actual"
-                        className="hide-number-arrows h-7 mt-1 text-xs text-left"
-                        defaultValue={primaryAccount.actualBalance ?? ''}
-                        onChange={(e) => {
-                            const value = e.target.value === '' ? null : parseFloat(e.target.value)
-                            debouncedUpdateAccount(primaryAccount.id, { actualBalance: value });
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                    />
-                    {primaryAccountBalanceDifference !== null && (
-                        <p className={cn(
-                            "text-xs font-medium pt-1",
-                            Math.round(primaryAccountBalanceDifference * 100) === 0 ? "text-green-600" : "text-red-600"
-                        )}>
-                            Diff: {formatCurrency(primaryAccountBalanceDifference)}
-                        </p>
-                    )}
                   </div>
 
                   {/* Cash Column */}
                   <div className="space-y-2">
-                    <Label htmlFor="actual-balance-cash" className="text-xs">Cash</Label>
+                    <Label className="text-xs">Cash</Label>
                     <div className="font-mono text-base">{formatCurrency(cashWalletBalance)}</div>
-                    <Input
-                        id="actual-balance-cash"
-                        type="number"
-                        placeholder="Actual"
-                        className="hide-number-arrows h-7 text-left"
-                        defaultValue={walletPreferences.cash?.balance ?? ''}
-                        onChange={(e) => {
-                            const value = e.target.value === '' ? null : parseFloat(e.target.value)
-                            debouncedUpdateWallet('cash', { balance: value })
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                    />
-                    {cashBalanceDifference !== null && (
-                        <p className={cn(
-                            "text-xs font-medium pt-1",
-                            Math.round(cashBalanceDifference * 100) === 0 ? "text-green-600" : "text-red-600"
-                        )}>
-                            Diff: {formatCurrency(cashBalanceDifference)}
-                        </p>
-                    )}
                   </div>
 
                   {/* Digital Column */}
                   <div className="space-y-2">
-                    <Label htmlFor="actual-balance-digital" className="text-xs">Digital</Label>
+                    <Label className="text-xs">Digital</Label>
                       <div className="font-mono text-base">{formatCurrency(digitalWalletBalance)}</div>
-                    <Input
-                        id="actual-balance-digital"
-                        type="number"
-                        placeholder="Actual"
-                        className="hide-number-arrows h-7 text-left"
-                        defaultValue={walletPreferences.digital?.balance ?? ''}
-                        onChange={(e) => {
-                            const value = e.target.value === '' ? null : parseFloat(e.target.value)
-                            debouncedUpdateWallet('digital', { balance: value })
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                    />
-                    {digitalBalanceDifference !== null && (
-                        <p className={cn(
-                            "text-xs font-medium pt-1",
-                            Math.round(digitalBalanceDifference * 100) === 0 ? "text-green-600" : "text-red-600"
-                        )}>
-                            Diff: {formatCurrency(digitalBalanceDifference)}
-                        </p>
-                    )}
                   </div>
                 </div>
               </TabsTrigger>
@@ -328,76 +179,20 @@ export default function TransactionsPage() {
           <div className="w-full md:w-1/2 flex flex-wrap justify-end">
             <div className="grid grid-cols-2 w-full p-1 gap-1">
             {secondaryAccounts.map((account, index) => {
-              const balanceDifference = account.actualBalance !== undefined && account.actualBalance !== null ? account.balance - account.actualBalance : null;
               return (
                 <TabsTrigger key={account.id} value={account.id} className={cn("border flex flex-col h-auto p-3 items-start text-left gap-2", tabColors[index % tabColors.length], textColors[index % textColors.length])}>
                     <div className="w-full flex justify-between items-center">
                         <span className="font-semibold text-sm">{account.name}</span>
                         <span className="font-bold">{formatCurrency(account.balance)}</span>
                     </div>
-                    <div className="w-full space-y-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <Label htmlFor={`actual-balance-${account.id}`} className="text-xs flex-shrink-0">Actual Balance</Label>
-                          <Input
-                              id={`actual-balance-${account.id}`}
-                              type="number"
-                              placeholder="Actual"
-                              className="hide-number-arrows h-7 text-xs w-24 text-right"
-                              defaultValue={account.actualBalance ?? ''}
-                              onChange={(e) => {
-                                  const value = e.target.value === '' ? null : parseFloat(e.target.value)
-                                  debouncedUpdateAccount(account.id, { actualBalance: value });
-                              }}
-                              onClick={(e) => e.stopPropagation()}
-                          />
-                        </div>
-                        {balanceDifference !== null && (
-                            <div className="w-full pt-1 flex justify-end">
-                                <p className={cn(
-                                    "text-xs font-medium",
-                                    Math.round(balanceDifference * 100) === 0 ? "text-green-600" : "text-red-600"
-                                )}>
-                                    Diff: {formatCurrency(balanceDifference)}
-                                </p>
-                            </div>
-                        )}
-                    </div>
                 </TabsTrigger>
             )})}
             {otherAccounts.map((account, index) => {
-              const balanceDifference = account.actualBalance !== undefined && account.actualBalance !== null ? account.balance - account.actualBalance : null;
               return (
                 <TabsTrigger key={account.id} value={account.id} className={cn("border flex flex-col h-auto p-3 items-start text-left gap-2", tabColors[(secondaryAccounts.length + index) % tabColors.length], textColors[(secondaryAccounts.length + index) % textColors.length])}>
                     <div className="w-full flex justify-between items-center">
                         <span className="font-semibold text-sm">{account.name}</span>
                         <span className="font-bold">{formatCurrency(account.balance)}</span>
-                    </div>
-                    <div className="w-full space-y-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <Label htmlFor={`actual-balance-${account.id}`} className="text-xs flex-shrink-0">Actual Balance</Label>
-                          <Input
-                              id={`actual-balance-${account.id}`}
-                              type="number"
-                              placeholder="Actual"
-                              className="hide-number-arrows h-7 text-xs w-24 text-right"
-                              defaultValue={account.actualBalance ?? ''}
-                              onChange={(e) => {
-                                  const value = e.target.value === '' ? null : parseFloat(e.target.value)
-                                  debouncedUpdateAccount(account.id, { actualBalance: value });
-                              }}
-                              onClick={(e) => e.stopPropagation()}
-                          />
-                        </div>
-                        {balanceDifference !== null && (
-                            <div className="w-full pt-1 flex justify-end">
-                                <p className={cn(
-                                    "text-xs font-medium",
-                                    Math.round(balanceDifference * 100) === 0 ? "text-green-600" : "text-red-600"
-                                )}>
-                                    Diff: {formatCurrency(balanceDifference)}
-                                </p>
-                            </div>
-                        )}
                     </div>
                 </TabsTrigger>
             )})}
@@ -418,4 +213,3 @@ export default function TransactionsPage() {
     </div>
   );
 }
-
