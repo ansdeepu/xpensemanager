@@ -261,7 +261,7 @@ export default function TransactionsPage() {
                     {primaryAccountBalanceDifference !== null && (
                         <p className={cn(
                             "text-xs font-medium pt-1",
-                            Math.round(primaryAccountBalanceDifference * 100) === 0 ? "text-green-600" : "text-red-600"
+                            Math.round(primaryAccountBalanceDifference) === 0 ? "text-green-600" : "text-red-600"
                         )}>
                             Diff: {formatCurrency(primaryAccountBalanceDifference)}
                         </p>
@@ -287,7 +287,7 @@ export default function TransactionsPage() {
                     {cashBalanceDifference !== null && (
                         <p className={cn(
                             "text-xs font-medium pt-1",
-                            Math.round(cashBalanceDifference * 100) === 0 ? "text-green-600" : "text-red-600"
+                             Math.round(cashBalanceDifference) === 0 ? "text-green-600" : "text-red-600"
                         )}>
                             Diff: {formatCurrency(cashBalanceDifference)}
                         </p>
@@ -313,7 +313,7 @@ export default function TransactionsPage() {
                     {digitalBalanceDifference !== null && (
                         <p className={cn(
                             "text-xs font-medium pt-1",
-                            Math.round(digitalBalanceDifference * 100) === 0 ? "text-green-600" : "text-red-600"
+                             Math.round(digitalBalanceDifference) === 0 ? "text-green-600" : "text-red-600"
                         )}>
                             Diff: {formatCurrency(digitalBalanceDifference)}
                         </p>
@@ -353,7 +353,7 @@ export default function TransactionsPage() {
                             <div className="w-full pt-1 flex justify-end">
                                 <p className={cn(
                                     "text-xs font-medium",
-                                    Math.round(balanceDifference * 100) === 0 ? "text-green-600" : "text-red-600"
+                                    Math.round(balanceDifference) === 0 ? "text-green-600" : "text-red-600"
                                 )}>
                                     Diff: {formatCurrency(balanceDifference)}
                                 </p>
@@ -390,7 +390,7 @@ export default function TransactionsPage() {
                             <div className="w-full pt-1 flex justify-end">
                                 <p className={cn(
                                     "text-xs font-medium",
-                                    Math.round(balanceDifference * 100) === 0 ? "text-green-600" : "text-red-600"
+                                    Math.round(balanceDifference) === 0 ? "text-green-600" : "text-red-600"
                                 )}>
                                     Diff: {formatCurrency(balanceDifference)}
                                 </p>
@@ -416,5 +416,7 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+    
 
     
