@@ -152,34 +152,33 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
   
     const formData = new FormData(event.currentTarget);
     const amount = parseFloat(formData.get("amount") as string);
-    const accountId = formData.get("accountId") as string;
+    const payingAccountId = formData.get("accountId") as string; // The user's own account involved
     const date = formData.get("date") as string;
     const description = formData.get("description") as string;
   
-    let finalPersonName = isNewPerson ? personName : loans.find(l => l.id === selectedPersonId)?.personName || accounts.find(a => a.id === selectedPersonId)?.name;
-    let finalPersonId = selectedPersonId;
-    
+    // Determine the name of the other party (the person/entity)
+    let otherPartyName: string | undefined;
     if (isNewPerson) {
-        const existingLoan = loans.find(l => l.personName.toLowerCase() === personName.toLowerCase());
-        if (existingLoan) {
-            finalPersonId = existingLoan.id;
-        } else {
-            finalPersonId = null; 
-        }
+      otherPartyName = personName;
+    } else {
+      const selectedLoan = loans.find(l => l.id === selectedPersonId);
+      const selectedAccount = accounts.find(a => a.id === selectedPersonId);
+      otherPartyName = selectedLoan?.personName || selectedAccount?.name;
     }
 
-    if (!finalPersonName) {
+    if (!otherPartyName) {
       toast({ variant: "destructive", title: "Person or account name is required" });
       return;
     }
     
-    const loanTransactionId = new Date().getTime().toString() + Math.random().toString(36).substring(2, 9);
+    // This is the virtual account ID for the other party in the loan.
+    const otherPartyVirtualId = `loan-virtual-account-${otherPartyName.replace(/\s+/g, '-')}`;
 
-    const newTransaction: LoanTransaction = {
-      id: loanTransactionId,
+    const newLoanTransaction: LoanTransaction = {
+      id: new Date().getTime().toString() + Math.random().toString(36).substring(2, 9),
       date,
       amount,
-      accountId,
+      accountId: payingAccountId,
       description,
       type: transactionType,
     };
@@ -187,73 +186,67 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
     try {
       const batch = writeBatch(db);
   
+      // Find or create the main loan document
       let loanDocRef;
-      let existingTransactions: LoanTransaction[] = [];
-  
-      const existingLoan = finalPersonId 
-        ? loans.find(l => l.id === finalPersonId) 
-        : loans.find(l => l.personName.toLowerCase() === finalPersonName!.toLowerCase());
+      let existingLoan = isNewPerson
+        ? loans.find(l => l.personName.toLowerCase() === otherPartyName!.toLowerCase())
+        : loans.find(l => l.id === selectedPersonId);
       
       if (existingLoan) {
         loanDocRef = doc(db, "loans", existingLoan.id);
-        existingTransactions = existingLoan.transactions || [];
-        batch.update(loanDocRef, { transactions: [...existingTransactions, newTransaction] });
+        const existingTransactions = existingLoan.transactions || [];
+        batch.update(loanDocRef, { transactions: [...existingTransactions, newLoanTransaction] });
       } else {
         loanDocRef = doc(collection(db, "loans"));
         const newLoanData = {
           userId: user.uid,
-          personName: finalPersonName,
+          personName: otherPartyName,
           type: loanType,
-          transactions: [newTransaction]
+          transactions: [newLoanTransaction]
         };
         batch.set(loanDocRef, newLoanData);
       }
       
-      const personVirtualId = `loan-virtual-account-${finalPersonName.replace(/\s+/g, '-')}`;
-      
-      let fromAccountId: string | undefined;
-      let toAccountId: string | undefined;
+      // Determine the direction of the financial transfer
+      let fromAccountId: string;
+      let toAccountId: string;
 
       if (loanType === 'taken') {
-        if (transactionType === 'loan') {
-          // You took a loan, money comes FROM lender TO you
-          fromAccountId = personVirtualId;
-          toAccountId = accountId;
-        } else { // repayment
-          // You repay, money goes FROM you TO lender
-          fromAccountId = accountId;
-          toAccountId = personVirtualId;
+        if (transactionType === 'loan') { // You receive money
+          fromAccountId = otherPartyVirtualId;
+          toAccountId = payingAccountId;
+        } else { // You repay money
+          fromAccountId = payingAccountId;
+          toAccountId = otherPartyVirtualId;
         }
       } else { // loanType === 'given'
-        if (transactionType === 'loan') {
-          // You gave a loan, money goes FROM you TO borrower
-          fromAccountId = accountId;
-          toAccountId = personVirtualId;
-        } else { // repayment
-          // You receive repayment, money comes FROM borrower TO you
-          fromAccountId = personVirtualId;
-          toAccountId = accountId;
+        if (transactionType === 'loan') { // You give money
+          fromAccountId = payingAccountId;
+          toAccountId = otherPartyVirtualId;
+        } else { // You receive repayment
+          fromAccountId = otherPartyVirtualId;
+          toAccountId = payingAccountId;
         }
       }
 
-      if (fromAccountId && toAccountId) {
-        const transferDescription = description || `${transactionType === 'loan' ? 'Loan' : 'Repayment'} ${loanType === 'given' ? 'to' : 'from'} ${finalPersonName}`;
-        
-        const financialTransaction: Partial<Transaction> = {
-            userId: user.uid,
-            date,
-            description: transferDescription,
-            amount,
-            type: 'transfer',
-            fromAccountId,
-            toAccountId,
-            category: 'Transfer',
-            paymentMethod: 'online',
-            loanTransactionId: newTransaction.id,
-        };
-          const transactionRef = doc(collection(db, "transactions"));
-          batch.set(transactionRef, financialTransaction as any);
-      }
+      // Create the underlying financial transaction
+      const transferDescription = description || `${transactionType === 'loan' ? 'Loan' : 'Repayment'} ${loanType === 'given' ? 'to' : 'from'} ${otherPartyName}`;
+      
+      const financialTransaction: Partial<Transaction> = {
+          userId: user.uid,
+          date,
+          description: transferDescription,
+          amount,
+          type: 'transfer',
+          fromAccountId,
+          toAccountId,
+          category: 'Loan', // Standardized category
+          paymentMethod: 'online', // Transfers are considered 'online'
+          loanTransactionId: newLoanTransaction.id,
+      };
+
+      const transactionRef = doc(collection(db, "transactions"));
+      batch.set(transactionRef, financialTransaction as any);
   
       await batch.commit();
       setIsAddDialogOpen(false);
@@ -515,7 +508,7 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="accountId">Account</Label>
+                      <Label htmlFor="accountId">My Account</Label>
                       <Select name="accountId" required>
                           <SelectTrigger><SelectValue placeholder="Select account..."/></SelectTrigger>
                           <SelectContent>
