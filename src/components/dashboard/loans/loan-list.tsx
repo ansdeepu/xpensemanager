@@ -152,11 +152,13 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
   
     const formData = new FormData(event.currentTarget);
     const amount = parseFloat(formData.get("amount") as string);
-    const yourAccountId = formData.get("accountId") as string;
+    const myAccountId = formData.get("myAccountId") as string;
     const date = formData.get("date") as string;
     const description = formData.get("description") as string;
   
     let otherPartyName: string | undefined;
+    let otherPartyIsVirtual = true;
+
     if (isNewPerson) {
       otherPartyName = personName;
     } else if (selectedPersonId) {
@@ -167,6 +169,7 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
             const existingAccount = accounts.find(a => a.id === selectedPersonId);
             if (existingAccount) {
                 otherPartyName = existingAccount.name;
+                otherPartyIsVirtual = false; // It's one of the user's own accounts
             }
         }
     }
@@ -176,13 +179,16 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
       return;
     }
     
-    const otherPartyVirtualId = `loan-virtual-account-${otherPartyName.replace(/\s+/g, '-')}`;
+    // The other party's ID for the transfer transaction
+    const otherPartyAccountIdForTransfer = otherPartyIsVirtual 
+        ? `loan-virtual-account-${otherPartyName.replace(/\s+/g, '-')}` 
+        : selectedPersonId;
 
     const newLoanTransaction: LoanTransaction = {
       id: new Date().getTime().toString() + Math.random().toString(36).substring(2, 9),
       date,
       amount,
-      accountId: yourAccountId,
+      accountId: myAccountId, // The user's account involved
       description,
       type: transactionType,
     };
@@ -191,7 +197,8 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
       const batch = writeBatch(db);
   
       let loanDocRef;
-      let existingLoan = loans.find(l => l.personName.toLowerCase() === otherPartyName?.toLowerCase());
+      // Find an existing loan record by person's name
+      let existingLoan = loans.find(l => l.personName.toLowerCase() === otherPartyName?.toLowerCase() && l.type === loanType);
       
       if (existingLoan) {
         loanDocRef = doc(db, "loans", existingLoan.id);
@@ -211,12 +218,12 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
       let fromAccountId: string;
       let toAccountId: string;
 
-      if (loanType === 'taken') {
-          fromAccountId = transactionType === 'loan' ? otherPartyVirtualId : yourAccountId;
-          toAccountId = transactionType === 'loan' ? yourAccountId : otherPartyVirtualId;
-      } else { // Loan Given
-          fromAccountId = transactionType === 'loan' ? yourAccountId : otherPartyVirtualId;
-          toAccountId = transactionType === 'loan' ? otherPartyVirtualId : yourAccountId;
+      if (loanType === 'taken') { // You are borrowing money
+          fromAccountId = transactionType === 'loan' ? otherPartyAccountIdForTransfer! : myAccountId;
+          toAccountId = transactionType === 'loan' ? myAccountId : otherPartyAccountIdForTransfer!;
+      } else { // You are lending money
+          fromAccountId = transactionType === 'loan' ? myAccountId : otherPartyAccountIdForTransfer!;
+          toAccountId = transactionType === 'loan' ? otherPartyAccountIdForTransfer! : myAccountId;
       }
 
       const financialTransaction: Partial<Transaction> = {
@@ -253,7 +260,7 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
       ...selectedTransaction,
       date: formData.get("date") as string,
       amount: parseFloat(formData.get("amount") as string),
-      accountId: formData.get("accountId") as string,
+      accountId: formData.get("myAccountId") as string,
       description: formData.get("description") as string,
     };
 
@@ -271,17 +278,22 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
         
         if (!financialTxSnapshot.empty) {
             const financialTxDoc = financialTxSnapshot.docs[0];
-            const personVirtualId = `loan-virtual-account-${selectedLoan.personName.replace(/\s+/g, '-')}`;
+            
+            const otherPartyIsVirtual = !accounts.some(acc => acc.name.toLowerCase() === selectedLoan.personName.toLowerCase());
+            const otherPartyAccountIdForTransfer = otherPartyIsVirtual
+                ? `loan-virtual-account-${selectedLoan.personName.replace(/\s+/g, '-')}`
+                : accounts.find(acc => acc.name.toLowerCase() === selectedLoan.personName.toLowerCase())!.id;
+
 
             let fromAccountId: string;
             let toAccountId: string;
 
             if (selectedLoan.type === 'taken') {
-                fromAccountId = updatedTransaction.type === 'loan' ? personVirtualId : updatedTransaction.accountId;
-                toAccountId = updatedTransaction.type === 'loan' ? updatedTransaction.accountId : personVirtualId;
+                fromAccountId = updatedTransaction.type === 'loan' ? otherPartyAccountIdForTransfer : updatedTransaction.accountId;
+                toAccountId = updatedTransaction.type === 'loan' ? updatedTransaction.accountId : otherPartyAccountIdForTransfer;
             } else { // given
-                fromAccountId = updatedTransaction.type === 'loan' ? updatedTransaction.accountId : personVirtualId;
-                toAccountId = updatedTransaction.type === 'loan' ? personVirtualId : updatedTransaction.accountId;
+                fromAccountId = updatedTransaction.type === 'loan' ? updatedTransaction.accountId : otherPartyAccountIdForTransfer;
+                toAccountId = updatedTransaction.type === 'loan' ? otherPartyAccountIdForTransfer : updatedTransaction.accountId;
             }
 
             const updatedFinancialData = {
@@ -414,7 +426,9 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
   const getLoanTransactionDescription = (loan: Loan, transaction: LoanTransaction) => {
     if (transaction.description) return transaction.description;
 
-    if (loanType === 'given') {
+    const myAccountName = allAccountsForTx.find(a => a.id === transaction.accountId)?.name;
+
+    if (loan.type === 'given') {
         return transaction.type === 'loan' ? `Loan to ${loan.personName}` : `Repayment from ${loan.personName}`;
     } else { // loan.type === 'taken'
         return transaction.type === 'loan' ? `Loan from ${loan.personName}` : `Repayment to ${loan.personName}`;
@@ -464,10 +478,12 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
                                 <SelectLabel>People</SelectLabel>
                                 {loans.map(l => <SelectItem key={l.id} value={l.id}>{l.personName}</SelectItem>)}
                               </SelectGroup>
-                              <SelectGroup>
-                                <SelectLabel>Your Other Accounts</SelectLabel>
-                                 {otherAccounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
-                              </SelectGroup>
+                              {loanType === 'taken' && (
+                                <SelectGroup>
+                                    <SelectLabel>Your Other Accounts</SelectLabel>
+                                    {otherAccounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
+                                </SelectGroup>
+                              )}
                               <SelectGroup>
                                 <SelectItem value="new">Add a new person</SelectItem>
                               </SelectGroup>
@@ -503,8 +519,8 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="accountId">My Account</Label>
-                      <Select name="accountId" required>
+                      <Label htmlFor="myAccountId">My Account</Label>
+                      <Select name="myAccountId" required>
                           <SelectTrigger><SelectValue placeholder="Select account..."/></SelectTrigger>
                           <SelectContent>
                               {allAccountsForTx.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
@@ -653,8 +669,8 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
                     </div>
                      <div className="grid grid-cols-2 gap-4">
                          <div className="space-y-2">
-                              <Label htmlFor="edit-accountId">Account</Label>
-                              <Select name="accountId" required defaultValue={selectedTransaction?.accountId}>
+                              <Label htmlFor="edit-myAccountId">Account</Label>
+                              <Select name="myAccountId" required defaultValue={selectedTransaction?.accountId}>
                                   <SelectTrigger><SelectValue placeholder="Select account..."/></SelectTrigger>
                                   <SelectContent>
                                       {allAccountsForTx.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
