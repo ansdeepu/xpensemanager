@@ -158,7 +158,7 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
   
     let otherPartyName: string | undefined;
     
-    const allLoanParties = [
+    const allLoanParties: (Loan | Omit<Account, "balance">)[] = [
       ...loans,
       ...accounts.filter(a => !a.isPrimary)
     ];
@@ -168,7 +168,11 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
     } else if (selectedPersonId) {
         const existingParty = allLoanParties.find(l => l.id === selectedPersonId);
         if (existingParty) {
-            otherPartyName = existingParty.name || (existingParty as Loan).personName;
+            if ('personName' in existingParty) {
+                otherPartyName = existingParty.personName;
+            } else {
+                otherPartyName = existingParty.name;
+            }
         }
     }
 
@@ -405,6 +409,11 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
 
   if (loading || !clientLoaded) {
     return <Skeleton className="h-96 w-full" />;
+  }
+  
+  // This is a check to ensure we don't try to render before accounts are loaded.
+  if (accounts.length === 0 && loans.length > 0) {
+      return <Skeleton className="h-96 w-full" />;
   }
 
   const title = loanType === "taken" ? "Loans Taken" : "Loans Given";
