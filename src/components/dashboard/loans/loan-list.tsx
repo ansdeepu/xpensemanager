@@ -152,18 +152,18 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
   
     const formData = new FormData(event.currentTarget);
     const amount = parseFloat(formData.get("amount") as string);
-    const payingAccountId = formData.get("accountId") as string; // The user's own account involved
+    const yourAccountId = formData.get("accountId") as string; // The user's own account involved
     const date = formData.get("date") as string;
     const description = formData.get("description") as string;
   
     // Determine the name of the other party (the person/entity)
-    let otherPartyName: string;
+    let otherPartyName: string | undefined;
     if (isNewPerson) {
       otherPartyName = personName;
-    } else {
-      const existingLoan = loans.find(l => l.id === selectedPersonId);
-      const existingAccount = otherAccounts.find(a => a.id === selectedPersonId);
-      otherPartyName = existingLoan?.personName || existingAccount?.name || "";
+    } else if (selectedPersonId) {
+        const existingLoan = loans.find(l => l.id === selectedPersonId);
+        const existingAccount = otherAccounts.find(a => a.id === selectedPersonId);
+        otherPartyName = existingLoan?.personName || existingAccount?.name;
     }
 
     if (!otherPartyName) {
@@ -177,7 +177,7 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
       id: new Date().getTime().toString() + Math.random().toString(36).substring(2, 9),
       date,
       amount,
-      accountId: payingAccountId,
+      accountId: yourAccountId,
       description,
       type: transactionType,
     };
@@ -187,9 +187,7 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
   
       // Find or create the main loan document
       let loanDocRef;
-      let existingLoan = isNewPerson
-        ? loans.find(l => l.personName.toLowerCase() === otherPartyName.toLowerCase())
-        : loans.find(l => l.id === selectedPersonId);
+      let existingLoan = loans.find(l => l.personName.toLowerCase() === otherPartyName?.toLowerCase());
       
       if (existingLoan) {
         loanDocRef = doc(db, "loans", existingLoan.id);
@@ -213,18 +211,18 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
       if (loanType === 'taken') { // Loan taken by me
           if (transactionType === 'loan') { // I receive money
               fromAccountId = otherPartyVirtualId;
-              toAccountId = payingAccountId; // my account
+              toAccountId = yourAccountId;
           } else { // I repay money
-              fromAccountId = payingAccountId; // my account
+              fromAccountId = yourAccountId;
               toAccountId = otherPartyVirtualId;
           }
       } else { // Loan given by me
           if (transactionType === 'loan') { // I give money
-              fromAccountId = payingAccountId; // my account
+              fromAccountId = yourAccountId; 
               toAccountId = otherPartyVirtualId;
           } else { // I receive repayment
               fromAccountId = otherPartyVirtualId;
-              toAccountId = payingAccountId; // my account
+              toAccountId = yourAccountId;
           }
       }
 
@@ -702,5 +700,3 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
     </>
   );
 }
-
-    

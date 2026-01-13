@@ -322,11 +322,18 @@ export function TransactionTable({
   const getAccountName = (accountId?: string, paymentMethod?: Transaction['paymentMethod']) => {
     if (accountId === 'cash-wallet' || paymentMethod === 'cash') return "Cash Wallet";
     if (accountId === 'digital-wallet' || paymentMethod === 'digital') return "Digital Wallet";
-    if (accountId?.startsWith('loan-virtual-account-')) return accountId.replace('loan-virtual-account-', '').replace(/-/g, ' ');
+    
+    if (accountId?.startsWith('loan-virtual-account-')) {
+        const personName = accountId.replace('loan-virtual-account-', '').replace(/-/g, ' ');
+        // Check if this person exists in loans
+        const loan = loans.find(l => l.personName === personName);
+        if (loan) return loan.personName;
+    }
+
     if (!accountId) return "-";
     
     const account = accounts.find((a) => a.id === accountId);
-    if (!account) return "N/A";
+    if (!account) return "N/A"; // This should now be less frequent
     
     return account.name;
   };
@@ -606,30 +613,12 @@ export function TransactionTable({
       const loanTx = loan.transactions.find(lt => lt.id === t.loanTransactionId);
       if (loanTx) {
         let type: string;
-        // Logic for "Loan Given" vs "Loan Taken" from the perspective of the entire user's finances
+        
         if (loan.type === 'given') {
-          // If the user GAVE a loan...
-          if (t.fromAccountId === accountId) {
             type = loanTx.type === 'loan' ? "Loan Given" : "Repayment Received";
-          } else {
-            type = loanTx.type === 'loan' ? "Loan Received (as repayment)" : "Repayment Sent";
-          }
         } else { // loan.type === 'taken'
-          // If the user TOOK a loan...
-          if (t.toAccountId === accountId) {
             type = loanTx.type === 'loan' ? "Loan Taken" : "Repayment Made";
-          } else {
-            type = loanTx.type === 'loan' ? "Loan Disbursed" : "Repayment Received";
-          }
         }
-
-        // More specific override based on the current account view
-        if (t.fromAccountId === accountId) {
-            type = loanTx.type === 'loan' ? 'Loan Given' : 'Repayment Received'
-        } else if (t.toAccountId === accountId) {
-            type = loanTx.type === 'loan' ? 'Loan Taken' : 'Repayment Made'
-        }
-
 
         return { isLoan: true, type, category: 'Loan', colorClass: 'bg-orange-100 dark:bg-orange-900/50' };
       }
