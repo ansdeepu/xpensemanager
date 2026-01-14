@@ -244,22 +244,22 @@ export default function TransactionsPage() {
           <TabsList className="flex flex-col lg:flex-row flex-wrap h-auto items-start p-1 w-full">
             <div className="w-full lg:w-1/2 p-1">
               {primaryAccount && (
-                <TabsTrigger value={primaryAccount.id} className={cn("border flex flex-col h-full p-4 items-start text-left gap-4 w-full", "bg-lime-100 dark:bg-lime-900/50")}>
+                <TabsTrigger value={primaryAccount.id} className={cn("border flex flex-col h-full p-3 items-start text-left gap-2 w-full", "bg-lime-100 dark:bg-lime-900/50")}>
                   <div className="w-full flex justify-between">
-                    <span className="font-semibold text-lg">Primary ({primaryAccount.name})</span>
-                    <span className="font-bold text-2xl text-primary">{formatCurrency(allBalance)}</span>
+                    <span className="font-semibold text-base">{primaryAccount.name} (Primary)</span>
+                    <span className="font-bold text-xl text-primary">{formatCurrency(allBalance)}</span>
                   </div>
                   
-                  <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-4 text-left py-4">
+                  <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-4 text-left py-2">
                     {/* Bank Column */}
-                    <div className="space-y-2">
+                    <div className="space-y-1">
                       <Label htmlFor={`actual-balance-${primaryAccount.id}`} className="text-xs">Bank Balance</Label>
-                      <div className="font-mono text-base">{formatCurrency(primaryAccount.balance)}</div>
+                      <div className="font-mono text-sm">{formatCurrency(primaryAccount.balance)}</div>
                       <Input
                           id={`actual-balance-${primaryAccount.id}`}
                           type="number"
                           placeholder="Actual"
-                          className="hide-number-arrows h-7 mt-1 text-xs text-left"
+                          className="hide-number-arrows h-7 mt-1 text-xs"
                           defaultValue={primaryAccount.actualBalance ?? ''}
                           onChange={(e) => {
                               const value = e.target.value === '' ? null : parseFloat(e.target.value)
@@ -280,14 +280,14 @@ export default function TransactionsPage() {
                     </div>
 
                     {/* Cash Column */}
-                    <div className="space-y-2">
+                    <div className="space-y-1">
                       <Label htmlFor="actual-balance-cash" className="text-xs">Cash</Label>
-                      <div className="font-mono text-base">{formatCurrency(cashWalletBalance)}</div>
+                      <div className="font-mono text-sm">{formatCurrency(cashWalletBalance)}</div>
                       <Input
                           id="actual-balance-cash"
                           type="number"
                           placeholder="Actual"
-                          className="hide-number-arrows h-7 text-left"
+                          className="hide-number-arrows h-7 text-xs"
                           defaultValue={walletPreferences.cash?.balance ?? ''}
                           onChange={(e) => {
                               const value = e.target.value === '' ? null : parseFloat(e.target.value)
@@ -308,14 +308,14 @@ export default function TransactionsPage() {
                     </div>
 
                     {/* Digital Column */}
-                    <div className="space-y-2">
+                    <div className="space-y-1">
                       <Label htmlFor="actual-balance-digital" className="text-xs">Digital</Label>
-                        <div className="font-mono text-base">{formatCurrency(digitalWalletBalance)}</div>
+                        <div className="font-mono text-sm">{formatCurrency(digitalWalletBalance)}</div>
                       <Input
                           id="actual-balance-digital"
                           type="number"
                           placeholder="Actual"
-                          className="hide-number-arrows h-7 text-left"
+                          className="hide-number-arrows h-7 text-xs"
                           defaultValue={walletPreferences.digital?.balance ?? ''}
                           onChange={(e) => {
                               const value = e.target.value === '' ? null : parseFloat(e.target.value)
@@ -342,19 +342,19 @@ export default function TransactionsPage() {
               {secondaryAccounts.map((account, index) => {
                 const balanceDifference = getBalanceDifference(account.balance, account.actualBalance);
                 return (
-                  <TabsTrigger key={account.id} value={account.id} className={cn("border flex flex-col h-full p-3 items-start text-left gap-2", tabColors[index % tabColors.length], textColors[index % textColors.length])}>
+                  <TabsTrigger key={account.id} value={account.id} className={cn("border flex flex-col h-full p-2 items-start text-left gap-1", tabColors[index % tabColors.length], textColors[index % textColors.length])}>
                       <div className="w-full flex justify-between items-center">
                           <span className="font-semibold text-sm">{account.name}</span>
-                          <span className="font-bold">{formatCurrency(account.balance)}</span>
+                          <span className="font-bold text-sm">{formatCurrency(account.balance)}</span>
                       </div>
                       <div className="w-full space-y-1">
                           <div className="flex items-center justify-between gap-2">
-                            <Label htmlFor={`actual-balance-${account.id}`} className="text-xs flex-shrink-0">Actual Balance</Label>
+                            <Label htmlFor={`actual-balance-${account.id}`} className="text-xs flex-shrink-0">Actual</Label>
                             <Input
                                 id={`actual-balance-${account.id}`}
                                 type="number"
                                 placeholder="Actual"
-                                className="hide-number-arrows h-7 text-xs w-24 text-right"
+                                className="hide-number-arrows h-6 text-xs w-20 text-right"
                                 defaultValue={account.actualBalance ?? ''}
                                 onChange={(e) => {
                                     const value = e.target.value === '' ? null : parseFloat(e.target.value)
@@ -364,7 +364,7 @@ export default function TransactionsPage() {
                             />
                           </div>
                           {balanceDifference !== null && (
-                              <div className="w-full pt-1 flex justify-end">
+                              <div className="w-full flex justify-end">
                                   <p className={cn(
                                       "text-xs font-medium",
                                       balanceDifference === 0 ? "text-green-600" : "text-red-600"
@@ -379,19 +379,19 @@ export default function TransactionsPage() {
               {otherAccounts.map((account, index) => {
                 const balanceDifference = getBalanceDifference(account.balance, account.actualBalance);
                 return (
-                  <TabsTrigger key={account.id} value={account.id} className={cn("border flex flex-col h-full p-3 items-start text-left gap-2", tabColors[(secondaryAccounts.length + index) % tabColors.length], textColors[(secondaryAccounts.length + index) % textColors.length])}>
+                  <TabsTrigger key={account.id} value={account.id} className={cn("border flex flex-col h-full p-2 items-start text-left gap-1", tabColors[(secondaryAccounts.length + index) % tabColors.length], textColors[(secondaryAccounts.length + index) % textColors.length])}>
                       <div className="w-full flex justify-between items-center">
                           <span className="font-semibold text-sm">{account.name}</span>
-                          <span className="font-bold">{formatCurrency(account.balance)}</span>
+                          <span className="font-bold text-sm">{formatCurrency(account.balance)}</span>
                       </div>
                       <div className="w-full space-y-1">
                           <div className="flex items-center justify-between gap-2">
-                            <Label htmlFor={`actual-balance-${account.id}`} className="text-xs flex-shrink-0">Actual Balance</Label>
+                            <Label htmlFor={`actual-balance-${account.id}`} className="text-xs flex-shrink-0">Actual</Label>
                             <Input
                                 id={`actual-balance-${account.id}`}
                                 type="number"
                                 placeholder="Actual"
-                                className="hide-number-arrows h-7 text-xs w-24 text-right"
+                                className="hide-number-arrows h-6 text-xs w-20 text-right"
                                 defaultValue={account.actualBalance ?? ''}
                                 onChange={(e) => {
                                     const value = e.target.value === '' ? null : parseFloat(e.target.value)
@@ -401,7 +401,7 @@ export default function TransactionsPage() {
                             />
                           </div>
                           {balanceDifference !== null && (
-                              <div className="w-full pt-1 flex justify-end">
+                              <div className="w-full flex justify-end">
                                   <p className={cn(
                                       "text-xs font-medium",
                                       balanceDifference === 0 ? "text-green-600" : "text-red-600"
@@ -426,5 +426,3 @@ export default function TransactionsPage() {
     </div>
   );
 }
-
-    
