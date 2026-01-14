@@ -232,47 +232,48 @@ export function TransactionTable({
         
         return account.name;
       };
+
+    const getLoanDisplayInfo = (t: Transaction) => {
+      const defaultInfo = { isLoan: false, type: t.type, category: t.category, description: t.description, colorClass: '' };
+      if (t.type !== 'transfer' || !t.loanTransactionId) {
+          return defaultInfo;
+      }
+  
+      const currentAccount = accounts.find(a => a.id === accountId);
+      const isVirtualAccountView = currentAccount && !currentAccount.isPrimary;
+  
+      for (const loan of loans) {
+          const loanTx = loan.transactions.find(lt => lt.id === t.loanTransactionId);
+          if (loanTx) {
+              let type: string;
+              let description: string = t.description;
+  
+              if (isVirtualAccountView && currentAccount?.name === loan.personName) {
+                  // Viewing from the other party's perspective
+                  const otherPartyAccountName = getAccountName(loanTx.accountId);
+                  if (loan.type === 'taken') { // User took a loan from this person (Post Bank)
+                      type = loanTx.type === 'loan' ? 'Loan Given' : 'Repayment Received';
+                      description = `${type} ${loanTx.type === 'loan' ? 'to' : 'from'} ${otherPartyAccountName}`;
+                  } else { // User gave a loan to this person
+                      type = loanTx.type === 'loan' ? 'Loan Taken' : 'Repayment Made';
+                      description = `${type} ${loanTx.type === 'loan' ? 'from' : 'to'} ${otherPartyAccountName}`;
+                  }
+              } else {
+                  // Viewing from the user's main account perspective
+                  if (loan.type === 'given') {
+                      type = loanTx.type === 'loan' ? "Loan Given" : "Repayment Received";
+                      description = `${type} ${loanTx.type === 'loan' ? 'to' : 'from'} ${loan.personName}`;
+                  } else { // loan.type === 'taken'
+                      type = loanTx.type === 'loan' ? "Loan from" : "Repayment to";
+                      description = `${type} ${loan.personName}`;
+                  }
+              }
+              return { isLoan: true, type, category: 'Loan', description, colorClass: 'bg-orange-100 dark:bg-orange-900/50' };
+          }
+      }
+      return defaultInfo;
+    };
     
-      const getLoanDisplayInfo = (t: Transaction) => {
-        const defaultInfo = { isLoan: false, type: t.type, category: t.category, description: t.description, colorClass: '' };
-        if (t.type !== 'transfer' || !t.loanTransactionId) {
-            return defaultInfo;
-        }
-    
-        const currentAccount = accounts.find(a => a.id === accountId);
-        const isVirtualAccountView = currentAccount && !currentAccount.isPrimary;
-    
-        for (const loan of loans) {
-            const loanTx = loan.transactions.find(lt => lt.id === t.loanTransactionId);
-            if (loanTx) {
-                let type: string;
-                let description: string = t.description;
-    
-                if (isVirtualAccountView && currentAccount?.name === loan.personName) {
-                    // Viewing from the other party's perspective
-                    const otherPartyAccountName = getAccountName(loanTx.accountId);
-                    if (loan.type === 'taken') { // User took a loan from this person (Post Bank)
-                        type = loanTx.type === 'loan' ? 'Loan Given' : 'Repayment Received';
-                        description = `${type} ${loanTx.type === 'loan' ? 'to' : 'from'} ${otherPartyAccountName}`;
-                    } else { // User gave a loan to this person
-                        type = loanTx.type === 'loan' ? 'Loan Taken' : 'Repayment Made';
-                        description = `${type} ${loanTx.type === 'loan' ? 'from' : 'to'} ${otherPartyAccountName}`;
-                    }
-                } else {
-                    // Viewing from the user's main account perspective
-                    if (loan.type === 'given') {
-                        type = loanTx.type === 'loan' ? "Loan Given" : "Repayment Received";
-                        description = `${type} ${loanTx.type === 'loan' ? 'to' : 'from'} ${loan.personName}`;
-                    } else { // loan.type === 'taken'
-                        type = loanTx.type === 'loan' ? "Loan from" : "Repayment to";
-                        description = `${type} ${loan.personName}`;
-                    }
-                }
-                return { isLoan: true, type, category: 'Loan', description, colorClass: 'bg-orange-100 dark:bg-orange-900/50' };
-            }
-        }
-        return defaultInfo;
-      };
 
     const filteredTransactions = useMemo(() => {
         const primaryAccount = accounts.find(a => a.isPrimary);
@@ -328,34 +329,27 @@ export function TransactionTable({
     const primaryAccount = accounts.find(a => a.isPrimary);
     const isPrimaryView = primaryAccount?.id === accountId;
 
-    const chronologicalTransactions = [...filteredTransactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-    let runningBalance = 0;
-
     const accountPreferences = accounts.find(a => a.id === accountId);
-    let reconciliationBalance = accountPreferences?.actualBalance ?? 0;
-    const reconciliationDate = accountPreferences?.actualBalanceDate ? parseISO(accountPreferences.actualBalanceDate) : new Date(0);
-    
+    let reconciliationBalance: number;
+    let reconciliationDate: Date;
+
     if (isPrimaryView) {
         const primaryReconDate = primaryAccount?.actualBalanceDate ? parseISO(primaryAccount.actualBalanceDate) : new Date(0);
-        const cashReconDate = fullAccounts.find(a => a.id === 'cash-wallet')?.actualBalanceDate ? parseISO(fullAccounts.find(a => a.id === 'cash-wallet')!.actualBalanceDate!) : new Date(0);
-        const digitalReconDate = fullAccounts.find(a => a.id === 'digital-wallet')?.actualBalanceDate ? parseISO(fullAccounts.find(a => a.id === 'digital-wallet')!.actualBalanceDate!) : new Date(0);
-        
+        const cashWallet = fullAccounts.find(a => a.id === 'cash-wallet');
+        const digitalWallet = fullAccounts.find(a => a.id === 'digital-wallet');
+        const cashReconDate = cashWallet?.actualBalanceDate ? parseISO(cashWallet.actualBalanceDate) : new Date(0);
+        const digitalReconDate = digitalWallet?.actualBalanceDate ? parseISO(digitalWallet.actualBalanceDate) : new Date(0);
+
         const latestReconDate = new Date(Math.max(primaryReconDate.getTime(), cashReconDate.getTime(), digitalReconDate.getTime()));
         
-        reconciliationBalance = (primaryAccount?.actualBalance ?? 0) + (fullAccounts.find(a => a.id === 'cash-wallet')?.actualBalance ?? 0) + (fullAccounts.find(a => a.id === 'digital-wallet')?.actualBalance ?? 0);
+        reconciliationDate = latestReconDate;
+        reconciliationBalance = (primaryAccount?.actualBalance ?? 0) + (cashWallet?.actualBalance ?? 0) + (digitalWallet?.actualBalance ?? 0);
+    } else {
+        reconciliationBalance = accountPreferences?.actualBalance ?? 0;
+        reconciliationDate = accountPreferences?.actualBalanceDate ? parseISO(accountPreferences.actualBalanceDate) : new Date(0);
     }
-    
-    const beforeRecon: Transaction[] = [];
-    const afterRecon: Transaction[] = [];
 
-    chronologicalTransactions.forEach(t => {
-        if (isBefore(parseISO(t.date), reconciliationDate)) {
-            beforeRecon.push(t);
-        } else {
-            afterRecon.push(t);
-        }
-    });
+    const chronologicalTransactions = [...filteredTransactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     const calculateChange = (t: Transaction) => {
         let amountChange = 0;
@@ -376,8 +370,11 @@ export function TransactionTable({
             }
         } else if (t.type === 'income' && isInView(t.accountId)) {
             amountChange = t.amount;
-        } else if (t.type === 'expense' && isInView(t.accountId ?? (t.paymentMethod === 'cash' ? 'cash-wallet' : t.paymentMethod === 'digital' ? 'digital-wallet' : undefined))) {
-            amountChange = -t.amount;
+        } else if (t.type === 'expense') {
+            const paymentAccId = t.paymentMethod === 'cash' ? 'cash-wallet' : t.paymentMethod === 'digital' ? 'digital-wallet' : t.accountId;
+            if (isInView(paymentAccId)) {
+                amountChange = -t.amount;
+            }
         } else if (t.type === 'transfer') {
             const fromInView = isInView(t.fromAccountId);
             const toInView = isInView(t.toAccountId);
@@ -390,20 +387,27 @@ export function TransactionTable({
         return amountChange;
     };
 
-    let tempBalance = reconciliationBalance;
-    const afterReconWithBalance = afterRecon.map(t => {
-        tempBalance += calculateChange(t);
-        return { ...t, balance: tempBalance };
+    let runningBalance = reconciliationBalance;
+    const balanceMap = new Map<string, number>();
+
+    const afterReconTx = chronologicalTransactions.filter(t => isAfter(parseISO(t.date), reconciliationDate) || isSameDay(parseISO(t.date), reconciliationDate));
+    const beforeReconTx = chronologicalTransactions.filter(t => isBefore(parseISO(t.date), reconciliationDate));
+
+    afterReconTx.forEach(t => {
+      runningBalance += calculateChange(t);
+      balanceMap.set(t.id, runningBalance);
     });
 
-    tempBalance = reconciliationBalance;
-    const beforeReconWithBalance = beforeRecon.reverse().map(t => {
-        const balance = tempBalance;
-        tempBalance -= calculateChange(t);
-        return { ...t, balance: balance };
-    }).reverse();
-
-    return [...beforeReconWithBalance, ...afterReconWithBalance].reverse();
+    runningBalance = reconciliationBalance;
+    beforeReconTx.reverse().forEach(t => {
+      balanceMap.set(t.id, runningBalance);
+      runningBalance -= calculateChange(t);
+    });
+    
+    return filteredTransactions.map(t => ({
+        ...t,
+        balance: balanceMap.get(t.id) || 0,
+    }));
 }, [filteredTransactions, accountId, accounts, loans, fullAccounts]);
 
 
@@ -791,54 +795,54 @@ export function TransactionTable({
 
   return (
     <>
-    <Card id="printable-area">
-       <CardHeader className="flex flex-col gap-4 print-hide sticky top-0 bg-background z-20 border-b">
+    <Card className="print-hide">
+      <CardHeader>
         <div className="flex justify-center items-center gap-2">
-            {totalPages > 1 && (
-                <>
-                    <Button
-                    variant="outline"
-                    className="h-8 w-8 p-0"
-                    onClick={() => setCurrentPage(1)}
-                    disabled={currentPage === 1}
-                    >
-                    <span className="sr-only">Go to first page</span>
-                    <ChevronsLeft className="h-4 w-4" />
-                    </Button>
-                    <Button
-                    variant="outline"
-                    className="h-8 w-8 p-0"
-                    onClick={() => setCurrentPage(prev => prev - 1)}
-                    disabled={currentPage === 1}
-                    >
-                    <span className="sr-only">Go to previous page</span>
-                    <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <div className="flex items-center justify-center text-sm font-medium">
-                    Page {currentPage} of {totalPages}
-                    </div>
-                    <Button
-                    variant="outline"
-                    className="h-8 w-8 p-0"
-                    onClick={() => setCurrentPage(prev => prev + 1)}
-                    disabled={currentPage === totalPages}
-                    >
-                    <span className="sr-only">Go to next page</span>
-                    <ChevronRight className="h-4 w-4" />
-                    </Button>
-                    <Button
-                    variant="outline"
-                    className="h-8 w-8 p-0"
-                    onClick={() => setCurrentPage(totalPages)}
-                    disabled={currentPage === totalPages}
-                    >
-                    <span className="sr-only">Go to last page</span>
-                    <ChevronsRight className="h-4 w-4" />
-                    </Button>
-                </>
-            )}
+          {totalPages > 1 && (
+            <>
+              <Button
+                variant="outline"
+                className="h-8 w-8 p-0"
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+              >
+                <span className="sr-only">Go to first page</span>
+                <ChevronsLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                className="h-8 w-8 p-0"
+                onClick={() => setCurrentPage(prev => prev - 1)}
+                disabled={currentPage === 1}
+              >
+                <span className="sr-only">Go to previous page</span>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <div className="flex items-center justify-center text-sm font-medium">
+                Page {currentPage} of {totalPages}
+              </div>
+              <Button
+                variant="outline"
+                className="h-8 w-8 p-0"
+                onClick={() => setCurrentPage(prev => prev + 1)}
+                disabled={currentPage === totalPages}
+              >
+                <span className="sr-only">Go to next page</span>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                className="h-8 w-8 p-0"
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+              >
+                <span className="sr-only">Go to last page</span>
+                <ChevronsRight className="h-4 w-4" />
+              </Button>
+            </>
+          )}
         </div>
-        <div className="flex flex-col md:flex-row items-center gap-2 w-full">
+        <div className="flex flex-col md:flex-row items-center gap-2 w-full pt-4">
           <div className="relative flex-1 md:grow-0">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
@@ -1155,10 +1159,12 @@ export function TransactionTable({
           </Dialog>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="relative overflow-x-auto">
+    </Card>
+    <Card id="printable-area">
+      <CardContent className="p-0">
+        <div className="relative overflow-auto max-h-[calc(100vh-350px)]">
           <Table className="min-w-full">
-            <TableHeader className="sticky top-[145px] z-10 bg-background">
+            <TableHeader className="sticky top-0 z-10 bg-background">
                 <TableRow>
                 <TableHead>Sl.</TableHead>
                 <TableHead>Date</TableHead>
@@ -1365,3 +1371,5 @@ export function TransactionTable({
     </>
   );
 }
+
+    
