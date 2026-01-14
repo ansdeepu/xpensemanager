@@ -272,8 +272,11 @@ export function TransactionTable({
       runningBalance = accountBalances[accountId] ?? 0;
     }
     
-    return filteredTransactions.map(t => {
-      const balance = runningBalance;
+    // Create a reversed copy for calculation
+    const reversedTransactions = [...filteredTransactions].reverse();
+    const balanceMap = new Map<string, number>();
+
+    reversedTransactions.forEach(t => {
       let amountChange = 0;
       if (t.type === 'income') {
         if ((isPrimaryView && t.accountId === accountId) || (!isPrimaryView && t.accountId === accountId)) {
@@ -281,7 +284,7 @@ export function TransactionTable({
         }
       } else if (t.type === 'expense') {
         if (isPrimaryView) {
-          if (t.accountId === accountId || t.paymentMethod === 'cash' || t.paymentMethod === 'digital') {
+          if ((t.accountId === accountId && t.paymentMethod === 'online') || t.paymentMethod === 'cash' || t.paymentMethod === 'digital') {
             amountChange = -t.amount;
           }
         } else {
@@ -291,24 +294,29 @@ export function TransactionTable({
         }
       } else if (t.type === 'transfer') {
         if (isPrimaryView) {
-          if (t.fromAccountId === accountId || t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet') {
-            amountChange = -t.amount;
-          }
-          if (t.toAccountId === accountId || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet') {
-            amountChange += t.amount;
-          }
-        } else {
-          if (t.fromAccountId === accountId) {
-            amountChange = -t.amount;
-          }
-          if (t.toAccountId === accountId) {
-            amountChange += t.amount;
-          }
+            if (t.fromAccountId === accountId || t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet') {
+                amountChange -= t.amount;
+            }
+            if (t.toAccountId === accountId || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet') {
+                amountChange += t.amount;
+            }
+        } else { // Non-primary account
+            if (t.fromAccountId === accountId) {
+                amountChange = -t.amount;
+            }
+            if (t.toAccountId === accountId) {
+                amountChange = t.amount;
+            }
         }
       }
-      runningBalance -= amountChange;
-      return { ...t, balance };
+      runningBalance += amountChange;
+      balanceMap.set(t.id, runningBalance);
     });
+
+    return filteredTransactions.map(t => ({
+      ...t,
+      balance: balanceMap.get(t.id) || 0,
+    }));
   }, [filteredTransactions, accountId, accounts, accountBalances, cashWalletBalance, digitalWalletBalance]);
 
 
