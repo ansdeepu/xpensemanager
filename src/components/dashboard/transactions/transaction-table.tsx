@@ -265,39 +265,54 @@ export function TransactionTable({
     const primaryAccount = accounts.find(a => a.isPrimary);
     const isPrimaryView = primaryAccount?.id === accountId;
 
-    let currentBalance: number;
+    let runningBalance: number;
     if (isPrimaryView) {
-      currentBalance = (accountBalances[accountId] ?? 0) + cashWalletBalance + digitalWalletBalance;
+      runningBalance = (accountBalances[accountId] ?? 0) + cashWalletBalance + digitalWalletBalance;
     } else {
-      currentBalance = accountBalances[accountId] ?? 0;
+      runningBalance = accountBalances[accountId] ?? 0;
     }
 
-    return filteredTransactions.map((t, index) => {
-      const balance = currentBalance;
-      
+    const reversedTransactions = [...filteredTransactions].reverse();
+    const transactionsWithRunningBalance: (Transaction & { balance: number })[] = [];
+
+    reversedTransactions.forEach(t => {
       let amountChange = 0;
       if (t.type === 'income') {
-          if (isPrimaryView && t.accountId === accountId) amountChange = -t.amount;
-          else if (!isPrimaryView && t.accountId === accountId) amountChange = -t.amount;
+        if ((isPrimaryView && t.accountId === accountId) || (!isPrimaryView && t.accountId === accountId)) {
+          amountChange = t.amount;
+        }
       } else if (t.type === 'expense') {
-          if (isPrimaryView) {
-              if (t.accountId === accountId || t.paymentMethod === 'cash' || t.paymentMethod === 'digital') amountChange = t.amount;
-          } else {
-              if (t.accountId === accountId) amountChange = t.amount;
+        if (isPrimaryView) {
+          if (t.accountId === accountId || t.paymentMethod === 'cash' || t.paymentMethod === 'digital') {
+            amountChange = -t.amount;
           }
+        } else {
+          if (t.accountId === accountId) {
+            amountChange = -t.amount;
+          }
+        }
       } else if (t.type === 'transfer') {
-          if (isPrimaryView) {
-              if (t.fromAccountId === accountId || t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet') amountChange = t.amount;
-              if (t.toAccountId === accountId || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet') amountChange = -t.amount;
-          } else {
-              if (t.fromAccountId === accountId) amountChange = t.amount;
-              if (t.toAccountId === accountId) amountChange = -t.amount;
+        if (isPrimaryView) {
+          if (t.fromAccountId === accountId || t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet') {
+            amountChange = -t.amount;
           }
+          if (t.toAccountId === accountId || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet') {
+            amountChange += t.amount;
+          }
+        } else {
+          if (t.fromAccountId === accountId) {
+            amountChange = -t.amount;
+          }
+          if (t.toAccountId === accountId) {
+            amountChange += t.amount;
+          }
+        }
       }
-      currentBalance += amountChange;
-
-      return { ...t, balance };
-    }).reverse(); // Reverse back to descending order for display
+      runningBalance += amountChange;
+      transactionsWithRunningBalance.push({ ...t, balance: runningBalance });
+    });
+    
+    return transactionsWithRunningBalance.reverse();
   }, [filteredTransactions, accountId, accounts, accountBalances, cashWalletBalance, digitalWalletBalance]);
 
 
