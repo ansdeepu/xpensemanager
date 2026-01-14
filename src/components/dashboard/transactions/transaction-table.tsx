@@ -117,7 +117,7 @@ const PaginationControls = ({ currentPage, totalPages, setCurrentPage }: { curre
         onClick={() => setCurrentPage(prev => prev + 1)}
         disabled={currentPage === totalPages}
       >
-        <span className="sr-only">Go to next page</span>
+        <span className="sr-only">Next page</span>
         <ChevronRight className="h-4 w-4" />
       </Button>
       <Button
@@ -1138,7 +1138,7 @@ export function TransactionTable({
                 <TableRow>
                 <TableHead>Sl.</TableHead>
                 <TableHead>Date</TableHead>
-                <TableHead className="w-[25%]">Description</TableHead>
+                <TableHead className="w-[20%]">Description</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Account</TableHead>
                 <TableHead>Category</TableHead>
@@ -1155,7 +1155,7 @@ export function TransactionTable({
                     <TableRow key={t.id} className={loanInfo.colorClass}>
                         <TableCell className="font-medium">{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
                         <TableCell>{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
-                        <TableCell className="font-medium break-words">{loanInfo.description}</TableCell>
+                        <TableCell className="font-medium break-words line-clamp-4">{loanInfo.description}</TableCell>
                         <TableCell>
                           <Badge 
                               variant={getBadgeVariant(t.type)}
@@ -1387,3 +1387,5 @@ export function TransactionTable({
     </>
   );
 }
+
+    
