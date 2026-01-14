@@ -264,73 +264,51 @@ export function TransactionTable({
   const transactionsWithBalance = useMemo(() => {
     const primaryAccount = accounts.find(a => a.isPrimary);
     const isPrimaryView = primaryAccount?.id === accountId;
-    
-    // Get all transactions for the account, sorted oldest to newest
+
     const chronologicalTransactions = [...filteredTransactions].reverse();
+    let runningBalance = 0;
 
-    // Find the total current balance for the view (primary or single account)
-    let currentBalance: number;
-    if (isPrimaryView) {
-        currentBalance = (accountBalances[accountId] ?? 0) + cashWalletBalance + digitalWalletBalance;
-    } else {
-        currentBalance = accountBalances[accountId] ?? 0;
-    }
-    
-    // Calculate the total net change from all transactions in the chronological list
-    let totalNetChange = 0;
-    chronologicalTransactions.forEach(t => {
+    const withBalance = chronologicalTransactions.map((t, index) => {
       let amountChange = 0;
+      
+      const isInView = (accId?: string) => {
+        if (!accId) return false;
+        if (isPrimaryView) {
+          return accId === accountId || accId === 'cash-wallet' || accId === 'digital-wallet';
+        }
+        return accId === accountId;
+      };
+
       if (t.type === 'income') {
-        if (!isPrimaryView && t.accountId === accountId) {
-          amountChange = t.amount;
-        } else if (isPrimaryView) {
-          amountChange = t.amount; // In primary view, all income is counted.
-        }
-      } else if (t.type === 'expense') {
-        if (!isPrimaryView && t.accountId === accountId) {
-          amountChange = -t.amount;
-        } else if (isPrimaryView) {
-           amountChange = -t.amount; // In primary view, all expenses are counted.
-        }
-      } else if (t.type === 'transfer') {
-        const fromInView = isPrimaryView ? (t.fromAccountId === accountId || t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet') : (t.fromAccountId === accountId);
-        const toInView = isPrimaryView ? (t.toAccountId === accountId || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet') : (t.toAccountId === accountId);
-        if (fromInView) amountChange -= t.amount;
-        if (toInView) amountChange += t.amount;
-      }
-       totalNetChange += amountChange;
-    });
-
-    // Calculate the starting balance (balance before the oldest transaction)
-    let runningBalance = currentBalance - totalNetChange;
-
-    const withBalance = chronologicalTransactions.map(t => {
-      let amountChange = 0;
-       if (t.type === 'income') {
-        if (!isPrimaryView && t.accountId === accountId) {
-          amountChange = t.amount;
-        } else if (isPrimaryView) {
+        if (isInView(t.accountId)) {
           amountChange = t.amount;
         }
       } else if (t.type === 'expense') {
-         if (!isPrimaryView && t.accountId === accountId) {
-          amountChange = -t.amount;
-        } else if (isPrimaryView) {
-          amountChange = -t.amount;
+        if (isPrimaryView) {
+           amountChange = -t.amount;
+        } else {
+            if (isInView(t.accountId)) {
+                amountChange = -t.amount;
+            }
         }
       } else if (t.type === 'transfer') {
-        const fromInView = isPrimaryView ? (t.fromAccountId === accountId || t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet') : (t.fromAccountId === accountId);
-        const toInView = isPrimaryView ? (t.toAccountId === accountId || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet') : (t.toAccountId === accountId);
-        if (fromInView) amountChange -= t.amount;
-        if (toInView) amountChange += t.amount;
+        const fromInView = isInView(t.fromAccountId);
+        const toInView = isInView(t.toAccountId);
+        
+        if (fromInView && !toInView) {
+          amountChange = -t.amount;
+        } else if (!fromInView && toInView) {
+          amountChange = t.amount;
+        }
+        // If transfer is within the view (e.g. primary account to cash wallet), net change is 0 for the ecosystem.
       }
       
       runningBalance += amountChange;
       return { ...t, balance: runningBalance };
     });
 
-    return withBalance.reverse(); // Reverse back to newest first for display
-  }, [filteredTransactions, accountId, accounts, accountBalances, cashWalletBalance, digitalWalletBalance]);
+    return withBalance.reverse();
+  }, [filteredTransactions, accountId, accounts]);
 
 
   const totalPages = Math.ceil(transactionsWithBalance.length / itemsPerPage);
@@ -1357,3 +1335,4 @@ export function TransactionTable({
   );
 }
 
+    
