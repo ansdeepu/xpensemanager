@@ -762,6 +762,49 @@ export function TransactionTable({
     <>
     <Card id="printable-area">
       <CardHeader className="flex flex-col gap-4">
+        {totalPages > 1 && (
+            <div className="flex justify-center items-center gap-2 print-hide">
+                <Button
+                variant="outline"
+                className="h-8 w-8 p-0"
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                >
+                <span className="sr-only">Go to first page</span>
+                <ChevronsLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                variant="outline"
+                className="h-8 w-8 p-0"
+                onClick={() => setCurrentPage(prev => prev - 1)}
+                disabled={currentPage === 1}
+                >
+                <span className="sr-only">Go to previous page</span>
+                <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <div className="flex items-center justify-center text-sm font-medium">
+                Page {currentPage} of {totalPages}
+                </div>
+                <Button
+                variant="outline"
+                className="h-8 w-8 p-0"
+                onClick={() => setCurrentPage(prev => prev + 1)}
+                disabled={currentPage === totalPages}
+                >
+                <span className="sr-only">Go to next page</span>
+                <ChevronRight className="h-4 w-4" />
+                </Button>
+                <Button
+                variant="outline"
+                className="h-8 w-8 p-0"
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+                >
+                <span className="sr-only">Go to last page</span>
+                <ChevronsRight className="h-4 w-4" />
+                </Button>
+            </div>
+        )}
         <div className="flex flex-col md:flex-row items-center gap-2 w-full print-hide">
           <div className="relative flex-1 md:grow-0">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -1078,54 +1121,11 @@ export function TransactionTable({
             </DialogContent>
           </Dialog>
         </div>
-        {totalPages > 1 && (
-            <div className="flex justify-center items-center gap-2 print-hide pt-4">
-                <Button
-                variant="outline"
-                className="h-8 w-8 p-0"
-                onClick={() => setCurrentPage(1)}
-                disabled={currentPage === 1}
-                >
-                <span className="sr-only">Go to first page</span>
-                <ChevronsLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                variant="outline"
-                className="h-8 w-8 p-0"
-                onClick={() => setCurrentPage(prev => prev - 1)}
-                disabled={currentPage === 1}
-                >
-                <span className="sr-only">Go to previous page</span>
-                <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <div className="flex items-center justify-center text-sm font-medium">
-                Page {currentPage} of {totalPages}
-                </div>
-                <Button
-                variant="outline"
-                className="h-8 w-8 p-0"
-                onClick={() => setCurrentPage(prev => prev + 1)}
-                disabled={currentPage === totalPages}
-                >
-                <span className="sr-only">Go to next page</span>
-                <ChevronRight className="h-4 w-4" />
-                </Button>
-                <Button
-                variant="outline"
-                className="h-8 w-8 p-0"
-                onClick={() => setCurrentPage(totalPages)}
-                disabled={currentPage === totalPages}
-                >
-                <span className="sr-only">Go to last page</span>
-                <ChevronsRight className="h-4 w-4" />
-                </Button>
-            </div>
-        )}
       </CardHeader>
       <CardContent>
-        <div className="overflow-x-auto">
+        <div className="relative overflow-x-auto">
           <Table className="min-w-full">
-            <TableHeader>
+            <TableHeader className="sticky top-0 z-10 bg-background">
                 <TableRow>
                 <TableHead>Sl.</TableHead>
                 <TableHead>Date</TableHead>
