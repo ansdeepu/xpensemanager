@@ -271,11 +271,9 @@ export function TransactionTable({
     } else {
       runningBalance = accountBalances[accountId] ?? 0;
     }
-
-    const reversedTransactions = [...filteredTransactions].reverse();
-    const transactionsWithRunningBalance: (Transaction & { balance: number })[] = [];
-
-    reversedTransactions.forEach(t => {
+    
+    return filteredTransactions.map(t => {
+      const balance = runningBalance;
       let amountChange = 0;
       if (t.type === 'income') {
         if ((isPrimaryView && t.accountId === accountId) || (!isPrimaryView && t.accountId === accountId)) {
@@ -308,11 +306,9 @@ export function TransactionTable({
           }
         }
       }
-      runningBalance += amountChange;
-      transactionsWithRunningBalance.push({ ...t, balance: runningBalance });
+      runningBalance -= amountChange;
+      return { ...t, balance };
     });
-    
-    return transactionsWithRunningBalance.reverse();
   }, [filteredTransactions, accountId, accounts, accountBalances, cashWalletBalance, digitalWalletBalance]);
 
 
@@ -761,50 +757,52 @@ export function TransactionTable({
   return (
     <>
     <Card id="printable-area">
-      <CardHeader className="flex flex-col gap-4">
-        {totalPages > 1 && (
-            <div className="flex justify-center items-center gap-2 print-hide">
-                <Button
-                variant="outline"
-                className="h-8 w-8 p-0"
-                onClick={() => setCurrentPage(1)}
-                disabled={currentPage === 1}
-                >
-                <span className="sr-only">Go to first page</span>
-                <ChevronsLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                variant="outline"
-                className="h-8 w-8 p-0"
-                onClick={() => setCurrentPage(prev => prev - 1)}
-                disabled={currentPage === 1}
-                >
-                <span className="sr-only">Go to previous page</span>
-                <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <div className="flex items-center justify-center text-sm font-medium">
-                Page {currentPage} of {totalPages}
-                </div>
-                <Button
-                variant="outline"
-                className="h-8 w-8 p-0"
-                onClick={() => setCurrentPage(prev => prev + 1)}
-                disabled={currentPage === totalPages}
-                >
-                <span className="sr-only">Go to next page</span>
-                <ChevronRight className="h-4 w-4" />
-                </Button>
-                <Button
-                variant="outline"
-                className="h-8 w-8 p-0"
-                onClick={() => setCurrentPage(totalPages)}
-                disabled={currentPage === totalPages}
-                >
-                <span className="sr-only">Go to last page</span>
-                <ChevronsRight className="h-4 w-4" />
-                </Button>
-            </div>
-        )}
+       <CardHeader className="flex flex-col gap-4">
+        <div className="flex justify-center items-center gap-2 print-hide">
+            {totalPages > 1 && (
+                <>
+                    <Button
+                    variant="outline"
+                    className="h-8 w-8 p-0"
+                    onClick={() => setCurrentPage(1)}
+                    disabled={currentPage === 1}
+                    >
+                    <span className="sr-only">Go to first page</span>
+                    <ChevronsLeft className="h-4 w-4" />
+                    </Button>
+                    <Button
+                    variant="outline"
+                    className="h-8 w-8 p-0"
+                    onClick={() => setCurrentPage(prev => prev - 1)}
+                    disabled={currentPage === 1}
+                    >
+                    <span className="sr-only">Go to previous page</span>
+                    <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <div className="flex items-center justify-center text-sm font-medium">
+                    Page {currentPage} of {totalPages}
+                    </div>
+                    <Button
+                    variant="outline"
+                    className="h-8 w-8 p-0"
+                    onClick={() => setCurrentPage(prev => prev + 1)}
+                    disabled={currentPage === totalPages}
+                    >
+                    <span className="sr-only">Go to next page</span>
+                    <ChevronRight className="h-4 w-4" />
+                    </Button>
+                    <Button
+                    variant="outline"
+                    className="h-8 w-8 p-0"
+                    onClick={() => setCurrentPage(totalPages)}
+                    disabled={currentPage === totalPages}
+                    >
+                    <span className="sr-only">Go to last page</span>
+                    <ChevronsRight className="h-4 w-4" />
+                    </Button>
+                </>
+            )}
+        </div>
         <div className="flex flex-col md:flex-row items-center gap-2 w-full print-hide">
           <div className="relative flex-1 md:grow-0">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
