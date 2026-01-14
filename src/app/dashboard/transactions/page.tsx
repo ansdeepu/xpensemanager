@@ -263,7 +263,7 @@ export default function TransactionsPage() {
       </div>
       <Tabs defaultValue={primaryAccount?.id || "all-accounts"} value={activeTab} onValueChange={setActiveTab} className="w-full">
         <Card className="mb-6">
-          <TabsList className="flex flex-col lg:flex-row flex-wrap h-auto items-start p-1">
+          <TabsList className="flex flex-col lg:flex-row flex-wrap h-auto items-start p-1 w-full">
             <div className="w-full lg:w-1/2 p-1">
               {primaryAccount && (
                 <TabsTrigger value={primaryAccount.id} className={cn("border flex flex-col h-full p-4 items-start text-left gap-4 w-full", "bg-lime-100 dark:bg-lime-900/50")}>
@@ -448,9 +448,5 @@ export default function TransactionsPage() {
     </div>
   );
 }
-
-    
-
-    
 
     
