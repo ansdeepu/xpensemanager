@@ -66,15 +66,13 @@ import { useAuthState } from "@/hooks/use-auth-state";
 const formatCurrency = (amount: number) => {
     if (amount % 1 === 0) {
       return new Intl.NumberFormat("en-IN", {
-        style: "currency",
-        currency: "INR",
+        style: "decimal",
         minimumFractionDigits: 0,
         maximumFractionDigits: 0,
       }).format(amount);
     }
     const formatter = new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
+      style: "decimal",
       minimumFractionDigits: 0,
       maximumFractionDigits: 2,
     });
@@ -898,7 +896,6 @@ export function TransactionTable({
                  {isPrimaryView && (
                     <div className="flex items-center gap-2 p-2 rounded-md border bg-card text-card-foreground shadow-sm">
                         <CalendarIcon className="h-5 w-5 text-red-600" />
-                        <Label htmlFor="reconciliation-date" className="text-sm font-bold text-red-600 flex-shrink-0">Reconciliation Date:</Label>
                         <Input
                             id="reconciliation-date"
                             type="date"
@@ -1490,3 +1487,5 @@ export function TransactionTable({
     </>
   );
 }
+
+    
