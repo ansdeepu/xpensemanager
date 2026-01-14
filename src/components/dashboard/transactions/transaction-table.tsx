@@ -58,7 +58,7 @@ import { auth, db } from "@/lib/firebase";
 import { collection, addDoc, query, where, onSnapshot, doc, runTransaction, orderBy, deleteDoc, getDoc, getDocs, limit, writeBatch, updateDoc } from "firebase/firestore";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { format, addMonths, addQuarters, addYears, isAfter, isWithinInterval, startOfDay, endOfDay, isBefore, parseISO } from "date-fns";
+import { format, addMonths, addQuarters, addYears, isAfter, isWithinInterval, startOfDay, endOfDay, isBefore, parseISO, isSameDay } from "date-fns";
 import { DateRange } from "react-day-picker";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -116,7 +116,6 @@ export function TransactionTable({
   const itemsPerPage = 100;
   const { toast } = useToast();
   
-  // State for amount inputs
   const [expenseAmount, setExpenseAmount] = useState("");
   const [incomeAmount, setIncomeAmount] = useState("");
   const [transferAmount, setTransferAmount] = useState("");
@@ -264,13 +263,14 @@ export function TransactionTable({
   const transactionsWithBalance = useMemo(() => {
     const primaryAccount = accounts.find(a => a.isPrimary);
     const isPrimaryView = primaryAccount?.id === accountId;
-
-    const chronologicalTransactions = [...filteredTransactions].reverse();
+    
+    // Sort transactions from oldest to newest for calculation
+    const chronologicalTransactions = [...filteredTransactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    
     let runningBalance = 0;
-
-    const withBalance = chronologicalTransactions.map((t, index) => {
+    const withBalance = chronologicalTransactions.map(t => {
       let amountChange = 0;
-      
+
       const isInView = (accId?: string) => {
         if (!accId) return false;
         if (isPrimaryView) {
@@ -278,19 +278,19 @@ export function TransactionTable({
         }
         return accId === accountId;
       };
+      
+      const loanInfo = getLoanDisplayInfo(t);
 
-      if (t.type === 'income') {
-        if (isInView(t.accountId)) {
-          amountChange = t.amount;
+      if (loanInfo.isLoan) {
+        if (loanInfo.type.includes('Loan Given') || loanInfo.type.includes('Repayment Made')) {
+            amountChange = -t.amount;
+        } else if (loanInfo.type.includes('Loan from') || loanInfo.type.includes('Loan Taken') || loanInfo.type.includes('Repayment Received')) {
+            amountChange = t.amount;
         }
+      } else if (t.type === 'income') {
+        amountChange = t.amount;
       } else if (t.type === 'expense') {
-        if (isPrimaryView) {
-           amountChange = -t.amount;
-        } else {
-            if (isInView(t.accountId)) {
-                amountChange = -t.amount;
-            }
-        }
+        amountChange = -t.amount;
       } else if (t.type === 'transfer') {
         const fromInView = isInView(t.fromAccountId);
         const toInView = isInView(t.toAccountId);
@@ -300,15 +300,16 @@ export function TransactionTable({
         } else if (!fromInView && toInView) {
           amountChange = t.amount;
         }
-        // If transfer is within the view (e.g. primary account to cash wallet), net change is 0 for the ecosystem.
+        // If transfer is within the view (e.g. primary account to cash wallet), net change is 0.
       }
       
       runningBalance += amountChange;
       return { ...t, balance: runningBalance };
     });
 
+    // Reverse back to show newest first
     return withBalance.reverse();
-  }, [filteredTransactions, accountId, accounts]);
+  }, [filteredTransactions, accountId, accounts, loans]);
 
 
   const totalPages = Math.ceil(transactionsWithBalance.length / itemsPerPage);
@@ -329,8 +330,7 @@ export function TransactionTable({
 
       const transactionsQuery = query(
         collection(db, "transactions"), 
-        where("userId", "==", user.uid), 
-        orderBy("date", "desc")
+        where("userId", "==", user.uid)
       );
       const unsubscribeTransactions = onSnapshot(transactionsQuery, (snapshot) => {
         const userTransactions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction));
@@ -761,7 +761,7 @@ export function TransactionTable({
   return (
     <>
     <Card id="printable-area">
-       <CardHeader className="flex flex-col gap-4 print-hide">
+       <CardHeader className="flex flex-col gap-4 print-hide sticky top-0 bg-background z-20 border-b">
         <div className="flex justify-center items-center gap-2">
             {totalPages > 1 && (
                 <>
@@ -1127,7 +1127,7 @@ export function TransactionTable({
       <CardContent>
         <div className="relative overflow-x-auto">
           <Table className="min-w-full">
-            <TableHeader className="sticky top-0 z-10 bg-background">
+            <TableHeader className="sticky top-[145px] z-10 bg-background">
                 <TableRow>
                 <TableHead>Sl.</TableHead>
                 <TableHead>Date</TableHead>
@@ -1334,5 +1334,3 @@ export function TransactionTable({
     </>
   );
 }
-
-    
