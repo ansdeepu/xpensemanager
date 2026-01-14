@@ -113,6 +113,7 @@ export default function TransactionsPage() {
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [reconciliationDate, setReconciliationDate] = useState<Date | undefined>();
   const itemsPerPage = 100;
 
   const useDebounce = (callback: Function, delay: number) => {
@@ -128,18 +129,26 @@ export default function TransactionsPage() {
   const debouncedUpdateAccount = useCallback(useDebounce(async (accountId: string, data: { actualBalance?: number | null }) => {
         if (!user) return;
         const accountRef = doc(db, "accounts", accountId);
-        await updateDoc(accountRef, { ...data });
-    }, 500), [user]);
+        await updateDoc(accountRef, { ...data, actualBalanceDate: reconciliationDate?.toISOString() });
+    }, 500), [user, reconciliationDate]);
     
   const debouncedUpdateWallet = useCallback(useDebounce(async (walletType: 'cash' | 'digital', data: { balance?: number | null }) => {
     if (!user) return;
     const prefRef = doc(db, "user_preferences", user.uid);
     const updatedWallets = { 
         ...walletPreferences, 
-        [walletType]: { ...walletPreferences[walletType], ...data } 
+        [walletType]: { ...walletPreferences[walletType], ...data, date: reconciliationDate?.toISOString() } 
     };
     await setDoc(prefRef, { wallets: updatedWallets }, { merge: true });
-  }, 500), [user, walletPreferences]);
+  }, 500), [user, walletPreferences, reconciliationDate]);
+  
+  const handleReconciliationDateChange = async (date: Date | undefined) => {
+    setReconciliationDate(date);
+    if (!user || !date) return;
+    const prefRef = doc(db, "user_preferences", user.uid);
+    await setDoc(prefRef, { reconciliationDate: date.toISOString() }, { merge: true });
+  };
+
 
   useEffect(() => {
     if (user) {
@@ -160,6 +169,13 @@ export default function TransactionsPage() {
         if (doc.exists()) {
           const prefs = doc.data();
           setWalletPreferences(prefs.wallets || {});
+          if (prefs.reconciliationDate) {
+              setReconciliationDate(new Date(prefs.reconciliationDate));
+          } else {
+              setReconciliationDate(new Date());
+          }
+        } else {
+             setReconciliationDate(new Date());
         }
       });
       
@@ -503,6 +519,25 @@ export default function TransactionsPage() {
             <CardHeader className="print-hide">
                 <div className="flex flex-col md:flex-row items-center justify-between gap-4 w-full">
                     <div className="flex-1 flex flex-col md:flex-row items-center gap-2 w-full">
+                         <div className="flex items-center gap-2">
+                            <CalendarIcon className="h-5 w-5 text-red-600" />
+                            <Input
+                                id="reconciliation-date"
+                                type="date"
+                                value={reconciliationDate ? format(reconciliationDate, 'yyyy-MM-dd') : ''}
+                                onChange={(e) => {
+                                    const dateValue = e.target.value;
+                                    const newDate = dateValue ? new Date(dateValue) : undefined;
+                                    if (newDate) {
+                                        const timezoneOffset = newDate.getTimezoneOffset() * 60000;
+                                        handleReconciliationDateChange(new Date(newDate.getTime() + timezoneOffset));
+                                    } else {
+                                        handleReconciliationDateChange(undefined);
+                                    }
+                                }}
+                                className="w-full sm:w-auto bg-transparent border-none outline-none font-bold text-red-600 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0"
+                            />
+                        </div>
                         <div className="relative flex-1 md:flex-initial w-full md:w-auto">
                             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                             <Input
@@ -546,6 +581,7 @@ export default function TransactionsPage() {
             <CardContent className="p-0">
               <TransactionTable 
                   transactions={pagedTransactions} 
+                  allTransactions={allTransactions}
                   accountId={activeTab || ''}
               />
             </CardContent>
@@ -559,6 +595,3 @@ export default function TransactionsPage() {
     </div>
   );
 }
-
-    
-
