@@ -159,7 +159,7 @@ export default function TransactionsPage() {
         if (dataLoading) setDataLoading(false);
       });
 
-      const transactionsQuery = query(collection(db, "transactions"), where("userId", "==", user.uid));
+      const transactionsQuery = query(collection(db, "transactions"), where("userId", "==", user.uid), orderBy("date", "asc"));
       const unsubscribeTransactions = onSnapshot(transactionsQuery, (snapshot) => {
         setAllTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction)));
       });
@@ -189,59 +189,53 @@ export default function TransactionsPage() {
     }
   }, [user, userLoading, dataLoading]);
 
-  const { accountBalances, cashWalletBalance, digitalWalletBalance } = useMemo(() => {
+ const { accounts, cashWalletBalance, digitalWalletBalance } = useMemo(() => {
     const calculatedAccountBalances: { [key: string]: number } = {};
     rawAccounts.forEach(acc => {
-      calculatedAccountBalances[acc.id] = acc.actualBalance ?? 0;
+        calculatedAccountBalances[acc.id] = 0;
     });
 
-    let calculatedCashBalance = walletPreferences.cash?.balance ?? 0;
-    let calculatedDigitalBalance = walletPreferences.digital?.balance ?? 0;
-    
+    let calculatedCashBalance = 0;
+    let calculatedDigitalBalance = 0;
+
     allTransactions.forEach(t => {
-      if (t.type === 'income' && t.accountId && calculatedAccountBalances[t.accountId] !== undefined) {
-        calculatedAccountBalances[t.accountId] += t.amount;
+      // Wallet balance calculation
+      if (t.type === 'transfer') {
+        if (t.toAccountId === 'cash-wallet') calculatedCashBalance += t.amount;
+        if (t.fromAccountId === 'cash-wallet') calculatedCashBalance -= t.amount;
+        if (t.toAccountId === 'digital-wallet') calculatedDigitalBalance += t.amount;
+        if (t.fromAccountId === 'digital-wallet') calculatedDigitalBalance -= t.amount;
       } else if (t.type === 'expense') {
-        if (t.paymentMethod === 'online' && t.accountId && calculatedAccountBalances[t.accountId] !== undefined) {
-          calculatedAccountBalances[t.accountId] -= t.amount;
-        } else if (t.paymentMethod === 'cash') {
-          calculatedCashBalance -= t.amount;
-        } else if (t.paymentMethod === 'digital') {
-          calculatedDigitalBalance -= t.amount;
-        }
-      } else if (t.type === 'transfer') {
-        // From Account
-        if (t.fromAccountId && calculatedAccountBalances[t.fromAccountId] !== undefined) {
-          calculatedAccountBalances[t.fromAccountId] -= t.amount;
-        } else if (t.fromAccountId === 'cash-wallet') {
-          calculatedCashBalance -= t.amount;
-        } else if (t.fromAccountId === 'digital-wallet') {
-          calculatedDigitalBalance -= t.amount;
-        }
-        // To Account
-        if (t.toAccountId && calculatedAccountBalances[t.toAccountId] !== undefined) {
-          calculatedAccountBalances[t.toAccountId] += t.amount;
-        } else if (t.toAccountId === 'cash-wallet') {
-          calculatedCashBalance += t.amount;
-        } else if (t.toAccountId === 'digital-wallet') {
-          calculatedDigitalBalance += t.amount;
-        }
+        if (t.paymentMethod === 'cash') calculatedCashBalance -= t.amount;
+        if (t.paymentMethod === 'digital') calculatedDigitalBalance -= t.amount;
       }
+
+        // Bank account balance calculation
+        if (t.type === 'income' && t.accountId && calculatedAccountBalances[t.accountId] !== undefined) {
+            calculatedAccountBalances[t.accountId] += t.amount;
+        } else if (t.type === 'expense' && t.accountId && t.paymentMethod === 'online' && calculatedAccountBalances[t.accountId] !== undefined) {
+            calculatedAccountBalances[t.accountId] -= t.amount;
+        } else if (t.type === 'transfer') {
+            if (t.fromAccountId && calculatedAccountBalances[t.fromAccountId] !== undefined) {
+                calculatedAccountBalances[t.fromAccountId] -= t.amount;
+            }
+            if (t.toAccountId && calculatedAccountBalances[t.toAccountId] !== undefined) {
+                calculatedAccountBalances[t.toAccountId] += t.amount;
+            }
+        }
     });
 
+    const finalAccounts = rawAccounts.map(acc => ({
+        ...acc,
+        balance: calculatedAccountBalances[acc.id] ?? 0,
+    }));
+    
     return { 
-      accountBalances: calculatedAccountBalances, 
+      accounts: finalAccounts, 
       cashWalletBalance: calculatedCashBalance,
       digitalWalletBalance: calculatedDigitalBalance 
     };
-  }, [rawAccounts, allTransactions, walletPreferences]);
-  
-  const accounts = useMemo(() => {
-    return rawAccounts.map(acc => ({
-        ...acc,
-        balance: accountBalances[acc.id] ?? (acc.actualBalance ?? 0),
-    }));
-  }, [rawAccounts, accountBalances]);
+  }, [rawAccounts, allTransactions]);
 
   const primaryAccount = accounts.find(a => a.isPrimary);
   
@@ -337,6 +331,12 @@ export default function TransactionsPage() {
   const cashBalanceDifference = getBalanceDifference(cashWalletBalance, walletPreferences.cash?.balance);
   const digitalBalanceDifference = getBalanceDifference(digitalWalletBalance, walletPreferences.digital?.balance);
   const primaryAccountBalanceDifference = primaryAccount ? getBalanceDifference(primaryAccount.balance, primaryAccount.actualBalance) : null;
+  
+  const accountDataForDialog = [
+    { id: 'cash-wallet', name: 'Cash Wallet', balance: cashWalletBalance },
+    { id: 'digital-wallet', name: 'Digital Wallet', balance: digitalWalletBalance },
+    ...accounts,
+  ];
 
 
   return (
@@ -574,7 +574,7 @@ export default function TransactionsPage() {
                         </Button>
                     </div>
                      <div className="flex items-center gap-4">
-                        <AddTransactionDialog />
+                        <AddTransactionDialog accounts={accountDataForDialog} />
                     </div>
                 </div>
             </CardHeader>

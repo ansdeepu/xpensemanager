@@ -49,10 +49,19 @@ const evaluateMath = (expression: string): number | null => {
   }
 };
 
-export function AddTransactionDialog() {
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(amount);
+};
+
+
+export function AddTransactionDialog({ accounts: accountData }: { accounts: (Account | {id: string, name: string, balance: number})[] }) {
   const [isOpen, setIsOpen] = useState(false);
   const [user] = useAuthState();
-  const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [transactionType, setTransactionType] = useState<Transaction["type"]>("expense");
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
@@ -79,12 +88,6 @@ export function AddTransactionDialog() {
 
   useEffect(() => {
     if (user && db) {
-      const accountsQuery = query(collection(db, "accounts"), where("userId", "==", user.uid), orderBy("order", "asc"));
-      const unsubscribeAccounts = onSnapshot(accountsQuery, (snapshot) => {
-        const userAccounts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Account));
-        setAccounts(userAccounts);
-      });
-
       const categoriesQuery = query(collection(db, "categories"), where("userId", "==", user.uid), orderBy("order", "asc"));
       const unsubscribeCategories = onSnapshot(categoriesQuery, (snapshot) => {
         const userCategories = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
@@ -92,7 +95,6 @@ export function AddTransactionDialog() {
       });
 
       return () => {
-        unsubscribeAccounts();
         unsubscribeCategories();
       };
     }
@@ -167,11 +169,8 @@ export function AddTransactionDialog() {
     }
   };
 
-  const accountOptions = [
-    { id: "cash-wallet", name: "Cash Wallet" },
-    { id: "digital-wallet", name: "Digital Wallet" },
-    ...accounts
-  ];
+  const bankAccounts = accountData.filter(acc => acc.id !== 'cash-wallet' && acc.id !== 'digital-wallet');
+
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -229,7 +228,11 @@ export function AddTransactionDialog() {
                             <Select name="account" required>
                                 <SelectTrigger id="account-expense"><SelectValue placeholder="Select method" /></SelectTrigger>
                                 <SelectContent>
-                                    {accountOptions.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
+                                    {accountData.map(acc => (
+                                        <SelectItem key={acc.id} value={acc.id}>
+                                            {acc.name} ({formatCurrency(acc.balance)})
+                                        </SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                         </div>
@@ -272,7 +275,11 @@ export function AddTransactionDialog() {
                             <Select name="account" required>
                                 <SelectTrigger id="account-income"><SelectValue placeholder="Select account" /></SelectTrigger>
                                 <SelectContent>
-                                    {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
+                                    {bankAccounts.map(acc => (
+                                        <SelectItem key={acc.id} value={acc.id}>
+                                            {acc.name} ({formatCurrency(acc.balance)})
+                                        </SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                         </div>
@@ -297,7 +304,11 @@ export function AddTransactionDialog() {
                             <Select name="fromAccount" required>
                                 <SelectTrigger id="fromAccount-transfer"><SelectValue placeholder="From..." /></SelectTrigger>
                                 <SelectContent>
-                                    {accountOptions.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
+                                    {accountData.map(acc => (
+                                      <SelectItem key={acc.id} value={acc.id}>
+                                        {acc.name} ({formatCurrency(acc.balance)})
+                                      </SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                         </div>
@@ -306,7 +317,11 @@ export function AddTransactionDialog() {
                             <Select name="toAccount" required>
                                 <SelectTrigger id="toAccount-transfer"><SelectValue placeholder="To..." /></SelectTrigger>
                                 <SelectContent>
-                                    {accountOptions.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
+                                    {accountData.map(acc => (
+                                      <SelectItem key={acc.id} value={acc.id}>
+                                        {acc.name} ({formatCurrency(acc.balance)})
+                                      </SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                         </div>
