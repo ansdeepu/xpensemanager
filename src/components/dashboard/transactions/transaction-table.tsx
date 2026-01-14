@@ -456,122 +456,120 @@ export function TransactionTable({
 
   return (
     <>
-      <div className="relative overflow-auto max-h-[calc(100vh-350px)]">
-        <Table className="min-w-full table-fixed">
-          <TableHeader className="sticky top-0 z-10 bg-background">
-              <TableRow>
-              <TableHead className="w-[4%]">Sl.</TableHead>
-              <TableHead className="w-[8%]">Date</TableHead>
-              <TableHead className="w-[20%]">Description</TableHead>
-              <TableHead className="w-[10%]">Type</TableHead>
-              <TableHead className="w-[12%]">Account</TableHead>
-              <TableHead className="w-[12%]">Category</TableHead>
-              <TableHead className="text-right w-[8%]">Debit</TableHead>
-              <TableHead className="text-right w-[8%]">Transfer</TableHead>
-              <TableHead className="text-right w-[8%]">Credit</TableHead>
-              <TableHead className="text-right w-[10%]">Balance</TableHead>
-              <TableHead className="text-right print-hide w-[10%]">Actions</TableHead>
-              </TableRow>
-          </TableHeader>
-          <TableBody>
-              {transactionsWithBalance.map((t, index) => {
-                const loanInfo = getLoanDisplayInfo(t);
-                
-                let debit = null;
-                let credit = null;
-                let transfer = null;
+      <Table>
+        <TableHeader className="sticky top-0 z-10 bg-background">
+            <TableRow>
+            <TableHead className="w-[4%]">Sl.</TableHead>
+            <TableHead className="w-[8%]">Date</TableHead>
+            <TableHead className="w-[20%]">Description</TableHead>
+            <TableHead className="w-[10%]">Type</TableHead>
+            <TableHead className="w-[12%]">Account</TableHead>
+            <TableHead className="w-[12%]">Category</TableHead>
+            <TableHead className="text-right w-[8%]">Debit</TableHead>
+            <TableHead className="text-right w-[8%]">Transfer</TableHead>
+            <TableHead className="text-right w-[8%]">Credit</TableHead>
+            <TableHead className="text-right w-[10%]">Balance</TableHead>
+            <TableHead className="text-right print-hide w-[10%]">Actions</TableHead>
+            </TableRow>
+        </TableHeader>
+        <TableBody>
+            {transactionsWithBalance.map((t, index) => {
+              const loanInfo = getLoanDisplayInfo(t);
+              
+              let debit = null;
+              let credit = null;
+              let transfer = null;
 
-                if (t.type === 'income') {
-                    credit = t.amount;
-                } else if (t.type === 'expense') {
-                    debit = t.amount;
-                } else if (t.type === 'transfer') {
-                    const isWalletTransfer = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
+              if (t.type === 'income') {
+                  credit = t.amount;
+              } else if (t.type === 'expense') {
+                  debit = t.amount;
+              } else if (t.type === 'transfer') {
+                  const isWalletTransfer = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
+                  
+                  const isPrimaryView = primaryAccount?.id === accountId;
+                  
+                  const fromCurrentView = isPrimaryView 
+                      ? (t.fromAccountId === accountId || t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet')
+                      : t.fromAccountId === accountId;
+
+                  const toCurrentView = isPrimaryView
+                      ? (t.toAccountId === accountId || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet')
+                      : t.toAccountId === accountId;
+
+                  if (isWalletTransfer && fromCurrentView) {
+                      transfer = t.amount;
+                  } else if(fromCurrentView && !toCurrentView) {
+                      debit = t.amount;
+                  } else if (!fromCurrentView && toCurrentView) {
+                      credit = t.amount;
+                  }
+              }
+
+
+              return (
+                <TableRow key={t.id} className={loanInfo.colorClass}>
+                    <TableCell className="font-medium">{index + 1}</TableCell>
+                    <TableCell>{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
+                    <TableCell className="font-medium break-words">{loanInfo.description}</TableCell>
+                    <TableCell>
+                      <Badge 
+                          variant={getBadgeVariant(t.type)}
+                          className="capitalize"
+                          >
+                          {loanInfo.type}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="break-words">{t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} -> ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod)}</TableCell>
+                    <TableCell className="break-words">
+                        <div>{loanInfo.category}</div>
+                        {t.subcategory && <div className="text-sm text-muted-foreground">{t.subcategory}</div>}
+                    </TableCell>
                     
-                    const isPrimaryView = primaryAccount?.id === accountId;
-                    
-                    const fromCurrentView = isPrimaryView 
-                        ? (t.fromAccountId === accountId || t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet')
-                        : t.fromAccountId === accountId;
+                    <TableCell className="text-right font-mono text-red-600">
+                        {debit !== null ? formatCurrency(debit) : null}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-blue-600">
+                        {transfer !== null ? formatCurrency(transfer) : null}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-green-600">
+                         {credit !== null ? formatCurrency(credit) : null}
+                    </TableCell>
 
-                    const toCurrentView = isPrimaryView
-                        ? (t.toAccountId === accountId || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet')
-                        : t.toAccountId === accountId;
-
-                    if (isWalletTransfer && fromCurrentView) {
-                        transfer = t.amount;
-                    } else if(fromCurrentView && !toCurrentView) {
-                        debit = t.amount;
-                    } else if (!fromCurrentView && toCurrentView) {
-                        credit = t.amount;
-                    }
-                }
-
-
-                return (
-                  <TableRow key={t.id} className={loanInfo.colorClass}>
-                      <TableCell className="font-medium">{index + 1}</TableCell>
-                      <TableCell>{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
-                      <TableCell className="font-medium break-words">{loanInfo.description}</TableCell>
-                      <TableCell>
-                        <Badge 
-                            variant={getBadgeVariant(t.type)}
-                            className="capitalize"
-                            >
-                            {loanInfo.type}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="break-words">{t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} -> ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod)}</TableCell>
-                      <TableCell className="break-words">
-                          <div>{loanInfo.category}</div>
-                          {t.subcategory && <div className="text-sm text-muted-foreground">{t.subcategory}</div>}
-                      </TableCell>
-                      
-                      <TableCell className="text-right font-mono text-red-600">
-                          {debit !== null ? formatCurrency(debit) : null}
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-blue-600">
-                          {transfer !== null ? formatCurrency(transfer) : null}
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-green-600">
-                           {credit !== null ? formatCurrency(credit) : null}
-                      </TableCell>
-
-                       <TableCell className={cn("text-right font-mono", t.balance < 0 ? 'text-red-600' : '')}>
-                        {formatCurrency(t.balance)}
-                      </TableCell>
-                      <TableCell className="text-right print-hide">
-                          <div className="flex items-center justify-end gap-2">
-                              <Button variant="ghost" size="icon" onClick={() => openEditDialog(t)} className="h-8 w-8">
-                                  <Pencil className="h-4 w-4" />
-                              </Button>
-                              <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-8 w-8">
-                                          <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent onInteractOutside={(e) => e.preventDefault()}>
-                                      <AlertDialogHeader>
-                                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                          <AlertDialogDescription>
-                                              This will permanently delete the transaction. This action cannot be undone and will update account balances.
-                                          </AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                          <AlertDialogAction onClick={() => handleDeleteTransaction(t)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                                      </AlertDialogFooter>
-                                  </AlertDialogContent>
-                              </AlertDialog>
-                          </div>
-                      </TableCell>
-                  </TableRow>
-                );
-              })}
-          </TableBody>
-        </Table>
-      </div>
+                     <TableCell className={cn("text-right font-mono", t.balance < 0 ? 'text-red-600' : '')}>
+                      {formatCurrency(t.balance)}
+                    </TableCell>
+                    <TableCell className="text-right print-hide">
+                        <div className="flex items-center justify-end gap-2">
+                            <Button variant="ghost" size="icon" onClick={() => openEditDialog(t)} className="h-8 w-8">
+                                <Pencil className="h-4 w-4" />
+                            </Button>
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-8 w-8">
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent onInteractOutside={(e) => e.preventDefault()}>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            This will permanently delete the transaction. This action cannot be undone and will update account balances.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleDeleteTransaction(t)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        </div>
+                    </TableCell>
+                </TableRow>
+              );
+            })}
+        </TableBody>
+      </Table>
     <div className="hidden print-block">
       <div id="printable-area">
           <Table>
