@@ -64,10 +64,13 @@ import { Switch } from "@/components/ui/switch";
 import { useAuthState } from "@/hooks/use-auth-state";
 
 const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-  }).format(amount);
+    const formatter = new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    });
+    return formatter.format(amount).replace(/\.00$/, '');
 };
 
 // Function to safely evaluate math expressions
@@ -816,6 +819,7 @@ export function TransactionTable({
     return 'text-blue-600'; // Default for transfers
   };
 
+  const isPrimaryView = primaryAccount?.id === accountId;
 
   return (
     <>
@@ -857,29 +861,31 @@ export function TransactionTable({
                     <Printer className="h-5 w-5" />
                     <span className="sr-only">Print</span>
                 </Button>
+                 {isPrimaryView && (
+                  <div className="flex items-center gap-2 p-2 rounded-md border bg-card text-card-foreground shadow-sm">
+                      <CalendarIcon className="h-5 w-5 text-red-600" />
+                      <Label htmlFor="reconciliation-date" className="text-sm font-bold text-red-600 flex-shrink-0">Reconciliation Date:</Label>
+                      <Input
+                          id="reconciliation-date"
+                          type="date"
+                          value={reconciliationDate ? format(reconciliationDate, 'yyyy-MM-dd') : ''}
+                          onChange={(e) => {
+                              const dateValue = e.target.value;
+                              const newDate = dateValue ? new Date(dateValue) : undefined;
+                              if (newDate) {
+                                  const timezoneOffset = newDate.getTimezoneOffset() * 60000;
+                                  onReconciliationDateChange(new Date(newDate.getTime() + timezoneOffset));
+                              } else {
+                                  onReconciliationDateChange(undefined);
+                              }
+                          }}
+                          className="w-full sm:w-auto bg-transparent border-none outline-none font-bold text-red-600 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0"
+                      />
+                  </div>
+                 )}
             </div>
 
             <div className="flex w-full md:w-auto items-center gap-4">
-                 <div className="hidden md:flex items-center gap-2 p-2 rounded-md border bg-card text-card-foreground shadow-sm">
-                    <CalendarIcon className="h-5 w-5 text-red-600" />
-                    <Label htmlFor="reconciliation-date" className="text-sm font-bold text-red-600 flex-shrink-0">Reconciliation Date:</Label>
-                    <Input
-                        id="reconciliation-date"
-                        type="date"
-                        value={reconciliationDate ? format(reconciliationDate, 'yyyy-MM-dd') : ''}
-                        onChange={(e) => {
-                            const dateValue = e.target.value;
-                            const newDate = dateValue ? new Date(dateValue) : undefined;
-                            if (newDate) {
-                                const timezoneOffset = newDate.getTimezoneOffset() * 60000;
-                                onReconciliationDateChange(new Date(newDate.getTime() + timezoneOffset));
-                            } else {
-                                onReconciliationDateChange(undefined);
-                            }
-                        }}
-                        className="w-full sm:w-auto bg-transparent border-none outline-none font-bold text-red-600 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0"
-                    />
-                </div>
                 <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
                     setIsAddDialogOpen(open);
                     if (!open) {
@@ -1162,25 +1168,53 @@ export function TransactionTable({
             <TableHeader className="sticky top-0 z-10 bg-background">
                 <TableRow>
                 <TableHead className="w-[5%]">Sl.</TableHead>
-                <TableHead className="w-[10%]">Date</TableHead>
+                <TableHead className="w-[8%]">Date</TableHead>
                 <TableHead className="w-[20%]">Description</TableHead>
                 <TableHead className="w-[10%]">Type</TableHead>
                 <TableHead className="w-[15%]">Account</TableHead>
-                <TableHead className="w-[15%]">Category</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-                <TableHead className="text-right">Transfer</TableHead>
-                <TableHead className="text-right">Balance</TableHead>
-                <TableHead className="text-right print-hide">Actions</TableHead>
+                <TableHead className="w-[12%]">Category</TableHead>
+                <TableHead className="text-right w-[10%]">Debit</TableHead>
+                <TableHead className="text-right w-[10%]">Credit</TableHead>
+                <TableHead className="text-right w-[10%]">Balance</TableHead>
+                <TableHead className="text-right print-hide w-[10%]">Actions</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
                 {pagedTransactions.map((t, index) => {
                   const loanInfo = getLoanDisplayInfo(t);
+                  
+                  let debit = null;
+                  let credit = null;
+
+                  if (t.type === 'income') {
+                      credit = t.amount;
+                  } else if (t.type === 'expense') {
+                      debit = t.amount;
+                  } else if (t.type === 'transfer') {
+                      // For transfers, we determine debit/credit based on the current view
+                      const isPrimaryView = primaryAccount?.id === accountId;
+                      
+                      const fromCurrentView = isPrimaryView 
+                          ? (t.fromAccountId === accountId || t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet')
+                          : t.fromAccountId === accountId;
+
+                      const toCurrentView = isPrimaryView
+                          ? (t.toAccountId === accountId || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet')
+                          : t.toAccountId === accountId;
+
+                      if(fromCurrentView && !toCurrentView) {
+                          debit = t.amount;
+                      } else if (!fromCurrentView && toCurrentView) {
+                          credit = t.amount;
+                      }
+                  }
+
+
                   return (
                     <TableRow key={t.id} className={loanInfo.colorClass}>
                         <TableCell className="font-medium">{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
                         <TableCell>{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
-                        <TableCell className="font-medium break-words line-clamp-4">{loanInfo.description}</TableCell>
+                        <TableCell className="font-medium break-words">{loanInfo.description}</TableCell>
                         <TableCell>
                           <Badge 
                               variant={getBadgeVariant(t.type)}
@@ -1194,12 +1228,14 @@ export function TransactionTable({
                             <div>{loanInfo.category}</div>
                             {t.subcategory && <div className="text-sm text-muted-foreground">{t.subcategory}</div>}
                         </TableCell>
-                        <TableCell className={cn("text-right font-mono", t.type === 'income' ? 'text-green-600' : 'text-red-600')}>
-                            {t.type !== 'transfer' ? formatCurrency(t.amount) : null}
+                        
+                        <TableCell className="text-right font-mono text-red-600">
+                            {debit !== null ? formatCurrency(debit) : null}
                         </TableCell>
-                        <TableCell className={cn("text-right font-mono", loanInfo.isLoan ? getLoanAmountColor(loanInfo) : 'text-blue-600')}>
-                            {t.type === 'transfer' ? formatCurrency(t.amount) : null}
+                        <TableCell className="text-right font-mono text-green-600">
+                             {credit !== null ? formatCurrency(credit) : null}
                         </TableCell>
+
                          <TableCell className={cn("text-right font-mono", t.balance < 0 ? 'text-red-600' : '')}>
                           {formatCurrency(t.balance)}
                         </TableCell>
