@@ -135,8 +135,12 @@ const PaginationControls = ({ currentPage, totalPages, setCurrentPage }: { curre
 
 export function TransactionTable({
   accountId,
+  reconciliationDate,
+  onReconciliationDateChange,
 }: {
   accountId: string;
+  reconciliationDate: Date | undefined;
+  onReconciliationDateChange: (date: Date | undefined) => void;
 }) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -817,7 +821,7 @@ export function TransactionTable({
     <>
     <Card className="print-hide">
       <CardHeader>
-        <div className="flex flex-col md:flex-row items-center justify-between gap-2 w-full">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4 w-full">
             <div className="flex-1 flex flex-col md:flex-row items-center gap-2 w-full">
                 <div className="relative flex-1 md:flex-initial w-full md:w-auto">
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -853,281 +857,302 @@ export function TransactionTable({
                     <Printer className="h-5 w-5" />
                     <span className="sr-only">Print</span>
                 </Button>
-                 {totalPages > 1 && <PaginationControls currentPage={currentPage} totalPages={totalPages} setCurrentPage={setCurrentPage} />}
             </div>
 
-            <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
-                setIsAddDialogOpen(open);
-                if (!open) {
-                setSelectedExpenseCategory(undefined);
-                setSelectedIncomeCategory(undefined);
-                setDate(new Date());
-                setExpenseAmount("");
-                setIncomeAmount("");
-                setTransferAmount("");
-                }
-            }}>
-                <DialogTrigger asChild>
-                <Button className="w-full md:w-auto">
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Add
-                </Button>
-                </DialogTrigger>
-                <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-md">
-                <DialogHeader>
-                    <DialogTitle>Add New Transaction</DialogTitle>
-                    <DialogDescription>
-                    Select the type of transaction and fill in the details.
-                    </DialogDescription>
-                </DialogHeader>
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <TabsList className="grid w-full grid-cols-3">
-                    <TabsTrigger value="expense">Expense</TabsTrigger>
-                    <TabsTrigger value="income">Income</TabsTrigger>
-                    <TabsTrigger value="transfer">Transfer</TabsTrigger>
-                    </TabsList>
-                    <form onSubmit={handleAddTransaction}>
-                    <div className="py-4 space-y-4">
-                    <TabsContent value="expense" className="mt-0 space-y-4">
-                        <div className="space-y-2 col-span-2">
-                            <Label htmlFor="expense-date">Date</Label>
-                            <Input id="expense-date" name="date" type="date" defaultValue={format(date || new Date(), 'yyyy-MM-dd')} required />
-                        </div>
-                        <div className="space-y-2 col-span-2">
-                        <Label htmlFor="expense-description">Description</Label>
-                        <Input id="expense-description" name="expense-description" placeholder="e.g. Groceries" required />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="expense-category">Category</Label>
-                                <Select name="expense-category" onValueChange={setSelectedExpenseCategory} value={selectedExpenseCategory}>
-                                    <SelectTrigger id="expense-category" className="h-auto">
-                                        <SelectValue placeholder="Select category" className="whitespace-normal" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {expenseCategories.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
+            <div className="flex w-full md:w-auto items-center gap-4">
+                 <div className="hidden md:flex items-center gap-2 p-2 rounded-md border bg-card text-card-foreground shadow-sm">
+                    <CalendarIcon className="h-5 w-5 text-red-600" />
+                    <Label htmlFor="reconciliation-date" className="text-sm font-bold text-red-600 flex-shrink-0">Reconciliation Date:</Label>
+                    <Input
+                        id="reconciliation-date"
+                        type="date"
+                        value={reconciliationDate ? format(reconciliationDate, 'yyyy-MM-dd') : ''}
+                        onChange={(e) => {
+                            const dateValue = e.target.value;
+                            const newDate = dateValue ? new Date(dateValue) : undefined;
+                            if (newDate) {
+                                const timezoneOffset = newDate.getTimezoneOffset() * 60000;
+                                onReconciliationDateChange(new Date(newDate.getTime() + timezoneOffset));
+                            } else {
+                                onReconciliationDateChange(undefined);
+                            }
+                        }}
+                        className="w-full sm:w-auto bg-transparent border-none outline-none font-bold text-red-600 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0"
+                    />
+                </div>
+                <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+                    setIsAddDialogOpen(open);
+                    if (!open) {
+                    setSelectedExpenseCategory(undefined);
+                    setSelectedIncomeCategory(undefined);
+                    setDate(new Date());
+                    setExpenseAmount("");
+                    setIncomeAmount("");
+                    setTransferAmount("");
+                    }
+                }}>
+                    <DialogTrigger asChild>
+                    <Button className="w-full md:w-auto flex-shrink-0">
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Add
+                    </Button>
+                    </DialogTrigger>
+                    <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Add New Transaction</DialogTitle>
+                        <DialogDescription>
+                        Select the type of transaction and fill in the details.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                        <TabsList className="grid w-full grid-cols-3">
+                        <TabsTrigger value="expense">Expense</TabsTrigger>
+                        <TabsTrigger value="income">Income</TabsTrigger>
+                        <TabsTrigger value="transfer">Transfer</TabsTrigger>
+                        </TabsList>
+                        <form onSubmit={handleAddTransaction}>
+                        <div className="py-4 space-y-4">
+                        <TabsContent value="expense" className="mt-0 space-y-4">
+                            <div className="space-y-2 col-span-2">
+                                <Label htmlFor="expense-date">Date</Label>
+                                <Input id="expense-date" name="date" type="date" defaultValue={format(date || new Date(), 'yyyy-MM-dd')} required />
                             </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="expense-subcategory">Sub-category</Label>
-                                <Select name="expense-subcategory" disabled={!selectedExpenseCategory || expenseSubcategories.length === 0}>
-                                    <SelectTrigger id="expense-subcategory" className="h-auto">
-                                        <SelectValue placeholder="Select sub-category" className="whitespace-normal" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {expenseSubcategories.map(sub => <SelectItem key={sub.name} value={sub.name}>{sub.name}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
+                            <div className="space-y-2 col-span-2">
+                            <Label htmlFor="expense-description">Description</Label>
+                            <Input id="expense-description" name="expense-description" placeholder="e.g. Groceries" required />
                             </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                            <Label htmlFor="expense-account">Payment Method</Label>
-                            <Select name="expense-account" required defaultValue={primaryAccount?.id}>
-                                <SelectTrigger id="expense-account">
-                                <SelectValue placeholder="Select account" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="cash-wallet">
-                                        <div className="flex items-center gap-2">
-                                            <span>Cash Wallet</span>
-                                            <span className="text-muted-foreground">({formatCurrency(cashWalletBalance)})</span>
-                                        </div>
-                                    </SelectItem>
-                                    <SelectItem value="digital-wallet">
-                                        <div className="flex items-center gap-2">
-                                            <span>Digital Wallet</span>
-                                            <span className="text-muted-foreground">({formatCurrency(digitalWalletBalance)})</span>
-                                        </div>
-                                    </SelectItem>
-                                    {fullAccounts.map(acc => (
-                                        <SelectItem key={acc.id} value={acc.id}>
-                                            <div className="flex items-center gap-2">
-                                                <span>{acc.name}</span>
-                                                <span className="text-muted-foreground">({formatCurrency(acc.balance)})</span>
-                                            </div>
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            </div>
-                            <div className="space-y-2">
-                            <Label htmlFor="expense-amount">Amount</Label>
-                            <Input
-                                id="expense-amount"
-                                name="expense-amount"
-                                placeholder="e.g. 50+20"
-                                required
-                                className="hide-number-arrows"
-                                value={expenseAmount}
-                                onChange={handleAmountChange(setExpenseAmount)}
-                                onBlur={() => handleAmountBlur(expenseAmount, setExpenseAmount)}
-                            />
-                            </div>
-                        </div>
-                    </TabsContent>
-                    <TabsContent value="income" className="mt-0 space-y-4">
-                        <div className="space-y-2 col-span-2">
-                            <Label htmlFor="income-date">Date</Label>
-                            <Input id="income-date" name="date" type="date" defaultValue={format(date || new Date(), 'yyyy-MM-dd')} required />
-                        </div>
-                        <div className="space-y-2 col-span-2">
-                        <Label htmlFor="income-description">Description</Label>
-                        <Input id="income-description" name="income-description" placeholder="e.g. Salary" required />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="income-category">Category</Label>
-                                <Select name="income-category" onValueChange={setSelectedIncomeCategory} value={selectedIncomeCategory}>
-                                    <SelectTrigger id="income-category" className="h-auto">
-                                        <SelectValue placeholder="Select category" className="whitespace-normal" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {incomeCategories.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="income-subcategory">Sub-category</Label>
-                                <Select name="income-subcategory" disabled={!selectedIncomeCategory || incomeSubcategories.length === 0}>
-                                    <SelectTrigger id="income-subcategory" className="h-auto">
-                                        <SelectValue placeholder="Select sub-category" className="whitespace-normal" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {incomeSubcategories.map(sub => <SelectItem key={sub.name} value={sub.name}>{sub.name}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                            <Label htmlFor="income-account">Bank Account</Label>
-                            <Select name="income-account" required defaultValue={primaryAccount?.id}>
-                                <SelectTrigger id="income-account">
-                                <SelectValue placeholder="Select account" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {fullAccounts.map(acc => (
-                                        <SelectItem key={acc.id} value={acc.id}>
-                                            <div className="flex items-center gap-2">
-                                                <span>{acc.name}</span>
-                                                <span className="text-muted-foreground">({formatCurrency(acc.balance)})</span>
-                                            </div>
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            </div>
-                            <div className="space-y-2">
-                            <Label htmlFor="income-amount">Amount</Label>
-                            <Input
-                                id="income-amount"
-                                name="income-amount"
-                                placeholder="e.g. 1000-50"
-                                required
-                                className="hide-number-arrows"
-                                value={incomeAmount}
-                                onChange={handleAmountChange(setIncomeAmount)}
-                                onBlur={() => handleAmountBlur(incomeAmount, setIncomeAmount)}
-                            />
-                            </div>
-                        </div>
-                    </TabsContent>
-                    <TabsContent value="transfer" className="mt-0 space-y-4">
-                        <div className="space-y-2 col-span-2">
-                            <Label htmlFor="transfer-date">Date</Label>
-                            <Input id="transfer-date" name="date" type="date" defaultValue={format(date || new Date(), 'yyyy-MM-dd')} required />
-                        </div>
-                        <div className="space-y-2 col-span-2">
-                        <Label htmlFor="transfer-description">Description</Label>
-                        <Input id="transfer-description" name="transfer-description" placeholder="e.g. Monthly rent" />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="transfer-from">From Account</Label>
-                                <Select name="transfer-from" required defaultValue={primaryAccount?.id}>
-                                    <SelectTrigger id="transfer-from">
-                                        <SelectValue placeholder="Select account" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                            <SelectItem value="cash-wallet">
-                                                <div className="flex items-center gap-2">
-                                                    <span>Cash Wallet</span>
-                                                    <span className="text-muted-foreground">({formatCurrency(cashWalletBalance)})</span>
-                                                </div>
-                                            </SelectItem>
-                                            <SelectItem value="digital-wallet">
-                                                <div className="flex items-center gap-2">
-                                                    <span>Digital Wallet</span>
-                                                    <span className="text-muted-foreground">({formatCurrency(digitalWalletBalance)})</span>
-                                                </div>
-                                            </SelectItem>
-                                            {fullAccounts.map(acc => (
-                                                <SelectItem key={acc.id} value={acc.id}>
-                                                    <div className="flex items-center gap-2">
-                                                        <span>{acc.name}</span>
-                                                        <span className="text-muted-foreground">({formatCurrency(acc.balance)})</span>
-                                                    </div>
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="transfer-to">To Account</Label>
-                                <Select name="transfer-to" required>
-                                    <SelectTrigger id="transfer-to">
-                                        <SelectValue placeholder="Select account" />
-                                    </SelectTrigger>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="expense-category">Category</Label>
+                                    <Select name="expense-category" onValueChange={setSelectedExpenseCategory} value={selectedExpenseCategory}>
+                                        <SelectTrigger id="expense-category" className="h-auto">
+                                            <SelectValue placeholder="Select category" className="whitespace-normal" />
+                                        </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="cash-wallet">
+                                            {expenseCategories.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="expense-subcategory">Sub-category</Label>
+                                    <Select name="expense-subcategory" disabled={!selectedExpenseCategory || expenseSubcategories.length === 0}>
+                                        <SelectTrigger id="expense-subcategory" className="h-auto">
+                                            <SelectValue placeholder="Select sub-category" className="whitespace-normal" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {expenseSubcategories.map(sub => <SelectItem key={sub.name} value={sub.name}>{sub.name}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                <Label htmlFor="expense-account">Payment Method</Label>
+                                <Select name="expense-account" required defaultValue={primaryAccount?.id}>
+                                    <SelectTrigger id="expense-account">
+                                    <SelectValue placeholder="Select account" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="cash-wallet">
+                                            <div className="flex items-center gap-2">
+                                                <span>Cash Wallet</span>
+                                                <span className="text-muted-foreground">({formatCurrency(cashWalletBalance)})</span>
+                                            </div>
+                                        </SelectItem>
+                                        <SelectItem value="digital-wallet">
+                                            <div className="flex items-center gap-2">
+                                                <span>Digital Wallet</span>
+                                                <span className="text-muted-foreground">({formatCurrency(digitalWalletBalance)})</span>
+                                            </div>
+                                        </SelectItem>
+                                        {fullAccounts.map(acc => (
+                                            <SelectItem key={acc.id} value={acc.id}>
                                                 <div className="flex items-center gap-2">
-                                                    <span>Cash Wallet</span>
-                                                    <span className="text-muted-foreground">({formatCurrency(cashWalletBalance)})</span>
+                                                    <span>{acc.name}</span>
+                                                    <span className="text-muted-foreground">({formatCurrency(acc.balance)})</span>
                                                 </div>
                                             </SelectItem>
-                                            <SelectItem value="digital-wallet">
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                </div>
+                                <div className="space-y-2">
+                                <Label htmlFor="expense-amount">Amount</Label>
+                                <Input
+                                    id="expense-amount"
+                                    name="expense-amount"
+                                    placeholder="e.g. 50+20"
+                                    required
+                                    className="hide-number-arrows"
+                                    value={expenseAmount}
+                                    onChange={handleAmountChange(setExpenseAmount)}
+                                    onBlur={() => handleAmountBlur(expenseAmount, setExpenseAmount)}
+                                />
+                                </div>
+                            </div>
+                        </TabsContent>
+                        <TabsContent value="income" className="mt-0 space-y-4">
+                            <div className="space-y-2 col-span-2">
+                                <Label htmlFor="income-date">Date</Label>
+                                <Input id="income-date" name="date" type="date" defaultValue={format(date || new Date(), 'yyyy-MM-dd')} required />
+                            </div>
+                            <div className="space-y-2 col-span-2">
+                            <Label htmlFor="income-description">Description</Label>
+                            <Input id="income-description" name="income-description" placeholder="e.g. Salary" required />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="income-category">Category</Label>
+                                    <Select name="income-category" onValueChange={setSelectedIncomeCategory} value={selectedIncomeCategory}>
+                                        <SelectTrigger id="income-category" className="h-auto">
+                                            <SelectValue placeholder="Select category" className="whitespace-normal" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {incomeCategories.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="income-subcategory">Sub-category</Label>
+                                    <Select name="income-subcategory" disabled={!selectedIncomeCategory || incomeSubcategories.length === 0}>
+                                        <SelectTrigger id="income-subcategory" className="h-auto">
+                                            <SelectValue placeholder="Select sub-category" className="whitespace-normal" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {incomeSubcategories.map(sub => <SelectItem key={sub.name} value={sub.name}>{sub.name}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                <Label htmlFor="income-account">Bank Account</Label>
+                                <Select name="income-account" required defaultValue={primaryAccount?.id}>
+                                    <SelectTrigger id="income-account">
+                                    <SelectValue placeholder="Select account" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {fullAccounts.map(acc => (
+                                            <SelectItem key={acc.id} value={acc.id}>
                                                 <div className="flex items-center gap-2">
-                                                    <span>Digital Wallet</span>
-                                                    <span className="text-muted-foreground">({formatCurrency(digitalWalletBalance)})</span>
+                                                    <span>{acc.name}</span>
+                                                    <span className="text-muted-foreground">({formatCurrency(acc.balance)})</span>
                                                 </div>
                                             </SelectItem>
-                                            {fullAccounts.map(acc => (
-                                                <SelectItem key={acc.id} value={acc.id}>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                </div>
+                                <div className="space-y-2">
+                                <Label htmlFor="income-amount">Amount</Label>
+                                <Input
+                                    id="income-amount"
+                                    name="income-amount"
+                                    placeholder="e.g. 1000-50"
+                                    required
+                                    className="hide-number-arrows"
+                                    value={incomeAmount}
+                                    onChange={handleAmountChange(setIncomeAmount)}
+                                    onBlur={() => handleAmountBlur(incomeAmount, setIncomeAmount)}
+                                />
+                                </div>
+                            </div>
+                        </TabsContent>
+                        <TabsContent value="transfer" className="mt-0 space-y-4">
+                            <div className="space-y-2 col-span-2">
+                                <Label htmlFor="transfer-date">Date</Label>
+                                <Input id="transfer-date" name="date" type="date" defaultValue={format(date || new Date(), 'yyyy-MM-dd')} required />
+                            </div>
+                            <div className="space-y-2 col-span-2">
+                            <Label htmlFor="transfer-description">Description</Label>
+                            <Input id="transfer-description" name="transfer-description" placeholder="e.g. Monthly rent" />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="transfer-from">From Account</Label>
+                                    <Select name="transfer-from" required defaultValue={primaryAccount?.id}>
+                                        <SelectTrigger id="transfer-from">
+                                            <SelectValue placeholder="Select account" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                                <SelectItem value="cash-wallet">
                                                     <div className="flex items-center gap-2">
-                                                        <span>{acc.name}</span>
-                                                        <span className="text-muted-foreground">({formatCurrency(acc.balance)})</span>
+                                                        <span>Cash Wallet</span>
+                                                        <span className="text-muted-foreground">({formatCurrency(cashWalletBalance)})</span>
                                                     </div>
                                                 </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                </Select>
+                                                <SelectItem value="digital-wallet">
+                                                    <div className="flex items-center gap-2">
+                                                        <span>Digital Wallet</span>
+                                                        <span className="text-muted-foreground">({formatCurrency(digitalWalletBalance)})</span>
+                                                    </div>
+                                                </SelectItem>
+                                                {fullAccounts.map(acc => (
+                                                    <SelectItem key={acc.id} value={acc.id}>
+                                                        <div className="flex items-center gap-2">
+                                                            <span>{acc.name}</span>
+                                                            <span className="text-muted-foreground">({formatCurrency(acc.balance)})</span>
+                                                        </div>
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="transfer-to">To Account</Label>
+                                    <Select name="transfer-to" required>
+                                        <SelectTrigger id="transfer-to">
+                                            <SelectValue placeholder="Select account" />
+                                        </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="cash-wallet">
+                                                    <div className="flex items-center gap-2">
+                                                        <span>Cash Wallet</span>
+                                                        <span className="text-muted-foreground">({formatCurrency(cashWalletBalance)})</span>
+                                                    </div>
+                                                </SelectItem>
+                                                <SelectItem value="digital-wallet">
+                                                    <div className="flex items-center gap-2">
+                                                        <span>Digital Wallet</span>
+                                                        <span className="text-muted-foreground">({formatCurrency(digitalWalletBalance)})</span>
+                                                    </div>
+                                                </SelectItem>
+                                                {fullAccounts.map(acc => (
+                                                    <SelectItem key={acc.id} value={acc.id}>
+                                                        <div className="flex items-center gap-2">
+                                                            <span>{acc.name}</span>
+                                                            <span className="text-muted-foreground">({formatCurrency(acc.balance)})</span>
+                                                        </div>
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                    </Select>
+                                </div>
                             </div>
+                            <div className="space-y-2 col-span-2">
+                                <Label htmlFor="transfer-amount">Amount</Label>
+                                <Input
+                                    id="transfer-amount"
+                                    name="transfer-amount"
+                                    placeholder="e.g. 500*2"
+                                    required
+                                    className="hide-number-arrows"
+                                    value={transferAmount}
+                                    onChange={handleAmountChange(setTransferAmount)}
+                                    onBlur={() => handleAmountBlur(transferAmount, setIncomeAmount)}
+                                />
+                            </div>
+                        </TabsContent>
                         </div>
-                        <div className="space-y-2 col-span-2">
-                            <Label htmlFor="transfer-amount">Amount</Label>
-                            <Input
-                                id="transfer-amount"
-                                name="transfer-amount"
-                                placeholder="e.g. 500*2"
-                                required
-                                className="hide-number-arrows"
-                                value={transferAmount}
-                                onChange={handleAmountChange(setTransferAmount)}
-                                onBlur={() => handleAmountBlur(transferAmount, setIncomeAmount)}
-                            />
-                        </div>
-                    </TabsContent>
-                    </div>
-                    <DialogFooter>
-                        <DialogClose asChild><Button type="button" variant="secondary">Cancel</Button></DialogClose>
-                        <Button type="submit">Add Transaction</Button>
-                    </DialogFooter>
-                    </form>
-                </Tabs>
-                </DialogContent>
-            </Dialog>
+                        <DialogFooter>
+                            <DialogClose asChild><Button type="button" variant="secondary">Cancel</Button></DialogClose>
+                            <Button type="submit">Add Transaction</Button>
+                        </DialogFooter>
+                        </form>
+                    </Tabs>
+                    </DialogContent>
+                </Dialog>
+            </div>
         </div>
         
       </CardHeader>

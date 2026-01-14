@@ -239,28 +239,6 @@ export default function TransactionsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-start p-2 rounded-md border bg-card text-card-foreground shadow-sm">
-        <div className="flex items-center gap-2">
-          <CalendarIcon className="h-5 w-5 text-red-600" />
-          <Label htmlFor="reconciliation-date" className="text-sm font-bold text-red-600 flex-shrink-0">Reconciliation Date:</Label>
-          <Input
-            id="reconciliation-date"
-            type="date"
-            value={reconciliationDate ? format(reconciliationDate, 'yyyy-MM-dd') : ''}
-            onChange={(e) => {
-                const dateValue = e.target.value;
-                const newDate = dateValue ? new Date(dateValue) : undefined;
-                if (newDate) {
-                    const timezoneOffset = newDate.getTimezoneOffset() * 60000;
-                    handleReconciliationDateChange(new Date(newDate.getTime() + timezoneOffset));
-                } else {
-                    handleReconciliationDateChange(undefined);
-                }
-            }}
-            className="w-full sm:w-auto bg-transparent border-none outline-none font-bold text-red-600 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0"
-          />
-        </div>
-      </div>
       <Tabs defaultValue={primaryAccount?.id || "all-accounts"} value={activeTab} onValueChange={setActiveTab} className="w-full">
         <Card className="mb-6">
           <TabsList className="flex flex-col lg:flex-row flex-wrap h-auto items-start p-1 w-full">
@@ -441,7 +419,7 @@ export default function TransactionsPage() {
         
         {accounts.map(account => (
           <TabsContent key={account.id} value={account.id} className="mt-0">
-            <TransactionTable accountId={account.id} />
+            <TransactionTable accountId={account.id} reconciliationDate={reconciliationDate} onReconciliationDateChange={handleReconciliationDateChange} />
           </TabsContent>
         ))}
       </Tabs>
