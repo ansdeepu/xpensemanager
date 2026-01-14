@@ -47,7 +47,6 @@ const menuItems = [
   { href: "/dashboard/bills-and-events", label: "Bills & Events", icon: FileText },
   { href: "/dashboard/reports", label: "Reports", icon: BookText },
   { href: "/dashboard/help", label: "Help", icon: HelpCircle },
-  { href: "/dashboard/profile", label: "Profile", icon: User },
 ];
 
 const generateColor = (str: string) => {
@@ -100,28 +99,30 @@ export function Header() {
   }
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6">
-       <nav className="hidden flex-col gap-6 text-lg font-medium md:flex md:flex-row md:items-center md:gap-5 md:text-sm lg:gap-6">
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b bg-background px-4 md:px-6">
+       <div className="flex items-center gap-6">
          <Link
           href="/dashboard"
-          className="flex items-center gap-2 text-lg font-semibold md:text-base"
+          className="flex items-center gap-2 font-semibold"
         >
           <Wallet className="h-6 w-6 text-primary" />
-          <span className="sr-only">Expense Manager</span>
+          <span className="">Expense Manager</span>
         </Link>
-        {menuItems.map(item => (
-           <Link
-            key={item.href}
-            href={item.href}
-            className={cn(
-                "transition-colors hover:text-foreground",
-                pathname === item.href ? "text-foreground" : "text-muted-foreground"
-            )}
-          >
-            {item.label}
-          </Link>
-        ))}
-       </nav>
+        <nav className="hidden flex-col gap-6 text-lg font-medium md:flex md:flex-row md:items-center md:gap-5 md:text-sm lg:gap-6">
+            {menuItems.map(item => (
+            <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                    "transition-colors hover:text-foreground",
+                    pathname === item.href ? "text-foreground" : "text-muted-foreground"
+                )}
+            >
+                {item.label}
+            </Link>
+            ))}
+        </nav>
+       </div>
         <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
             <SheetTrigger asChild>
                 <Button
@@ -159,49 +160,47 @@ export function Header() {
                 </nav>
             </SheetContent>
         </Sheet>
-      <div className="flex w-full items-center gap-4 md:ml-auto md:flex-initial">
-        <div className="ml-auto flex-1 sm:flex-initial">
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="flex items-center gap-2 rounded-full p-1 pr-3">
-                        <Avatar className="h-8 w-8">
-                            {loading || !clientLoaded ? (
-                                <Skeleton className="h-full w-full rounded-full" />
-                            ) : (
-                                <>
-                                <AvatarImage src={user?.photoURL || ''} data-ai-hint="user avatar" />
-                                <AvatarFallback style={{ backgroundColor: avatarColor, color: '#fff' }}>
-                                    {getInitials(user?.displayName)}
-                                </AvatarFallback>
-                                </>
-                            )}
-                        </Avatar>
+      <div className="flex items-center gap-4">
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="flex items-center gap-2 rounded-full p-1 pr-3">
+                    <Avatar className="h-8 w-8">
                         {loading || !clientLoaded ? (
-                            <Skeleton className="h-4 w-20" />
+                            <Skeleton className="h-full w-full rounded-full" />
                         ) : (
-                            <span className="font-medium hidden md:block">{user?.displayName}</span>
+                            <>
+                            <AvatarImage src={user?.photoURL || ''} data-ai-hint="user avatar" />
+                            <AvatarFallback style={{ backgroundColor: avatarColor, color: '#fff' }}>
+                                {getInitials(user?.displayName)}
+                            </AvatarFallback>
+                            </>
                         )}
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                <DropdownMenuLabel>{user?.displayName || "My Account"}</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <Link href="/dashboard/profile">
-                    <DropdownMenuItem>
-                    <User className="mr-2 h-4 w-4" />
-                    <span>Profile</span>
-                    </DropdownMenuItem>
-                </Link>
-                <DropdownMenuSeparator />
-                <Link href="/">
-                    <DropdownMenuItem onClick={() => auth.signOut()}>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>Log out</span>
-                    </DropdownMenuItem>
-                </Link>
-                </DropdownMenuContent>
-            </DropdownMenu>
-        </div>
+                    </Avatar>
+                    {loading || !clientLoaded ? (
+                        <Skeleton className="h-4 w-20" />
+                    ) : (
+                        <span className="font-medium hidden md:block">{user?.displayName}</span>
+                    )}
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+            <DropdownMenuLabel>{user?.displayName || "My Account"}</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <Link href="/dashboard/profile">
+                <DropdownMenuItem>
+                <User className="mr-2 h-4 w-4" />
+                <span>Profile</span>
+                </DropdownMenuItem>
+            </Link>
+            <DropdownMenuSeparator />
+            <Link href="/">
+                <DropdownMenuItem onClick={() => auth.signOut()}>
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Log out</span>
+                </DropdownMenuItem>
+            </Link>
+            </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   );
