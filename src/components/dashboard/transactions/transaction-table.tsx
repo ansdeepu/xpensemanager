@@ -293,10 +293,10 @@ export function TransactionTable({
                   const otherPartyAccountName = getAccountName(loanTx.accountId);
                   if (loan.type === 'taken') { // User took a loan from this person (Post Bank)
                       type = loanTx.type === 'loan' ? 'Loan Given' : 'Repayment Received';
-                      description = `${type} ${loanTx.type === 'loan' ? 'to' : 'from'} ${otherPartyAccountName}`;
+                      description = `${''}${type} ${loanTx.type === 'loan' ? 'to' : 'from'} ${otherPartyAccountName}`;
                   } else { // User gave a loan to this person
                       type = loanTx.type === 'loan' ? 'Loan Taken' : 'Repayment Made';
-                      description = `${type} ${loanTx.type === 'loan' ? 'from' : 'to'} ${otherPartyAccountName}`;
+                      description = `${''}${type} ${loanTx.type === 'loan' ? 'from' : 'to'} ${otherPartyAccountName}`;
                   }
               } else {
                   // Viewing from the user's main account perspective
