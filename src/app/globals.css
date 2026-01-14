@@ -96,6 +96,13 @@ body {
     -moz-appearance: textfield;
   }
 
+  .line-clamp-4 {
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
   .text-red-600 {
     color: hsl(0 84.2% 60.2%);
   }
@@ -192,6 +199,3 @@ body {
 .dark .text-cyan-200 { color: #a5f3fc; }
 .text-fuchsia-800 { color: #86198f; }
 .dark .text-fuchsia-200 { color: #f5d0fe; }
-    
-
-    

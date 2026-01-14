@@ -1155,7 +1155,7 @@ export function TransactionTable({
                     <TableRow key={t.id} className={loanInfo.colorClass}>
                         <TableCell className="font-medium">{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
                         <TableCell>{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
-                        <TableCell className="font-medium break-words">{loanInfo.description}</TableCell>
+                        <TableCell className="font-medium break-words line-clamp-4">{loanInfo.description}</TableCell>
                         <TableCell>
                           <Badge 
                               variant={getBadgeVariant(t.type)}
@@ -1387,5 +1387,3 @@ export function TransactionTable({
     </>
   );
 }
-
-    
