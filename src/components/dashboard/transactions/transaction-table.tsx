@@ -1133,7 +1133,7 @@ export function TransactionTable({
       </CardHeader>
       <CardContent className="p-0">
         <div className="relative overflow-auto max-h-[calc(100vh-250px)]">
-          <Table className="min-w-full">
+          <Table className="min-w-full table-fixed">
             <TableHeader className="sticky top-0 z-10 bg-background">
                 <TableRow>
                 <TableHead>Sl.</TableHead>
@@ -1155,7 +1155,7 @@ export function TransactionTable({
                     <TableRow key={t.id} className={loanInfo.colorClass}>
                         <TableCell className="font-medium">{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
                         <TableCell>{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
-                        <TableCell className="font-medium" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{loanInfo.description}</TableCell>
+                        <TableCell className="font-medium break-words">{loanInfo.description}</TableCell>
                         <TableCell>
                           <Badge 
                               variant={getBadgeVariant(t.type)}
@@ -1164,8 +1164,8 @@ export function TransactionTable({
                               {loanInfo.type}
                           </Badge>
                         </TableCell>
-                        <TableCell style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} -> ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod)}</TableCell>
-                        <TableCell style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                        <TableCell className="break-words">{t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} -> ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod)}</TableCell>
+                        <TableCell className="break-words">
                             <div>{loanInfo.category}</div>
                             {t.subcategory && <div className="text-sm text-muted-foreground">{t.subcategory}</div>}
                         </TableCell>
@@ -1387,3 +1387,5 @@ export function TransactionTable({
     </>
   );
 }
+
+    
