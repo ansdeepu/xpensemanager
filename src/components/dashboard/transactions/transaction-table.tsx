@@ -45,7 +45,7 @@ import type { Transaction, Account, Category, Bill, Loan } from "@/lib/data";
 import { Pencil, Trash2 } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, doc, runTransaction, orderBy, getDocs, writeBatch } from "firebase/firestore";
-import { format, isAfter, isSameDay, parseISO } from "date-fns";
+import { format, isAfter, isSameDay, parseISO, isBefore } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useAuthState } from "@/hooks/use-auth-state";
@@ -731,5 +731,3 @@ export function TransactionTable({
     </>
   );
 }
-
-    
