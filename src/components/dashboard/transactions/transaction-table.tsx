@@ -1387,5 +1387,3 @@ export function TransactionTable({
     </>
   );
 }
-
-    
