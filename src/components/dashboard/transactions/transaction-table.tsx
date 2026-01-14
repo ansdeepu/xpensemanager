@@ -261,14 +261,53 @@ export function TransactionTable({
         return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }, [transactions, accountId, dateRange, searchQuery, accounts, loans]);
 
+  const transactionsWithBalance = useMemo(() => {
+    const primaryAccount = accounts.find(a => a.isPrimary);
+    const isPrimaryView = primaryAccount?.id === accountId;
 
-  const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
+    let currentBalance: number;
+    if (isPrimaryView) {
+      currentBalance = (accountBalances[accountId] ?? 0) + cashWalletBalance + digitalWalletBalance;
+    } else {
+      currentBalance = accountBalances[accountId] ?? 0;
+    }
+
+    return filteredTransactions.map((t, index) => {
+      const balance = currentBalance;
+      
+      let amountChange = 0;
+      if (t.type === 'income') {
+          if (isPrimaryView && t.accountId === accountId) amountChange = -t.amount;
+          else if (!isPrimaryView && t.accountId === accountId) amountChange = -t.amount;
+      } else if (t.type === 'expense') {
+          if (isPrimaryView) {
+              if (t.accountId === accountId || t.paymentMethod === 'cash' || t.paymentMethod === 'digital') amountChange = t.amount;
+          } else {
+              if (t.accountId === accountId) amountChange = t.amount;
+          }
+      } else if (t.type === 'transfer') {
+          if (isPrimaryView) {
+              if (t.fromAccountId === accountId || t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet') amountChange = t.amount;
+              if (t.toAccountId === accountId || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet') amountChange = -t.amount;
+          } else {
+              if (t.fromAccountId === accountId) amountChange = t.amount;
+              if (t.toAccountId === accountId) amountChange = -t.amount;
+          }
+      }
+      currentBalance += amountChange;
+
+      return { ...t, balance };
+    }).reverse(); // Reverse back to descending order for display
+  }, [filteredTransactions, accountId, accounts, accountBalances, cashWalletBalance, digitalWalletBalance]);
+
+
+  const totalPages = Math.ceil(transactionsWithBalance.length / itemsPerPage);
 
   const pagedTransactions = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
-    return filteredTransactions.slice(startIndex, endIndex);
-  }, [filteredTransactions, currentPage, itemsPerPage]);
+    return transactionsWithBalance.slice(startIndex, endIndex);
+  }, [transactionsWithBalance, currentPage, itemsPerPage]);
 
    useEffect(() => {
     if (user && db) {
@@ -1038,6 +1077,7 @@ export function TransactionTable({
                 <TableHead>Category</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
                 <TableHead className="text-right">Transfer</TableHead>
+                <TableHead className="text-right">Balance</TableHead>
                 <TableHead className="text-right print-hide">Actions</TableHead>
                 </TableRow>
             </TableHeader>
@@ -1067,6 +1107,9 @@ export function TransactionTable({
                         </TableCell>
                         <TableCell className={cn("text-right font-mono", loanInfo.isLoan ? getLoanAmountColor(loanInfo) : 'text-blue-600')}>
                             {t.type === 'transfer' ? formatCurrency(t.amount) : null}
+                        </TableCell>
+                         <TableCell className={cn("text-right font-mono", t.balance < 0 ? 'text-red-600' : '')}>
+                          {formatCurrency(t.balance)}
                         </TableCell>
                         <TableCell className="text-right print-hide">
                             <div className="flex items-center justify-end gap-2">
