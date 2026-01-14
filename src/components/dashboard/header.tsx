@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -66,7 +67,7 @@ export function Header() {
   const [user, loading] = useAuthState();
   const [clientLoaded, setClientLoaded] = useState(false);
   const pathname = usePathname();
-   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     setClientLoaded(true);
@@ -82,6 +83,21 @@ export function Header() {
   }
   
   const avatarColor = user?.displayName ? generateColor(user.displayName) : '#cccccc';
+  
+  if (!clientLoaded) {
+    return (
+      <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6">
+        <nav className="hidden flex-col gap-6 text-lg font-medium md:flex md:flex-row md:items-center md:gap-5 md:text-sm lg:gap-6">
+          <Skeleton className="h-6 w-32" />
+        </nav>
+        <div className="flex w-full items-center gap-4 md:ml-auto md:flex-initial">
+          <div className="ml-auto flex-1 sm:flex-initial">
+            <Skeleton className="h-8 w-24 rounded-full" />
+          </div>
+        </div>
+      </header>
+    )
+  }
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6">
