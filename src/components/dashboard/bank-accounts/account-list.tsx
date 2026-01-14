@@ -448,7 +448,7 @@ export function AccountList() {
               Add Account
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
+          <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-[425px]">
             <form onSubmit={handleAddAccount}>
               <DialogHeader>
                 <DialogTitle>Add New Bank Account</DialogTitle>
@@ -552,7 +552,7 @@ export function AccountList() {
 
     {/* Edit Account Dialog */}
     <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-[425px]">
             <form onSubmit={handleEditAccount}>
             <DialogHeader>
                 <DialogTitle>Edit Account</DialogTitle>

@@ -768,7 +768,7 @@ export function TransactionTable({
                 Add
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-md">
               <DialogHeader>
                 <DialogTitle>Add New Transaction</DialogTitle>
                 <DialogDescription>
@@ -1148,7 +1148,7 @@ export function TransactionTable({
 
     {/* Edit Transaction Dialog */}
     <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-md">
             <form onSubmit={handleEditTransaction}>
                 <DialogHeader>
                     <DialogTitle>Edit Transaction</DialogTitle>

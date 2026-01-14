@@ -264,7 +264,7 @@ export function CategoryExpenses() {
   </Card>
 
   <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-    <DialogContent>
+    <DialogContent onInteractOutside={(e) => e.preventDefault()}>
         <DialogHeader>
         <DialogTitle>{selectedCategoryDetail?.name} - Sub-category Breakdown</DialogTitle>
         <DialogDescription>

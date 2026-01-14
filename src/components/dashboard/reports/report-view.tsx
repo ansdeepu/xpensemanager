@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useState, useMemo } from "react";
@@ -474,7 +473,7 @@ export function ReportView({ transactions, categories, accounts, isOverallSummar
      )}
     </div>
      <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-        <DialogContent>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
             <DialogHeader>
             <DialogTitle>{selectedCategoryDetail?.name} - Sub-category Breakdown</DialogTitle>
             <DialogDescription>
@@ -518,7 +517,7 @@ export function ReportView({ transactions, categories, accounts, isOverallSummar
         </DialogContent>
     </Dialog>
     <Dialog open={isTransferDialogOpen} onOpenChange={setIsTransferDialogOpen}>
-        <DialogContent>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
             <DialogHeader>
                 <DialogTitle>Transfers Details</DialogTitle>
                 <DialogDescription>
@@ -566,8 +565,3 @@ export function ReportView({ transactions, categories, accounts, isOverallSummar
     </>
   );
 }
-
-
-
-
-

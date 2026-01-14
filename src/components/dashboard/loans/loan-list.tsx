@@ -412,7 +412,7 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
   }
   
   // This is a check to ensure we don't try to render before accounts are loaded.
-  if (accounts.length === 0 && loans.length > 0) {
+  if (user && accounts.length === 0 && loans.length > 0) {
       return <Skeleton className="h-96 w-full" />;
   }
 
@@ -470,7 +470,7 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
                 Add Record
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-3xl">
+            <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-3xl">
               <form onSubmit={handleAddLoanTransaction}>
                 <DialogHeader>
                   <DialogTitle>Add Loan / Repayment</DialogTitle>
@@ -668,7 +668,7 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
       
       {/* Edit Transaction Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
             <form onSubmit={handleEditLoanTransaction}>
                 <DialogHeader>
                     <DialogTitle>Edit Loan Transaction</DialogTitle>
@@ -710,7 +710,7 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
       
       {/* Edit Loan Name Dialog */}
         <Dialog open={isEditLoanNameDialogOpen} onOpenChange={setIsEditLoanNameDialogOpen}>
-            <DialogContent>
+            <DialogContent onInteractOutside={(e) => e.preventDefault()}>
                 <form onSubmit={handleEditLoanName}>
                     <DialogHeader>
                         <DialogTitle>Edit Person/Account Name</DialogTitle>

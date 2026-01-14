@@ -828,7 +828,7 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'inco
               Add {titleCase(categoryType)} Category
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
+          <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-[425px]">
             <form onSubmit={handleAddCategory}>
               <DialogHeader>
                 <DialogTitle>Add New {titleCase(categoryType)} Category</DialogTitle>
@@ -899,7 +899,7 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'inco
 
       {/* Add Sub-category Dialog */}
       <Dialog open={isSubCategoryDialogOpen} onOpenChange={setIsSubCategoryDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-[425px]">
           <form onSubmit={handleAddSubCategory}>
             <DialogHeader>
               <DialogTitle>Add Sub-category</DialogTitle>
@@ -951,7 +951,7 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'inco
 
        {/* Edit Category Dialog */}
       <Dialog open={isEditCategoryDialogOpen} onOpenChange={setIsEditCategoryDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-[425px]">
             <form onSubmit={handleEditCategory}>
             <DialogHeader>
                 <DialogTitle>Edit Category</DialogTitle>
@@ -979,7 +979,7 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'inco
 
     {/* Edit Sub-Category Dialog */}
     <Dialog open={isEditSubCategoryDialogOpen} onOpenChange={setIsEditSubCategoryDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-[425px]">
             <form onSubmit={handleEditSubCategory}>
             <DialogHeader>
                 <DialogTitle>Edit Sub-category</DialogTitle>

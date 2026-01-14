@@ -180,7 +180,7 @@ export function CurrentMonthDailyExpenses() {
     </Card>
 
     <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-      <DialogContent className="max-w-md">
+      <DialogContent onInteractOutside={(e) => e.preventDefault()} className="max-w-md">
         <DialogHeader>
           <DialogTitle>Expenses for {selectedDayDetail ? format(setDate(new Date(), selectedDayDetail.day), 'MMMM dd, yyyy') : ''}</DialogTitle>
           <DialogDescription>

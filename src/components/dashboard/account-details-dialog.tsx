@@ -118,7 +118,7 @@ export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChan
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-3xl">
+            <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-3xl">
                 <DialogHeader>
                     <DialogTitle>{account.name} - Full Transaction History</DialogTitle>
                     <DialogDescription>

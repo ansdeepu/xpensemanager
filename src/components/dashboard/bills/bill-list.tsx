@@ -385,7 +385,7 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                                 Add Event
                             </Button>
                         </DialogTrigger>
-                        <DialogContent className="sm:max-w-md">
+                        <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-md">
                             <form onSubmit={handleAddBill}>
                                 <DialogHeader>
                                     <DialogTitle>Add New Event</DialogTitle>
@@ -575,7 +575,7 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
 
             {/* Edit Bill Dialog */}
             <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-                <DialogContent className="sm:max-w-md">
+                <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-md">
                     <form onSubmit={handleEditBill}>
                         <DialogHeader>
                             <DialogTitle>Edit Event</DialogTitle>
