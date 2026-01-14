@@ -107,7 +107,6 @@ export default function TransactionsPage() {
   const [rawAccounts, setRawAccounts] = useState<Omit<Account, 'balance'>[]>([]);
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [walletPreferences, setWalletPreferences] = useState<{ cash?: { balance?: number, date?: string }, digital?: { balance?: number, date?: string } }>({});
-  const [reconciliationDate, setReconciliationDate] = useState<Date | undefined>(undefined);
   const [dataLoading, setDataLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<string | undefined>();
   const [searchQuery, setSearchQuery] = useState("");
@@ -129,26 +128,18 @@ export default function TransactionsPage() {
   const debouncedUpdateAccount = useCallback(useDebounce(async (accountId: string, data: { actualBalance?: number | null }) => {
         if (!user) return;
         const accountRef = doc(db, "accounts", accountId);
-        await updateDoc(accountRef, { ...data, actualBalanceDate: reconciliationDate?.toISOString() });
-    }, 500), [user, reconciliationDate]);
+        await updateDoc(accountRef, { ...data });
+    }, 500), [user]);
     
   const debouncedUpdateWallet = useCallback(useDebounce(async (walletType: 'cash' | 'digital', data: { balance?: number | null }) => {
     if (!user) return;
     const prefRef = doc(db, "user_preferences", user.uid);
     const updatedWallets = { 
         ...walletPreferences, 
-        [walletType]: { ...walletPreferences[walletType], ...data, date: reconciliationDate?.toISOString() } 
+        [walletType]: { ...walletPreferences[walletType], ...data } 
     };
     await setDoc(prefRef, { wallets: updatedWallets }, { merge: true });
-  }, 500), [user, walletPreferences, reconciliationDate]);
-
-  const handleReconciliationDateChange = async (date: Date | undefined) => {
-    setReconciliationDate(date);
-    if (!user || !date) return;
-    const prefRef = doc(db, "user_preferences", user.uid);
-    await setDoc(prefRef, { reconciliationDate: date.toISOString() }, { merge: true });
-  };
-
+  }, 500), [user, walletPreferences]);
 
   useEffect(() => {
     if (user) {
@@ -169,13 +160,6 @@ export default function TransactionsPage() {
         if (doc.exists()) {
           const prefs = doc.data();
           setWalletPreferences(prefs.wallets || {});
-           if (prefs.reconciliationDate) {
-              setReconciliationDate(new Date(prefs.reconciliationDate));
-          } else {
-              setReconciliationDate(new Date());
-          }
-        } else {
-             setReconciliationDate(new Date());
         }
       });
       
@@ -191,58 +175,39 @@ export default function TransactionsPage() {
 
   const { accountBalances, cashWalletBalance, digitalWalletBalance } = useMemo(() => {
     const calculatedAccountBalances: { [key: string]: number } = {};
-    const reconDate = reconciliationDate ? parseISO(reconciliationDate.toISOString()) : new Date(0);
-
     rawAccounts.forEach(acc => {
       calculatedAccountBalances[acc.id] = acc.actualBalance ?? 0;
     });
 
     let calculatedCashBalance = walletPreferences.cash?.balance ?? 0;
     let calculatedDigitalBalance = walletPreferences.digital?.balance ?? 0;
-
-    const cashReconDate = walletPreferences.cash?.date ? parseISO(walletPreferences.cash.date) : new Date(0);
-    const digitalReconDate = walletPreferences.digital?.date ? parseISO(walletPreferences.digital.date) : new Date(0);
     
     allTransactions.forEach(t => {
-      const transactionDate = parseISO(t.date);
-
       if (t.type === 'income' && t.accountId && calculatedAccountBalances[t.accountId] !== undefined) {
-        const accountReconDate = rawAccounts.find(a => a.id === t.accountId)?.actualBalanceDate ? parseISO(rawAccounts.find(a => a.id === t.accountId)!.actualBalanceDate!) : new Date(0);
-        if (isAfter(transactionDate, accountReconDate)) {
-            calculatedAccountBalances[t.accountId] += t.amount;
-        }
+        calculatedAccountBalances[t.accountId] += t.amount;
       } else if (t.type === 'expense') {
         if (t.paymentMethod === 'online' && t.accountId && calculatedAccountBalances[t.accountId] !== undefined) {
-            const accountReconDate = rawAccounts.find(a => a.id === t.accountId)?.actualBalanceDate ? parseISO(rawAccounts.find(a => a.id === t.accountId)!.actualBalanceDate!) : new Date(0);
-            if (isAfter(transactionDate, accountReconDate)) {
-              calculatedAccountBalances[t.accountId] -= t.amount;
-            }
-        } else if (t.paymentMethod === 'cash' && isAfter(transactionDate, cashReconDate)) {
+          calculatedAccountBalances[t.accountId] -= t.amount;
+        } else if (t.paymentMethod === 'cash') {
           calculatedCashBalance -= t.amount;
-        } else if (t.paymentMethod === 'digital' && isAfter(transactionDate, digitalReconDate)) {
+        } else if (t.paymentMethod === 'digital') {
           calculatedDigitalBalance -= t.amount;
         }
       } else if (t.type === 'transfer') {
         // From Account
         if (t.fromAccountId && calculatedAccountBalances[t.fromAccountId] !== undefined) {
-            const fromAccountReconDate = rawAccounts.find(a => a.id === t.fromAccountId)?.actualBalanceDate ? parseISO(rawAccounts.find(a => a.id === t.fromAccountId)!.actualBalanceDate!) : new Date(0);
-            if (isAfter(transactionDate, fromAccountReconDate)) {
-              calculatedAccountBalances[t.fromAccountId] -= t.amount;
-            }
-        } else if (t.fromAccountId === 'cash-wallet' && isAfter(transactionDate, cashReconDate)) {
+          calculatedAccountBalances[t.fromAccountId] -= t.amount;
+        } else if (t.fromAccountId === 'cash-wallet') {
           calculatedCashBalance -= t.amount;
-        } else if (t.fromAccountId === 'digital-wallet' && isAfter(transactionDate, digitalReconDate)) {
+        } else if (t.fromAccountId === 'digital-wallet') {
           calculatedDigitalBalance -= t.amount;
         }
         // To Account
         if (t.toAccountId && calculatedAccountBalances[t.toAccountId] !== undefined) {
-          const toAccountReconDate = rawAccounts.find(a => a.id === t.toAccountId)?.actualBalanceDate ? parseISO(rawAccounts.find(a => a.id === t.toAccountId)!.actualBalanceDate!) : new Date(0);
-          if (isAfter(transactionDate, toAccountReconDate)) {
-            calculatedAccountBalances[t.toAccountId] += t.amount;
-          }
-        } else if (t.toAccountId === 'cash-wallet' && isAfter(transactionDate, cashReconDate)) {
+          calculatedAccountBalances[t.toAccountId] += t.amount;
+        } else if (t.toAccountId === 'cash-wallet') {
           calculatedCashBalance += t.amount;
-        } else if (t.toAccountId === 'digital-wallet' && isAfter(transactionDate, digitalReconDate)) {
+        } else if (t.toAccountId === 'digital-wallet') {
           calculatedDigitalBalance += t.amount;
         }
       }
@@ -253,7 +218,7 @@ export default function TransactionsPage() {
       cashWalletBalance: calculatedCashBalance,
       digitalWalletBalance: calculatedDigitalBalance 
     };
-  }, [rawAccounts, allTransactions, walletPreferences, reconciliationDate]);
+  }, [rawAccounts, allTransactions, walletPreferences]);
   
   const accounts = useMemo(() => {
     return rawAccounts.map(acc => ({
@@ -335,7 +300,7 @@ export default function TransactionsPage() {
   }
 
 
-  if (userLoading || dataLoading || reconciliationDate === undefined) {
+  if (userLoading || dataLoading) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-48 w-full" />
@@ -574,27 +539,6 @@ export default function TransactionsPage() {
                         </Button>
                     </div>
                      <div className="flex items-center gap-4">
-                        {reconciliationDate && (
-                            <div className="flex items-center gap-2 p-2 rounded-md border bg-card text-card-foreground shadow-sm">
-                                <CalendarIcon className="h-5 w-5" />
-                                <Input
-                                    id="reconciliation-date"
-                                    type="date"
-                                    value={reconciliationDate ? format(reconciliationDate, 'yyyy-MM-dd') : ''}
-                                    onChange={(e) => {
-                                        const dateValue = e.target.value;
-                                        const newDate = dateValue ? new Date(dateValue) : undefined;
-                                        if (newDate) {
-                                            const timezoneOffset = newDate.getTimezoneOffset() * 60000;
-                                            handleReconciliationDateChange(new Date(newDate.getTime() + timezoneOffset));
-                                        } else {
-                                            handleReconciliationDateChange(undefined);
-                                        }
-                                    }}
-                                    className="w-full sm:w-auto bg-transparent border-none outline-none font-bold p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0"
-                                />
-                            </div>
-                        )}
                         <AddTransactionDialog />
                     </div>
                 </div>
@@ -602,7 +546,6 @@ export default function TransactionsPage() {
             <CardContent className="p-0">
               <TransactionTable 
                   transactions={pagedTransactions} 
-                  reconciliationDate={reconciliationDate} 
                   accountId={activeTab || ''}
               />
             </CardContent>
@@ -618,3 +561,4 @@ export default function TransactionsPage() {
 }
 
     
+

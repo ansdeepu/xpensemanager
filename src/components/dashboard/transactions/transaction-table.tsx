@@ -90,11 +90,9 @@ const evaluateMath = (expression: string): number | null => {
 
 export function TransactionTable({
   transactions,
-  reconciliationDate,
   accountId,
 }: {
   transactions: Transaction[];
-  reconciliationDate: Date | undefined;
   accountId: string;
 }) {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -198,70 +196,65 @@ export function TransactionTable({
     
 
   const transactionsWithBalance = useMemo(() => {
-    if (!primaryAccount || !reconciliationDate) return [];
-  
-    const isPrimaryView = primaryAccount.id === accountId;
-    const accountPreferences = accounts.find(a => a.id === accountId);
-  
-    let reconciliationBalance: number;
-    let effectiveReconciliationDate: Date;
-  
-    if (isPrimaryView) {
-      reconciliationBalance = primaryAccount.actualBalance ?? 0;
-      effectiveReconciliationDate = reconciliationDate ?? (primaryAccount.actualBalanceDate ? parseISO(primaryAccount.actualBalanceDate) : new Date(0));
-    } else {
-      reconciliationBalance = accountPreferences?.actualBalance ?? 0;
-      effectiveReconciliationDate = reconciliationDate ?? (accountPreferences?.actualBalanceDate ? parseISO(accountPreferences.actualBalanceDate) : new Date(0));
-    }
-  
     const chronologicalTransactions = [...transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    const balanceMap = new Map<string, number>();
-  
-    const afterReconTx = chronologicalTransactions.filter(t => isAfter(parseISO(t.date), effectiveReconciliationDate) || isSameDay(parseISO(t.date), effectiveReconciliationDate));
-    const beforeReconTx = chronologicalTransactions.filter(t => isBefore(parseISO(t.date), effectiveReconciliationDate));
-  
-    const calculateChange = (t: Transaction): number => {
-      const isInView = (accId?: string): boolean => {
-        if (!accId) return false;
-        if (isPrimaryView) {
-          return accId === accountId || accId === 'cash-wallet' || accId === 'digital-wallet';
-        }
-        return accId === accountId;
-      };
-  
+    
+    let runningBalance = 0;
+    const withBalance = chronologicalTransactions.map(t => {
+      let debit = null;
+      let credit = null;
+      let transfer = null;
+
       if (t.type === 'income') {
-        return isInView(t.accountId) ? t.amount : 0;
+        credit = t.amount;
+      } else if (t.type === 'expense') {
+        debit = t.amount;
+      } else if (t.type === 'transfer') {
+        const fromAccountIsWallet = t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
+        const toAccountIsWallet = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
+        
+        if (fromAccountIsWallet && toAccountIsWallet) {
+          // No change in balance for wallet-to-wallet transfers
+        } else {
+          const isPrimaryView = primaryAccount?.id === accountId;
+          const fromCurrentView = isPrimaryView 
+              ? (t.fromAccountId === accountId || t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet')
+              : t.fromAccountId === accountId;
+
+          const toCurrentView = isPrimaryView
+              ? (t.toAccountId === accountId || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet')
+              : t.toAccountId === accountId;
+
+          if (toAccountIsWallet && fromCurrentView) {
+            transfer = t.amount;
+          } else if(fromCurrentView && !toCurrentView) {
+            debit = t.amount;
+          } else if (!fromCurrentView && toCurrentView) {
+            credit = t.amount;
+          }
+        }
       }
-      if (t.type === 'expense') {
-        const paymentAccId = t.paymentMethod === 'cash' ? 'cash-wallet' : t.paymentMethod === 'digital' ? 'digital-wallet' : t.accountId;
-        return isInView(paymentAccId) ? -t.amount : 0;
-      }
-      if (t.type === 'transfer') {
-        const fromInView = isInView(t.fromAccountId);
-        const toInView = isInView(t.toAccountId);
-        if (fromInView && !toInView) return -t.amount;
-        if (!fromInView && toInView) return t.amount;
-      }
-      return 0;
-    };
-  
-    let runningBalance = reconciliationBalance;
-    afterReconTx.forEach(t => {
-      runningBalance += calculateChange(t);
-      balanceMap.set(t.id, runningBalance);
-    });
-  
-    runningBalance = reconciliationBalance;
-    beforeReconTx.reverse().forEach(t => {
-      balanceMap.set(t.id, runningBalance);
-      runningBalance -= calculateChange(t);
-    });
-  
-    return transactions.map(t => ({
-      ...t,
-      balance: balanceMap.get(t.id) ?? 0,
-    }));
-  }, [transactions, accountId, accounts, primaryAccount, reconciliationDate]);
+
+      runningBalance += (credit ?? 0) - (debit ?? 0);
+
+      return {
+        ...t,
+        debit,
+        credit,
+        transfer,
+        balance: runningBalance,
+      };
+    }).reverse(); // Reverse back to descending order for display
+
+    // Fix the last item's balance (which is the oldest transaction)
+    if (withBalance.length > 0) {
+      const lastItem = withBalance[withBalance.length - 1];
+      const previousBalance = (lastItem.balance ?? 0) - ((lastItem.credit ?? 0) - (lastItem.debit ?? 0));
+      withBalance[withBalance.length - 1] = { ...lastItem, balance: previousBalance };
+    }
+
+    return withBalance;
+  }, [transactions, accountId, primaryAccount]);
+
 
    useEffect(() => {
     if (user && db) {
@@ -476,36 +469,7 @@ export function TransactionTable({
             {transactionsWithBalance.map((t, index) => {
               const loanInfo = getLoanDisplayInfo(t);
               
-              let debit = null;
-              let credit = null;
-              let transfer = null;
-
-              if (t.type === 'income') {
-                  credit = t.amount;
-              } else if (t.type === 'expense') {
-                  debit = t.amount;
-              } else if (t.type === 'transfer') {
-                  const isWalletTransfer = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
-                  
-                  const isPrimaryView = primaryAccount?.id === accountId;
-                  
-                  const fromCurrentView = isPrimaryView 
-                      ? (t.fromAccountId === accountId || t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet')
-                      : t.fromAccountId === accountId;
-
-                  const toCurrentView = isPrimaryView
-                      ? (t.toAccountId === accountId || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet')
-                      : t.toAccountId === accountId;
-
-                  if (isWalletTransfer && fromCurrentView) {
-                      transfer = t.amount;
-                  } else if(fromCurrentView && !toCurrentView) {
-                      debit = t.amount;
-                  } else if (!fromCurrentView && toCurrentView) {
-                      credit = t.amount;
-                  }
-              }
-
+              const {debit, credit, transfer} = t;
 
               return (
                 <TableRow key={t.id} className={loanInfo.colorClass}>
@@ -729,3 +693,4 @@ export function TransactionTable({
     </>
   );
 }
+
