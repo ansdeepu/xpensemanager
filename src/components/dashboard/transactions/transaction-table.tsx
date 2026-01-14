@@ -11,12 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  CardFooter
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,10 +21,8 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
   DialogClose,
-  DialogPortal,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -51,16 +44,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { Transaction, Account, Category, Bill, Loan, LoanTransaction } from "@/lib/data";
-import { PlusCircle, Pencil, Trash2, CalendarIcon, Printer, Search, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, XCircle } from "lucide-react";
+import type { Transaction, Account, Category, Bill, Loan } from "@/lib/data";
+import { Pencil, Trash2 } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
-import { collection, addDoc, query, where, onSnapshot, doc, runTransaction, orderBy, deleteDoc, getDoc, getDocs, limit, writeBatch, updateDoc } from "firebase/firestore";
-import { format, addMonths, addQuarters, addYears, isAfter, isWithinInterval, startOfDay, endOfDay, isBefore, parseISO, isSameDay } from "date-fns";
-import { DateRange } from "react-day-picker";
+import { collection, query, where, onSnapshot, doc, runTransaction, orderBy, getDocs, writeBatch } from "firebase/firestore";
+import { format, addMonths, addQuarters, addYears, isBefore, isSameDay, isAfter, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { Switch } from "@/components/ui/switch";
 import { useAuthState } from "@/hooks/use-auth-state";
 
 const formatCurrency = (amount: number) => {
@@ -97,96 +87,27 @@ const evaluateMath = (expression: string): number | null => {
   }
 };
 
-const PaginationControls = ({ currentPage, totalPages, setCurrentPage }: { currentPage: number, totalPages: number, setCurrentPage: (page: number) => void }) => (
-    <div className="flex items-center gap-2">
-      <Button
-        variant="outline"
-        className="h-8 w-8 p-0"
-        onClick={() => setCurrentPage(1)}
-        disabled={currentPage === 1}
-      >
-        <span className="sr-only">Go to first page</span>
-        <ChevronsLeft className="h-4 w-4" />
-      </Button>
-      <Button
-        variant="outline"
-        className="h-8 w-8 p-0"
-        onClick={() => setCurrentPage(prev => prev - 1)}
-        disabled={currentPage === 1}
-      >
-        <span className="sr-only">Go to previous page</span>
-        <ChevronLeft className="h-4 w-4" />
-      </Button>
-      <div className="flex items-center justify-center text-sm font-medium">
-        Page {currentPage} of {totalPages}
-      </div>
-      <Button
-        variant="outline"
-        className="h-8 w-8 p-0"
-        onClick={() => setCurrentPage(prev => prev + 1)}
-        disabled={currentPage === totalPages}
-      >
-        <span className="sr-only">Next page</span>
-        <ChevronRight className="h-4 w-4" />
-      </Button>
-      <Button
-        variant="outline"
-        className="h-8 w-8 p-0"
-        onClick={() => setCurrentPage(totalPages)}
-        disabled={currentPage === totalPages}
-      >
-        <span className="sr-only">Go to last page</span>
-        <ChevronsRight className="h-4 w-4" />
-      </Button>
-    </div>
-);
-
 
 export function TransactionTable({
+  transactions,
+  reconciliationDate,
   accountId,
 }: {
+  transactions: Transaction[];
+  reconciliationDate: Date | undefined;
   accountId: string;
 }) {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loans, setLoans] = useState<Loan[]>([]);
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [user] = useAuthState();
-  const [activeTab, setActiveTab] = useState("expense");
-  const [selectedExpenseCategory, setSelectedExpenseCategory] = useState<string | undefined>();
-  const [selectedIncomeCategory, setSelectedIncomeCategory] = useState<string | undefined>();
-  const [date, setDate] = useState<Date | undefined>(new Date());
-  const [startDate, setStartDate] = useState<string>('');
-  const [endDate, setEndDate] = useState<string>('');
   const [editDate, setEditDate] = useState<Date | undefined>(new Date());
   const [editCategory, setEditCategory] = useState<string | undefined>();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 100;
   const { toast } = useToast();
-  const [reconciliationDate, setReconciliationDate] = useState<Date | undefined>(undefined);
   
-  const [expenseAmount, setExpenseAmount] = useState("");
-  const [incomeAmount, setIncomeAmount] = useState("");
-  const [transferAmount, setTransferAmount] = useState("");
   const [editAmount, setEditAmount] = useState("");
-
-  const handleReconciliationDateChange = async (date: Date | undefined) => {
-    setReconciliationDate(date);
-    if (!user || !date) return;
-    const prefRef = doc(db, "user_preferences", user.uid);
-    await runTransaction(db, async (transaction) => {
-      const prefDoc = await transaction.get(prefRef);
-      if (prefDoc.exists()) {
-        transaction.update(prefRef, { reconciliationDate: date.toISOString() });
-      } else {
-        transaction.set(prefRef, { reconciliationDate: date.toISOString() });
-      }
-    });
-  };
 
   const handleAmountChange = (setter: React.Dispatch<React.SetStateAction<string>>) => (e: React.ChangeEvent<HTMLInputElement>) => {
     setter(e.target.value);
@@ -202,14 +123,6 @@ export function TransactionTable({
       setter(String(result));
     }
   };
-
-  const expenseCategories = useMemo(() => {
-    const regularExpenses = categories.filter(c => c.type === 'expense');
-    const bankExpenses = categories.filter(c => c.type === 'bank-expense');
-    return [...regularExpenses, ...bankExpenses];
-  }, [categories]);
-
-  const incomeCategories = useMemo(() => categories.filter(c => c.type === 'income'), [categories]);
 
   const { cashWalletBalance, digitalWalletBalance, accountBalances } = useMemo(() => {
     const balances: { [key: string]: number } = {};
@@ -249,22 +162,6 @@ export function TransactionTable({
     });
     return { cashWalletBalance: cash, digitalWalletBalance: digital, accountBalances: balances };
   }, [transactions, accounts]);
-
-  const fullAccounts = useMemo(() => 
-    accounts.map(acc => ({
-        ...acc,
-        balance: accountBalances[acc.id] ?? 0
-    })), [accounts, accountBalances]
-  );
-
-
-  const expenseSubcategories = useMemo(() => {
-    if (!selectedExpenseCategory) return [];
-    const category = expenseCategories.find(c => c.id === selectedExpenseCategory);
-    return category?.subcategories || [];
-  }, [selectedExpenseCategory, expenseCategories]);
-
-  const incomeSubcategories = useMemo(() => categories.filter(c => c.type === 'income'), [categories]);
 
    const editSubcategories = useMemo(() => {
     if (!editCategory) return [];
@@ -339,58 +236,8 @@ export function TransactionTable({
     }, [accounts, loans, accountId]);
     
 
-    const filteredTransactions = useMemo(() => {
-        const primaryAccount = accounts.find(a => a.isPrimary);
-        const isPrimaryView = primaryAccount?.id === accountId;
-        
-        const currentVirtualAccountName = accounts.find(a => a.id === accountId)?.name;
-
-        const sourceTransactions = transactions.filter(t => {
-            if (isPrimaryView) {
-                return (
-                    (t.accountId === accountId && t.paymentMethod === 'online') ||
-                    t.paymentMethod === 'cash' ||
-                    t.paymentMethod === 'digital' ||
-                    t.fromAccountId === accountId || t.toAccountId === accountId ||
-                    t.fromAccountId === 'cash-wallet' || t.toAccountId === 'cash-wallet' ||
-                    t.fromAccountId === 'digital-wallet' || t.toAccountId === 'digital-wallet'
-                );
-            } else {
-                 const isDirectlyInvolved = t.accountId === accountId || t.fromAccountId === accountId || t.toAccountId === accountId;
-
-                 const involvedLoanParty = loans.find(l => {
-                    if (l.personName === currentVirtualAccountName) {
-                        return l.transactions.some(lt => lt.id === t.loanTransactionId);
-                    }
-                    return false;
-                 });
-                 
-                 return isDirectlyInvolved || !!involvedLoanParty;
-            }
-        });
-
-        let filtered = [...sourceTransactions];
-
-        if (startDate && endDate) {
-            const interval = { start: startOfDay(new Date(startDate)), end: endOfDay(new Date(endDate)) };
-            filtered = filtered.filter(t => isWithinInterval(new Date(t.date), interval));
-        }
-
-        if (searchQuery) {
-            const lowercasedQuery = searchQuery.toLowerCase();
-            filtered = filtered.filter(t => 
-                t.description.toLowerCase().includes(lowercasedQuery) ||
-                t.category.toLowerCase().includes(lowercasedQuery) ||
-                (t.subcategory && t.subcategory.toLowerCase().includes(lowercasedQuery)) ||
-                t.amount.toString().toLowerCase().includes(lowercasedQuery)
-            );
-        }
-        
-        return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    }, [transactions, accountId, startDate, endDate, searchQuery, accounts, loans]);
-
   const transactionsWithBalance = useMemo(() => {
-    if (!primaryAccount) return [];
+    if (!primaryAccount || !reconciliationDate) return [];
   
     const isPrimaryView = primaryAccount.id === accountId;
     const accountPreferences = accounts.find(a => a.id === accountId);
@@ -406,7 +253,7 @@ export function TransactionTable({
       effectiveReconciliationDate = reconciliationDate ?? (accountPreferences?.actualBalanceDate ? parseISO(accountPreferences.actualBalanceDate) : new Date(0));
     }
   
-    const chronologicalTransactions = [...filteredTransactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const chronologicalTransactions = [...transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     const balanceMap = new Map<string, number>();
   
     const afterReconTx = chronologicalTransactions.filter(t => isAfter(parseISO(t.date), effectiveReconciliationDate) || isSameDay(parseISO(t.date), effectiveReconciliationDate));
@@ -449,20 +296,11 @@ export function TransactionTable({
       runningBalance -= calculateChange(t);
     });
   
-    return filteredTransactions.map(t => ({
+    return transactions.map(t => ({
       ...t,
       balance: balanceMap.get(t.id) ?? 0,
     }));
-  }, [filteredTransactions, accountId, accounts, primaryAccount, reconciliationDate]);
-
-
-  const totalPages = Math.ceil(transactionsWithBalance.length / itemsPerPage);
-
-  const pagedTransactions = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    return transactionsWithBalance.slice(startIndex, endIndex);
-  }, [transactionsWithBalance, currentPage, itemsPerPage]);
+  }, [transactions, accountId, accounts, primaryAccount, reconciliationDate]);
 
    useEffect(() => {
     if (user && db) {
@@ -470,15 +308,6 @@ export function TransactionTable({
       const unsubscribeAccounts = onSnapshot(accountsQuery, (snapshot) => {
         const userAccounts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Account));
         setAccounts(userAccounts);
-      });
-
-      const transactionsQuery = query(
-        collection(db, "transactions"), 
-        where("userId", "==", user.uid)
-      );
-      const unsubscribeTransactions = onSnapshot(transactionsQuery, (snapshot) => {
-        const userTransactions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction));
-        setTransactions(userTransactions);
       });
       
       const categoriesQuery = query(collection(db, "categories"), where("userId", "==", user.uid), orderBy("order", "asc"));
@@ -492,27 +321,11 @@ export function TransactionTable({
         const userLoans = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Loan));
         setLoans(userLoans);
       });
-      
-      const preferencesDocRef = doc(db, "user_preferences", user.uid);
-      const unsubscribePreferences = onSnapshot(preferencesDocRef, (doc) => {
-        if (doc.exists()) {
-          const prefs = doc.data();
-           if (prefs.reconciliationDate) {
-              setReconciliationDate(new Date(prefs.reconciliationDate));
-          } else {
-              setReconciliationDate(new Date());
-          }
-        } else {
-             setReconciliationDate(new Date());
-        }
-      });
 
       return () => {
         unsubscribeAccounts();
-        unsubscribeTransactions();
         unsubscribeCategories();
         unsubscribeLoans();
-        unsubscribePreferences();
       };
     }
   }, [user, db]);
@@ -531,170 +344,7 @@ export function TransactionTable({
         setEditAmount("");
     }
    }, [selectedTransaction, categories]);
-
-   useEffect(() => {
-    setCurrentPage(1);
-   }, [startDate, endDate, searchQuery, accountId]);
   
-  const handleAddTransaction = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!user) return;
-    
-    const formData = new FormData(event.currentTarget);
-    const dateString = formData.get("date") as string;
-    const transactionDate = dateString ? new Date(dateString) : new Date();
-    const transactionType = activeTab;
-
-    try {
-        if (transactionType === 'expense' || transactionType === 'income') {
-            const amountStr = transactionType === 'expense' ? expenseAmount : incomeAmount;
-            const amount = parseFloat(amountStr);
-            const accountId = formData.get(`${transactionType}-account`) as string;
-            const description = formData.get(`${transactionType}-description`) as string
-            const categoryId = formData.get(`${transactionType}-category`) as string;
-
-            if (transactionType === 'expense') {
-                if (accountId === 'cash-wallet' && amount > cashWalletBalance) {
-                    toast({ variant: "destructive", title: "Insufficient Balance", description: "Insufficient balance in Cash Wallet." });
-                    return;
-                }
-                if (accountId === 'digital-wallet' && amount > digitalWalletBalance) {
-                    toast({ variant: "destructive", title: "Insufficient Balance", description: "Insufficient balance in Digital Wallet." });
-                    return;
-                }
-            }
-
-            const newTransaction: Partial<Omit<Transaction, "id">> & { userId: string, type: 'expense' | 'income' } = {
-                userId: user.uid,
-                description: description,
-                amount: amount,
-                type: transactionType as 'expense' | 'income',
-                date: transactionDate.toISOString(),
-                category: "Uncategorized",
-                categoryId: categoryId,
-                paymentMethod: 'online', // Default
-            };
-
-            if (transactionType === 'expense') {
-                if (accountId === 'cash-wallet') {
-                    newTransaction.paymentMethod = 'cash';
-                    delete (newTransaction as Partial<Transaction>).accountId;
-                } else if (accountId === 'digital-wallet') {
-                    newTransaction.paymentMethod = 'digital';
-                    delete (newTransaction as Partial<Transaction>).accountId;
-                } else {
-                    newTransaction.paymentMethod = 'online';
-                    newTransaction.accountId = accountId;
-                }
-            } else { // Income
-                 newTransaction.accountId = accountId;
-            }
-
-            if (transactionType === 'expense' || transactionType === 'income') {
-              const subcategory = formData.get(`${transactionType}-subcategory`) as string;
-              const categoryDoc = categories.find(c => c.id === categoryId);
-              newTransaction.category = categoryDoc?.name || 'Uncategorized';
-              if (subcategory) {
-                  newTransaction.subcategory = subcategory;
-              }
-            }
-            
-            await runTransaction(db, async (t) => {
-                const newTransactionRef = doc(collection(db, "transactions"));
-                t.set(newTransactionRef, newTransaction);
-                
-                // Bill payment detection logic
-                if (newTransaction.type === 'expense') {
-                    const billsQuery = query(
-                        collection(db, "bills"), 
-                        where("userId", "==", user.uid),
-                        where("type", "==", "bill") // Only match bills, not special days
-                    );
-                    const billsSnapshot = await getDocs(billsQuery);
-                    
-                    for (const billDoc of billsSnapshot.docs) {
-                        const bill = { id: billDoc.id, ...billDoc.data() } as Bill;
-                        const dueDate = new Date(bill.dueDate);
-
-                        // Match bill if title and amount are similar and it's currently due (not paid or paid before current due date)
-                        if (bill.title.toLowerCase() === description.toLowerCase() && 
-                            bill.amount === amount &&
-                            (!bill.paidOn || isBefore(new Date(bill.paidOn), dueDate)) )
-                        {
-                            const updateData: { paidOn: string, dueDate?: string } = { paidOn: transactionDate.toISOString() };
-
-                            if (bill.recurrence !== 'none' && bill.recurrence !== 'occasional') {
-                                let nextDueDate: Date;
-                                switch(bill.recurrence) {
-                                    case 'monthly': nextDueDate = addMonths(dueDate, 1); break;
-                                    case 'quarterly': nextDueDate = addQuarters(dueDate, 1); break;
-                                    case 'yearly': nextDueDate = addYears(dueDate, 1); break;
-                                    default: nextDueDate = dueDate;
-                                }
-                                updateData.dueDate = nextDueDate.toISOString();
-                            }
-                            
-                            t.update(doc(db, "bills", bill.id), updateData);
-                            break; // Assume one transaction pays one bill
-                        }
-                    }
-                }
-            });
-
-        } else if (transactionType === 'transfer') {
-            const amount = parseFloat(transferAmount);
-            const fromAccountId = formData.get("transfer-from") as string;
-            const toAccountId = formData.get("transfer-to") as string;
-            const description = formData.get("transfer-description") as string;
-
-            if (fromAccountId === toAccountId) {
-                toast({
-                    variant: "destructive",
-                    title: "Invalid Transfer",
-                    description: "You cannot transfer funds to and from the same account.",
-                });
-                return;
-            }
-
-            const fromAccountName = getAccountName(fromAccountId);
-            const toAccountName = getAccountName(toAccountId);
-
-            const newTransaction = {
-                userId: user.uid,
-                description: description || `Transfer from ${fromAccountName} to ${toAccountName}`,
-                amount,
-                fromAccountId,
-                toAccountId,
-                type: 'transfer' as 'transfer',
-                date: transactionDate.toISOString(),
-                category: 'Transfer',
-                paymentMethod: 'online' as 'online', 
-                accountId: fromAccountId, 
-                categoryId: 'transfer',
-            };
-
-            await runTransaction(db, async (t) => {
-                const newTransactionRef = doc(collection(db, "transactions"));
-                t.set(newTransactionRef, newTransaction);
-            });
-        }
-        
-        setIsAddDialogOpen(false);
-        setSelectedExpenseCategory(undefined);
-        setSelectedIncomeCategory(undefined);
-        setDate(new Date());
-        setExpenseAmount("");
-        setIncomeAmount("");
-        setTransferAmount("");
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Transaction Failed",
-        description: error.message || "An unexpected error occurred."
-      })
-    }
-  }
-
   const handleEditTransaction = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!user || !selectedTransaction) return;
@@ -828,16 +478,6 @@ export function TransactionTable({
     }
   }
 
-  const handlePrint = () => {
-    window.print();
-  }
-
-  const handleClearFilters = () => {
-    setSearchQuery("");
-    setStartDate('');
-    setEndDate('');
-  }
-
   const getLoanAmountColor = (loanInfo: { type: string }) => {
     if (loanInfo.type.includes('Repayment')) {
       return 'text-blue-600';
@@ -855,508 +495,153 @@ export function TransactionTable({
 
   return (
     <>
-    <Card className="print-hide">
-      <CardHeader>
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4 w-full">
-            <div className="flex-1 flex flex-col md:flex-row items-center gap-2 w-full">
-                <div className="relative flex-1 md:flex-initial w-full md:w-auto">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                    type="search"
-                    placeholder="Search transactions..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[280px]"
-                    />
-                </div>
-                <div className="flex w-full md:w-auto items-center gap-2">
-                    <Input
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="w-full"
-                    />
-                    <span className="text-muted-foreground">to</span>
-                    <Input
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="w-full"
-                    min={startDate}
-                    />
-                </div>
-                <Button onClick={handleClearFilters} variant="ghost" size="icon" className="h-10 w-10 flex-shrink-0">
-                    <XCircle className="h-5 w-5" />
-                    <span className="sr-only">Clear filters</span>
-                </Button>
-                <Button onClick={handlePrint} variant="outline" size="icon" className="h-10 w-10 flex-shrink-0">
-                    <Printer className="h-5 w-5" />
-                    <span className="sr-only">Print</span>
-                </Button>
-                 {isPrimaryView && (
-                    <div className="flex items-center gap-2 p-2 rounded-md border bg-card text-card-foreground shadow-sm">
-                        <CalendarIcon className="h-5 w-5 text-red-600" />
-                        <Input
-                            id="reconciliation-date"
-                            type="date"
-                            value={reconciliationDate ? format(reconciliationDate, 'yyyy-MM-dd') : ''}
-                            onChange={(e) => {
-                                const dateValue = e.target.value;
-                                const newDate = dateValue ? new Date(dateValue) : undefined;
-                                if (newDate) {
-                                    const timezoneOffset = newDate.getTimezoneOffset() * 60000;
-                                    handleReconciliationDateChange(new Date(newDate.getTime() + timezoneOffset));
-                                } else {
-                                    handleReconciliationDateChange(undefined);
-                                }
-                            }}
-                            className="w-full sm:w-auto bg-transparent border-none outline-none font-bold text-red-600 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0"
-                        />
-                    </div>
-                 )}
-            </div>
+    <CardContent className="p-0">
+      <div className="relative overflow-auto max-h-[calc(100vh-350px)]">
+        <Table className="min-w-full table-fixed">
+          <TableHeader className="sticky top-0 z-10 bg-background">
+              <TableRow>
+              <TableHead className="w-[4%]">Sl.</TableHead>
+              <TableHead className="w-[8%]">Date</TableHead>
+              <TableHead className="w-[20%]">Description</TableHead>
+              <TableHead className="w-[10%]">Type</TableHead>
+              <TableHead className="w-[12%]">Account</TableHead>
+              <TableHead className="w-[12%]">Category</TableHead>
+              <TableHead className="text-right w-[8%]">Debit</TableHead>
+              <TableHead className="text-right w-[8%]">Transfer</TableHead>
+              <TableHead className="text-right w-[8%]">Credit</TableHead>
+              <TableHead className="text-right w-[10%]">Balance</TableHead>
+              <TableHead className="text-right print-hide w-[10%]">Actions</TableHead>
+              </TableRow>
+          </TableHeader>
+          <TableBody>
+              {transactionsWithBalance.map((t, index) => {
+                const loanInfo = getLoanDisplayInfo(t);
+                
+                let debit = null;
+                let credit = null;
+                let transfer = null;
 
-            <div className="flex w-full md:w-auto items-center gap-4">
-                <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
-                    setIsAddDialogOpen(open);
-                    if (!open) {
-                    setSelectedExpenseCategory(undefined);
-                    setSelectedIncomeCategory(undefined);
-                    setDate(new Date());
-                    setExpenseAmount("");
-                    setIncomeAmount("");
-                    setTransferAmount("");
+                if (t.type === 'income') {
+                    credit = t.amount;
+                } else if (t.type === 'expense') {
+                    debit = t.amount;
+                } else if (t.type === 'transfer') {
+                    const isWalletTransfer = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
+                    
+                    const isPrimaryView = primaryAccount?.id === accountId;
+                    
+                    const fromCurrentView = isPrimaryView 
+                        ? (t.fromAccountId === accountId || t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet')
+                        : t.fromAccountId === accountId;
+
+                    const toCurrentView = isPrimaryView
+                        ? (t.toAccountId === accountId || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet')
+                        : t.toAccountId === accountId;
+
+                    if (isWalletTransfer && fromCurrentView) {
+                        transfer = t.amount;
+                    } else if(fromCurrentView && !toCurrentView) {
+                        debit = t.amount;
+                    } else if (!fromCurrentView && toCurrentView) {
+                        credit = t.amount;
                     }
-                }}>
-                    <DialogTrigger asChild>
-                    <Button className="w-full md:w-auto flex-shrink-0">
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        Add
-                    </Button>
-                    </DialogTrigger>
-                    <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-md">
-                    <DialogHeader>
-                        <DialogTitle>Add New Transaction</DialogTitle>
-                        <DialogDescription>
-                        Select the type of transaction and fill in the details.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                        <TabsList className="grid w-full grid-cols-3">
-                        <TabsTrigger value="expense">Expense</TabsTrigger>
-                        <TabsTrigger value="income">Income</TabsTrigger>
-                        <TabsTrigger value="transfer">Transfer</TabsTrigger>
-                        </TabsList>
-                        <form onSubmit={handleAddTransaction}>
-                        <div className="py-4 space-y-4">
-                        <TabsContent value="expense" className="mt-0 space-y-4">
-                            <div className="space-y-2 col-span-2">
-                                <Label htmlFor="expense-date">Date</Label>
-                                <Input id="expense-date" name="date" type="date" defaultValue={format(date || new Date(), 'yyyy-MM-dd')} required />
-                            </div>
-                            <div className="space-y-2 col-span-2">
-                            <Label htmlFor="expense-description">Description</Label>
-                            <Input id="expense-description" name="expense-description" placeholder="e.g. Groceries" required />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="expense-category">Category</Label>
-                                    <Select name="expense-category" onValueChange={setSelectedExpenseCategory} value={selectedExpenseCategory}>
-                                        <SelectTrigger id="expense-category" className="h-auto">
-                                            <SelectValue placeholder="Select category" className="whitespace-normal" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {expenseCategories.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="expense-subcategory">Sub-category</Label>
-                                    <Select name="expense-subcategory" disabled={!selectedExpenseCategory || expenseSubcategories.length === 0}>
-                                        <SelectTrigger id="expense-subcategory" className="h-auto">
-                                            <SelectValue placeholder="Select sub-category" className="whitespace-normal" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {expenseSubcategories.map(sub => <SelectItem key={sub.name} value={sub.name}>{sub.name}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                <Label htmlFor="expense-account">Payment Method</Label>
-                                <Select name="expense-account" required defaultValue={primaryAccount?.id}>
-                                    <SelectTrigger id="expense-account">
-                                    <SelectValue placeholder="Select account" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="cash-wallet">
-                                            <div className="flex items-center gap-2">
-                                                <span>Cash Wallet</span>
-                                                <span className="text-muted-foreground">({formatCurrency(cashWalletBalance)})</span>
-                                            </div>
-                                        </SelectItem>
-                                        <SelectItem value="digital-wallet">
-                                            <div className="flex items-center gap-2">
-                                                <span>Digital Wallet</span>
-                                                <span className="text-muted-foreground">({formatCurrency(digitalWalletBalance)})</span>
-                                            </div>
-                                        </SelectItem>
-                                        {fullAccounts.map(acc => (
-                                            <SelectItem key={acc.id} value={acc.id}>
-                                                <div className="flex items-center gap-2">
-                                                    <span>{acc.name}</span>
-                                                    <span className="text-muted-foreground">({formatCurrency(acc.balance)})</span>
-                                                </div>
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                </div>
-                                <div className="space-y-2">
-                                <Label htmlFor="expense-amount">Amount</Label>
-                                <Input
-                                    id="expense-amount"
-                                    name="expense-amount"
-                                    placeholder="e.g. 50+20"
-                                    required
-                                    className="hide-number-arrows"
-                                    value={expenseAmount}
-                                    onChange={handleAmountChange(setExpenseAmount)}
-                                    onBlur={() => handleAmountBlur(expenseAmount, setExpenseAmount)}
-                                />
-                                </div>
-                            </div>
-                        </TabsContent>
-                        <TabsContent value="income" className="mt-0 space-y-4">
-                            <div className="space-y-2 col-span-2">
-                                <Label htmlFor="income-date">Date</Label>
-                                <Input id="income-date" name="date" type="date" defaultValue={format(date || new Date(), 'yyyy-MM-dd')} required />
-                            </div>
-                            <div className="space-y-2 col-span-2">
-                            <Label htmlFor="income-description">Description</Label>
-                            <Input id="income-description" name="income-description" placeholder="e.g. Salary" required />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="income-category">Category</Label>
-                                    <Select name="income-category" onValueChange={setSelectedIncomeCategory} value={selectedIncomeCategory}>
-                                        <SelectTrigger id="income-category" className="h-auto">
-                                            <SelectValue placeholder="Select category" className="whitespace-normal" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {incomeCategories.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="income-subcategory">Sub-category</Label>
-                                    <Select name="income-subcategory" disabled={!selectedIncomeCategory || incomeSubcategories.length === 0}>
-                                        <SelectTrigger id="income-subcategory" className="h-auto">
-                                            <SelectValue placeholder="Select sub-category" className="whitespace-normal" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {incomeSubcategories.map(sub => <SelectItem key={sub.name} value={sub.name}>{sub.name}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                <Label htmlFor="income-account">Bank Account</Label>
-                                <Select name="income-account" required defaultValue={primaryAccount?.id}>
-                                    <SelectTrigger id="income-account">
-                                    <SelectValue placeholder="Select account" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {fullAccounts.map(acc => (
-                                            <SelectItem key={acc.id} value={acc.id}>
-                                                <div className="flex items-center gap-2">
-                                                    <span>{acc.name}</span>
-                                                    <span className="text-muted-foreground">({formatCurrency(acc.balance)})</span>
-                                                </div>
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                </div>
-                                <div className="space-y-2">
-                                <Label htmlFor="income-amount">Amount</Label>
-                                <Input
-                                    id="income-amount"
-                                    name="income-amount"
-                                    placeholder="e.g. 1000-50"
-                                    required
-                                    className="hide-number-arrows"
-                                    value={incomeAmount}
-                                    onChange={handleAmountChange(setIncomeAmount)}
-                                    onBlur={() => handleAmountBlur(incomeAmount, setIncomeAmount)}
-                                />
-                                </div>
-                            </div>
-                        </TabsContent>
-                        <TabsContent value="transfer" className="mt-0 space-y-4">
-                            <div className="space-y-2 col-span-2">
-                                <Label htmlFor="transfer-date">Date</Label>
-                                <Input id="transfer-date" name="date" type="date" defaultValue={format(date || new Date(), 'yyyy-MM-dd')} required />
-                            </div>
-                            <div className="space-y-2 col-span-2">
-                            <Label htmlFor="transfer-description">Description</Label>
-                            <Input id="transfer-description" name="transfer-description" placeholder="e.g. Monthly rent" />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="transfer-from">From Account</Label>
-                                    <Select name="transfer-from" required defaultValue={primaryAccount?.id}>
-                                        <SelectTrigger id="transfer-from">
-                                            <SelectValue placeholder="Select account" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                                <SelectItem value="cash-wallet">
-                                                    <div className="flex items-center gap-2">
-                                                        <span>Cash Wallet</span>
-                                                        <span className="text-muted-foreground">({formatCurrency(cashWalletBalance)})</span>
-                                                    </div>
-                                                </SelectItem>
-                                                <SelectItem value="digital-wallet">
-                                                    <div className="flex items-center gap-2">
-                                                        <span>Digital Wallet</span>
-                                                        <span className="text-muted-foreground">({formatCurrency(digitalWalletBalance)})</span>
-                                                    </div>
-                                                </SelectItem>
-                                                {fullAccounts.map(acc => (
-                                                    <SelectItem key={acc.id} value={acc.id}>
-                                                        <div className="flex items-center gap-2">
-                                                            <span>{acc.name}</span>
-                                                            <span className="text-muted-foreground">({formatCurrency(acc.balance)})</span>
-                                                        </div>
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="transfer-to">To Account</Label>
-                                    <Select name="transfer-to" required>
-                                        <SelectTrigger id="transfer-to">
-                                            <SelectValue placeholder="Select account" />
-                                        </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="cash-wallet">
-                                                    <div className="flex items-center gap-2">
-                                                        <span>Cash Wallet</span>
-                                                        <span className="text-muted-foreground">({formatCurrency(cashWalletBalance)})</span>
-                                                    </div>
-                                                </SelectItem>
-                                                <SelectItem value="digital-wallet">
-                                                    <div className="flex items-center gap-2">
-                                                        <span>Digital Wallet</span>
-                                                        <span className="text-muted-foreground">({formatCurrency(digitalWalletBalance)})</span>
-                                                    </div>
-                                                </SelectItem>
-                                                {fullAccounts.map(acc => (
-                                                    <SelectItem key={acc.id} value={acc.id}>
-                                                        <div className="flex items-center gap-2">
-                                                            <span>{acc.name}</span>
-                                                            <span className="text-muted-foreground">({formatCurrency(acc.balance)})</span>
-                                                        </div>
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
-                            <div className="space-y-2 col-span-2">
-                                <Label htmlFor="transfer-amount">Amount</Label>
-                                <Input
-                                    id="transfer-amount"
-                                    name="transfer-amount"
-                                    placeholder="e.g. 500*2"
-                                    required
-                                    className="hide-number-arrows"
-                                    value={transferAmount}
-                                    onChange={handleAmountChange(setTransferAmount)}
-                                    onBlur={() => handleAmountBlur(transferAmount, setIncomeAmount)}
-                                />
-                            </div>
-                        </TabsContent>
-                        </div>
-                        <DialogFooter>
-                            <DialogClose asChild><Button type="button" variant="secondary">Cancel</Button></DialogClose>
-                            <Button type="submit">Add Transaction</Button>
-                        </DialogFooter>
-                        </form>
-                    </Tabs>
-                    </DialogContent>
-                </Dialog>
-            </div>
-        </div>
-        
-      </CardHeader>
-      <CardContent className="p-0">
-        <div className="relative overflow-auto max-h-[calc(100vh-250px)]">
-          <Table className="min-w-full table-fixed">
-            <TableHeader className="sticky top-0 z-10 bg-background">
-                <TableRow>
-                <TableHead className="w-[4%]">Sl.</TableHead>
-                <TableHead className="w-[8%]">Date</TableHead>
-                <TableHead className="w-[18%]">Description</TableHead>
-                <TableHead className="w-[10%]">Type</TableHead>
-                <TableHead className="w-[12%]">Account</TableHead>
-                <TableHead className="w-[12%]">Category</TableHead>
-                <TableHead className="text-right w-[8%]">Debit</TableHead>
-                <TableHead className="text-right w-[8%]">Transfer</TableHead>
-                <TableHead className="text-right w-[8%]">Credit</TableHead>
-                <TableHead className="text-right w-[10%]">Balance</TableHead>
-                <TableHead className="text-right print-hide w-[10%]">Actions</TableHead>
-                </TableRow>
-            </TableHeader>
-            <TableBody>
-                {pagedTransactions.map((t, index) => {
-                  const loanInfo = getLoanDisplayInfo(t);
-                  
-                  let debit = null;
-                  let credit = null;
-                  let transfer = null;
+                }
 
-                  if (t.type === 'income') {
-                      credit = t.amount;
-                  } else if (t.type === 'expense') {
-                      debit = t.amount;
-                  } else if (t.type === 'transfer') {
-                      const isWalletTransfer = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
+
+                return (
+                  <TableRow key={t.id} className={loanInfo.colorClass}>
+                      <TableCell className="font-medium">{index + 1}</TableCell>
+                      <TableCell>{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
+                      <TableCell className="font-medium break-words">{loanInfo.description}</TableCell>
+                      <TableCell>
+                        <Badge 
+                            variant={getBadgeVariant(t.type)}
+                            className="capitalize"
+                            >
+                            {loanInfo.type}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="break-words">{t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} -> ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod)}</TableCell>
+                      <TableCell className="break-words">
+                          <div>{loanInfo.category}</div>
+                          {t.subcategory && <div className="text-sm text-muted-foreground">{t.subcategory}</div>}
+                      </TableCell>
                       
-                      const isPrimaryView = primaryAccount?.id === accountId;
-                      
-                      const fromCurrentView = isPrimaryView 
-                          ? (t.fromAccountId === accountId || t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet')
-                          : t.fromAccountId === accountId;
+                      <TableCell className="text-right font-mono text-red-600">
+                          {debit !== null ? formatCurrency(debit) : null}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-blue-600">
+                          {transfer !== null ? formatCurrency(transfer) : null}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-green-600">
+                           {credit !== null ? formatCurrency(credit) : null}
+                      </TableCell>
 
-                      const toCurrentView = isPrimaryView
-                          ? (t.toAccountId === accountId || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet')
-                          : t.toAccountId === accountId;
-
-                      if (isWalletTransfer && fromCurrentView) {
-                          transfer = t.amount;
-                      } else if(fromCurrentView && !toCurrentView) {
-                          debit = t.amount;
-                      } else if (!fromCurrentView && toCurrentView) {
-                          credit = t.amount;
-                      }
-                  }
-
-
-                  return (
-                    <TableRow key={t.id} className={loanInfo.colorClass}>
-                        <TableCell className="font-medium">{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
-                        <TableCell>{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
-                        <TableCell className="font-medium break-words">{loanInfo.description}</TableCell>
-                        <TableCell>
-                          <Badge 
-                              variant={getBadgeVariant(t.type)}
-                              className="capitalize"
-                              >
-                              {loanInfo.type}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="break-words">{t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} -> ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod)}</TableCell>
-                        <TableCell className="break-words">
-                            <div>{loanInfo.category}</div>
-                            {t.subcategory && <div className="text-sm text-muted-foreground">{t.subcategory}</div>}
-                        </TableCell>
-                        
-                        <TableCell className="text-right font-mono text-red-600">
-                            {debit !== null ? formatCurrency(debit) : null}
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-blue-600">
-                            {transfer !== null ? formatCurrency(transfer) : null}
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-green-600">
-                             {credit !== null ? formatCurrency(credit) : null}
-                        </TableCell>
-
-                         <TableCell className={cn("text-right font-mono", t.balance < 0 ? 'text-red-600' : '')}>
-                          {formatCurrency(t.balance)}
-                        </TableCell>
-                        <TableCell className="text-right print-hide">
-                            <div className="flex items-center justify-end gap-2">
-                                <Button variant="ghost" size="icon" onClick={() => openEditDialog(t)} className="h-8 w-8">
-                                    <Pencil className="h-4 w-4" />
-                                </Button>
-                                <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-8 w-8">
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent onInteractOutside={(e) => e.preventDefault()}>
-                                        <AlertDialogHeader>
-                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                                This will permanently delete the transaction. This action cannot be undone and will update account balances.
-                                            </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => handleDeleteTransaction(t)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                                        </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                </AlertDialog>
-                            </div>
-                        </TableCell>
-                    </TableRow>
-                  );
-                })}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
-       {totalPages > 1 && (
-            <CardFooter className="justify-center border-t p-4">
-              <PaginationControls currentPage={currentPage} totalPages={totalPages} setCurrentPage={setCurrentPage} />
-            </CardFooter>
-        )}
-    </Card>
+                       <TableCell className={cn("text-right font-mono", t.balance < 0 ? 'text-red-600' : '')}>
+                        {formatCurrency(t.balance)}
+                      </TableCell>
+                      <TableCell className="text-right print-hide">
+                          <div className="flex items-center justify-end gap-2">
+                              <Button variant="ghost" size="icon" onClick={() => openEditDialog(t)} className="h-8 w-8">
+                                  <Pencil className="h-4 w-4" />
+                              </Button>
+                              <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-8 w-8">
+                                          <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent onInteractOutside={(e) => e.preventDefault()}>
+                                      <AlertDialogHeader>
+                                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                          <AlertDialogDescription>
+                                              This will permanently delete the transaction. This action cannot be undone and will update account balances.
+                                          </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                          <AlertDialogAction onClick={() => handleDeleteTransaction(t)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                      </AlertDialogFooter>
+                                  </AlertDialogContent>
+                              </AlertDialog>
+                          </div>
+                      </TableCell>
+                  </TableRow>
+                );
+              })}
+          </TableBody>
+        </Table>
+      </div>
+    </CardContent>
     <div className="hidden print-block">
-      <Card id="printable-area-content">
-          <CardHeader>
-              <CardTitle>Transaction Report</CardTitle>
-              <CardDescription>
-                  {startDate && endDate 
-                      ? `From ${format(new Date(startDate), 'dd/MM/yyyy')} to ${format(new Date(endDate), 'dd/MM/yyyy')}`
-                      : 'All Transactions'
-                  }
-              </CardDescription>
-          </CardHeader>
-          <CardContent>
-              <Table>
-                  <TableHeader>
-                      <TableRow>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Description</TableHead>
-                          <TableHead>Type</TableHead>
-                          <TableHead>Account</TableHead>
-                          <TableHead>Category</TableHead>
-                          <TableHead className="text-right">Amount</TableHead>
+      <CardContent id="printable-area-content">
+          <Table>
+              <TableHeader>
+                  <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Account</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                  </TableRow>
+              </TableHeader>
+              <TableBody>
+                  {transactions.map(t => (
+                      <TableRow key={t.id}>
+                          <TableCell>{format(new Date(t.date), 'dd/MM/yyyy')}</TableCell>
+                          <TableCell>{t.description}</TableCell>
+                          <TableCell>{t.type}</TableCell>
+                          <TableCell>{t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} -> ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod)}</TableCell>
+                          <TableCell>{t.category}{t.subcategory ? ` / ${t.subcategory}` : ''}</TableCell>
+                          <TableCell className={cn("text-right", t.type === 'income' ? 'text-green-600' : 'text-red-600')}>
+                              {t.type !== 'transfer' ? formatCurrency(t.amount) : '-'}
+                          </TableCell>
                       </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                      {filteredTransactions.map(t => (
-                          <TableRow key={t.id}>
-                              <TableCell>{format(new Date(t.date), 'dd/MM/yyyy')}</TableCell>
-                              <TableCell>{t.description}</TableCell>
-                              <TableCell>{t.type}</TableCell>
-                              <TableCell>{t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} -> ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod)}</TableCell>
-                              <TableCell>{t.category}{t.subcategory ? ` / ${t.subcategory}` : ''}</TableCell>
-                              <TableCell className={cn("text-right", t.type === 'income' ? 'text-green-600' : 'text-red-600')}>
-                                  {t.type !== 'transfer' ? formatCurrency(t.amount) : '-'}
-                              </TableCell>
-                          </TableRow>
-                      ))}
-                  </TableBody>
-              </Table>
-          </CardContent>
-      </Card>
+                  ))}
+              </TableBody>
+          </Table>
+      </CardContent>
     </div>
 
     {/* Edit Transaction Dialog */}
@@ -1487,5 +772,3 @@ export function TransactionTable({
     </>
   );
 }
-
-    
