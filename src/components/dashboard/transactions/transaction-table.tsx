@@ -233,7 +233,9 @@ export function TransactionTable({
         return account.name;
       };
 
-    const getLoanDisplayInfo = (t: Transaction) => {
+    const primaryAccount = useMemo(() => accounts.find(a => a.isPrimary), [accounts]);
+    
+    const getLoanDisplayInfo = useMemo(() => (t: Transaction) => {
       const defaultInfo = { isLoan: false, type: t.type, category: t.category, description: t.description, colorClass: '' };
       if (t.type !== 'transfer' || !t.loanTransactionId) {
           return defaultInfo;
@@ -272,7 +274,7 @@ export function TransactionTable({
           }
       }
       return defaultInfo;
-    };
+    }, [accounts, loans, accountId]);
     
 
     const filteredTransactions = useMemo(() => {
@@ -326,89 +328,70 @@ export function TransactionTable({
     }, [transactions, accountId, dateRange, searchQuery, accounts, loans]);
 
   const transactionsWithBalance = useMemo(() => {
-    const primaryAccount = accounts.find(a => a.isPrimary);
-    const isPrimaryView = primaryAccount?.id === accountId;
-
+    if (!primaryAccount) return [];
+  
+    const isPrimaryView = primaryAccount.id === accountId;
     const accountPreferences = accounts.find(a => a.id === accountId);
+  
     let reconciliationBalance: number;
     let reconciliationDate: Date;
-
+  
     if (isPrimaryView) {
-        const primaryReconDate = primaryAccount?.actualBalanceDate ? parseISO(primaryAccount.actualBalanceDate) : new Date(0);
-        const cashWallet = fullAccounts.find(a => a.id === 'cash-wallet');
-        const digitalWallet = fullAccounts.find(a => a.id === 'digital-wallet');
-        const cashReconDate = cashWallet?.actualBalanceDate ? parseISO(cashWallet.actualBalanceDate) : new Date(0);
-        const digitalReconDate = digitalWallet?.actualBalanceDate ? parseISO(digitalWallet.actualBalanceDate) : new Date(0);
-
-        const latestReconDate = new Date(Math.max(primaryReconDate.getTime(), cashReconDate.getTime(), digitalReconDate.getTime()));
-        
-        reconciliationDate = latestReconDate;
-        reconciliationBalance = (primaryAccount?.actualBalance ?? 0) + (cashWallet?.actualBalance ?? 0) + (digitalWallet?.actualBalance ?? 0);
+      reconciliationBalance = primaryAccount.actualBalance ?? 0;
+      reconciliationDate = primaryAccount.actualBalanceDate ? parseISO(primaryAccount.actualBalanceDate) : new Date(0);
     } else {
-        reconciliationBalance = accountPreferences?.actualBalance ?? 0;
-        reconciliationDate = accountPreferences?.actualBalanceDate ? parseISO(accountPreferences.actualBalanceDate) : new Date(0);
+      reconciliationBalance = accountPreferences?.actualBalance ?? 0;
+      reconciliationDate = accountPreferences?.actualBalanceDate ? parseISO(accountPreferences.actualBalanceDate) : new Date(0);
     }
-
+  
     const chronologicalTransactions = [...filteredTransactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-    const calculateChange = (t: Transaction) => {
-        let amountChange = 0;
-        const isInView = (accId?: string) => {
-            if (!accId) return false;
-            if (isPrimaryView) {
-                return accId === accountId || accId === 'cash-wallet' || accId === 'digital-wallet';
-            }
-            return accId === accountId;
-        };
-
-        const loanInfo = getLoanDisplayInfo(t);
-        if (loanInfo.isLoan) {
-             if (loanInfo.type.includes('Loan Given') || loanInfo.type.includes('Repayment Made')) {
-                amountChange = -t.amount;
-            } else if (loanInfo.type.includes('Loan from') || loanInfo.type.includes('Loan Taken') || loanInfo.type.includes('Repayment Received')) {
-                amountChange = t.amount;
-            }
-        } else if (t.type === 'income' && isInView(t.accountId)) {
-            amountChange = t.amount;
-        } else if (t.type === 'expense') {
-            const paymentAccId = t.paymentMethod === 'cash' ? 'cash-wallet' : t.paymentMethod === 'digital' ? 'digital-wallet' : t.accountId;
-            if (isInView(paymentAccId)) {
-                amountChange = -t.amount;
-            }
-        } else if (t.type === 'transfer') {
-            const fromInView = isInView(t.fromAccountId);
-            const toInView = isInView(t.toAccountId);
-            if (fromInView && !toInView) {
-                amountChange = -t.amount;
-            } else if (!fromInView && toInView) {
-                amountChange = t.amount;
-            }
-        }
-        return amountChange;
-    };
-
-    let runningBalance = reconciliationBalance;
     const balanceMap = new Map<string, number>();
-
+  
     const afterReconTx = chronologicalTransactions.filter(t => isAfter(parseISO(t.date), reconciliationDate) || isSameDay(parseISO(t.date), reconciliationDate));
     const beforeReconTx = chronologicalTransactions.filter(t => isBefore(parseISO(t.date), reconciliationDate));
-
+  
+    const calculateChange = (t: Transaction): number => {
+      const isInView = (accId?: string): boolean => {
+        if (!accId) return false;
+        if (isPrimaryView) {
+          return accId === accountId || accId === 'cash-wallet' || accId === 'digital-wallet';
+        }
+        return accId === accountId;
+      };
+  
+      if (t.type === 'income') {
+        return isInView(t.accountId) ? t.amount : 0;
+      }
+      if (t.type === 'expense') {
+        const paymentAccId = t.paymentMethod === 'cash' ? 'cash-wallet' : t.paymentMethod === 'digital' ? 'digital-wallet' : t.accountId;
+        return isInView(paymentAccId) ? -t.amount : 0;
+      }
+      if (t.type === 'transfer') {
+        const fromInView = isInView(t.fromAccountId);
+        const toInView = isInView(t.toAccountId);
+        if (fromInView && !toInView) return -t.amount;
+        if (!fromInView && toInView) return t.amount;
+      }
+      return 0;
+    };
+  
+    let runningBalance = reconciliationBalance;
     afterReconTx.forEach(t => {
       runningBalance += calculateChange(t);
       balanceMap.set(t.id, runningBalance);
     });
-
+  
     runningBalance = reconciliationBalance;
     beforeReconTx.reverse().forEach(t => {
       balanceMap.set(t.id, runningBalance);
       runningBalance -= calculateChange(t);
     });
-    
+  
     return filteredTransactions.map(t => ({
-        ...t,
-        balance: balanceMap.get(t.id) || 0,
+      ...t,
+      balance: balanceMap.get(t.id) ?? 0,
     }));
-}, [filteredTransactions, accountId, accounts, loans, fullAccounts]);
+  }, [filteredTransactions, accountId, accounts, primaryAccount]);
 
 
   const totalPages = Math.ceil(transactionsWithBalance.length / itemsPerPage);
@@ -777,8 +760,6 @@ export function TransactionTable({
     setDateRange(undefined);
   }
 
-  const primaryAccount = useMemo(() => accounts.find(a => a.isPrimary), [accounts]);
-
   const getLoanAmountColor = (loanInfo: { type: string }) => {
     if (loanInfo.type.includes('Repayment')) {
       return 'text-blue-600';
@@ -797,52 +778,52 @@ export function TransactionTable({
     <>
     <Card className="print-hide">
       <CardHeader>
-        <div className="flex justify-center items-center gap-2">
-          {totalPages > 1 && (
-            <>
-              <Button
-                variant="outline"
-                className="h-8 w-8 p-0"
-                onClick={() => setCurrentPage(1)}
-                disabled={currentPage === 1}
-              >
-                <span className="sr-only">Go to first page</span>
-                <ChevronsLeft className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                className="h-8 w-8 p-0"
-                onClick={() => setCurrentPage(prev => prev - 1)}
-                disabled={currentPage === 1}
-              >
-                <span className="sr-only">Go to previous page</span>
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <div className="flex items-center justify-center text-sm font-medium">
-                Page {currentPage} of {totalPages}
-              </div>
-              <Button
-                variant="outline"
-                className="h-8 w-8 p-0"
-                onClick={() => setCurrentPage(prev => prev + 1)}
-                disabled={currentPage === totalPages}
-              >
-                <span className="sr-only">Go to next page</span>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                className="h-8 w-8 p-0"
-                onClick={() => setCurrentPage(totalPages)}
-                disabled={currentPage === totalPages}
-              >
-                <span className="sr-only">Go to last page</span>
-                <ChevronsRight className="h-4 w-4" />
-              </Button>
-            </>
-          )}
-        </div>
-        <div className="flex flex-col md:flex-row items-center gap-2 w-full pt-4">
+        <div className="flex flex-col md:flex-row items-center gap-2 w-full">
+          <div className="flex flex-1 justify-center items-center gap-2">
+            {totalPages > 1 && (
+              <>
+                <Button
+                  variant="outline"
+                  className="h-8 w-8 p-0"
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                >
+                  <span className="sr-only">Go to first page</span>
+                  <ChevronsLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  className="h-8 w-8 p-0"
+                  onClick={() => setCurrentPage(prev => prev - 1)}
+                  disabled={currentPage === 1}
+                >
+                  <span className="sr-only">Go to previous page</span>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <div className="flex items-center justify-center text-sm font-medium">
+                  Page {currentPage} of {totalPages}
+                </div>
+                <Button
+                  variant="outline"
+                  className="h-8 w-8 p-0"
+                  onClick={() => setCurrentPage(prev => prev + 1)}
+                  disabled={currentPage === totalPages}
+                >
+                  <span className="sr-only">Go to next page</span>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  className="h-8 w-8 p-0"
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                >
+                  <span className="sr-only">Go to last page</span>
+                  <ChevronsRight className="h-4 w-4" />
+                </Button>
+              </>
+            )}
+          </div>
           <div className="relative flex-1 md:grow-0">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
@@ -1371,5 +1352,3 @@ export function TransactionTable({
     </>
   );
 }
-
-    
