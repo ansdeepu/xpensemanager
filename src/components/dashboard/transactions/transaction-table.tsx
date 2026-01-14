@@ -92,9 +92,11 @@ const evaluateMath = (expression: string): number | null => {
 
 export function TransactionTable({
   transactions,
+  allTransactions,
   accountId,
 }: {
   transactions: Transaction[];
+  allTransactions: Transaction[];
   accountId: string;
 }) {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -198,75 +200,106 @@ export function TransactionTable({
     
 
   const transactionsWithBalance = useMemo(() => {
-    const chronologicalTransactions = [...transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    
-    let runningBalance = 0;
-    const withBalance = chronologicalTransactions.map(t => {
-      let debit = null;
-      let credit = null;
-      let transfer = null;
+    const isPrimaryView = primaryAccount?.id === accountId;
 
-      if (t.type === 'income') {
-        credit = t.amount;
-      } else if (t.type === 'expense') {
-        debit = t.amount;
-      } else if (t.type === 'transfer') {
+    const getEffectOnBalance = (t: Transaction) => {
+        let credit = 0;
+        let debit = 0;
+
+        const fromCurrentView = isPrimaryView
+            ? t.fromAccountId === accountId || t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet'
+            : t.fromAccountId === accountId;
+
+        const toCurrentView = isPrimaryView
+            ? t.toAccountId === accountId || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet'
+            : t.toAccountId === accountId;
+
+        if (t.type === 'income' && toCurrentView) {
+            credit = t.amount;
+        } else if (t.type === 'expense') {
+            if (isPrimaryView) {
+                if (t.accountId === accountId || t.paymentMethod === 'cash' || t.paymentMethod === 'digital') {
+                    debit = t.amount;
+                }
+            } else {
+                if (t.accountId === accountId) {
+                    debit = t.amount;
+                }
+            }
+        } else if (t.type === 'transfer') {
+            if (fromCurrentView) debit = t.amount;
+            if (toCurrentView) credit = t.amount;
+        }
+        return credit - debit;
+    };
+
+    const chronologicalTransactions = [...allTransactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const oldestTransactionOnPage = transactions.length > 0 ? transactions[transactions.length - 1] : null;
+
+    let startingBalance = 0;
+    if (oldestTransactionOnPage) {
+        const previousTransactions = chronologicalTransactions.filter(t => new Date(t.date) < new Date(oldestTransactionOnPage.date));
+        startingBalance = previousTransactions.reduce((acc, t) => acc + getEffectOnBalance(t), 0);
+    }
+    
+    let runningBalance = startingBalance;
+    const pageTransactionsWithBalance = [...transactions]
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) // For display order
+      .map(t => ({ ...t })) // Create shallow copies
+      .reverse() // Chronological for calculation
+      .map(t => {
+        runningBalance += getEffectOnBalance(t);
+        return { ...t, balance: runningBalance };
+      })
+      .reverse(); // Back to descending for display
+
+    return pageTransactionsWithBalance.map(t => {
+        let debit = null;
+        let credit = null;
+        let transfer = null;
+
         const fromAccountIsWallet = t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
         const toAccountIsWallet = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
         
-        if (fromAccountIsWallet && toAccountIsWallet) {
-          // No change in balance for wallet-to-wallet transfers
-        } else {
-          const isPrimaryView = primaryAccount?.id === accountId;
-          const fromCurrentView = isPrimaryView 
-              ? (t.fromAccountId === accountId || t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet')
-              : t.fromAccountId === accountId;
+        const fromCurrentView = isPrimaryView 
+            ? (t.fromAccountId === accountId || t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet')
+            : t.fromAccountId === accountId;
 
-          const toCurrentView = isPrimaryView
-              ? (t.toAccountId === accountId || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet')
-              : t.toAccountId === accountId;
+        const toCurrentView = isPrimaryView
+            ? (t.toAccountId === accountId || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet')
+            : t.toAccountId === accountId;
 
-          if (toAccountIsWallet && fromCurrentView) {
-            transfer = t.amount;
-          } else if(fromCurrentView && !toCurrentView) {
-            debit = t.amount;
-          } else if (!fromCurrentView && toCurrentView) {
-            credit = t.amount;
-          }
+        if (t.type === 'income') {
+            if (toCurrentView) credit = t.amount;
+        } else if (t.type === 'expense') {
+            if(isPrimaryView) {
+                if (t.accountId === accountId || t.paymentMethod === 'cash' || t.paymentMethod === 'digital') {
+                    debit = t.amount;
+                }
+            } else {
+                 if (t.accountId === accountId) {
+                    debit = t.amount;
+                }
+            }
+        } else if (t.type === 'transfer') {
+             if (fromCurrentView && toAccountIsWallet) {
+                transfer = t.amount;
+             } else if (fromCurrentView && !toCurrentView) {
+                debit = t.amount;
+             } else if (!fromCurrentView && toCurrentView) {
+                credit = t.amount;
+             }
         }
-      }
+        
+        return {
+            ...t,
+            debit,
+            credit,
+            transfer
+        }
+    });
 
-      runningBalance += (credit ?? 0) - (debit ?? 0);
-
-      return {
-        ...t,
-        debit,
-        credit,
-        transfer,
-        balance: runningBalance,
-      };
-    }).reverse(); // Reverse back to descending order for display
-
-    // Set the balance for the oldest transaction to its calculated value
-    if (withBalance.length > 0) {
-      const oldestTxIndex = withBalance.length - 1;
-      withBalance[oldestTxIndex].balance = withBalance[oldestTxIndex].balance;
-
-      // Now, calculate the running balance backwards from the oldest transaction
-      for (let i = oldestTxIndex - 1; i >= 0; i--) {
-          const currentTx = withBalance[i];
-          const previousTx = withBalance[i + 1];
-          const previousBalance = previousTx.balance ?? 0;
-          const currentCredit = currentTx.credit ?? 0;
-          const currentDebit = currentTx.debit ?? 0;
-          
-          withBalance[i].balance = previousBalance + currentCredit - currentDebit;
-      }
-    }
-
-
-    return withBalance;
-  }, [transactions, accountId, primaryAccount]);
+}, [transactions, allTransactions, accountId, primaryAccount]);
 
 
    useEffect(() => {
