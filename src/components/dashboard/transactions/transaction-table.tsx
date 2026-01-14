@@ -264,60 +264,73 @@ export function TransactionTable({
   const transactionsWithBalance = useMemo(() => {
     const primaryAccount = accounts.find(a => a.isPrimary);
     const isPrimaryView = primaryAccount?.id === accountId;
-
-    let totalBalance: number;
-    if (isPrimaryView) {
-      totalBalance = (accountBalances[accountId] ?? 0) + cashWalletBalance + digitalWalletBalance;
-    } else {
-      totalBalance = accountBalances[accountId] ?? 0;
-    }
-
-    const balanceMap = new Map<string, number>();
-    let runningBalance = totalBalance;
     
-    // Calculate balance chronologically from newest to oldest
-    for (const t of filteredTransactions) {
-      balanceMap.set(t.id, runningBalance);
+    // Get all transactions for the account, sorted oldest to newest
+    const chronologicalTransactions = [...filteredTransactions].reverse();
 
+    // Find the total current balance for the view (primary or single account)
+    let currentBalance: number;
+    if (isPrimaryView) {
+        currentBalance = (accountBalances[accountId] ?? 0) + cashWalletBalance + digitalWalletBalance;
+    } else {
+        currentBalance = accountBalances[accountId] ?? 0;
+    }
+    
+    // Calculate the total net change from all transactions in the chronological list
+    let totalNetChange = 0;
+    chronologicalTransactions.forEach(t => {
       let amountChange = 0;
       if (t.type === 'income') {
-        if (isPrimaryView) {
-            if (t.accountId === accountId) amountChange = t.amount;
-        } else {
-            if (t.accountId === accountId) amountChange = t.amount;
+        if (!isPrimaryView && t.accountId === accountId) {
+          amountChange = t.amount;
+        } else if (isPrimaryView) {
+          amountChange = t.amount; // In primary view, all income is counted.
         }
       } else if (t.type === 'expense') {
-        if (isPrimaryView) {
-            if (t.paymentMethod === 'online' && t.accountId === accountId) amountChange = -t.amount;
-            else if (t.paymentMethod === 'cash' || t.paymentMethod === 'digital') amountChange = -t.amount;
-        } else {
-            if (t.accountId === accountId) amountChange = -t.amount;
+        if (!isPrimaryView && t.accountId === accountId) {
+          amountChange = -t.amount;
+        } else if (isPrimaryView) {
+           amountChange = -t.amount; // In primary view, all expenses are counted.
         }
       } else if (t.type === 'transfer') {
-        const isLoanGiven = t.loanTransactionId && loans.some(l => l.type === 'given' && l.transactions.some(lt => lt.id === t.loanTransactionId && lt.type === 'loan'));
-
-        if (isPrimaryView) {
-            if (t.fromAccountId === accountId || t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet') {
-                amountChange -= t.amount;
-            }
-            if (t.toAccountId === accountId || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet') {
-                amountChange += t.amount;
-            }
-        } else {
-             if (t.fromAccountId === accountId) amountChange -= t.amount;
-             if (t.toAccountId === accountId) amountChange += t.amount;
-        }
+        const fromInView = isPrimaryView ? (t.fromAccountId === accountId || t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet') : (t.fromAccountId === accountId);
+        const toInView = isPrimaryView ? (t.toAccountId === accountId || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet') : (t.toAccountId === accountId);
+        if (fromInView) amountChange -= t.amount;
+        if (toInView) amountChange += t.amount;
       }
+       totalNetChange += amountChange;
+    });
 
-      runningBalance -= amountChange;
-    }
+    // Calculate the starting balance (balance before the oldest transaction)
+    let runningBalance = currentBalance - totalNetChange;
 
-    return filteredTransactions.map(t => ({
-      ...t,
-      balance: balanceMap.get(t.id) ?? 0,
-    }));
+    const withBalance = chronologicalTransactions.map(t => {
+      let amountChange = 0;
+       if (t.type === 'income') {
+        if (!isPrimaryView && t.accountId === accountId) {
+          amountChange = t.amount;
+        } else if (isPrimaryView) {
+          amountChange = t.amount;
+        }
+      } else if (t.type === 'expense') {
+         if (!isPrimaryView && t.accountId === accountId) {
+          amountChange = -t.amount;
+        } else if (isPrimaryView) {
+          amountChange = -t.amount;
+        }
+      } else if (t.type === 'transfer') {
+        const fromInView = isPrimaryView ? (t.fromAccountId === accountId || t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet') : (t.fromAccountId === accountId);
+        const toInView = isPrimaryView ? (t.toAccountId === accountId || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet') : (t.toAccountId === accountId);
+        if (fromInView) amountChange -= t.amount;
+        if (toInView) amountChange += t.amount;
+      }
+      
+      runningBalance += amountChange;
+      return { ...t, balance: runningBalance };
+    });
 
-  }, [filteredTransactions, accountId, accounts, accountBalances, cashWalletBalance, digitalWalletBalance, loans]);
+    return withBalance.reverse(); // Reverse back to newest first for display
+  }, [filteredTransactions, accountId, accounts, accountBalances, cashWalletBalance, digitalWalletBalance]);
 
 
   const totalPages = Math.ceil(transactionsWithBalance.length / itemsPerPage);
@@ -770,8 +783,8 @@ export function TransactionTable({
   return (
     <>
     <Card id="printable-area">
-       <CardHeader className="flex flex-col gap-4">
-        <div className="flex justify-center items-center gap-2 print-hide">
+       <CardHeader className="flex flex-col gap-4 print-hide">
+        <div className="flex justify-center items-center gap-2">
             {totalPages > 1 && (
                 <>
                     <Button
@@ -816,7 +829,7 @@ export function TransactionTable({
                 </>
             )}
         </div>
-        <div className="flex flex-col md:flex-row items-center gap-2 w-full print-hide">
+        <div className="flex flex-col md:flex-row items-center gap-2 w-full">
           <div className="relative flex-1 md:grow-0">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
@@ -1343,3 +1356,4 @@ export function TransactionTable({
     </>
   );
 }
+
