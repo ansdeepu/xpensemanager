@@ -779,51 +779,6 @@ export function TransactionTable({
     <Card className="print-hide">
       <CardHeader>
         <div className="flex flex-col md:flex-row items-center gap-2 w-full">
-          <div className="flex flex-1 justify-center items-center gap-2">
-            {totalPages > 1 && (
-              <>
-                <Button
-                  variant="outline"
-                  className="h-8 w-8 p-0"
-                  onClick={() => setCurrentPage(1)}
-                  disabled={currentPage === 1}
-                >
-                  <span className="sr-only">Go to first page</span>
-                  <ChevronsLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-8 w-8 p-0"
-                  onClick={() => setCurrentPage(prev => prev - 1)}
-                  disabled={currentPage === 1}
-                >
-                  <span className="sr-only">Go to previous page</span>
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <div className="flex items-center justify-center text-sm font-medium">
-                  Page {currentPage} of {totalPages}
-                </div>
-                <Button
-                  variant="outline"
-                  className="h-8 w-8 p-0"
-                  onClick={() => setCurrentPage(prev => prev + 1)}
-                  disabled={currentPage === totalPages}
-                >
-                  <span className="sr-only">Go to next page</span>
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-8 w-8 p-0"
-                  onClick={() => setCurrentPage(totalPages)}
-                  disabled={currentPage === totalPages}
-                >
-                  <span className="sr-only">Go to last page</span>
-                  <ChevronsRight className="h-4 w-4" />
-                </Button>
-              </>
-            )}
-          </div>
           <div className="relative flex-1 md:grow-0">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
@@ -834,29 +789,43 @@ export function TransactionTable({
               className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[320px]"
             />
           </div>
-          <div className="flex w-full md:w-auto items-center gap-2">
-            <Label htmlFor="from-date" className="text-sm shrink-0">Pick a date range:</Label>
-            <Input 
-                id="from-date"
-                type="date"
-                className="w-full"
-                value={dateRange?.from ? format(dateRange.from, 'yyyy-MM-dd') : ''}
-                onChange={(e) => {
-                    const newFromDate = e.target.value ? new Date(e.target.value) : undefined;
-                    setDateRange(prev => ({ from: newFromDate, to: prev?.to }))
-                }}
-            />
-             <Label htmlFor="to-date" className="sr-only">To Date</Label>
-            <Input 
-                id="to-date"
-                type="date"
-                className="w-full"
-                value={dateRange?.to ? format(dateRange.to, 'yyyy-MM-dd') : ''}
-                onChange={(e) => {
-                    const newToDate = e.target.value ? new Date(e.target.value) : undefined;
-                    setDateRange(prev => ({ from: prev?.from, to: newToDate }))
-                }}
-            />
+          <div className="w-full md:w-auto">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  id="date"
+                  variant={"outline"}
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !dateRange && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {dateRange?.from ? (
+                    dateRange.to ? (
+                      <>
+                        {format(dateRange.from, "LLL dd, y")} -{" "}
+                        {format(dateRange.to, "LLL dd, y")}
+                      </>
+                    ) : (
+                      format(dateRange.from, "LLL dd, y")
+                    )
+                  ) : (
+                    <span>Pick a date range</span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  initialFocus
+                  mode="range"
+                  defaultMonth={dateRange?.from}
+                  selected={dateRange}
+                  onSelect={setDateRange}
+                  numberOfMonths={2}
+                />
+              </PopoverContent>
+            </Popover>
           </div>
           <Button onClick={handleClearFilters} variant="ghost" size="icon" className="h-10 w-10">
             <XCircle className="h-5 w-5" />
@@ -1139,9 +1108,50 @@ export function TransactionTable({
             </DialogContent>
           </Dialog>
         </div>
+        {totalPages > 1 && (
+            <div className="flex justify-center items-center gap-2">
+                <Button
+                  variant="outline"
+                  className="h-8 w-8 p-0"
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                >
+                  <span className="sr-only">Go to first page</span>
+                  <ChevronsLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  className="h-8 w-8 p-0"
+                  onClick={() => setCurrentPage(prev => prev - 1)}
+                  disabled={currentPage === 1}
+                >
+                  <span className="sr-only">Go to previous page</span>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <div className="flex items-center justify-center text-sm font-medium">
+                  Page {currentPage} of {totalPages}
+                </div>
+                <Button
+                  variant="outline"
+                  className="h-8 w-8 p-0"
+                  onClick={() => setCurrentPage(prev => prev + 1)}
+                  disabled={currentPage === totalPages}
+                >
+                  <span className="sr-only">Go to next page</span>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  className="h-8 w-8 p-0"
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                >
+                  <span className="sr-only">Go to last page</span>
+                  <ChevronsRight className="h-4 w-4" />
+                </Button>
+            </div>
+        )}
       </CardHeader>
-    </Card>
-    <Card id="printable-area">
       <CardContent className="p-0">
         <div className="relative overflow-auto max-h-[calc(100vh-350px)]">
           <Table className="min-w-full">
@@ -1223,6 +1233,47 @@ export function TransactionTable({
         </div>
       </CardContent>
     </Card>
+    <div className="hidden print-block">
+      <Card id="printable-area-content">
+          <CardHeader>
+              <CardTitle>Transaction Report</CardTitle>
+              <CardDescription>
+                  {dateRange?.from && dateRange.to 
+                      ? `From ${format(dateRange.from, 'dd/MM/yyyy')} to ${format(dateRange.to, 'dd/MM/yyyy')}`
+                      : 'All Transactions'
+                  }
+              </CardDescription>
+          </CardHeader>
+          <CardContent>
+              <Table>
+                  <TableHeader>
+                      <TableRow>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Description</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Account</TableHead>
+                          <TableHead>Category</TableHead>
+                          <TableHead className="text-right">Amount</TableHead>
+                      </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                      {filteredTransactions.map(t => (
+                          <TableRow key={t.id}>
+                              <TableCell>{format(new Date(t.date), 'dd/MM/yyyy')}</TableCell>
+                              <TableCell>{t.description}</TableCell>
+                              <TableCell>{t.type}</TableCell>
+                              <TableCell>{t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} -> ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod)}</TableCell>
+                              <TableCell>{t.category}{t.subcategory ? ` / ${t.subcategory}` : ''}</TableCell>
+                              <TableCell className={cn("text-right", t.type === 'income' ? 'text-green-600' : 'text-red-600')}>
+                                  {t.type !== 'transfer' ? formatCurrency(t.amount) : '-'}
+                              </TableCell>
+                          </TableRow>
+                      ))}
+                  </TableBody>
+              </Table>
+          </CardContent>
+      </Card>
+    </div>
 
     {/* Edit Transaction Dialog */}
     <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
