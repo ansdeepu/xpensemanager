@@ -290,12 +290,14 @@ export default function TransactionsPage() {
                           onClick={(e) => e.stopPropagation()}
                       />
                       {primaryAccountBalanceDifference !== null && (
-                          <p className={cn(
-                              "text-xs font-medium pt-1",
-                              primaryAccountBalanceDifference === 0 ? "text-green-600" : "text-red-600"
-                          )}>
-                              Diff: {formatCurrency(primaryAccountBalanceDifference)}
-                          </p>
+                          <div className="w-full pt-1 flex justify-start">
+                            <p className={cn(
+                                "text-xs font-medium",
+                                primaryAccountBalanceDifference === 0 ? "text-green-600" : "text-red-600"
+                            )}>
+                                Diff: {formatCurrency(primaryAccountBalanceDifference)}
+                            </p>
+                          </div>
                       )}
                     </div>
 
@@ -316,12 +318,14 @@ export default function TransactionsPage() {
                           onClick={(e) => e.stopPropagation()}
                       />
                       {cashBalanceDifference !== null && (
-                          <p className={cn(
-                              "text-xs font-medium pt-1",
-                              cashBalanceDifference === 0 ? "text-green-600" : "text-red-600"
-                          )}>
-                              Diff: {formatCurrency(cashBalanceDifference)}
-                          </p>
+                           <div className="w-full pt-1 flex justify-start">
+                              <p className={cn(
+                                  "text-xs font-medium",
+                                  cashBalanceDifference === 0 ? "text-green-600" : "text-red-600"
+                              )}>
+                                  Diff: {formatCurrency(cashBalanceDifference)}
+                              </p>
+                           </div>
                       )}
                     </div>
 
@@ -342,12 +346,14 @@ export default function TransactionsPage() {
                           onClick={(e) => e.stopPropagation()}
                       />
                       {digitalBalanceDifference !== null && (
-                          <p className={cn(
-                              "text-xs font-medium pt-1",
-                              digitalBalanceDifference === 0 ? "text-green-600" : "text-red-600"
-                          )}>
-                              Diff: {formatCurrency(digitalBalanceDifference)}
-                          </p>
+                          <div className="w-full pt-1 flex justify-start">
+                              <p className={cn(
+                                  "text-xs font-medium",
+                                  digitalBalanceDifference === 0 ? "text-green-600" : "text-red-600"
+                              )}>
+                                  Diff: {formatCurrency(digitalBalanceDifference)}
+                              </p>
+                           </div>
                       )}
                     </div>
                   </div>
