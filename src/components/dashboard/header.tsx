@@ -1,6 +1,22 @@
 
 "use client";
 
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import {
+  Landmark,
+  LayoutDashboard,
+  ArrowRightLeft,
+  Wallet,
+  Shapes,
+  FileText,
+  HelpCircle,
+  User,
+  BookText,
+  HandCoins,
+  LogOut,
+  Menu,
+} from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,20 +25,31 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { SidebarTrigger } from "@/components/ui/sidebar";
-import { LogOut, User, ChevronLeft, ChevronRight } from "lucide-react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEffect, useState } from "react";
-import { format } from "date-fns";
-import { useReportDate } from "@/context/report-date-context";
 import { useAuthState } from "@/hooks/use-auth-state";
+import { cn } from "@/lib/utils";
 
-// Function to generate a color from a string
+const menuItems = [
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard/transactions", label: "Transactions", icon: ArrowRightLeft },
+  { href: "/dashboard/loans", label: "Loans", icon: HandCoins },
+  { href: "/dashboard/bank-accounts", label: "Accounts", icon: Landmark },
+  { href: "/dashboard/categories", label: "Categories", icon: Shapes },
+  { href: "/dashboard/bills-and-events", label: "Bills & Events", icon: FileText },
+  { href: "/dashboard/reports", label: "Reports", icon: BookText },
+  { href: "/dashboard/help", label: "Help", icon: HelpCircle },
+  { href: "/dashboard/profile", label: "Profile", icon: User },
+];
+
 const generateColor = (str: string) => {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
@@ -36,21 +63,14 @@ const generateColor = (str: string) => {
   return color;
 }
 
-
-export function Header({ pageTitle, pageDescription }: { pageTitle: string, pageDescription?: string }) {
+export function Header() {
   const [user, loading] = useAuthState();
   const [clientLoaded, setClientLoaded] = useState(false);
-  const [currentDateTime, setCurrentDateTime] = useState<Date | null>(null);
   const pathname = usePathname();
-  const isReportsPage = pathname === '/dashboard/reports';
-  const { currentDate, goToPreviousMonth, goToNextMonth } = useReportDate();
-
+   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     setClientLoaded(true);
-    setCurrentDateTime(new Date());
-    const timer = setInterval(() => setCurrentDateTime(new Date()), 60000); // Update every minute
-    return () => clearInterval(timer);
   }, []);
 
   const getInitials = (name: string | null | undefined) => {
@@ -65,84 +85,108 @@ export function Header({ pageTitle, pageDescription }: { pageTitle: string, page
   const avatarColor = user?.displayName ? generateColor(user.displayName) : '#cccccc';
 
   return (
-    <header className="sticky top-0 z-10 flex h-20 items-center justify-between gap-4 border-b bg-background px-4 md:px-6">
-      <div className="flex items-center gap-2 flex-1">
-        <SidebarTrigger />
-        <div>
-            <h1 className="text-xl font-semibold">{pageTitle}</h1>
-            {pageDescription ? (
-                <p className="text-xs text-muted-foreground">{pageDescription}</p>
-            ) : (
-                currentDateTime ? (
-                    <p className="text-xs text-muted-foreground">{format(currentDateTime, "EEEE, dd/MM/yyyy, hh:mm a")}</p>
-                ) : (
-                    <Skeleton className="h-4 w-48 mt-1" />
-                )
+    <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6">
+       <nav className="hidden flex-col gap-6 text-lg font-medium md:flex md:flex-row md:items-center md:gap-5 md:text-sm lg:gap-6">
+         <Link
+          href="/dashboard"
+          className="flex items-center gap-2 text-lg font-semibold md:text-base"
+        >
+          <Wallet className="h-6 w-6 text-primary" />
+          <span className="sr-only">Expense Manager</span>
+        </Link>
+        {menuItems.map(item => (
+           <Link
+            key={item.href}
+            href={item.href}
+            className={cn(
+                "transition-colors hover:text-foreground",
+                pathname === item.href ? "text-foreground" : "text-muted-foreground"
             )}
-        </div>
-      </div>
-
-      <div className="hidden md:flex flex-1 justify-center">
-        {isReportsPage ? (
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" className="h-8 w-8" onClick={goToPreviousMonth}>
-                <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <span className="text-lg font-semibold w-36 text-center">{format(currentDate, "MMMM yyyy")}</span>
-            <Button variant="outline" size="icon" className="h-8 w-8" onClick={goToNextMonth}>
-                <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        ) : (
-           currentDateTime ? (
-             <h2 className="text-lg font-semibold">{format(currentDateTime, "MMMM yyyy")}</h2>
-            ) : (
-                <Skeleton className="h-6 w-32" />
-            )
-        )}
-      </div>
-
-      <div className="flex-1 flex justify-end">
-        <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="flex items-center gap-2 rounded-full p-1 pr-3">
-                    <Avatar className="h-8 w-8">
-                        {loading || !clientLoaded ? (
-                            <Skeleton className="h-full w-full rounded-full" />
-                        ) : (
-                            <>
-                            <AvatarImage src={user?.photoURL || ''} data-ai-hint="user avatar" />
-                            <AvatarFallback style={{ backgroundColor: avatarColor, color: '#fff' }}>
-                                {getInitials(user?.displayName)}
-                            </AvatarFallback>
-                            </>
-                        )}
-                    </Avatar>
-                    {loading || !clientLoaded ? (
-                        <Skeleton className="h-4 w-20" />
-                    ) : (
-                        <span className="font-medium hidden md:block">{user?.displayName}</span>
-                    )}
+          >
+            {item.label}
+          </Link>
+        ))}
+       </nav>
+        <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+            <SheetTrigger asChild>
+                <Button
+                variant="outline"
+                size="icon"
+                className="shrink-0 md:hidden"
+                >
+                <Menu className="h-5 w-5" />
+                <span className="sr-only">Toggle navigation menu</span>
                 </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-            <DropdownMenuLabel>{user?.displayName || "My Account"}</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <Link href="/dashboard/profile">
-                <DropdownMenuItem>
-                <User className="mr-2" />
-                <span>Profile</span>
-                </DropdownMenuItem>
-            </Link>
-            <DropdownMenuSeparator />
-            <Link href="/">
-                <DropdownMenuItem onClick={() => auth.signOut()}>
-                <LogOut className="mr-2" />
-                <span>Log out</span>
-                </DropdownMenuItem>
-            </Link>
-            </DropdownMenuContent>
-        </DropdownMenu>
+            </SheetTrigger>
+            <SheetContent side="left">
+                <nav className="grid gap-6 text-lg font-medium">
+                <Link
+                    href="/dashboard"
+                    className="flex items-center gap-2 text-lg font-semibold"
+                    onClick={() => setMobileMenuOpen(false)}
+                >
+                    <Wallet className="h-6 w-6 text-primary" />
+                    <span>Expense Manager</span>
+                </Link>
+                {menuItems.map(item => (
+                    <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={cn(
+                            "transition-colors hover:text-foreground",
+                            pathname === item.href ? "text-foreground" : "text-muted-foreground"
+                        )}
+                    >
+                        {item.label}
+                    </Link>
+                ))}
+                </nav>
+            </SheetContent>
+        </Sheet>
+      <div className="flex w-full items-center gap-4 md:ml-auto md:flex-initial">
+        <div className="ml-auto flex-1 sm:flex-initial">
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="flex items-center gap-2 rounded-full p-1 pr-3">
+                        <Avatar className="h-8 w-8">
+                            {loading || !clientLoaded ? (
+                                <Skeleton className="h-full w-full rounded-full" />
+                            ) : (
+                                <>
+                                <AvatarImage src={user?.photoURL || ''} data-ai-hint="user avatar" />
+                                <AvatarFallback style={{ backgroundColor: avatarColor, color: '#fff' }}>
+                                    {getInitials(user?.displayName)}
+                                </AvatarFallback>
+                                </>
+                            )}
+                        </Avatar>
+                        {loading || !clientLoaded ? (
+                            <Skeleton className="h-4 w-20" />
+                        ) : (
+                            <span className="font-medium hidden md:block">{user?.displayName}</span>
+                        )}
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                <DropdownMenuLabel>{user?.displayName || "My Account"}</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <Link href="/dashboard/profile">
+                    <DropdownMenuItem>
+                    <User className="mr-2 h-4 w-4" />
+                    <span>Profile</span>
+                    </DropdownMenuItem>
+                </Link>
+                <DropdownMenuSeparator />
+                <Link href="/">
+                    <DropdownMenuItem onClick={() => auth.signOut()}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Log out</span>
+                    </DropdownMenuItem>
+                </Link>
+                </DropdownMenuContent>
+            </DropdownMenu>
+        </div>
       </div>
     </header>
   );
