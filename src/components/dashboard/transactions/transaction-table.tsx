@@ -64,13 +64,21 @@ import { Switch } from "@/components/ui/switch";
 import { useAuthState } from "@/hooks/use-auth-state";
 
 const formatCurrency = (amount: number) => {
+    if (amount % 1 === 0) {
+      return new Intl.NumberFormat("en-IN", {
+        style: "currency",
+        currency: "INR",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }).format(amount);
+    }
     const formatter = new Intl.NumberFormat("en-IN", {
       style: "currency",
       currency: "INR",
       minimumFractionDigits: 0,
       maximumFractionDigits: 2,
     });
-    return formatter.format(amount).replace(/\.00$/, '');
+    return formatter.format(amount);
 };
 
 // Function to safely evaluate math expressions
@@ -138,12 +146,8 @@ const PaginationControls = ({ currentPage, totalPages, setCurrentPage }: { curre
 
 export function TransactionTable({
   accountId,
-  reconciliationDate,
-  onReconciliationDateChange,
 }: {
   accountId: string;
-  reconciliationDate: Date | undefined;
-  onReconciliationDateChange: (date: Date | undefined) => void;
 }) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -165,11 +169,26 @@ export function TransactionTable({
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 100;
   const { toast } = useToast();
+  const [reconciliationDate, setReconciliationDate] = useState<Date | undefined>(undefined);
   
   const [expenseAmount, setExpenseAmount] = useState("");
   const [incomeAmount, setIncomeAmount] = useState("");
   const [transferAmount, setTransferAmount] = useState("");
   const [editAmount, setEditAmount] = useState("");
+
+  const handleReconciliationDateChange = async (date: Date | undefined) => {
+    setReconciliationDate(date);
+    if (!user || !date) return;
+    const prefRef = doc(db, "user_preferences", user.uid);
+    await runTransaction(db, async (transaction) => {
+      const prefDoc = await transaction.get(prefRef);
+      if (prefDoc.exists()) {
+        transaction.update(prefRef, { reconciliationDate: date.toISOString() });
+      } else {
+        transaction.set(prefRef, { reconciliationDate: date.toISOString() });
+      }
+    });
+  };
 
   const handleAmountChange = (setter: React.Dispatch<React.SetStateAction<string>>) => (e: React.ChangeEvent<HTMLInputElement>) => {
     setter(e.target.value);
@@ -379,21 +398,21 @@ export function TransactionTable({
     const accountPreferences = accounts.find(a => a.id === accountId);
   
     let reconciliationBalance: number;
-    let reconciliationDate: Date;
+    let effectiveReconciliationDate: Date;
   
     if (isPrimaryView) {
       reconciliationBalance = primaryAccount.actualBalance ?? 0;
-      reconciliationDate = primaryAccount.actualBalanceDate ? parseISO(primaryAccount.actualBalanceDate) : new Date(0);
+      effectiveReconciliationDate = reconciliationDate ?? (primaryAccount.actualBalanceDate ? parseISO(primaryAccount.actualBalanceDate) : new Date(0));
     } else {
       reconciliationBalance = accountPreferences?.actualBalance ?? 0;
-      reconciliationDate = accountPreferences?.actualBalanceDate ? parseISO(accountPreferences.actualBalanceDate) : new Date(0);
+      effectiveReconciliationDate = reconciliationDate ?? (accountPreferences?.actualBalanceDate ? parseISO(accountPreferences.actualBalanceDate) : new Date(0));
     }
   
     const chronologicalTransactions = [...filteredTransactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     const balanceMap = new Map<string, number>();
   
-    const afterReconTx = chronologicalTransactions.filter(t => isAfter(parseISO(t.date), reconciliationDate) || isSameDay(parseISO(t.date), reconciliationDate));
-    const beforeReconTx = chronologicalTransactions.filter(t => isBefore(parseISO(t.date), reconciliationDate));
+    const afterReconTx = chronologicalTransactions.filter(t => isAfter(parseISO(t.date), effectiveReconciliationDate) || isSameDay(parseISO(t.date), effectiveReconciliationDate));
+    const beforeReconTx = chronologicalTransactions.filter(t => isBefore(parseISO(t.date), effectiveReconciliationDate));
   
     const calculateChange = (t: Transaction): number => {
       const isInView = (accId?: string): boolean => {
@@ -436,7 +455,7 @@ export function TransactionTable({
       ...t,
       balance: balanceMap.get(t.id) ?? 0,
     }));
-  }, [filteredTransactions, accountId, accounts, primaryAccount]);
+  }, [filteredTransactions, accountId, accounts, primaryAccount, reconciliationDate]);
 
 
   const totalPages = Math.ceil(transactionsWithBalance.length / itemsPerPage);
@@ -475,12 +494,27 @@ export function TransactionTable({
         const userLoans = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Loan));
         setLoans(userLoans);
       });
+      
+      const preferencesDocRef = doc(db, "user_preferences", user.uid);
+      const unsubscribePreferences = onSnapshot(preferencesDocRef, (doc) => {
+        if (doc.exists()) {
+          const prefs = doc.data();
+           if (prefs.reconciliationDate) {
+              setReconciliationDate(new Date(prefs.reconciliationDate));
+          } else {
+              setReconciliationDate(new Date());
+          }
+        } else {
+             setReconciliationDate(new Date());
+        }
+      });
 
       return () => {
         unsubscribeAccounts();
         unsubscribeTransactions();
         unsubscribeCategories();
         unsubscribeLoans();
+        unsubscribePreferences();
       };
     }
   }, [user, db]);
@@ -862,26 +896,26 @@ export function TransactionTable({
                     <span className="sr-only">Print</span>
                 </Button>
                  {isPrimaryView && (
-                  <div className="flex items-center gap-2 p-2 rounded-md border bg-card text-card-foreground shadow-sm">
-                      <CalendarIcon className="h-5 w-5 text-red-600" />
-                      <Label htmlFor="reconciliation-date" className="text-sm font-bold text-red-600 flex-shrink-0">Reconciliation Date:</Label>
-                      <Input
-                          id="reconciliation-date"
-                          type="date"
-                          value={reconciliationDate ? format(reconciliationDate, 'yyyy-MM-dd') : ''}
-                          onChange={(e) => {
-                              const dateValue = e.target.value;
-                              const newDate = dateValue ? new Date(dateValue) : undefined;
-                              if (newDate) {
-                                  const timezoneOffset = newDate.getTimezoneOffset() * 60000;
-                                  onReconciliationDateChange(new Date(newDate.getTime() + timezoneOffset));
-                              } else {
-                                  onReconciliationDateChange(undefined);
-                              }
-                          }}
-                          className="w-full sm:w-auto bg-transparent border-none outline-none font-bold text-red-600 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0"
-                      />
-                  </div>
+                    <div className="flex items-center gap-2 p-2 rounded-md border bg-card text-card-foreground shadow-sm">
+                        <CalendarIcon className="h-5 w-5 text-red-600" />
+                        <Label htmlFor="reconciliation-date" className="text-sm font-bold text-red-600 flex-shrink-0">Reconciliation Date:</Label>
+                        <Input
+                            id="reconciliation-date"
+                            type="date"
+                            value={reconciliationDate ? format(reconciliationDate, 'yyyy-MM-dd') : ''}
+                            onChange={(e) => {
+                                const dateValue = e.target.value;
+                                const newDate = dateValue ? new Date(dateValue) : undefined;
+                                if (newDate) {
+                                    const timezoneOffset = newDate.getTimezoneOffset() * 60000;
+                                    handleReconciliationDateChange(new Date(newDate.getTime() + timezoneOffset));
+                                } else {
+                                    handleReconciliationDateChange(undefined);
+                                }
+                            }}
+                            className="w-full sm:w-auto bg-transparent border-none outline-none font-bold text-red-600 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0"
+                        />
+                    </div>
                  )}
             </div>
 
@@ -1167,14 +1201,15 @@ export function TransactionTable({
           <Table className="min-w-full table-fixed">
             <TableHeader className="sticky top-0 z-10 bg-background">
                 <TableRow>
-                <TableHead className="w-[5%]">Sl.</TableHead>
+                <TableHead className="w-[4%]">Sl.</TableHead>
                 <TableHead className="w-[8%]">Date</TableHead>
-                <TableHead className="w-[20%]">Description</TableHead>
+                <TableHead className="w-[18%]">Description</TableHead>
                 <TableHead className="w-[10%]">Type</TableHead>
-                <TableHead className="w-[15%]">Account</TableHead>
+                <TableHead className="w-[12%]">Account</TableHead>
                 <TableHead className="w-[12%]">Category</TableHead>
-                <TableHead className="text-right w-[10%]">Debit</TableHead>
-                <TableHead className="text-right w-[10%]">Credit</TableHead>
+                <TableHead className="text-right w-[8%]">Debit</TableHead>
+                <TableHead className="text-right w-[8%]">Transfer</TableHead>
+                <TableHead className="text-right w-[8%]">Credit</TableHead>
                 <TableHead className="text-right w-[10%]">Balance</TableHead>
                 <TableHead className="text-right print-hide w-[10%]">Actions</TableHead>
                 </TableRow>
@@ -1185,13 +1220,15 @@ export function TransactionTable({
                   
                   let debit = null;
                   let credit = null;
+                  let transfer = null;
 
                   if (t.type === 'income') {
                       credit = t.amount;
                   } else if (t.type === 'expense') {
                       debit = t.amount;
                   } else if (t.type === 'transfer') {
-                      // For transfers, we determine debit/credit based on the current view
+                      const isWalletTransfer = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
+                      
                       const isPrimaryView = primaryAccount?.id === accountId;
                       
                       const fromCurrentView = isPrimaryView 
@@ -1202,7 +1239,9 @@ export function TransactionTable({
                           ? (t.toAccountId === accountId || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet')
                           : t.toAccountId === accountId;
 
-                      if(fromCurrentView && !toCurrentView) {
+                      if (isWalletTransfer && fromCurrentView) {
+                          transfer = t.amount;
+                      } else if(fromCurrentView && !toCurrentView) {
                           debit = t.amount;
                       } else if (!fromCurrentView && toCurrentView) {
                           credit = t.amount;
@@ -1231,6 +1270,9 @@ export function TransactionTable({
                         
                         <TableCell className="text-right font-mono text-red-600">
                             {debit !== null ? formatCurrency(debit) : null}
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-blue-600">
+                            {transfer !== null ? formatCurrency(transfer) : null}
                         </TableCell>
                         <TableCell className="text-right font-mono text-green-600">
                              {credit !== null ? formatCurrency(credit) : null}
@@ -1448,5 +1490,3 @@ export function TransactionTable({
     </>
   );
 }
-
-    
