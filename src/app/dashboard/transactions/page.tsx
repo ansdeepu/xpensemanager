@@ -272,7 +272,7 @@ export default function TransactionsPage() {
                     <span className="font-bold text-2xl text-primary">{formatCurrency(allBalance)}</span>
                   </div>
                   
-                  <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-6 text-left py-4">
+                  <div className="w-full grid grid-cols-1 gap-2 text-left">
                     {/* Bank Column */}
                     <div className="space-y-2">
                       <Label htmlFor={`actual-balance-${primaryAccount.id}`} className="text-xs">Bank Balance</Label>
