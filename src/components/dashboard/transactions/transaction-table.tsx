@@ -10,9 +10,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  CardContent,
-} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -48,12 +45,15 @@ import type { Transaction, Account, Category, Bill, Loan } from "@/lib/data";
 import { Pencil, Trash2 } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, doc, runTransaction, orderBy, getDocs, writeBatch } from "firebase/firestore";
-import { format, addMonths, addQuarters, addYears, isBefore, isSameDay, isAfter, parseISO } from "date-fns";
+import { format, isAfter, isSameDay, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useAuthState } from "@/hooks/use-auth-state";
 
 const formatCurrency = (amount: number) => {
+    if (Object.is(amount, -0)) {
+        amount = 0;
+    }
     if (amount % 1 === 0) {
       return new Intl.NumberFormat("en-IN", {
         style: "decimal",
@@ -61,13 +61,13 @@ const formatCurrency = (amount: number) => {
         maximumFractionDigits: 0,
       }).format(amount);
     }
-    const formatter = new Intl.NumberFormat("en-IN", {
-      style: "decimal",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 2,
-    });
-    return formatter.format(amount);
+    return new Intl.NumberFormat("en-IN", {
+        style: "decimal",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+    }).format(amount);
 };
+
 
 // Function to safely evaluate math expressions
 const evaluateMath = (expression: string): number | null => {
@@ -123,45 +123,6 @@ export function TransactionTable({
       setter(String(result));
     }
   };
-
-  const { cashWalletBalance, digitalWalletBalance, accountBalances } = useMemo(() => {
-    const balances: { [key: string]: number } = {};
-    accounts.forEach(acc => {
-      balances[acc.id] = 0;
-    });
-
-    let cash = 0;
-    let digital = 0;
-    transactions.forEach((t) => {
-      if (t.type === 'income' && t.accountId && balances[t.accountId] !== undefined) {
-        balances[t.accountId] += t.amount;
-      } else if (t.type === 'expense') {
-        if (t.paymentMethod === 'online' && t.accountId && balances[t.accountId] !== undefined) {
-          balances[t.accountId] -= t.amount;
-        } else if (t.paymentMethod === 'cash') {
-          cash -= t.amount;
-        } else if (t.paymentMethod === 'digital') {
-          digital -= t.amount;
-        }
-      } else if (t.type === 'transfer') {
-        if (t.fromAccountId && balances[t.fromAccountId] !== undefined) {
-          balances[t.fromAccountId] -= t.amount;
-        } else if (t.fromAccountId === 'cash-wallet') {
-          cash -= t.amount;
-        } else if (t.fromAccountId === 'digital-wallet') {
-          digital -= t.amount;
-        }
-        if (t.toAccountId && balances[t.toAccountId] !== undefined) {
-          balances[t.toAccountId] += t.amount;
-        } else if (t.toAccountId === 'cash-wallet') {
-          cash += t.amount;
-        } else if (t.toAccountId === 'digital-wallet') {
-          digital += t.amount;
-        }
-      }
-    });
-    return { cashWalletBalance: cash, digitalWalletBalance: digital, accountBalances: balances };
-  }, [transactions, accounts]);
 
    const editSubcategories = useMemo(() => {
     if (!editCategory) return [];
@@ -495,7 +456,6 @@ export function TransactionTable({
 
   return (
     <>
-    <CardContent className="p-0">
       <div className="relative overflow-auto max-h-[calc(100vh-350px)]">
         <Table className="min-w-full table-fixed">
           <TableHeader className="sticky top-0 z-10 bg-background">
@@ -612,9 +572,8 @@ export function TransactionTable({
           </TableBody>
         </Table>
       </div>
-    </CardContent>
     <div className="hidden print-block">
-      <CardContent id="printable-area-content">
+      <div id="printable-area">
           <Table>
               <TableHeader>
                   <TableRow>
@@ -641,7 +600,7 @@ export function TransactionTable({
                   ))}
               </TableBody>
           </Table>
-      </CardContent>
+      </div>
     </div>
 
     {/* Edit Transaction Dialog */}
@@ -772,3 +731,5 @@ export function TransactionTable({
     </>
   );
 }
+
+    

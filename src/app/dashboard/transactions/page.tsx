@@ -14,8 +14,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { useAuthState } from "@/hooks/use-auth-state";
-import { Card, CardFooter, CardHeader } from "@/components/ui/card";
+import { Card, CardFooter, CardHeader, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { AddTransactionDialog } from "@/components/dashboard/transactions/add-transaction-dialog";
 
 const formatCurrency = (amount: number) => {
   if (Object.is(amount, -0)) {
@@ -571,6 +572,8 @@ export default function TransactionsPage() {
                             <Printer className="h-5 w-5" />
                             <span className="sr-only">Print</span>
                         </Button>
+                    </div>
+                     <div className="flex items-center gap-4">
                         {reconciliationDate && (
                             <div className="flex items-center gap-2 p-2 rounded-md border bg-card text-card-foreground shadow-sm">
                                 <CalendarIcon className="h-5 w-5" />
@@ -592,17 +595,18 @@ export default function TransactionsPage() {
                                 />
                             </div>
                         )}
+                        <AddTransactionDialog />
                     </div>
                 </div>
             </CardHeader>
-            <TabsContent value={activeTab || ''}>
-                <TransactionTable 
-                    transactions={pagedTransactions} 
-                    reconciliationDate={reconciliationDate} 
-                    accountId={activeTab || ''}
-                />
-            </TabsContent>
-            {totalPages > 0 && (
+            <CardContent className="p-0">
+              <TransactionTable 
+                  transactions={pagedTransactions} 
+                  reconciliationDate={reconciliationDate} 
+                  accountId={activeTab || ''}
+              />
+            </CardContent>
+            {totalPages > 1 && (
                 <CardFooter className="justify-center border-t p-4">
                   <PaginationControls currentPage={currentPage} totalPages={totalPages} setCurrentPage={setCurrentPage} />
                 </CardFooter>
@@ -612,3 +616,5 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+    
