@@ -359,7 +359,7 @@ export default function TransactionsPage() {
               {secondaryAccounts.map((account, index) => {
                 const balanceDifference = getBalanceDifference(account.balance, account.actualBalance);
                 return (
-                  <TabsTrigger key={account.id} value={account.id} className={cn("border flex flex-col h-auto p-3 items-start text-left gap-2", tabColors[index % tabColors.length], textColors[index % textColors.length])}>
+                  <TabsTrigger key={account.id} value={account.id} className={cn("border flex flex-col h-full p-3 items-start text-left gap-2", tabColors[index % tabColors.length], textColors[index % textColors.length])}>
                       <div className="w-full flex justify-between items-center">
                           <span className="font-semibold text-sm">{account.name}</span>
                           <span className="font-bold">{formatCurrency(account.balance)}</span>
@@ -396,7 +396,7 @@ export default function TransactionsPage() {
               {otherAccounts.map((account, index) => {
                 const balanceDifference = getBalanceDifference(account.balance, account.actualBalance);
                 return (
-                  <TabsTrigger key={account.id} value={account.id} className={cn("border flex flex-col h-auto p-3 items-start text-left gap-2", tabColors[(secondaryAccounts.length + index) % tabColors.length], textColors[(secondaryAccounts.length + index) % textColors.length])}>
+                  <TabsTrigger key={account.id} value={account.id} className={cn("border flex flex-col h-full p-3 items-start text-left gap-2", tabColors[(secondaryAccounts.length + index) % tabColors.length], textColors[(secondaryAccounts.length + index) % textColors.length])}>
                       <div className="w-full flex justify-between items-center">
                           <span className="font-semibold text-sm">{account.name}</span>
                           <span className="font-bold">{formatCurrency(account.balance)}</span>
@@ -444,3 +444,5 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+    
