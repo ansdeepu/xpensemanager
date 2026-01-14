@@ -67,7 +67,7 @@ export function Header({ pageTitle, pageDescription }: { pageTitle: string, page
   return (
     <header className="sticky top-0 z-10 flex h-20 items-center justify-between gap-4 border-b bg-background px-4 md:px-6">
       <div className="flex items-center gap-2 flex-1">
-        <SidebarTrigger className="md:hidden" />
+        <SidebarTrigger />
         <div>
             <h1 className="text-xl font-semibold">{pageTitle}</h1>
             {pageDescription ? (
