@@ -1136,12 +1136,12 @@ export function TransactionTable({
           <Table className="min-w-full table-fixed">
             <TableHeader className="sticky top-0 z-10 bg-background">
                 <TableRow>
-                <TableHead>Sl.</TableHead>
-                <TableHead>Date</TableHead>
+                <TableHead className="w-[5%]">Sl.</TableHead>
+                <TableHead className="w-[10%]">Date</TableHead>
                 <TableHead className="w-[20%]">Description</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Account</TableHead>
-                <TableHead>Category</TableHead>
+                <TableHead className="w-[10%]">Type</TableHead>
+                <TableHead className="w-[15%]">Account</TableHead>
+                <TableHead className="w-[15%]">Category</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
                 <TableHead className="text-right">Transfer</TableHead>
                 <TableHead className="text-right">Balance</TableHead>
@@ -1387,5 +1387,3 @@ export function TransactionTable({
     </>
   );
 }
-
-    
