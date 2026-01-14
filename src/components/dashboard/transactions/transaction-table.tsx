@@ -294,7 +294,9 @@ export function TransactionTable({
         }
       } else if (t.type === 'transfer') {
         if (isPrimaryView) {
-            if (t.fromAccountId === accountId || t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet') {
+            const isLoanGiven = t.loanTransactionId && loans.some(l => l.type === 'given' && l.transactions.some(lt => lt.id === t.loanTransactionId && lt.type === 'loan'));
+            
+            if (t.fromAccountId === accountId || t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet' || isLoanGiven) {
                 amountChange -= t.amount;
             }
             if (t.toAccountId === accountId || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet') {
@@ -316,8 +318,8 @@ export function TransactionTable({
     return filteredTransactions.map(t => ({
       ...t,
       balance: balanceMap.get(t.id) || 0,
-    }));
-  }, [filteredTransactions, accountId, accounts, accountBalances, cashWalletBalance, digitalWalletBalance]);
+    })).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [filteredTransactions, accountId, accounts, accountBalances, cashWalletBalance, digitalWalletBalance, loans]);
 
 
   const totalPages = Math.ceil(transactionsWithBalance.length / itemsPerPage);
@@ -633,7 +635,12 @@ export function TransactionTable({
   
       setIsEditDialogOpen(false);
       setSelectedTransaction(null);
-    } catch (error) {
+    } catch (error: any) {
+        toast({
+            variant: "destructive",
+            title: "Update Failed",
+            description: error.message || "An unexpected error occurred."
+        })
     }
   };
 
@@ -1186,7 +1193,7 @@ export function TransactionTable({
                                             <Trash2 className="h-4 w-4" />
                                         </Button>
                                     </AlertDialogTrigger>
-                                    <AlertDialogContent>
+                                    <AlertDialogContent onInteractOutside={(e) => e.preventDefault()}>
                                         <AlertDialogHeader>
                                             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                                             <AlertDialogDescription>
