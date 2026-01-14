@@ -56,8 +56,6 @@ import type { Transaction, Account, Category, Bill, Loan, LoanTransaction } from
 import { PlusCircle, Pencil, Trash2, CalendarIcon, Printer, Search, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, XCircle } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
 import { collection, addDoc, query, where, onSnapshot, doc, runTransaction, orderBy, deleteDoc, getDoc, getDocs, limit, writeBatch, updateDoc } from "firebase/firestore";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
 import { format, addMonths, addQuarters, addYears, isAfter, isWithinInterval, startOfDay, endOfDay, isBefore, parseISO, isSameDay } from "date-fns";
 import { DateRange } from "react-day-picker";
 import { cn } from "@/lib/utils";
@@ -108,7 +106,8 @@ export function TransactionTable({
   const [selectedExpenseCategory, setSelectedExpenseCategory] = useState<string | undefined>();
   const [selectedIncomeCategory, setSelectedIncomeCategory] = useState<string | undefined>();
   const [date, setDate] = useState<Date | undefined>(new Date());
-  const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
   const [editDate, setEditDate] = useState<Date | undefined>(new Date());
   const [editCategory, setEditCategory] = useState<string | undefined>();
   const [searchQuery, setSearchQuery] = useState("");
@@ -309,8 +308,8 @@ export function TransactionTable({
 
         let filtered = [...sourceTransactions];
 
-        if (dateRange?.from && dateRange?.to) {
-            const interval = { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to) };
+        if (startDate && endDate) {
+            const interval = { start: startOfDay(new Date(startDate)), end: endOfDay(new Date(endDate)) };
             filtered = filtered.filter(t => isWithinInterval(new Date(t.date), interval));
         }
 
@@ -325,7 +324,7 @@ export function TransactionTable({
         }
         
         return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    }, [transactions, accountId, dateRange, searchQuery, accounts, loans]);
+    }, [transactions, accountId, startDate, endDate, searchQuery, accounts, loans]);
 
   const transactionsWithBalance = useMemo(() => {
     if (!primaryAccount) return [];
@@ -457,7 +456,7 @@ export function TransactionTable({
 
    useEffect(() => {
     setCurrentPage(1);
-   }, [dateRange, searchQuery, accountId]);
+   }, [startDate, endDate, searchQuery, accountId]);
   
   const handleAddTransaction = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -757,7 +756,8 @@ export function TransactionTable({
 
   const handleClearFilters = () => {
     setSearchQuery("");
-    setDateRange(undefined);
+    setStartDate('');
+    setEndDate('');
   }
 
   const getLoanAmountColor = (loanInfo: { type: string }) => {
@@ -789,43 +789,21 @@ export function TransactionTable({
               className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[320px]"
             />
           </div>
-          <div className="w-full md:w-auto">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  id="date"
-                  variant={"outline"}
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !dateRange && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {dateRange?.from ? (
-                    dateRange.to ? (
-                      <>
-                        {format(dateRange.from, "LLL dd, y")} -{" "}
-                        {format(dateRange.to, "LLL dd, y")}
-                      </>
-                    ) : (
-                      format(dateRange.from, "LLL dd, y")
-                    )
-                  ) : (
-                    <span>Pick a date range</span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  initialFocus
-                  mode="range"
-                  defaultMonth={dateRange?.from}
-                  selected={dateRange}
-                  onSelect={setDateRange}
-                  numberOfMonths={2}
-                />
-              </PopoverContent>
-            </Popover>
+          <div className="flex w-full md:w-auto items-center gap-2">
+            <Input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-full"
+            />
+            <span className="text-muted-foreground">to</span>
+            <Input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="w-full"
+              min={startDate}
+            />
           </div>
           <Button onClick={handleClearFilters} variant="ghost" size="icon" className="h-10 w-10">
             <XCircle className="h-5 w-5" />
@@ -1108,52 +1086,10 @@ export function TransactionTable({
             </DialogContent>
           </Dialog>
         </div>
-        {totalPages > 1 && (
-            <div className="flex justify-center items-center gap-2">
-                <Button
-                  variant="outline"
-                  className="h-8 w-8 p-0"
-                  onClick={() => setCurrentPage(1)}
-                  disabled={currentPage === 1}
-                >
-                  <span className="sr-only">Go to first page</span>
-                  <ChevronsLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-8 w-8 p-0"
-                  onClick={() => setCurrentPage(prev => prev - 1)}
-                  disabled={currentPage === 1}
-                >
-                  <span className="sr-only">Go to previous page</span>
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <div className="flex items-center justify-center text-sm font-medium">
-                  Page {currentPage} of {totalPages}
-                </div>
-                <Button
-                  variant="outline"
-                  className="h-8 w-8 p-0"
-                  onClick={() => setCurrentPage(prev => prev + 1)}
-                  disabled={currentPage === totalPages}
-                >
-                  <span className="sr-only">Go to next page</span>
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-8 w-8 p-0"
-                  onClick={() => setCurrentPage(totalPages)}
-                  disabled={currentPage === totalPages}
-                >
-                  <span className="sr-only">Go to last page</span>
-                  <ChevronsRight className="h-4 w-4" />
-                </Button>
-            </div>
-        )}
+        
       </CardHeader>
       <CardContent className="p-0">
-        <div className="relative overflow-auto max-h-[calc(100vh-350px)]">
+        <div className="relative overflow-auto max-h-[calc(100vh-250px)]">
           <Table className="min-w-full">
             <TableHeader className="sticky top-0 z-10 bg-background">
                 <TableRow>
@@ -1232,14 +1168,59 @@ export function TransactionTable({
           </Table>
         </div>
       </CardContent>
+       {totalPages > 1 && (
+            <CardFooter className="justify-center border-t p-4">
+                <div className="flex items-center gap-2">
+                    <Button
+                    variant="outline"
+                    className="h-8 w-8 p-0"
+                    onClick={() => setCurrentPage(1)}
+                    disabled={currentPage === 1}
+                    >
+                    <span className="sr-only">Go to first page</span>
+                    <ChevronsLeft className="h-4 w-4" />
+                    </Button>
+                    <Button
+                    variant="outline"
+                    className="h-8 w-8 p-0"
+                    onClick={() => setCurrentPage(prev => prev - 1)}
+                    disabled={currentPage === 1}
+                    >
+                    <span className="sr-only">Go to previous page</span>
+                    <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <div className="flex items-center justify-center text-sm font-medium">
+                    Page {currentPage} of {totalPages}
+                    </div>
+                    <Button
+                    variant="outline"
+                    className="h-8 w-8 p-0"
+                    onClick={() => setCurrentPage(prev => prev + 1)}
+                    disabled={currentPage === totalPages}
+                    >
+                    <span className="sr-only">Go to next page</span>
+                    <ChevronRight className="h-4 w-4" />
+                    </Button>
+                    <Button
+                    variant="outline"
+                    className="h-8 w-8 p-0"
+                    onClick={() => setCurrentPage(totalPages)}
+                    disabled={currentPage === totalPages}
+                    >
+                    <span className="sr-only">Go to last page</span>
+                    <ChevronsRight className="h-4 w-4" />
+                    </Button>
+                </div>
+            </CardFooter>
+        )}
     </Card>
     <div className="hidden print-block">
       <Card id="printable-area-content">
           <CardHeader>
               <CardTitle>Transaction Report</CardTitle>
               <CardDescription>
-                  {dateRange?.from && dateRange.to 
-                      ? `From ${format(dateRange.from, 'dd/MM/yyyy')} to ${format(dateRange.to, 'dd/MM/yyyy')}`
+                  {startDate && endDate 
+                      ? `From ${format(new Date(startDate), 'dd/MM/yyyy')} to ${format(new Date(endDate), 'dd/MM/yyyy')}`
                       : 'All Transactions'
                   }
               </CardDescription>
