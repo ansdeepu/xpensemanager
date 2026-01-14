@@ -1049,7 +1049,7 @@ export function TransactionTable({
                               className="hide-number-arrows"
                               value={transferAmount}
                               onChange={handleAmountChange(setTransferAmount)}
-                              onBlur={() => handleAmountBlur(transferAmount, setTransferAmount)}
+                              onBlur={() => handleAmountBlur(transferAmount, setIncomeAmount)}
                           />
                       </div>
                   </TabsContent>
@@ -1063,6 +1063,49 @@ export function TransactionTable({
             </DialogContent>
           </Dialog>
         </div>
+        {totalPages > 1 && (
+            <div className="flex justify-center items-center gap-2 print-hide pt-4">
+                <Button
+                variant="outline"
+                className="h-8 w-8 p-0"
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                >
+                <span className="sr-only">Go to first page</span>
+                <ChevronsLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                variant="outline"
+                className="h-8 w-8 p-0"
+                onClick={() => setCurrentPage(prev => prev - 1)}
+                disabled={currentPage === 1}
+                >
+                <span className="sr-only">Go to previous page</span>
+                <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <div className="flex items-center justify-center text-sm font-medium">
+                Page {currentPage} of {totalPages}
+                </div>
+                <Button
+                variant="outline"
+                className="h-8 w-8 p-0"
+                onClick={() => setCurrentPage(prev => prev + 1)}
+                disabled={currentPage === totalPages}
+                >
+                <span className="sr-only">Go to next page</span>
+                <ChevronRight className="h-4 w-4" />
+                </Button>
+                <Button
+                variant="outline"
+                className="h-8 w-8 p-0"
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+                >
+                <span className="sr-only">Go to last page</span>
+                <ChevronsRight className="h-4 w-4" />
+                </Button>
+            </div>
+        )}
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">
@@ -1144,49 +1187,6 @@ export function TransactionTable({
           </Table>
         </div>
       </CardContent>
-      {totalPages > 1 && (
-        <CardFooter className="flex justify-center items-center gap-2 print-hide pt-6">
-            <Button
-              variant="outline"
-              className="h-8 w-8 p-0"
-              onClick={() => setCurrentPage(1)}
-              disabled={currentPage === 1}
-            >
-              <span className="sr-only">Go to first page</span>
-              <ChevronsLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              className="h-8 w-8 p-0"
-              onClick={() => setCurrentPage(prev => prev - 1)}
-              disabled={currentPage === 1}
-            >
-              <span className="sr-only">Go to previous page</span>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <div className="flex items-center justify-center text-sm font-medium">
-              Page {currentPage} of {totalPages}
-            </div>
-            <Button
-              variant="outline"
-              className="h-8 w-8 p-0"
-              onClick={() => setCurrentPage(prev => prev + 1)}
-              disabled={currentPage === totalPages}
-            >
-              <span className="sr-only">Go to next page</span>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              className="h-8 w-8 p-0"
-              onClick={() => setCurrentPage(totalPages)}
-              disabled={currentPage === totalPages}
-            >
-              <span className="sr-only">Go to last page</span>
-              <ChevronsRight className="h-4 w-4" />
-            </Button>
-        </CardFooter>
-      )}
     </Card>
 
     {/* Edit Transaction Dialog */}
