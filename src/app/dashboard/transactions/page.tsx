@@ -327,11 +327,9 @@ export default function TransactionsPage() {
     });
   }, [allTransactions, activeTab, startDate, endDate, searchQuery, primaryAccount]);
 
- const allBalance = (primaryAccount ? primaryAccount.balance : 0) + cashWalletBalance + digitalWalletBalance;
 
  const transactionsWithRunningBalance = useMemo(() => {
     const isPrimaryView = primaryAccount?.id === activeTab;
-    const currentViewTotalBalance = isPrimaryView ? allBalance : (accounts.find(a => a.id === activeTab)?.balance ?? 0);
 
     const getEffectOnBalance = (t: Transaction) => {
       const fromAccountIsWallet = t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
@@ -354,11 +352,11 @@ export default function TransactionsPage() {
           break;
         case 'transfer':
           if (fromCurrentView && toCurrentView) {
-            effect = 0; // Internal transfer within the view's scope
+            effect = 0; 
           } else if (toCurrentView) {
-            effect = t.amount; // Money coming into the view
+            effect = t.amount; 
           } else if (fromCurrentView) {
-            effect = -t.amount; // Money leaving the view
+            effect = -t.amount;
           }
           break;
         default:
@@ -367,23 +365,21 @@ export default function TransactionsPage() {
       return effect;
     };
     
-    // Start with the current, correct total balance.
-    let runningBalance = currentViewTotalBalance;
+    // Sort transactions from oldest to newest for forward calculation
+    const chronologicalTransactions = [...filteredTransactions].reverse();
     
-    // Map over transactions (newest to oldest) and calculate historical balance.
-    const withBalance = filteredTransactions.map(t => {
-        const balanceForThisRow = runningBalance;
-        
-        // To find the balance before this transaction, we reverse its effect.
+    let runningBalance = 0; // Start balance from zero
+    
+    const withBalance = chronologicalTransactions.map(t => {
         const effect = getEffectOnBalance(t);
-        runningBalance -= effect; 
-        
-        return { ...t, balance: balanceForThisRow };
+        runningBalance += effect; 
+        return { ...t, balance: runningBalance };
     });
 
-    return withBalance;
+    // Reverse back to newest-first for display
+    return withBalance.reverse();
 
-  }, [filteredTransactions, activeTab, primaryAccount, allBalance, accounts]);
+  }, [filteredTransactions, activeTab, primaryAccount, accounts]);
 
 
   const totalPages = Math.ceil(transactionsWithRunningBalance.length / itemsPerPage);
@@ -429,6 +425,7 @@ export default function TransactionsPage() {
   const cashBalanceDifference = getBalanceDifference(cashWalletBalance, walletPreferences.cash?.balance);
   const digitalBalanceDifference = getBalanceDifference(digitalWalletBalance, walletPreferences.digital?.balance);
   const primaryAccountBalanceDifference = primaryAccount ? getBalanceDifference(primaryAccount.balance, primaryAccount.actualBalance) : null;
+  const allBalance = (primaryAccount ? primaryAccount.balance : 0) + cashWalletBalance + digitalWalletBalance;
   
   const accountDataForDialog = [
     { id: 'cash-wallet', name: 'Cash Wallet', balance: cashWalletBalance },
