@@ -164,26 +164,27 @@ export function TransactionTable({
       }
   
       const currentAccount = accounts.find(a => a.id === accountId);
-      const isVirtualAccountView = currentAccount && !currentAccount.isPrimary;
-  
+
       for (const loan of loans) {
           const loanTx = loan.transactions.find(lt => lt.id === t.loanTransactionId);
           if (loanTx) {
               let type: string;
               let description: string = t.description;
-  
-              if (isVirtualAccountView && currentAccount?.name === loan.personName) {
-                  // Viewing from the other party's perspective
-                  const otherPartyAccountName = getAccountName(loanTx.accountId);
-                  if (loan.type === 'taken') { // User took a loan from this person (Post Bank)
+              
+              const isViewingFromLoanPartyAccount = currentAccount && loan.personName === currentAccount.name;
+
+              if (isViewingFromLoanPartyAccount) {
+                  // Viewing from the other party's perspective (e.g., Money Box tab if Money Box is a loan party)
+                  const userAccountName = getAccountName(loanTx.accountId);
+                  if (loan.type === 'taken') { // User took a loan from this party
                       type = loanTx.type === 'loan' ? 'Loan Given' : 'Repayment Received';
-                      description = `${''}${type} ${loanTx.type === 'loan' ? 'to' : 'from'} ${otherPartyAccountName}`;
-                  } else { // User gave a loan to this person
+                      description = `${type} ${loanTx.type === 'loan' ? 'to' : 'from'} ${userAccountName}`;
+                  } else { // User gave a loan to this party
                       type = loanTx.type === 'loan' ? 'Loan Taken' : 'Repayment Made';
-                      description = `${''}${type} ${loanTx.type === 'loan' ? 'from' : 'to'} ${otherPartyAccountName}`;
+                      description = `${type} ${loanTx.type === 'loan' ? 'from' : 'to'} ${userAccountName}`;
                   }
               } else {
-                  // Viewing from the user's main account perspective
+                  // Viewing from the user's primary or another non-loan-party account
                   if (loan.type === 'given') {
                       type = loanTx.type === 'loan' ? "Loan Given" : "Repayment Received";
                       description = `${type} ${loanTx.type === 'loan' ? 'to' : 'from'} ${loan.personName}`;
