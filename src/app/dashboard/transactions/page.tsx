@@ -336,8 +336,10 @@ export default function TransactionsPage() {
     const getEffectOnBalance = (t: Transaction) => {
       const fromAccountIsWallet = t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
       const toAccountIsWallet = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
+      
       const fromCurrentView = isPrimaryView ? (t.fromAccountId === activeTab || fromAccountIsWallet) : t.fromAccountId === activeTab;
       const toCurrentView = isPrimaryView ? (t.toAccountId === activeTab || toAccountIsWallet) : t.toAccountId === activeTab;
+      
       const accountIsInView = isPrimaryView ? (t.accountId === activeTab || t.paymentMethod === 'cash' || t.paymentMethod === 'digital') : t.accountId === activeTab;
 
       if (!fromCurrentView && !toCurrentView && !accountIsInView) return 0;
@@ -352,11 +354,11 @@ export default function TransactionsPage() {
           break;
         case 'transfer':
           if (fromCurrentView && toCurrentView) {
-            effect = 0; // Internal transfer within the view
+            effect = 0; // Internal transfer within the view's scope
           } else if (toCurrentView) {
-            effect = t.amount; // Transfer in
+            effect = t.amount; // Money coming into the view
           } else if (fromCurrentView) {
-            effect = -t.amount; // Transfer out
+            effect = -t.amount; // Money leaving the view
           }
           break;
         default:
@@ -365,24 +367,21 @@ export default function TransactionsPage() {
       return effect;
     };
     
-    // Transactions are sorted newest to oldest. To calculate running balance correctly,
-    // we must start from the oldest and work forward.
-    const reversedTransactions = [...filteredTransactions].reverse();
-
-    // Calculate the total effect of all transactions to find the starting balance.
-    const totalEffect = filteredTransactions.reduce((sum, t) => sum + getEffectOnBalance(t), 0);
+    // Start with the current, correct total balance.
+    let runningBalance = currentViewTotalBalance;
     
-    // The balance before the very first transaction.
-    let runningBalance = currentViewTotalBalance - totalEffect;
-    
-    const withBalance = reversedTransactions.map(t => {
-        // Add the effect of the current transaction to get the balance *after* this transaction.
-        runningBalance += getEffectOnBalance(t);
-        return { ...t, balance: runningBalance };
+    // Map over transactions (newest to oldest) and calculate historical balance.
+    const withBalance = filteredTransactions.map(t => {
+        const balanceForThisRow = runningBalance;
+        
+        // To find the balance before this transaction, we reverse its effect.
+        const effect = getEffectOnBalance(t);
+        runningBalance -= effect; 
+        
+        return { ...t, balance: balanceForThisRow };
     });
 
-    // Reverse the array back to newest-to-oldest for display.
-    return withBalance.reverse();
+    return withBalance;
 
   }, [filteredTransactions, activeTab, primaryAccount, allBalance, accounts]);
 
@@ -695,3 +694,5 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+    
