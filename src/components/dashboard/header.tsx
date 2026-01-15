@@ -84,9 +84,9 @@ export function Header() {
   
   const avatarColor = user?.displayName ? generateColor(user.displayName) : '#cccccc';
 
-  const handleOpenNewWindow = () => {
+  const handleOpenNewWindow = (url: string) => {
     if (typeof window !== "undefined") {
-      window.open(window.location.href, '_blank');
+      window.open(url, '_blank');
     }
   }
   
@@ -116,22 +116,23 @@ export function Header() {
             <Wallet className="h-6 w-6 text-primary" />
             <span className="">Expense Manager</span>
             </Link>
-            <Button variant="ghost" size="icon" onClick={handleOpenNewWindow} aria-label="Open in new window" className="h-7 w-7">
-                <ArrowUpRight className="h-4 w-4" />
-            </Button>
          </div>
         <nav className="hidden flex-col gap-6 text-lg font-medium md:flex md:flex-row md:items-center md:gap-5 md:text-sm lg:gap-6">
             {menuItems.map(item => (
-            <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                    "transition-colors hover:text-foreground",
-                    pathname === item.href ? "text-foreground" : "text-muted-foreground"
-                )}
-            >
-                {item.label}
-            </Link>
+            <div key={item.href} className="flex items-center gap-1">
+                <Link
+                    href={item.href}
+                    className={cn(
+                        "transition-colors hover:text-foreground",
+                        pathname === item.href ? "text-foreground font-medium" : "text-muted-foreground"
+                    )}
+                >
+                    {item.label}
+                </Link>
+                <Button variant="ghost" size="icon" onClick={() => handleOpenNewWindow(item.href)} aria-label={`Open ${item.label} in new window`} className="h-6 w-6">
+                    <ArrowUpRight className="h-3 w-3" />
+                </Button>
+            </div>
             ))}
         </nav>
        </div>
@@ -157,17 +158,21 @@ export function Header() {
                     <span>Expense Manager</span>
                 </Link>
                 {menuItems.map(item => (
-                    <Link
-                        key={item.href}
-                        href={item.href}
-                        onClick={() => setMobileMenuOpen(false)}
-                        className={cn(
-                            "transition-colors hover:text-foreground",
-                            pathname === item.href ? "text-foreground" : "text-muted-foreground"
-                        )}
-                    >
-                        {item.label}
-                    </Link>
+                    <div key={item.href} className="flex items-center justify-between">
+                        <Link
+                            href={item.href}
+                            onClick={() => setMobileMenuOpen(false)}
+                            className={cn(
+                                "transition-colors hover:text-foreground",
+                                pathname === item.href ? "text-foreground" : "text-muted-foreground"
+                            )}
+                        >
+                            {item.label}
+                        </Link>
+                        <Button variant="ghost" size="icon" onClick={() => handleOpenNewWindow(item.href)} aria-label={`Open ${item.label} in new window`} className="h-8 w-8">
+                            <ArrowUpRight className="h-4 w-4" />
+                        </Button>
+                    </div>
                 ))}
                 </nav>
             </SheetContent>
