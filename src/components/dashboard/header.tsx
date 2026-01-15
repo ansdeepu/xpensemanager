@@ -16,6 +16,7 @@ import {
   HandCoins,
   LogOut,
   Menu,
+  ExternalLink,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -82,6 +83,12 @@ export function Header() {
   }
   
   const avatarColor = user?.displayName ? generateColor(user.displayName) : '#cccccc';
+
+  const handleOpenNewWindow = () => {
+    if (typeof window !== "undefined") {
+      window.open(window.location.href, '_blank');
+    }
+  }
   
   if (!clientLoaded) {
     return (
@@ -161,6 +168,9 @@ export function Header() {
             </SheetContent>
         </Sheet>
       <div className="flex items-center gap-4">
+        <Button variant="ghost" size="icon" onClick={handleOpenNewWindow} aria-label="Open in new window">
+            <ExternalLink className="h-5 w-5" />
+        </Button>
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="flex items-center gap-2 rounded-full p-1 pr-3">
