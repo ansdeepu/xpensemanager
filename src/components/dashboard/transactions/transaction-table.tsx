@@ -45,7 +45,7 @@ import type { Transaction, Account, Category, Bill, Loan } from "@/lib/data";
 import { Pencil, Trash2 } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, doc, runTransaction, orderBy, getDocs, writeBatch } from "firebase/firestore";
-import { format, isAfter, isSameDay, parseISO, isBefore } from "date-fns";
+import { format, isAfter, isSameDay, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useAuthState } from "@/hooks/use-auth-state";
@@ -214,8 +214,12 @@ export function TransactionTable({
             ? t.toAccountId === accountId || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet'
             : t.toAccountId === accountId;
 
-        if (t.type === 'income' && toCurrentView) {
-            credit = t.amount;
+        if (t.type === 'income') {
+            if(isPrimaryView) {
+                if (t.accountId === accountId) credit = t.amount;
+            } else {
+                 if (t.accountId === accountId) credit = t.amount;
+            }
         } else if (t.type === 'expense') {
             if (isPrimaryView) {
                 if (t.accountId === accountId || t.paymentMethod === 'cash' || t.paymentMethod === 'digital') {
@@ -270,7 +274,11 @@ export function TransactionTable({
             : t.toAccountId === accountId;
 
         if (t.type === 'income') {
-            if (toCurrentView) credit = t.amount;
+            if(isPrimaryView) {
+                if (t.accountId === accountId) credit = t.amount;
+            } else {
+                 if (t.accountId === accountId) credit = t.amount;
+            }
         } else if (t.type === 'expense') {
             if(isPrimaryView) {
                 if (t.accountId === accountId || t.paymentMethod === 'cash' || t.paymentMethod === 'digital') {
