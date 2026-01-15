@@ -175,7 +175,7 @@ export function AddTransactionDialog({ accounts: accountData }: { accounts: (Acc
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button>
+        <Button className="w-full">
           <PlusCircle className="mr-2 h-4 w-4" />
           Add Transaction
         </Button>
