@@ -417,10 +417,87 @@ export default function TransactionsPage() {
 
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
-      <div className="space-y-6">
-        <Tabs defaultValue={primaryAccount?.id || "all-accounts"} value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid grid-cols-1 md:grid-cols-2 gap-2 h-auto items-start p-0 bg-transparent">
+    <div className="space-y-6">
+        <Card className="print-hide">
+            <CardHeader>
+                <CardTitle>Controls</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 items-end">
+                    <div className="space-y-2">
+                        <Label htmlFor="reconciliation-date-input" className="flex items-center gap-2">
+                            <CalendarIcon className="h-5 w-5 text-red-600" />
+                            Reconciliation Date
+                        </Label>
+                        <Input
+                            id="reconciliation-date-input"
+                            type="date"
+                            value={reconciliationDate ? format(reconciliationDate, 'yyyy-MM-dd') : ''}
+                            onChange={(e) => {
+                                const dateValue = e.target.value;
+                                const newDate = dateValue ? new Date(dateValue) : undefined;
+                                if (newDate) {
+                                    const timezoneOffset = newDate.getTimezoneOffset() * 60000;
+                                    handleReconciliationDateChange(new Date(newDate.getTime() + timezoneOffset));
+                                } else {
+                                    handleReconciliationDateChange(undefined);
+                                }
+                            }}
+                            className="w-full"
+                        />
+                    </div>
+                    
+                    <div className="space-y-2">
+                        <Label htmlFor="search-input">Search Transactions</Label>
+                        <div className="relative">
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                            id="search-input"
+                            type="search"
+                            placeholder="Search..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full rounded-lg bg-background pl-8"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="space-y-2 md:col-span-1">
+                        <Label>Filter by Date Range</Label>
+                        <div className="flex items-center gap-2">
+                            <Input
+                            type="date"
+                            value={startDate}
+                            onChange={(e) => setStartDate(e.target.value)}
+                            className="w-full"
+                            />
+                            <span className="text-muted-foreground">to</span>
+                            <Input
+                            type="date"
+                            value={endDate}
+                            onChange={(e) => setEndDate(e.target.value)}
+                            className="w-full"
+                            min={startDate}
+                            />
+                        </div>
+                    </div>
+                </div>
+            </CardContent>
+            <CardFooter className="justify-end gap-2">
+                <AddTransactionDialog accounts={accountDataForDialog} />
+                <Button onClick={handleClearFilters} variant="ghost">
+                    <XCircle className="mr-2 h-4 w-4" />
+                    Clear
+                </Button>
+                <Button onClick={handlePrint} variant="outline">
+                    <Printer className="mr-2 h-4 w-4" />
+                    Print
+                </Button>
+            </CardFooter>
+        </Card>
+      
+      <Tabs defaultValue={primaryAccount?.id || "all-accounts"} value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid grid-cols-1 md:grid-cols-2 gap-2 h-auto items-start p-0 bg-transparent print-hide">
               {primaryAccount && (
                 <TabsTrigger value={primaryAccount.id} className={cn("border flex flex-col h-full p-2 items-start text-left gap-1 w-full data-[state=active]:shadow-lg data-[state=active]:bg-lime-100 dark:data-[state=active]:bg-lime-900/50", "bg-card")}>
                   <div className="w-full flex justify-between">
@@ -592,105 +669,25 @@ export default function TransactionsPage() {
                 )})}
               </div>
           </TabsList>
-          
-          <Card className="mt-6">
-              <CardContent className="p-0">
-                <TransactionTable 
-                    transactions={pagedTransactions} 
-                    accountId={activeTab || ''}
-                    currentPage={currentPage}
-                    itemsPerPage={itemsPerPage}
-                />
-              </CardContent>
-              {totalPages > 1 && (
-                  <CardFooter className="justify-center border-t p-4 print-hide">
-                    <PaginationControls currentPage={currentPage} totalPages={totalPages} setCurrentPage={setCurrentPage} />
-                  </CardFooter>
-              )}
-          </Card>
-        </Tabs>
-      </div>
-
-      <div className="lg:w-[320px] lg:sticky lg:top-20 space-y-4 print-hide self-start">
-        <Card>
-            <CardHeader>
-                <CardTitle>Controls</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <AddTransactionDialog accounts={accountDataForDialog} />
-                
-                <div className="space-y-2">
-                    <Label htmlFor="reconciliation-date-input" className="flex items-center gap-2">
-                        <CalendarIcon className="h-5 w-5 text-red-600" />
-                        Reconciliation Date
-                    </Label>
-                    <Input
-                        id="reconciliation-date-input"
-                        type="date"
-                        value={reconciliationDate ? format(reconciliationDate, 'yyyy-MM-dd') : ''}
-                        onChange={(e) => {
-                            const dateValue = e.target.value;
-                            const newDate = dateValue ? new Date(dateValue) : undefined;
-                            if (newDate) {
-                                const timezoneOffset = newDate.getTimezoneOffset() * 60000;
-                                handleReconciliationDateChange(new Date(newDate.getTime() + timezoneOffset));
-                            } else {
-                                handleReconciliationDateChange(undefined);
-                            }
-                        }}
-                        className="w-full"
-                    />
-                </div>
-                
-                <div className="space-y-2">
-                    <Label htmlFor="search-input">Search Transactions</Label>
-                    <div className="relative">
-                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input
-                        id="search-input"
-                        type="search"
-                        placeholder="Search..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full rounded-lg bg-background pl-8"
-                        />
-                    </div>
-                </div>
-
-                <div className="space-y-2">
-                    <Label>Filter by Date Range</Label>
-                    <div className="flex items-center gap-2">
-                        <Input
-                        type="date"
-                        value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
-                        className="w-full"
-                        />
-                        <span className="text-muted-foreground">to</span>
-                        <Input
-                        type="date"
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
-                        className="w-full"
-                        min={startDate}
-                        />
-                    </div>
-                </div>
-
-                <div className="flex items-center justify-end gap-2 pt-2">
-                    <Button onClick={handleClearFilters} variant="ghost">
-                        <XCircle className="mr-2 h-4 w-4" />
-                        Clear
-                    </Button>
-                    <Button onClick={handlePrint} variant="outline">
-                        <Printer className="mr-2 h-4 w-4" />
-                        Print
-                    </Button>
-                </div>
-
+        
+        <Card className="mt-6">
+            <CardContent className="p-0">
+              <TransactionTable 
+                  transactions={pagedTransactions} 
+                  accountId={activeTab || ''}
+                  currentPage={currentPage}
+                  itemsPerPage={itemsPerPage}
+              />
             </CardContent>
+            {totalPages > 1 && (
+                <CardFooter className="justify-center border-t p-4 print-hide">
+                  <PaginationControls currentPage={currentPage} totalPages={totalPages} setCurrentPage={setCurrentPage} />
+                </CardFooter>
+            )}
         </Card>
-      </div>
+      </Tabs>
     </div>
   );
 }
+
+    
