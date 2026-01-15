@@ -40,11 +40,11 @@ const formatCurrency = (amount: number) => {
 const tabColors = [
   "bg-sky-100 dark:bg-sky-900/50",
   "bg-amber-100 dark:bg-amber-900/50",
-  "bg-emerald-100 dark:bg-emerald-900/50",
-  "bg-rose-100 dark:bg-rose-900/50",
-  "bg-violet-100 dark:bg-violet-900/50",
-  "bg-cyan-100 dark:bg-cyan-900/50",
-  "bg-fuchsia-100 dark:bg-fuchsia-900/50",
+  "bg-emerald-100 dark:bg-emerald-200",
+  "bg-rose-100 dark:bg-rose-200",
+  "bg-violet-100 dark:bg-violet-200",
+  "bg-cyan-100 dark:bg-cyan-200",
+  "bg-fuchsia-100 dark:bg-fuchsia-200",
 ];
 
 const textColors = [
@@ -159,7 +159,7 @@ export default function TransactionsPage() {
         if (dataLoading) setDataLoading(false);
       });
 
-      const transactionsQuery = query(collection(db, "transactions"), where("userId", "==", user.uid), orderBy("date", "asc"));
+      const transactionsQuery = query(collection(db, "transactions"), where("userId", "==", user.uid), orderBy("date", "desc"));
       const unsubscribeTransactions = onSnapshot(transactionsQuery, (snapshot) => {
         setAllTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction)));
       });
