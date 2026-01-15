@@ -171,10 +171,10 @@ export function TransactionTable({
             
             const otherPartyName = loan.personName;
 
-            if (loan.type === 'taken') { // User took a loan
+            if (loan.type === 'taken') {
                 type = loanTx.type === 'loan' ? 'Loan from' : 'Repayment to';
                 description = `${type} ${otherPartyName}`;
-            } else { // User gave a loan
+            } else {
                 type = loanTx.type === 'loan' ? 'Loan to' : 'Repayment from';
                 description = `${type} ${otherPartyName}`;
             }
@@ -276,11 +276,12 @@ export function TransactionTable({
                 }
             }
         } else if (t.type === 'transfer') {
-             if (fromCurrentView && toAccountIsWallet) {
+             if (fromCurrentView && toCurrentView) {
+                // Internal transfer within the current view (e.g., Bank -> Cash for Primary view)
                 transfer = t.amount;
-             } else if (fromCurrentView && !toCurrentView) {
+             } else if (fromCurrentView) {
                 debit = t.amount;
-             } else if (!fromCurrentView && toCurrentView) {
+             } else if (toCurrentView) {
                 credit = t.amount;
              }
         }
@@ -489,7 +490,7 @@ export function TransactionTable({
 
   return (
     <>
-      <ScrollArea className="h-[calc(100vh-380px)]">
+      <ScrollArea className="h-[calc(100vh-320px)]">
         <Table>
           <TableHeader className="sticky top-0 z-10 bg-background">
               <TableRow>
