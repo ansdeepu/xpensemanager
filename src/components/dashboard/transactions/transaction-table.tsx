@@ -157,31 +157,32 @@ export function TransactionTable({
 
     const primaryAccount = useMemo(() => accounts.find(a => a.isPrimary), [accounts]);
     
-    const getLoanDisplayInfo = useMemo(() => (t: Transaction) => {
-      const defaultInfo = { isLoan: false, type: t.type, category: t.category, description: t.description, colorClass: '' };
-      if (t.type !== 'transfer' || !t.loanTransactionId) {
-          return defaultInfo;
-      }
-  
-      for (const loan of loans) {
-          const loanTx = loan.transactions.find(lt => lt.id === t.loanTransactionId);
-          if (loanTx) {
-            let type: string;
-            let description: string;
-            
-            const otherPartyName = loan.personName;
-
-            if (loan.type === 'taken') {
-                type = loanTx.type === 'loan' ? 'Loan from' : 'Repayment to';
-                description = `${type} ${otherPartyName}`;
-            } else {
-                type = loanTx.type === 'loan' ? 'Loan to' : 'Repayment from';
-                description = `${type} ${otherPartyName}`;
+    const getLoanDisplayInfo = useMemo(() => {
+        return (t: Transaction) => {
+            const defaultInfo = { isLoan: false, type: t.type, category: t.category, description: t.description, colorClass: '' };
+            if (t.type !== 'transfer' || !t.loanTransactionId) {
+                return defaultInfo;
             }
-            return { isLoan: true, type, category: 'Loan', description, colorClass: 'bg-orange-100 dark:bg-orange-900/50' };
-          }
-      }
-      return defaultInfo;
+        
+            for (const loan of loans) {
+                const loanTx = loan.transactions.find(lt => lt.id === t.loanTransactionId);
+                if (loanTx) {
+                    let type: string;
+                    const otherPartyName = loan.personName;
+        
+                    if (loan.type === 'taken') {
+                        type = loanTx.type === 'loan' ? 'Loan from' : 'Repayment to';
+                    } else { // 'given'
+                        type = loanTx.type === 'loan' ? 'Loan to' : 'Repayment from';
+                    }
+                    
+                    const description = `${type} ${otherPartyName}`;
+                    return { isLoan: true, type, category: 'Loan', description, colorClass: 'bg-orange-100 dark:bg-orange-900/50' };
+                }
+            }
+        
+            return defaultInfo;
+        };
     }, [loans]);
     
 
@@ -252,11 +253,11 @@ export function TransactionTable({
         const toAccountIsWallet = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
         
         const fromCurrentView = isPrimaryView 
-            ? (t.fromAccountId === accountId || t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet')
+            ? (t.fromAccountId === accountId || fromAccountIsWallet)
             : t.fromAccountId === accountId;
 
         const toCurrentView = isPrimaryView
-            ? (t.toAccountId === accountId || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet')
+            ? (t.toAccountId === accountId || toAccountIsWallet)
             : t.toAccountId === accountId;
 
         if (t.type === 'income') {
@@ -490,7 +491,7 @@ export function TransactionTable({
 
   return (
     <>
-      <ScrollArea className="h-[calc(100vh-320px)]">
+      <ScrollArea className="h-[calc(100vh-360px)]">
         <Table>
           <TableHeader className="sticky top-0 z-10 bg-background">
               <TableRow>
