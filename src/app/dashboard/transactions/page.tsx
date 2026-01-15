@@ -159,7 +159,7 @@ export default function TransactionsPage() {
         if (dataLoading) setDataLoading(false);
       });
 
-      const transactionsQuery = query(collection(db, "transactions"), where("userId", "==", user.uid), orderBy("date", "desc"));
+      const transactionsQuery = query(collection(db, "transactions"), where("userId", "==", user.uid));
       const unsubscribeTransactions = onSnapshot(transactionsQuery, (snapshot) => {
         setAllTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction)));
       });
@@ -253,19 +253,14 @@ export default function TransactionsPage() {
     const isPrimaryView = primaryAccount?.id === activeTab;
     
     const sourceTransactions = allTransactions.filter(t => {
-      if (isPrimaryView) {
-        return (
-          (t.type === 'expense' && (t.accountId === activeTab || t.paymentMethod === 'cash' || t.paymentMethod === 'digital')) ||
-          (t.type === 'income' && (t.accountId === activeTab || t.accountId === 'cash-wallet' || t.accountId === 'digital-wallet')) ||
-          (t.type === 'transfer' && (t.fromAccountId === activeTab || t.toAccountId === activeTab || t.fromAccountId === 'cash-wallet' || t.toAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet' || t.toAccountId === 'digital-wallet'))
-        );
-      } else {
-        return (
-          (t.type === 'expense' && t.accountId === activeTab) ||
-          (t.type === 'income' && t.accountId === activeTab) ||
-          (t.type === 'transfer' && (t.fromAccountId === activeTab || t.toAccountId === activeTab))
-        );
-      }
+      const fromAccountIsWallet = t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
+      const toAccountIsWallet = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
+      
+      const fromCurrentView = isPrimaryView ? (t.fromAccountId === activeTab || fromAccountIsWallet) : t.fromAccountId === activeTab;
+      const toCurrentView = isPrimaryView ? (t.toAccountId === activeTab || toAccountIsWallet) : t.toAccountId === activeTab;
+      const accountIsInView = isPrimaryView ? (t.accountId === activeTab || t.paymentMethod === 'cash' || t.paymentMethod === 'digital') : t.accountId === activeTab;
+      
+      return fromCurrentView || toCurrentView || accountIsInView;
     });
 
     let filtered = [...sourceTransactions];
@@ -288,13 +283,68 @@ export default function TransactionsPage() {
     return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [allTransactions, activeTab, startDate, endDate, searchQuery, primaryAccount]);
 
-  const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
+  const transactionsWithRunningBalance = useMemo(() => {
+    const isPrimaryView = primaryAccount?.id === activeTab;
+
+    const getEffectOnBalance = (t: Transaction) => {
+      let credit = 0;
+      let debit = 0;
+
+      const fromCurrentView = isPrimaryView
+        ? t.fromAccountId === activeTab || t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet'
+        : t.fromAccountId === activeTab;
+
+      const toCurrentView = isPrimaryView
+        ? t.toAccountId === activeTab || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet'
+        : t.toAccountId === activeTab;
+
+      if (t.type === 'income') {
+        if(isPrimaryView) {
+            if (t.accountId === activeTab || t.accountId === 'cash-wallet' || t.accountId === 'digital-wallet') credit = t.amount;
+        } else {
+              if (t.accountId === activeTab) credit = t.amount;
+        }
+      } else if (t.type === 'expense') {
+        if (isPrimaryView) {
+            if (t.accountId === activeTab || t.paymentMethod === 'cash' || t.paymentMethod === 'digital') {
+                debit = t.amount;
+            }
+        } else {
+            if (t.accountId === activeTab) {
+                debit = t.amount;
+            }
+        }
+      } else if (t.type === 'transfer') {
+        if (fromCurrentView) debit = t.amount;
+        if (toCurrentView) credit = t.amount;
+      }
+      return credit - debit;
+    };
+    
+    const chronologicalTransactions = [...allTransactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    
+    let runningBalance = 0;
+    const allTransactionsWithBalance = chronologicalTransactions.map(t => {
+        runningBalance += getEffectOnBalance(t);
+        return { ...t, balance: runningBalance };
+    });
+
+    const balanceMap = new Map(allTransactionsWithBalance.map(t => [t.id, t.balance]));
+
+    return filteredTransactions.map(t => ({
+        ...t,
+        balance: balanceMap.get(t.id) ?? 0,
+    }));
+  }, [filteredTransactions, allTransactions, activeTab, primaryAccount]);
+
+
+  const totalPages = Math.ceil(transactionsWithRunningBalance.length / itemsPerPage);
 
   const pagedTransactions = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
-    return filteredTransactions.slice(startIndex, endIndex);
-  }, [filteredTransactions, currentPage, itemsPerPage]);
+    return transactionsWithRunningBalance.slice(startIndex, endIndex);
+  }, [transactionsWithRunningBalance, currentPage, itemsPerPage]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -582,8 +632,9 @@ export default function TransactionsPage() {
             <CardContent className="p-0">
               <TransactionTable 
                   transactions={pagedTransactions} 
-                  allTransactions={allTransactions}
                   accountId={activeTab || ''}
+                  currentPage={currentPage}
+                  itemsPerPage={itemsPerPage}
               />
             </CardContent>
             {totalPages > 1 && (
@@ -596,5 +647,3 @@ export default function TransactionsPage() {
     </div>
   );
 }
-
-    

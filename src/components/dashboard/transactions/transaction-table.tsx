@@ -92,12 +92,14 @@ const evaluateMath = (expression: string): number | null => {
 
 export function TransactionTable({
   transactions,
-  allTransactions,
   accountId,
+  currentPage,
+  itemsPerPage,
 }: {
-  transactions: Transaction[];
-  allTransactions: Transaction[];
+  transactions: (Transaction & { balance: number })[];
   accountId: string;
+  currentPage: number;
+  itemsPerPage: number;
 }) {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -186,116 +188,59 @@ export function TransactionTable({
     }, [loans]);
     
 
-  const transactionsWithBalance = useMemo(() => {
+  const transactionsWithColumns = useMemo(() => {
     const isPrimaryView = primaryAccount?.id === accountId;
 
-    const getEffectOnBalance = (t: Transaction) => {
-        let credit = 0;
-        let debit = 0;
+    return transactions.map(t => {
+      let debit = null;
+      let credit = null;
+      let transfer = null;
 
-        const fromCurrentView = isPrimaryView
-            ? t.fromAccountId === accountId || t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet'
-            : t.fromAccountId === accountId;
+      const fromAccountIsWallet = t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
+      const toAccountIsWallet = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
+      
+      const fromCurrentView = isPrimaryView 
+          ? (t.fromAccountId === accountId || fromAccountIsWallet)
+          : t.fromAccountId === accountId;
 
-        const toCurrentView = isPrimaryView
-            ? t.toAccountId === accountId || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet'
-            : t.toAccountId === accountId;
+      const toCurrentView = isPrimaryView
+          ? (t.toAccountId === accountId || toAccountIsWallet)
+          : t.toAccountId === accountId;
 
-        if (t.type === 'income') {
-            if(isPrimaryView) {
+      if (t.type === 'income') {
+          if(isPrimaryView) {
                 if (t.accountId === accountId || t.accountId === 'cash-wallet' || t.accountId === 'digital-wallet') credit = t.amount;
-            } else {
-                 if (t.accountId === accountId) credit = t.amount;
-            }
-        } else if (t.type === 'expense') {
-            if (isPrimaryView) {
-                if (t.accountId === accountId || t.paymentMethod === 'cash' || t.paymentMethod === 'digital') {
-                    debit = t.amount;
-                }
-            } else {
+          } else {
+                if (t.accountId === accountId) credit = t.amount;
+          }
+      } else if (t.type === 'expense') {
+          if(isPrimaryView) {
+              if (t.accountId === accountId || t.paymentMethod === 'cash' || t.paymentMethod === 'digital') {
+                  debit = t.amount;
+              }
+          } else {
                 if (t.accountId === accountId) {
-                    debit = t.amount;
-                }
+                  debit = t.amount;
+              }
+          }
+      } else if (t.type === 'transfer') {
+            if (fromCurrentView && toCurrentView) {
+              transfer = t.amount;
+            } else if (fromCurrentView) {
+              debit = t.amount;
+            } else if (toCurrentView) {
+              credit = t.amount;
             }
-        } else if (t.type === 'transfer') {
-            if (fromCurrentView) debit = t.amount;
-            if (toCurrentView) credit = t.amount;
-        }
-        return credit - debit;
-    };
-
-    const chronologicalTransactions = [...allTransactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    const oldestTransactionOnPage = transactions.length > 0 ? transactions[transactions.length - 1] : null;
-
-    let startingBalance = 0;
-    if (oldestTransactionOnPage) {
-        const previousTransactions = chronologicalTransactions.filter(t => new Date(t.date) < new Date(oldestTransactionOnPage.date));
-        startingBalance = previousTransactions.reduce((acc, t) => acc + getEffectOnBalance(t), 0);
-    }
-    
-    let runningBalance = startingBalance;
-    const pageTransactionsWithBalance = [...transactions]
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) // For display order
-      .map(t => ({ ...t })) // Create shallow copies
-      .reverse() // Chronological for calculation
-      .map(t => {
-        runningBalance += getEffectOnBalance(t);
-        return { ...t, balance: runningBalance };
-      })
-      .reverse(); // Back to descending for display
-
-    return pageTransactionsWithBalance.map(t => {
-        let debit = null;
-        let credit = null;
-        let transfer = null;
-
-        const fromAccountIsWallet = t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
-        const toAccountIsWallet = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
-        
-        const fromCurrentView = isPrimaryView 
-            ? (t.fromAccountId === accountId || fromAccountIsWallet)
-            : t.fromAccountId === accountId;
-
-        const toCurrentView = isPrimaryView
-            ? (t.toAccountId === accountId || toAccountIsWallet)
-            : t.toAccountId === accountId;
-
-        if (t.type === 'income') {
-            if(isPrimaryView) {
-                 if (t.accountId === accountId || t.accountId === 'cash-wallet' || t.accountId === 'digital-wallet') credit = t.amount;
-            } else {
-                 if (t.accountId === accountId) credit = t.amount;
-            }
-        } else if (t.type === 'expense') {
-            if(isPrimaryView) {
-                if (t.accountId === accountId || t.paymentMethod === 'cash' || t.paymentMethod === 'digital') {
-                    debit = t.amount;
-                }
-            } else {
-                 if (t.accountId === accountId) {
-                    debit = t.amount;
-                }
-            }
-        } else if (t.type === 'transfer') {
-             if (fromCurrentView && toCurrentView) {
-                // Internal transfer within the current view (e.g., Bank -> Cash for Primary view)
-                transfer = t.amount;
-             } else if (fromCurrentView) {
-                debit = t.amount;
-             } else if (toCurrentView) {
-                credit = t.amount;
-             }
-        }
-        
-        return {
-            ...t,
-            debit,
-            credit,
-            transfer
-        }
+      }
+      
+      return {
+          ...t,
+          debit,
+          credit,
+          transfer
+      }
     });
-
-}, [transactions, allTransactions, accountId, primaryAccount]);
+  }, [transactions, accountId, primaryAccount]);
 
 
    useEffect(() => {
@@ -491,7 +436,7 @@ export function TransactionTable({
 
   return (
     <>
-      <ScrollArea className="h-[calc(100vh-360px)]">
+      <ScrollArea className="h-[calc(100vh-420px)]">
         <Table>
           <TableHeader className="sticky top-0 z-10 bg-background">
               <TableRow>
@@ -509,14 +454,14 @@ export function TransactionTable({
               </TableRow>
           </TableHeader>
           <TableBody>
-              {transactionsWithBalance.map((t, index) => {
+              {transactionsWithColumns.map((t, index) => {
                 const loanInfo = getLoanDisplayInfo(t);
                 
                 const {debit, credit, transfer} = t;
 
                 return (
                   <TableRow key={t.id} className={loanInfo.colorClass}>
-                      <TableCell className="font-medium">{index + 1}</TableCell>
+                      <TableCell className="font-medium">{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
                       <TableCell>{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
                       <TableCell className="font-medium break-words">{loanInfo.description}</TableCell>
                       <TableCell>
