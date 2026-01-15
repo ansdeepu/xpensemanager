@@ -258,7 +258,13 @@ export default function TransactionsPage() {
       
       const fromCurrentView = isPrimaryView ? (t.fromAccountId === activeTab || fromAccountIsWallet) : t.fromAccountId === activeTab;
       const toCurrentView = isPrimaryView ? (t.toAccountId === activeTab || toAccountIsWallet) : t.toAccountId === activeTab;
-      const accountIsInView = isPrimaryView ? (t.accountId === activeTab || t.paymentMethod === 'cash' || t.paymentMethod === 'digital') : t.accountId === activeTab;
+      
+      let accountIsInView = false;
+      if (t.type === 'expense' || t.type === 'income') {
+         accountIsInView = isPrimaryView 
+            ? (t.accountId === activeTab || t.paymentMethod === 'cash' || t.paymentMethod === 'digital') 
+            : t.accountId === activeTab;
+      }
       
       return fromCurrentView || toCurrentView || accountIsInView;
     });
@@ -280,12 +286,29 @@ export default function TransactionsPage() {
         );
     }
     
-    return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return filtered.sort((a, b) => {
+      const dateBTime = new Date(b.date).getTime();
+      const dateATime = new Date(a.date).getTime();
+
+      if (dateBTime !== dateATime) {
+        return dateBTime - dateATime;
+      }
+
+      // Dates are the same, we want to prioritize transfers to show them first
+      if (a.type === 'transfer' && b.type !== 'transfer') {
+        return -1; // a should come before b
+      }
+      if (b.type === 'transfer' && a.type !== 'transfer') {
+        return 1; // b should come before a
+      }
+
+      return 0;
+    });
   }, [allTransactions, activeTab, startDate, endDate, searchQuery, primaryAccount]);
 
  const allBalance = (primaryAccount ? primaryAccount.balance : 0) + cashWalletBalance + digitalWalletBalance;
 
-  const transactionsWithRunningBalance = useMemo(() => {
+ const transactionsWithRunningBalance = useMemo(() => {
     const isPrimaryView = primaryAccount?.id === activeTab;
     
     const currentViewTotalBalance = isPrimaryView ? allBalance : (accounts.find(a => a.id === activeTab)?.balance ?? 0);
@@ -314,14 +337,43 @@ export default function TransactionsPage() {
       }
     };
     
-    let runningBalance = currentViewTotalBalance;
+    const reversedTransactions = [...filteredTransactions].reverse();
     
-    return filteredTransactions.map(t => {
-      const balanceForThisRow = runningBalance;
-      const effect = getEffectOnBalance(t);
-      runningBalance -= effect;
-      return { ...t, balance: balanceForThisRow };
-    });
+    const withBalance: (Transaction & { balance: number })[] = [];
+    if (reversedTransactions.length > 0) {
+        let runningBalance = currentViewTotalBalance;
+        // First, calculate the end-of-day balance for the last transaction
+        const lastTxDate = startOfDay(new Date(reversedTransactions[reversedTransactions.length-1].date));
+        const endBalanceForLastDay = reversedTransactions.reduce((bal, tx) => {
+             if (isSameDay(new Date(tx.date), lastTxDate)) {
+                bal -= getEffectOnBalance(tx);
+             }
+             return bal;
+        }, currentViewTotalBalance);
+        
+        runningBalance = endBalanceForLastDay;
+
+        for (let i = 0; i < reversedTransactions.length; i++) {
+            const t = reversedTransactions[i];
+            const prevT = reversedTransactions[i - 1];
+
+            if (prevT && !isSameDay(new Date(t.date), new Date(prevT.date))) {
+                 const dayBreakTotal = reversedTransactions.reduce((bal, tx) => {
+                    if (isSameDay(new Date(tx.date), new Date(prevT.date))) {
+                        bal -= getEffectOnBalance(tx);
+                    }
+                    return bal;
+                }, runningBalance);
+                runningBalance = dayBreakTotal;
+            }
+            
+            const balanceForRow = runningBalance + getEffectOnBalance(t);
+            withBalance.push({ ...t, balance: balanceForRow });
+            runningBalance = balanceForRow;
+        }
+    }
+    
+    return withBalance.reverse();
 
   }, [filteredTransactions, activeTab, primaryAccount, allBalance, accounts]);
 
@@ -634,4 +686,3 @@ export default function TransactionsPage() {
     </div>
   );
 }
-
