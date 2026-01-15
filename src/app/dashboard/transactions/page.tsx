@@ -283,59 +283,47 @@ export default function TransactionsPage() {
     return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [allTransactions, activeTab, startDate, endDate, searchQuery, primaryAccount]);
 
+ const allBalance = (primaryAccount ? primaryAccount.balance : 0) + cashWalletBalance + digitalWalletBalance;
+
   const transactionsWithRunningBalance = useMemo(() => {
     const isPrimaryView = primaryAccount?.id === activeTab;
+    
+    const currentViewTotalBalance = isPrimaryView ? allBalance : (accounts.find(a => a.id === activeTab)?.balance ?? 0);
 
     const getEffectOnBalance = (t: Transaction) => {
-      let credit = 0;
-      let debit = 0;
+      const fromAccountIsWallet = t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
+      const toAccountIsWallet = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
+      const fromCurrentView = isPrimaryView ? (t.fromAccountId === activeTab || fromAccountIsWallet) : t.fromAccountId === activeTab;
+      const toCurrentView = isPrimaryView ? (t.toAccountId === activeTab || toAccountIsWallet) : t.toAccountId === activeTab;
+      const accountIsInView = isPrimaryView ? (t.accountId === activeTab || t.paymentMethod === 'cash' || t.paymentMethod === 'digital') : t.accountId === activeTab;
 
-      const fromCurrentView = isPrimaryView
-        ? t.fromAccountId === activeTab || t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet'
-        : t.fromAccountId === activeTab;
+      if (!fromCurrentView && !toCurrentView && !accountIsInView) return 0;
 
-      const toCurrentView = isPrimaryView
-        ? t.toAccountId === activeTab || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet'
-        : t.toAccountId === activeTab;
-
-      if (t.type === 'income') {
-        if(isPrimaryView) {
-            if (t.accountId === activeTab || t.accountId === 'cash-wallet' || t.accountId === 'digital-wallet') credit = t.amount;
-        } else {
-              if (t.accountId === activeTab) credit = t.amount;
-        }
-      } else if (t.type === 'expense') {
-        if (isPrimaryView) {
-            if (t.accountId === activeTab || t.paymentMethod === 'cash' || t.paymentMethod === 'digital') {
-                debit = t.amount;
-            }
-        } else {
-            if (t.accountId === activeTab) {
-                debit = t.amount;
-            }
-        }
-      } else if (t.type === 'transfer') {
-        if (fromCurrentView) debit = t.amount;
-        if (toCurrentView) credit = t.amount;
+      switch (t.type) {
+        case 'income':
+          return accountIsInView ? t.amount : 0;
+        case 'expense':
+          return accountIsInView ? -t.amount : 0;
+        case 'transfer':
+          if (fromCurrentView && toCurrentView) return 0;
+          if (toCurrentView) return t.amount;
+          if (fromCurrentView) return -t.amount;
+          return 0;
+        default:
+          return 0;
       }
-      return credit - debit;
     };
     
-    const chronologicalTransactions = [...allTransactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    let runningBalance = currentViewTotalBalance;
     
-    let runningBalance = 0;
-    const allTransactionsWithBalance = chronologicalTransactions.map(t => {
-        runningBalance += getEffectOnBalance(t);
-        return { ...t, balance: runningBalance };
+    return filteredTransactions.map(t => {
+      const balanceForThisRow = runningBalance;
+      const effect = getEffectOnBalance(t);
+      runningBalance -= effect;
+      return { ...t, balance: balanceForThisRow };
     });
 
-    const balanceMap = new Map(allTransactionsWithBalance.map(t => [t.id, t.balance]));
-
-    return filteredTransactions.map(t => ({
-        ...t,
-        balance: balanceMap.get(t.id) ?? 0,
-    }));
-  }, [filteredTransactions, allTransactions, activeTab, primaryAccount]);
+  }, [filteredTransactions, activeTab, primaryAccount, allBalance, accounts]);
 
 
   const totalPages = Math.ceil(transactionsWithRunningBalance.length / itemsPerPage);
@@ -370,7 +358,6 @@ export default function TransactionsPage() {
     );
   }
 
-  const allBalance = (primaryAccount ? primaryAccount.balance : 0) + cashWalletBalance + digitalWalletBalance;
   
   const getBalanceDifference = (calculatedBalance: number, actualBalance?: number | null) => {
       if (actualBalance === undefined || actualBalance === null) return null;
@@ -647,3 +634,4 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
