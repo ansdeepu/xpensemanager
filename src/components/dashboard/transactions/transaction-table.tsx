@@ -504,7 +504,7 @@ export function TransactionTable({
 
   return (
     <>
-      <ScrollArea className="h-[calc(100vh-420px)]">
+      <ScrollArea className="h-[calc(100vh-380px)]">
         <Table>
           <TableHeader className="sticky top-0 z-10 bg-background">
               <TableRow>
@@ -750,3 +750,5 @@ export function TransactionTable({
     </>
   );
 }
+
+    
