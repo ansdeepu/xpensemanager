@@ -225,6 +225,13 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
           fromAccountId = transactionType === 'loan' ? myAccountId : otherPartyAccountIdForTransfer!;
           toAccountId = transactionType === 'loan' ? otherPartyAccountIdForTransfer! : myAccountId;
       }
+      
+      let paymentMethod: 'online' | 'cash' | 'digital' = 'online';
+      if (myAccountId === 'cash-wallet') {
+        paymentMethod = 'cash';
+      } else if (myAccountId === 'digital-wallet') {
+        paymentMethod = 'digital';
+      }
 
       const financialTransaction: Partial<Transaction> = {
           userId: user.uid,
@@ -235,7 +242,7 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
           fromAccountId,
           toAccountId,
           category: 'Loan',
-          paymentMethod: 'online',
+          paymentMethod: paymentMethod,
           loanTransactionId: newLoanTransaction.id,
       };
 
