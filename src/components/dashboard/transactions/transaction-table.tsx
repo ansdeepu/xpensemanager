@@ -163,45 +163,38 @@ export function TransactionTable({
           return defaultInfo;
       }
   
-      const currentAccount = accounts.find(a => a.id === accountId);
-      const isPrimaryView = primaryAccount?.id === accountId;
-
       for (const loan of loans) {
           const loanTx = loan.transactions.find(lt => lt.id === t.loanTransactionId);
           if (loanTx) {
+              const currentAccount = accounts.find(a => a.id === accountId);
+              const isPrimaryView = primaryAccount?.id === accountId;
               let type: string;
               let description: string = t.description;
-              
-              const isViewingFromLoanPartyAccount = currentAccount && loan.personName === currentAccount.name;
 
               // The user's account involved in the loan transaction (e.g. Primary Bank, Cash, HDFC)
-              const userAccountInLoanTx = accounts.find(a => a.id === loanTx.accountId);
-              const isLoanTxWithCurrentAccount = userAccountInLoanTx?.id === accountId;
+              const userAccountInLoanTxId = loanTx.accountId;
               
-              if (isViewingFromLoanPartyAccount || isLoanTxWithCurrentAccount) {
-                  const otherPartyName = isLoanTxWithCurrentAccount ? loan.personName : getAccountName(loanTx.accountId);
+              // The "other party" in the loan (e.g., 'John Doe', or one of the user's other banks like 'HDFC Bank')
+              const otherPartyName = loan.personName;
+              const otherPartyAccount = accounts.find(a => a.name === otherPartyName);
+              const otherPartyAccountId = otherPartyAccount?.id;
 
+              const isViewingFromUserAccount = userAccountInLoanTxId === accountId;
+              const isViewingFromOtherPartyAccount = otherPartyAccountId === accountId;
+
+              if (isViewingFromUserAccount || isViewingFromOtherPartyAccount || isPrimaryView) {
+                  let finalOtherParty = otherPartyName;
+                  let finalUserAccount = getAccountName(userAccountInLoanTxId);
+                  
                   if (loan.type === 'taken') { // User took a loan
                       type = loanTx.type === 'loan' ? 'Loan from' : 'Repayment to';
-                      description = `${type} ${otherPartyName}`;
+                      description = `${type} ${finalOtherParty}`;
                   } else { // User gave a loan
                       type = loanTx.type === 'loan' ? 'Loan to' : 'Repayment from';
-                      description = `${type} ${otherPartyName}`;
+                      description = `${type} ${finalOtherParty}`;
                   }
-                  
-              } else if (isPrimaryView) {
-                  // When on the primary view, show details relative to the user
-                  if (loan.type === 'given') {
-                      type = loanTx.type === 'loan' ? "Loan Given" : "Repayment Received";
-                      description = `${type} ${loanTx.type === 'loan' ? 'to' : 'from'} ${loan.personName}`;
-                  } else { // loan.type === 'taken'
-                      type = loanTx.type === 'loan' ? "Loan from" : "Repayment to";
-                      description = `${type} ${loan.personName}`;
-                  }
-              } else {
-                  return defaultInfo;
+                  return { isLoan: true, type, category: 'Loan', description, colorClass: 'bg-orange-100 dark:bg-orange-900/50' };
               }
-              return { isLoan: true, type, category: 'Loan', description, colorClass: 'bg-orange-100 dark:bg-orange-900/50' };
           }
       }
       return defaultInfo;
@@ -225,7 +218,7 @@ export function TransactionTable({
 
         if (t.type === 'income') {
             if(isPrimaryView) {
-                if (t.accountId === accountId) credit = t.amount;
+                if (t.accountId === accountId || t.accountId === 'cash-wallet' || t.accountId === 'digital-wallet') credit = t.amount;
             } else {
                  if (t.accountId === accountId) credit = t.amount;
             }
@@ -284,7 +277,7 @@ export function TransactionTable({
 
         if (t.type === 'income') {
             if(isPrimaryView) {
-                if (t.accountId === accountId) credit = t.amount;
+                 if (t.accountId === accountId || t.accountId === 'cash-wallet' || t.accountId === 'digital-wallet') credit = t.amount;
             } else {
                  if (t.accountId === accountId) credit = t.amount;
             }
@@ -758,5 +751,7 @@ export function TransactionTable({
     </>
   );
 }
+
+    
 
     
