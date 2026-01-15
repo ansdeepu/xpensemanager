@@ -310,7 +310,6 @@ export default function TransactionsPage() {
 
  const transactionsWithRunningBalance = useMemo(() => {
     const isPrimaryView = primaryAccount?.id === activeTab;
-    
     const currentViewTotalBalance = isPrimaryView ? allBalance : (accounts.find(a => a.id === activeTab)?.balance ?? 0);
 
     const getEffectOnBalance = (t: Transaction) => {
@@ -336,44 +335,16 @@ export default function TransactionsPage() {
           return 0;
       }
     };
-    
-    const reversedTransactions = [...filteredTransactions].reverse();
-    
+
     const withBalance: (Transaction & { balance: number })[] = [];
-    if (reversedTransactions.length > 0) {
-        let runningBalance = currentViewTotalBalance;
-        // First, calculate the end-of-day balance for the last transaction
-        const lastTxDate = startOfDay(new Date(reversedTransactions[reversedTransactions.length-1].date));
-        const endBalanceForLastDay = reversedTransactions.reduce((bal, tx) => {
-             if (isSameDay(new Date(tx.date), lastTxDate)) {
-                bal -= getEffectOnBalance(tx);
-             }
-             return bal;
-        }, currentViewTotalBalance);
-        
-        runningBalance = endBalanceForLastDay;
+    let runningBalance = currentViewTotalBalance;
 
-        for (let i = 0; i < reversedTransactions.length; i++) {
-            const t = reversedTransactions[i];
-            const prevT = reversedTransactions[i - 1];
-
-            if (prevT && !isSameDay(new Date(t.date), new Date(prevT.date))) {
-                 const dayBreakTotal = reversedTransactions.reduce((bal, tx) => {
-                    if (isSameDay(new Date(tx.date), new Date(prevT.date))) {
-                        bal -= getEffectOnBalance(tx);
-                    }
-                    return bal;
-                }, runningBalance);
-                runningBalance = dayBreakTotal;
-            }
-            
-            const balanceForRow = runningBalance + getEffectOnBalance(t);
-            withBalance.push({ ...t, balance: balanceForRow });
-            runningBalance = balanceForRow;
-        }
+    for (const t of filteredTransactions) { // filteredTransactions is newest to oldest
+        withBalance.push({ ...t, balance: runningBalance });
+        runningBalance -= getEffectOnBalance(t);
     }
     
-    return withBalance.reverse();
+    return withBalance;
 
   }, [filteredTransactions, activeTab, primaryAccount, allBalance, accounts]);
 
