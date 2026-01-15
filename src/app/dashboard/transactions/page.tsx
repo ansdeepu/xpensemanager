@@ -253,18 +253,19 @@ export default function TransactionsPage() {
     const isPrimaryView = primaryAccount?.id === activeTab;
     
     const sourceTransactions = allTransactions.filter(t => {
-        if (isPrimaryView) {
-            return (
-                (t.accountId === activeTab && t.paymentMethod === 'online') ||
-                t.paymentMethod === 'cash' ||
-                t.paymentMethod === 'digital' ||
-                t.fromAccountId === activeTab || t.toAccountId === activeTab ||
-                t.fromAccountId === 'cash-wallet' || t.toAccountId === 'cash-wallet' ||
-                t.fromAccountId === 'digital-wallet' || t.toAccountId === 'digital-wallet'
-            );
-        } else {
-             return t.accountId === activeTab || t.fromAccountId === activeTab || t.toAccountId === activeTab;
-        }
+      if (isPrimaryView) {
+        return (
+          (t.type === 'expense' && (t.accountId === activeTab || t.paymentMethod === 'cash' || t.paymentMethod === 'digital')) ||
+          (t.type === 'income' && (t.accountId === activeTab || t.accountId === 'cash-wallet' || t.accountId === 'digital-wallet')) ||
+          (t.type === 'transfer' && (t.fromAccountId === activeTab || t.toAccountId === activeTab || t.fromAccountId === 'cash-wallet' || t.toAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet' || t.toAccountId === 'digital-wallet'))
+        );
+      } else {
+        return (
+          (t.type === 'expense' && t.accountId === activeTab) ||
+          (t.type === 'income' && t.accountId === activeTab) ||
+          (t.type === 'transfer' && (t.fromAccountId === activeTab || t.toAccountId === activeTab))
+        );
+      }
     });
 
     let filtered = [...sourceTransactions];
@@ -285,7 +286,7 @@ export default function TransactionsPage() {
     }
     
     return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [allTransactions, activeTab, startDate, endDate, searchQuery, accounts, primaryAccount]);
+  }, [allTransactions, activeTab, startDate, endDate, searchQuery, primaryAccount]);
 
   const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
 
@@ -595,3 +596,5 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+    
