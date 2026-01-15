@@ -108,13 +108,18 @@ export function Header() {
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b bg-background px-4 md:px-6">
        <div className="flex items-center gap-6">
-         <Link
-          href="/dashboard"
-          className="flex items-center gap-2 font-semibold"
-        >
-          <Wallet className="h-6 w-6 text-primary" />
-          <span className="">Expense Manager</span>
-        </Link>
+         <div className="flex items-center gap-2">
+            <Link
+            href="/dashboard"
+            className="flex items-center gap-2 font-semibold"
+            >
+            <Wallet className="h-6 w-6 text-primary" />
+            <span className="">Expense Manager</span>
+            </Link>
+            <Button variant="ghost" size="icon" onClick={handleOpenNewWindow} aria-label="Open in new window" className="h-7 w-7">
+                <ArrowUpRight className="h-4 w-4" />
+            </Button>
+         </div>
         <nav className="hidden flex-col gap-6 text-lg font-medium md:flex md:flex-row md:items-center md:gap-5 md:text-sm lg:gap-6">
             {menuItems.map(item => (
             <Link
@@ -208,10 +213,6 @@ export function Header() {
             </Link>
             </DropdownMenuContent>
         </DropdownMenu>
-
-        <Button variant="ghost" size="icon" onClick={handleOpenNewWindow} aria-label="Open in new window">
-            <ArrowUpRight className="h-5 w-5" />
-        </Button>
       </div>
     </header>
   );
