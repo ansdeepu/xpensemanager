@@ -164,6 +164,7 @@ export function TransactionTable({
       }
   
       const currentAccount = accounts.find(a => a.id === accountId);
+      const isPrimaryView = primaryAccount?.id === accountId;
 
       for (const loan of loans) {
           const loanTx = loan.transactions.find(lt => lt.id === t.loanTransactionId);
@@ -173,18 +174,23 @@ export function TransactionTable({
               
               const isViewingFromLoanPartyAccount = currentAccount && loan.personName === currentAccount.name;
 
-              if (isViewingFromLoanPartyAccount) {
-                  // Viewing from the other party's perspective (e.g., Money Box tab if Money Box is a loan party)
-                  const userAccountName = getAccountName(loanTx.accountId);
-                  if (loan.type === 'taken') { // User took a loan from this party
-                      type = loanTx.type === 'loan' ? 'Loan Given' : 'Repayment Received';
-                      description = `${type} ${loanTx.type === 'loan' ? 'to' : 'from'} ${userAccountName}`;
-                  } else { // User gave a loan to this party
-                      type = loanTx.type === 'loan' ? 'Loan Taken' : 'Repayment Made';
-                      description = `${type} ${loanTx.type === 'loan' ? 'from' : 'to'} ${userAccountName}`;
+              // The user's account involved in the loan transaction (e.g. Primary Bank, Cash, HDFC)
+              const userAccountInLoanTx = accounts.find(a => a.id === loanTx.accountId);
+              const isLoanTxWithCurrentAccount = userAccountInLoanTx?.id === accountId;
+              
+              if (isViewingFromLoanPartyAccount || isLoanTxWithCurrentAccount) {
+                  const otherPartyName = isLoanTxWithCurrentAccount ? loan.personName : getAccountName(loanTx.accountId);
+
+                  if (loan.type === 'taken') { // User took a loan
+                      type = loanTx.type === 'loan' ? 'Loan from' : 'Repayment to';
+                      description = `${type} ${otherPartyName}`;
+                  } else { // User gave a loan
+                      type = loanTx.type === 'loan' ? 'Loan to' : 'Repayment from';
+                      description = `${type} ${otherPartyName}`;
                   }
-              } else {
-                  // Viewing from the user's primary or another non-loan-party account
+                  
+              } else if (isPrimaryView) {
+                  // When on the primary view, show details relative to the user
                   if (loan.type === 'given') {
                       type = loanTx.type === 'loan' ? "Loan Given" : "Repayment Received";
                       description = `${type} ${loanTx.type === 'loan' ? 'to' : 'from'} ${loan.personName}`;
@@ -192,12 +198,14 @@ export function TransactionTable({
                       type = loanTx.type === 'loan' ? "Loan from" : "Repayment to";
                       description = `${type} ${loan.personName}`;
                   }
+              } else {
+                  return defaultInfo;
               }
               return { isLoan: true, type, category: 'Loan', description, colorClass: 'bg-orange-100 dark:bg-orange-900/50' };
           }
       }
       return defaultInfo;
-    }, [accounts, loans, accountId]);
+    }, [accounts, loans, accountId, primaryAccount]);
     
 
   const transactionsWithBalance = useMemo(() => {
@@ -504,7 +512,7 @@ export function TransactionTable({
 
   return (
     <>
-      <ScrollArea className="h-[calc(100vh-380px)]">
+      <ScrollArea className="h-[calc(100vh-320px)]">
         <Table>
           <TableHeader className="sticky top-0 z-10 bg-background">
               <TableRow>
