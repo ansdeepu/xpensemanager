@@ -192,42 +192,63 @@ export default function TransactionsPage() {
  const { accounts, cashWalletBalance, digitalWalletBalance } = useMemo(() => {
     const calculatedAccountBalances: { [key: string]: number } = {};
     rawAccounts.forEach(acc => {
-        calculatedAccountBalances[acc.id] = 0;
+      calculatedAccountBalances[acc.id] = acc.actualBalance ?? 0;
     });
 
-    let calculatedCashBalance = 0;
-    let calculatedDigitalBalance = 0;
+    let calculatedCashBalance = walletPreferences.cash?.balance ?? 0;
+    let calculatedDigitalBalance = walletPreferences.digital?.balance ?? 0;
 
+    const cashReconDate = walletPreferences.cash?.date ? parseISO(walletPreferences.cash.date) : new Date(0);
+    const digitalReconDate = walletPreferences.digital?.date ? parseISO(walletPreferences.digital.date) : new Date(0);
+    
     allTransactions.forEach(t => {
-      // Wallet balance calculation
-      if (t.type === 'transfer') {
-        if (t.toAccountId === 'cash-wallet') calculatedCashBalance += t.amount;
-        if (t.fromAccountId === 'cash-wallet') calculatedCashBalance -= t.amount;
-        if (t.toAccountId === 'digital-wallet') calculatedDigitalBalance += t.amount;
-        if (t.fromAccountId === 'digital-wallet') calculatedDigitalBalance -= t.amount;
-      } else if (t.type === 'expense') {
-        if (t.paymentMethod === 'cash') calculatedCashBalance -= t.amount;
-        if (t.paymentMethod === 'digital') calculatedDigitalBalance -= t.amount;
-      }
+      const transactionDate = parseISO(t.date);
 
-        // Bank account balance calculation
-        if (t.type === 'income' && t.accountId && calculatedAccountBalances[t.accountId] !== undefined) {
+      if (t.type === 'income' && t.accountId && calculatedAccountBalances[t.accountId] !== undefined) {
+        const accountReconDate = rawAccounts.find(a => a.id === t.accountId)?.actualBalanceDate ? parseISO(rawAccounts.find(a => a.id === t.accountId)!.actualBalanceDate!) : new Date(0);
+        if (isAfter(transactionDate, accountReconDate)) {
             calculatedAccountBalances[t.accountId] += t.amount;
-        } else if (t.type === 'expense' && t.accountId && t.paymentMethod === 'online' && calculatedAccountBalances[t.accountId] !== undefined) {
-            calculatedAccountBalances[t.accountId] -= t.amount;
-        } else if (t.type === 'transfer') {
-            if (t.fromAccountId && calculatedAccountBalances[t.fromAccountId] !== undefined) {
-                calculatedAccountBalances[t.fromAccountId] -= t.amount;
-            }
-            if (t.toAccountId && calculatedAccountBalances[t.toAccountId] !== undefined) {
-                calculatedAccountBalances[t.toAccountId] += t.amount;
-            }
         }
+      } else if (t.type === 'expense') {
+        if (t.paymentMethod === 'online' && t.accountId && calculatedAccountBalances[t.accountId] !== undefined) {
+            const accountReconDate = rawAccounts.find(a => a.id === t.accountId)?.actualBalanceDate ? parseISO(rawAccounts.find(a => a.id === t.accountId)!.actualBalanceDate!) : new Date(0);
+            if (isAfter(transactionDate, accountReconDate)) {
+              calculatedAccountBalances[t.accountId] -= t.amount;
+            }
+        } else if (t.paymentMethod === 'cash' && isAfter(transactionDate, cashReconDate)) {
+          calculatedCashBalance -= t.amount;
+        } else if (t.paymentMethod === 'digital' && isAfter(transactionDate, digitalReconDate)) {
+          calculatedDigitalBalance -= t.amount;
+        }
+      } else if (t.type === 'transfer') {
+        // From Account
+        if (t.fromAccountId && calculatedAccountBalances[t.fromAccountId] !== undefined) {
+            const fromAccountReconDate = rawAccounts.find(a => a.id === t.fromAccountId)?.actualBalanceDate ? parseISO(rawAccounts.find(a => a.id === t.fromAccountId)!.actualBalanceDate!) : new Date(0);
+            if (isAfter(transactionDate, fromAccountReconDate)) {
+              calculatedAccountBalances[t.fromAccountId] -= t.amount;
+            }
+        } else if (t.fromAccountId === 'cash-wallet' && isAfter(transactionDate, cashReconDate)) {
+          calculatedCashBalance -= t.amount;
+        } else if (t.fromAccountId === 'digital-wallet' && isAfter(transactionDate, digitalReconDate)) {
+          calculatedDigitalBalance -= t.amount;
+        }
+        // To Account
+        if (t.toAccountId && calculatedAccountBalances[t.toAccountId] !== undefined) {
+          const toAccountReconDate = rawAccounts.find(a => a.id === t.toAccountId)?.actualBalanceDate ? parseISO(rawAccounts.find(a => a.id === t.toAccountId)!.actualBalanceDate!) : new Date(0);
+          if (isAfter(transactionDate, toAccountReconDate)) {
+            calculatedAccountBalances[t.toAccountId] += t.amount;
+          }
+        } else if (t.toAccountId === 'cash-wallet' && isAfter(transactionDate, cashReconDate)) {
+          calculatedCashBalance += t.amount;
+        } else if (t.toAccountId === 'digital-wallet' && isAfter(transactionDate, digitalReconDate)) {
+          calculatedDigitalBalance += t.amount;
+        }
+      }
     });
 
     const finalAccounts = rawAccounts.map(acc => ({
         ...acc,
-        balance: calculatedAccountBalances[acc.id] ?? 0,
+        balance: calculatedAccountBalances[acc.id] ?? (acc.actualBalance ?? 0),
     }));
     
     return { 
@@ -235,7 +256,7 @@ export default function TransactionsPage() {
       cashWalletBalance: calculatedCashBalance,
       digitalWalletBalance: calculatedDigitalBalance 
     };
-  }, [rawAccounts, allTransactions]);
+  }, [rawAccounts, allTransactions, walletPreferences]);
 
   const primaryAccount = accounts.find(a => a.isPrimary);
   
