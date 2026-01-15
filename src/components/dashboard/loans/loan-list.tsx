@@ -436,7 +436,7 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
   ];
   
   const getLoanTransactionDescription = (loan: Loan, transaction: LoanTransaction) => {
-    if (transaction.description) return transaction.description;
+    if (transaction.description != null) return transaction.description;
 
     if (loan.type === 'given') {
         return transaction.type === 'loan' ? `Loan to ${loan.personName}` : `Repayment from ${loan.personName}`;
