@@ -16,7 +16,7 @@ import {
   HandCoins,
   LogOut,
   Menu,
-  ExternalLink,
+  ArrowUpRight,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -167,10 +167,7 @@ export function Header() {
                 </nav>
             </SheetContent>
         </Sheet>
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={handleOpenNewWindow} aria-label="Open in new window">
-            <ExternalLink className="h-5 w-5" />
-        </Button>
+      <div className="flex items-center gap-2">
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="flex items-center gap-2 rounded-full p-1 pr-3">
@@ -211,6 +208,10 @@ export function Header() {
             </Link>
             </DropdownMenuContent>
         </DropdownMenu>
+
+        <Button variant="ghost" size="icon" onClick={handleOpenNewWindow} aria-label="Open in new window">
+            <ArrowUpRight className="h-5 w-5" />
+        </Button>
       </div>
     </header>
   );
