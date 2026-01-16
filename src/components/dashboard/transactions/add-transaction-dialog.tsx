@@ -59,7 +59,7 @@ const formatCurrency = (amount: number) => {
 };
 
 
-export function AddTransactionDialog({ accounts: accountData }: { accounts: (Account | {id: string, name: string, balance: number})[] }) {
+export function AddTransactionDialog({ children, accounts: accountData }: { children: React.ReactNode, accounts: (Account | {id: string, name: string, balance: number})[] }) {
   const [isOpen, setIsOpen] = useState(false);
   const [user] = useAuthState();
   const [categories, setCategories] = useState<Category[]>([]);
@@ -175,10 +175,7 @@ export function AddTransactionDialog({ accounts: accountData }: { accounts: (Acc
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button size="sm">
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Add
-        </Button>
+        {children}
       </DialogTrigger>
       <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-xl">
         <DialogHeader>

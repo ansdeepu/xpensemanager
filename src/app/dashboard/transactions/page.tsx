@@ -9,7 +9,7 @@ import type { Account, Transaction } from "@/lib/data";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format, isAfter, isSameDay, parseISO, startOfDay, endOfDay, isWithinInterval } from "date-fns";
-import { CalendarIcon, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, Printer, Search, XCircle } from "lucide-react";
+import { CalendarIcon, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, Printer, Search, XCircle, PlusCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -189,10 +189,10 @@ export default function TransactionsPage() {
     }
   }, [user, userLoading, dataLoading]);
 
-  const { accounts, cashWalletBalance, digitalWalletBalance } = useMemo(() => {
+ const { accounts, cashWalletBalance, digitalWalletBalance } = useMemo(() => {
     const calculatedAccountBalances: { [key: string]: number } = {};
     rawAccounts.forEach(acc => {
-        calculatedAccountBalances[acc.id] = 0; // Start with 0
+        calculatedAccountBalances[acc.id] = 0;
     });
 
     let calculatedCashBalance = 0;
@@ -291,77 +291,49 @@ export default function TransactionsPage() {
     }
     
     return filtered.sort((a, b) => {
-      const dateBTime = new Date(b.date).getTime();
-      const dateATime = new Date(a.date).getTime();
-
-      if (dateBTime !== dateATime) {
-        return dateBTime - dateATime;
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      if (dateA !== dateB) {
+          return dateA - dateB;
       }
-
+      // If dates are same, transfers come first
       if (a.type === 'transfer' && b.type !== 'transfer') {
-        return -1;
+          return -1;
       }
       if (b.type === 'transfer' && a.type !== 'transfer') {
-        return 1;
+          return 1;
       }
-
       return 0;
     });
   }, [allTransactions, activeTab, startDate, endDate, searchQuery, primaryAccount]);
 
 
  const transactionsWithRunningBalance = useMemo(() => {
+    let runningBalance = 0;
     const isPrimaryView = primaryAccount?.id === activeTab;
 
-    let totalBalance: number;
-    if (isPrimaryView) {
-      totalBalance = (primaryAccount?.balance ?? 0) + cashWalletBalance + digitalWalletBalance;
-    } else {
-      const currentAccount = accounts.find(a => a.id === activeTab);
-      totalBalance = currentAccount?.balance ?? 0;
-    }
-
-    let runningBalance = totalBalance;
-
-    const getEffectOnBalance = (t: Transaction) => {
-        const fromAccountIsWallet = t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
-        const toAccountIsWallet = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
-        
-        const fromCurrentView = isPrimaryView ? (t.fromAccountId === activeTab || fromAccountIsWallet) : t.fromAccountId === activeTab;
-        const toCurrentView = isPrimaryView ? (t.toAccountId === activeTab || toAccountIsWallet) : t.toAccountId === activeTab;
-        
-        const accountIsInView = isPrimaryView ? (t.accountId === activeTab || t.paymentMethod === 'cash' || t.paymentMethod === 'digital') : t.accountId === activeTab;
-
-        if (!fromCurrentView && !toCurrentView && !accountIsInView) return 0;
-
-        let effect = 0;
-        switch (t.type) {
-            case 'income':
-                if (accountIsInView) effect = t.amount;
-                break;
-            case 'expense':
-                if (accountIsInView) effect = -t.amount;
-                break;
-            case 'transfer':
-                if (fromCurrentView && !toCurrentView) {
-                    effect = -t.amount;
-                } else if (!fromCurrentView && toCurrentView) {
-                    effect = t.amount;
-                }
-                // If transfer is within the view (e.g. bank to cash), net effect is 0 on the total
-                break;
-        }
-        return effect;
-    };
-    
     return filteredTransactions.map(t => {
-        const balance = runningBalance;
-        const effect = getEffectOnBalance(t);
-        runningBalance -= effect;
-        return { ...t, balance };
-    });
+      let effect = 0;
+      const fromCurrentView = isPrimaryView ? (t.fromAccountId === activeTab || t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet') : t.fromAccountId === activeTab;
+      const toCurrentView = isPrimaryView ? (t.toAccountId === activeTab || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet') : t.toAccountId === activeTab;
+      const accountIsInView = isPrimaryView ? (t.accountId === activeTab || t.paymentMethod === 'cash' || t.paymentMethod === 'digital') : t.accountId === activeTab;
+        
+      if (t.type === 'income') {
+        if(accountIsInView) effect = t.amount;
+      } else if (t.type === 'expense') {
+        if(accountIsInView) effect = -t.amount;
+      } else if (t.type === 'transfer') {
+        if (fromCurrentView && !toCurrentView) {
+          effect = -t.amount;
+        } else if (!fromCurrentView && toCurrentView) {
+          effect = t.amount;
+        }
+      }
 
-}, [filteredTransactions, activeTab, primaryAccount, accounts, cashWalletBalance, digitalWalletBalance]);
+      runningBalance += effect;
+      return { ...t, balance: runningBalance };
+    }).reverse();
+}, [filteredTransactions, activeTab, primaryAccount]);
 
 
   const totalPages = Math.ceil(transactionsWithRunningBalance.length / itemsPerPage);
@@ -598,7 +570,7 @@ export default function TransactionsPage() {
         <div className="lg:col-span-1">
             <Card className="print-hide">
                 <CardContent className="pt-6">
-                    <div className="flex flex-col gap-3">
+                    <div className="flex flex-col gap-4">
                         <div className="grid grid-cols-2 gap-2">
                             <div className="space-y-1">
                                 <Label htmlFor="reconciliation-date-input" className="text-xs flex items-center gap-2">
@@ -640,8 +612,8 @@ export default function TransactionsPage() {
                         </div>
 
                         <div className="space-y-1">
-                            <Label className="text-xs">Filter by Date Range</Label>
-                            <div className="flex items-center gap-2">
+                             <Label className="text-xs">Filter by Date Range</Label>
+                             <div className="flex items-center gap-2">
                                 <Input
                                 type="date"
                                 value={startDate}
@@ -656,23 +628,21 @@ export default function TransactionsPage() {
                                 className="w-full h-9"
                                 min={startDate}
                                 />
+                                 <Button onClick={handleClearFilters} variant="ghost" size="icon" className="h-9 w-9 flex-shrink-0">
+                                    <XCircle className="h-4 w-4" />
+                                </Button>
+                                <Button onClick={handlePrint} variant="outline" size="icon" className="h-9 w-9 flex-shrink-0">
+                                    <Printer className="h-4 w-4" />
+                                </Button>
+                                <AddTransactionDialog accounts={accountDataForDialog}>
+                                     <Button variant="outline" size="icon" className="h-9 w-9 flex-shrink-0">
+                                        <PlusCircle className="h-4 w-4" />
+                                    </Button>
+                                </AddTransactionDialog>
                             </div>
                         </div>
                     </div>
                 </CardContent>
-                <CardFooter className="pt-4">
-                    <div className="grid grid-cols-3 gap-2 w-full">
-                        <Button onClick={handleClearFilters} variant="ghost" size="sm">
-                            <XCircle className="mr-2 h-4 w-4" />
-                            Clear
-                        </Button>
-                        <Button onClick={handlePrint} variant="outline" size="sm">
-                            <Printer className="mr-2 h-4 w-4" />
-                            Print
-                        </Button>
-                        <AddTransactionDialog accounts={accountDataForDialog} />
-                    </div>
-                </CardFooter>
             </Card>
         </div>
       </div>
