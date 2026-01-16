@@ -310,40 +310,38 @@ export default function TransactionsPage() {
 
  const transactionsWithRunningBalance = useMemo(() => {
     let runningBalance = 0;
-    const isPrimaryView = primaryAccount?.id === activeTab;
-
+    
     return filteredTransactions.map(t => {
-      let effect = 0;
-      const fromAccountIsWallet = t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
-      const toAccountIsWallet = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
-      
-      const fromCurrentView = isPrimaryView ? (t.fromAccountId === activeTab || fromAccountIsWallet) : t.fromAccountId === activeTab;
-      const toCurrentView = isPrimaryView ? (t.toAccountId === activeTab || toAccountIsWallet) : t.toAccountId === activeTab;
-      
-      let accountIsInView = false;
-      if (t.type === 'expense' || t.type === 'income') {
-         accountIsInView = isPrimaryView 
-            ? (t.accountId === activeTab || t.paymentMethod === 'cash' || t.paymentMethod === 'digital') 
-            : t.accountId === activeTab;
-      }
+        let effect = 0;
+        const isPrimaryView = primaryAccount?.id === activeTab;
+        const fromAccountIsWallet = t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
+        const toAccountIsWallet = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
         
-      if (t.type === 'income') {
-        if(accountIsInView) effect = t.amount;
-      } else if (t.type === 'expense') {
-        if(accountIsInView) effect = -t.amount;
-      } else if (t.type === 'transfer') {
-        if (fromCurrentView && toCurrentView) {
-            // Internal transfer within the view, no change to total balance
-            effect = 0;
-        } else if (fromCurrentView) {
-          effect = -t.amount;
-        } else if (toCurrentView) {
-          effect = t.amount;
+        const fromCurrentView = isPrimaryView ? (t.fromAccountId === activeTab || fromAccountIsWallet) : t.fromAccountId === activeTab;
+        const toCurrentView = isPrimaryView ? (t.toAccountId === activeTab || toAccountIsWallet) : t.toAccountId === activeTab;
+        
+        let accountIsInView = false;
+        if (t.type === 'expense' || t.type === 'income') {
+           accountIsInView = isPrimaryView 
+              ? (t.accountId === activeTab || t.paymentMethod === 'cash' || t.paymentMethod === 'digital') 
+              : t.accountId === activeTab;
         }
-      }
 
-      runningBalance += effect;
-      return { ...t, balance: runningBalance };
+        if (t.type === 'income') {
+            if (accountIsInView) effect = t.amount;
+        } else if (t.type === 'expense') {
+            if (accountIsInView) effect = -t.amount;
+        } else if (t.type === 'transfer') {
+            if (fromCurrentView && toCurrentView) {
+                effect = 0; // Internal transfer within the same view
+            } else if (fromCurrentView) {
+                effect = -t.amount;
+            } else if (toCurrentView) {
+                effect = t.amount;
+            }
+        }
+        runningBalance += effect;
+        return { ...t, balance: runningBalance };
     }).reverse();
 }, [filteredTransactions, activeTab, primaryAccount]);
 
@@ -535,7 +533,7 @@ export default function TransactionsPage() {
                   {otherAccounts.map((account, index) => {
                     const balanceDifference = getBalanceDifference(account.balance, account.actualBalance);
                     return (
-                      <TabsTrigger key={account.id} value={account.id} className={cn("border flex flex-col h-full p-2 items-start text-left gap-1 data-[state=active]:shadow-lg", tabColors[(secondaryAccounts.length + index) % tabColors.length], textColors[(secondaryAccounts.length + index) % tabColors.length])}>
+                      <TabsTrigger key={account.id} value={account.id} className={cn("border flex flex-col h-full p-2 items-start text-left gap-1 data-[state=active]:shadow-lg", tabColors[(secondaryAccounts.length + index) % tabColors.length], textColors[(secondaryAccounts.length + index) % textColors.length])}>
                           <div className="w-full flex justify-between items-center">
                               <span className="font-semibold text-sm">{account.name}</span>
                               <span className="font-bold text-sm">{formatCurrency(account.balance)}</span>
@@ -578,42 +576,40 @@ export default function TransactionsPage() {
                 <CardContent className="pt-6">
                     <div className="flex flex-col gap-4">
                         
-                        <div className="flex items-end gap-2">
-                            <div className="space-y-1">
-                                <Label htmlFor="reconciliation-date-input" className="text-xs flex items-center gap-2">
-                                    <CalendarIcon className="h-4 w-4 text-red-600" />
-                                    Reconciliation Date
-                                </Label>
+                        <div className="space-y-1">
+                            <Label htmlFor="reconciliation-date-input" className="text-xs flex items-center gap-2">
+                                <CalendarIcon className="h-4 w-4 text-red-600" />
+                                Reconciliation Date
+                            </Label>
+                            <Input
+                                id="reconciliation-date-input"
+                                type="date"
+                                value={reconciliationDate ? format(reconciliationDate, 'yyyy-MM-dd') : ''}
+                                onChange={(e) => {
+                                    const dateValue = e.target.value;
+                                    const newDate = dateValue ? new Date(dateValue) : undefined;
+                                    if (newDate) {
+                                        const timezoneOffset = newDate.getTimezoneOffset() * 60000;
+                                        handleReconciliationDateChange(new Date(newDate.getTime() + timezoneOffset));
+                                    } else {
+                                        handleReconciliationDateChange(undefined);
+                                    }
+                                }}
+                                className="w-full h-9"
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <Label htmlFor="search-input" className="text-xs">Search Transactions</Label>
+                            <div className="relative flex-grow">
+                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input
-                                    id="reconciliation-date-input"
-                                    type="date"
-                                    value={reconciliationDate ? format(reconciliationDate, 'yyyy-MM-dd') : ''}
-                                    onChange={(e) => {
-                                        const dateValue = e.target.value;
-                                        const newDate = dateValue ? new Date(dateValue) : undefined;
-                                        if (newDate) {
-                                            const timezoneOffset = newDate.getTimezoneOffset() * 60000;
-                                            handleReconciliationDateChange(new Date(newDate.getTime() + timezoneOffset));
-                                        } else {
-                                            handleReconciliationDateChange(undefined);
-                                        }
-                                    }}
-                                    className="w-full h-9"
+                                id="search-input"
+                                type="search"
+                                placeholder="Search..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full rounded-lg bg-background pl-8 h-9"
                                 />
-                            </div>
-                            <div className="space-y-1 flex-grow">
-                                <Label htmlFor="search-input" className="text-xs">Search Transactions</Label>
-                                <div className="relative flex-grow">
-                                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                    id="search-input"
-                                    type="search"
-                                    placeholder="Search..."
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="w-full rounded-lg bg-background pl-8 h-9"
-                                    />
-                                </div>
                             </div>
                         </div>
 
@@ -638,15 +634,18 @@ export default function TransactionsPage() {
                         </div>
                         
                         <div className="flex items-center justify-start gap-2">
-                             <Button onClick={handleClearFilters} variant="ghost" size="icon" className="h-9 w-9 flex-shrink-0">
-                                <XCircle className="h-4 w-4" />
+                            <Button onClick={handleClearFilters} variant="ghost" size="sm">
+                                <XCircle className="mr-2 h-4 w-4" />
+                                Clear
                             </Button>
-                            <Button onClick={handlePrint} variant="outline" size="icon" className="h-9 w-9 flex-shrink-0">
-                                <Printer className="h-4 w-4" />
+                            <Button onClick={handlePrint} variant="outline" size="sm">
+                                <Printer className="mr-2 h-4 w-4" />
+                                Print
                             </Button>
                             <AddTransactionDialog accounts={accountDataForDialog}>
-                                <Button variant="outline" size="icon" className="h-9 w-9 flex-shrink-0">
-                                    <PlusCircle className="h-4 w-4" />
+                                <Button variant="outline" size="sm">
+                                    <PlusCircle className="mr-2 h-4 w-4" />
+                                    Add
                                 </Button>
                             </AddTransactionDialog>
                         </div>
@@ -674,6 +673,8 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+    
 
     
 
