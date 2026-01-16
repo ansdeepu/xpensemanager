@@ -321,20 +321,20 @@ export default function TransactionsPage() {
         if (t.type === 'transfer') {
             if (t.loanTransactionId && loanTransactionTypeMap.has(t.loanTransactionId)) {
                 const loanType = loanTransactionTypeMap.get(t.loanTransactionId);
-                if (loanType === 'loan') {
-                    return 1; // Loan - shows last
-                }
                 if (loanType === 'repayment') {
                     return 2; // Repayment
                 }
+                if (loanType === 'loan') {
+                    return 5; // Loan
+                }
             }
-            return 5; // Pure Transfer - shows first
-        }
-        if (t.type === 'income') {
-            return 4; // Income
+            return 1; // Pure Transfer
         }
         if (t.type === 'expense') {
             return 3; // Expense
+        }
+        if (t.type === 'income') {
+            return 4; // Income
         }
         return 99; // Fallback
     };
@@ -729,11 +729,3 @@ const transactionsWithRunningBalance = useMemo(() => {
     </div>
   );
 }
-
-    
-
-    
-
-    
-
-    
