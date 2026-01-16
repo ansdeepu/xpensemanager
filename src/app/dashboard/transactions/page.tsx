@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { TransactionTable } from "@/components/dashboard/transactions/transaction-table";
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, orderBy, doc, setDoc, updateDoc } from "firebase/firestore";
-import type { Account, Transaction } from "@/lib/data";
+import type { Account, Transaction, Loan } from "@/lib/data";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format, isAfter, isSameDay, parseISO, startOfDay, endOfDay, isWithinInterval } from "date-fns";
@@ -106,6 +106,7 @@ export default function TransactionsPage() {
   const [user, userLoading] = useAuthState();
   const [rawAccounts, setRawAccounts] = useState<Omit<Account, 'balance'>[]>([]);
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
+  const [loans, setLoans] = useState<Loan[]>([]);
   const [walletPreferences, setWalletPreferences] = useState<{ cash?: { balance?: number, date?: string }, digital?: { balance?: number, date?: string } }>({});
   const [dataLoading, setDataLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<string | undefined>();
@@ -179,10 +180,20 @@ export default function TransactionsPage() {
         }
       });
       
+      const loansQuery = query(collection(db, "loans"), where("userId", "==", user.uid));
+        const unsubscribeLoans = onSnapshot(loansQuery, (snapshot) => {
+            const userLoans = snapshot.docs.map(doc => {
+                const data = doc.data();
+                return { id: doc.id, ...data } as Loan;
+            });
+            setLoans(userLoans);
+        });
+
       return () => {
         unsubscribeAccounts();
         unsubscribeTransactions();
         unsubscribePreferences();
+        unsubscribeLoans();
       };
     } else if (!userLoading) {
       setDataLoading(false);
@@ -253,6 +264,22 @@ export default function TransactionsPage() {
   const secondaryAccounts = accounts.filter(account => !account.isPrimary && (account.name.toLowerCase().includes('hdfc') || account.name.toLowerCase().includes('fed') || account.name.toLowerCase().includes('post') || account.name.toLowerCase().includes('money')));
   const otherAccounts = accounts.filter(account => !account.isPrimary && !secondaryAccounts.some(sa => sa.id === account.id));
 
+  const loanTransactionTypeMap = useMemo(() => {
+    const map = new Map<string, 'loan' | 'repayment'>();
+    if (loans) {
+      for (const loan of loans) {
+        if (loan.transactions) {
+            for (const tx of loan.transactions) {
+                if (tx.id) {
+                    map.set(tx.id, tx.type);
+                }
+            }
+        }
+      }
+    }
+    return map;
+  }, [loans]);
+
   const filteredTransactions = useMemo(() => {
     const isPrimaryView = primaryAccount?.id === activeTab;
     
@@ -290,22 +317,46 @@ export default function TransactionsPage() {
         );
     }
     
+    const getTransactionSortOrder = (t: Transaction) => {
+        if (t.type === 'transfer') {
+            if (t.loanTransactionId && loanTransactionTypeMap.has(t.loanTransactionId)) {
+                const loanType = loanTransactionTypeMap.get(t.loanTransactionId);
+                if (loanType === 'loan') {
+                    return 1; // Loan - shows last
+                }
+                if (loanType === 'repayment') {
+                    return 2; // Repayment
+                }
+            }
+            return 5; // Pure Transfer - shows first
+        }
+        if (t.type === 'income') {
+            return 4; // Income
+        }
+        if (t.type === 'expense') {
+            return 3; // Expense
+        }
+        return 99; // Fallback
+    };
+
     return filtered.sort((a, b) => {
       const dateA = new Date(a.date).getTime();
       const dateB = new Date(b.date).getTime();
       if (dateA !== dateB) {
           return dateA - dateB;
       }
-      // If dates are same, transfers come first
-      if (a.type === 'transfer' && b.type !== 'transfer') {
-          return -1;
+      
+      const orderA = getTransactionSortOrder(a);
+      const orderB = getTransactionSortOrder(b);
+      
+      if (orderA !== orderB) {
+        return orderA - orderB;
       }
-      if (b.type === 'transfer' && a.type !== 'transfer') {
-          return 1;
-      }
-      return 0;
+      
+      // Fallback sort for same type on same day, e.g., by amount
+      return b.amount - a.amount;
     });
-  }, [allTransactions, activeTab, startDate, endDate, searchQuery, primaryAccount]);
+  }, [allTransactions, activeTab, startDate, endDate, searchQuery, primaryAccount, loanTransactionTypeMap]);
 
 
 const transactionsWithRunningBalance = useMemo(() => {
@@ -678,6 +729,8 @@ const transactionsWithRunningBalance = useMemo(() => {
     </div>
   );
 }
+
+    
 
     
 

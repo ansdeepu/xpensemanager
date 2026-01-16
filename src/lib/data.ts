@@ -90,3 +90,5 @@ export const accounts: Account[] = [];
 export const transactions: Transaction[] = [];
 
 export const categories: Category[] = [];
+
+    
