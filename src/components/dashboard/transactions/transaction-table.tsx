@@ -49,7 +49,7 @@ import { format, isAfter, isSameDay, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useAuthState } from "@/hooks/use-auth-state";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 
 const formatCurrency = (amount: number) => {
@@ -442,7 +442,7 @@ export function TransactionTable({
 
   return (
     <>
-      <ScrollArea className="h-[calc(100vh-380px)]">
+      <ScrollArea className="h-[calc(100vh-380px)] whitespace-nowrap">
         <Table style={{ minWidth: '1400px' }}>
           <TableHeader className="sticky top-0 z-10 bg-background">
               <TableRow>
@@ -508,7 +508,7 @@ export function TransactionTable({
                                           <Trash2 className="h-4 w-4" />
                                       </Button>
                                   </AlertDialogTrigger>
-                                  <AlertDialogContent onInteractOutside={(e) => e.preventDefault()}>
+                                  <AlertDialogContent>
                                       <AlertDialogHeader>
                                           <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                                           <AlertDialogDescription>
@@ -528,6 +528,7 @@ export function TransactionTable({
               })}
           </TableBody>
         </Table>
+        <ScrollBar orientation="horizontal" />
       </ScrollArea>
     <div className="hidden print-block">
       <div id="printable-area">
@@ -688,3 +689,5 @@ export function TransactionTable({
     </>
   );
 }
+
+    
