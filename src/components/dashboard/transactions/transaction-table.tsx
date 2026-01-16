@@ -508,7 +508,7 @@ export function TransactionTable({
                                           <Trash2 className="h-4 w-4" />
                                       </Button>
                                   </AlertDialogTrigger>
-                                  <AlertDialogContent onInteractOutside={(e) => e.preventDefault()}>
+                                  <AlertDialogContent>
                                       <AlertDialogHeader>
                                           <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                                           <AlertDialogDescription>

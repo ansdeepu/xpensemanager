@@ -442,10 +442,10 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
         const financialTxQuery = query(collection(db, "transactions"), where("loanTransactionId", "==", selectedTransaction.id), where("userId", "==", user.uid));
         const financialTxSnapshot = await getDocs(financialTxQuery);
         
-        const otherPartyIsVirtual = !accounts.some(acc => acc.name.toLowerCase() === selectedLoan.personName.toLowerCase());
-        const otherPartyAccountIdForTransfer = otherPartyIsVirtual
-            ? `loan-virtual-account-${selectedLoan.personName.replace(/\s+/g, '-')}`
-            : accounts.find(acc => acc.name.toLowerCase() === selectedLoan.personName.toLowerCase())!.id;
+        const otherPartyAccount = accounts.find(acc => acc.name.toLowerCase() === selectedLoan.personName.toLowerCase());
+        const otherPartyAccountIdForTransfer = otherPartyAccount 
+            ? otherPartyAccount.id 
+            : `loan-virtual-account-${selectedLoan.personName.replace(/\s+/g, '-')}`;
 
 
         let fromAccountId: string;
