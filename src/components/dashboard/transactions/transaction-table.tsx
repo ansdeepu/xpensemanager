@@ -443,7 +443,7 @@ export function TransactionTable({
   return (
     <>
       <ScrollArea className="h-[calc(100vh-380px)]">
-        <Table>
+        <Table style={{ minWidth: '1400px' }}>
           <TableHeader className="sticky top-0 z-10 bg-background">
               <TableRow>
               <TableHead>Sl.</TableHead>
@@ -456,7 +456,7 @@ export function TransactionTable({
               <TableHead className="text-right">Transfer</TableHead>
               <TableHead className="text-right">Credit</TableHead>
               <TableHead className="text-right min-w-[100px]">Balance</TableHead>
-              <TableHead className="text-right print-hide min-w-[100px]">Actions</TableHead>
+              <TableHead className="text-right print-hide min-w-[120px]">Actions</TableHead>
               </TableRow>
           </TableHeader>
           <TableBody>
@@ -508,7 +508,7 @@ export function TransactionTable({
                                           <Trash2 className="h-4 w-4" />
                                       </Button>
                                   </AlertDialogTrigger>
-                                  <AlertDialogContent>
+                                  <AlertDialogContent onInteractOutside={(e) => e.preventDefault()}>
                                       <AlertDialogHeader>
                                           <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                                           <AlertDialogDescription>
