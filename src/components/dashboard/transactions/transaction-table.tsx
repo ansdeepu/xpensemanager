@@ -184,7 +184,7 @@ export function TransactionTable({
                 }
                 
                 const description = `${descriptionPrefix} ${otherPartyName}`;
-                return { isLoan: true, type: loanTx.type, category: 'Loan', description, descriptionClassName: 'text-orange-600 font-semibold' };
+                return { isLoan: true, type: loanTx.type, category: 'Loan', description, descriptionClassName: 'text-orange-600 font-bold' };
             }
             
             return defaultInfo;
@@ -446,17 +446,17 @@ export function TransactionTable({
         <Table>
           <TableHeader className="sticky top-0 z-10 bg-background">
               <TableRow>
-              <TableHead className="w-[4%]">Sl.</TableHead>
-              <TableHead className="w-[8%]">Date</TableHead>
-              <TableHead className="w-[20%]">Description</TableHead>
-              <TableHead className="w-[10%]">Type</TableHead>
-              <TableHead className="w-[12%]">Account</TableHead>
-              <TableHead className="w-[12%]">Category</TableHead>
-              <TableHead className="text-right w-[8%]">Debit</TableHead>
-              <TableHead className="text-right w-[8%]">Transfer</TableHead>
-              <TableHead className="text-right w-[8%]">Credit</TableHead>
-              <TableHead className="text-right w-[10%]">Balance</TableHead>
-              <TableHead className="text-right print-hide w-[10%]">Actions</TableHead>
+              <TableHead>Sl.</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead className="min-w-[250px]">Description</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead className="min-w-[180px]">Account</TableHead>
+              <TableHead className="min-w-[180px]">Category</TableHead>
+              <TableHead className="text-right">Debit</TableHead>
+              <TableHead className="text-right">Transfer</TableHead>
+              <TableHead className="text-right">Credit</TableHead>
+              <TableHead className="text-right min-w-[100px]">Balance</TableHead>
+              <TableHead className="text-right print-hide min-w-[100px]">Actions</TableHead>
               </TableRow>
           </TableHeader>
           <TableBody>

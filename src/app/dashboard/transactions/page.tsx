@@ -318,24 +318,14 @@ export default function TransactionsPage() {
     }
     
     const getTransactionSortOrder = (t: Transaction) => {
-        if (t.type === 'transfer') {
-            if (t.loanTransactionId && loanTransactionTypeMap.has(t.loanTransactionId)) {
-                const loanType = loanTransactionTypeMap.get(t.loanTransactionId);
-                if (loanType === 'loan') {
-                    return 1; // Loan
-                }
-                if (loanType === 'repayment') {
-                    return 4; // Repayment
-                }
-            }
-            return 5; // Pure Transfer
+        if (t.loanTransactionId && loanTransactionTypeMap.has(t.loanTransactionId)) {
+            const loanType = loanTransactionTypeMap.get(t.loanTransactionId);
+            if (loanType === 'loan') return 1; // Loan
+            if (loanType === 'repayment') return 4; // Repayment
         }
-        if (t.type === 'income') {
-            return 2; // Income
-        }
-        if (t.type === 'expense') {
-            return 3; // Expense
-        }
+        if (t.type === 'income') return 2; // Income
+        if (t.type === 'expense') return 3; // Expense
+        if (t.type === 'transfer') return 5; // Pure Transfer
         return 99; // Fallback
     };
 
@@ -630,7 +620,7 @@ const transactionsWithRunningBalance = useMemo(() => {
             <Card className="print-hide">
                 <CardContent className="pt-6">
                     <div className="flex flex-col gap-4">
-                       <div className="grid grid-cols-2 gap-4">
+                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                            <div className="space-y-1">
                                 <Label htmlFor="reconciliation-date-input" className="text-xs flex items-center gap-2">
                                     <CalendarIcon className="h-4 w-4 text-red-600" />
@@ -671,7 +661,7 @@ const transactionsWithRunningBalance = useMemo(() => {
 
                         <div className="space-y-1">
                              <Label className="text-xs">Filter by Date Range</Label>
-                             <div className="flex items-center gap-2">
+                             <div className="grid grid-cols-[1fr_auto_1fr] sm:flex items-center gap-2">
                                 <Input
                                 type="date"
                                 value={startDate}
@@ -689,7 +679,7 @@ const transactionsWithRunningBalance = useMemo(() => {
                             </div>
                         </div>
                         
-                        <div className="flex items-center justify-start gap-2 pt-1">
+                        <div className="flex flex-wrap items-center justify-start gap-2 pt-1">
                             <Button onClick={handleClearFilters} variant="outline" size="sm">
                                 <XCircle className="mr-2 h-4 w-4" />
                                 Clear

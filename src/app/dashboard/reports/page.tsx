@@ -160,13 +160,13 @@ export default function ReportsPage() {
   return (
     <div className="space-y-6">
       <Tabs defaultValue={primaryAccount?.id || 'all'} className="w-full">
-        <TabsList className="grid w-full grid-cols-1 md:grid-cols-3 lg:grid-cols-6 h-auto flex-wrap">
-          <TabsTrigger value="all" className="flex flex-col h-auto p-2">
+        <TabsList className="flex w-full overflow-x-auto h-auto p-1">
+          <TabsTrigger value="all" className="flex-shrink-0 flex flex-col h-auto p-2">
             <span>Overall Summary</span>
             <span className="font-bold text-primary">{formatCurrency(allBalance)}</span>
           </TabsTrigger>
           {primaryAccount && (
-            <TabsTrigger value={primaryAccount.id} className="flex flex-col h-auto p-2 items-start text-left">
+            <TabsTrigger value={primaryAccount.id} className="flex-shrink-0 flex flex-col h-auto p-2 items-start text-left min-w-64">
               <span className="font-semibold text-sm">Primary ({primaryAccount.name})</span>
               <div className="w-full text-xs text-muted-foreground mt-1">
                   <div className="flex justify-between items-center">
@@ -181,7 +181,7 @@ export default function ReportsPage() {
             </TabsTrigger>
           )}
           {accounts.filter(account => !account.isPrimary).map(account => (
-            <TabsTrigger key={account.id} value={account.id} className="flex flex-col h-auto p-2">
+            <TabsTrigger key={account.id} value={account.id} className="flex-shrink-0 flex flex-col h-auto p-2">
               <span>{account.name}</span>
               <span className="font-bold text-primary">{formatCurrency(account.balance)}</span>
             </TabsTrigger>
