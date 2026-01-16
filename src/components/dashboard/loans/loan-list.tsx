@@ -76,6 +76,165 @@ const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
+function LoanAccordionItem({ 
+    loan, 
+    onEditTransaction, 
+    onDeleteLoan, 
+    onDeleteTransaction,
+    onEditLoanName,
+}: { 
+    loan: Loan;
+    onEditTransaction: (loan: Loan, transaction: LoanTransaction) => void;
+    onDeleteLoan: (loan: Loan) => void;
+    onDeleteTransaction: (loan: Loan, transaction: LoanTransaction) => void;
+    onEditLoanName: (loan: Loan) => void;
+}) {
+    const transactionsWithRunningBalance = useMemo(() => {
+        const chronologicalTransactions = [...loan.transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    
+        let runningBalance = 0;
+        const transactionsWithDetails = chronologicalTransactions.map(transaction => {
+            let credit = 0;
+            let debit = 0;
+            
+            if (loan.type === 'taken') {
+                if (transaction.type === 'loan') {
+                    credit = transaction.amount;
+                    runningBalance += transaction.amount;
+                } else { // repayment
+                    debit = transaction.amount;
+                    runningBalance -= transaction.amount;
+                }
+            } else { // 'given'
+                if (transaction.type === 'loan') {
+                    debit = transaction.amount;
+                    runningBalance += transaction.amount;
+                } else { // repayment
+                    credit = transaction.amount;
+                    runningBalance -= transaction.amount;
+                }
+            }
+    
+            return { ...transaction, credit, debit, balance: runningBalance };
+        });
+    
+        return transactionsWithDetails.reverse();
+    }, [loan]);
+
+    const getLoanTransactionDescription = (loan: Loan, transaction: LoanTransaction) => {
+        if (transaction.description != null) return transaction.description;
+
+        if (loan.type === 'given') {
+            return transaction.type === 'loan' ? `Loan to ${loan.personName}` : `Repayment from ${loan.personName}`;
+        } else { // loan.type === 'taken'
+            return transaction.type === 'loan' ? `Loan from ${loan.personName}` : `Repayment to ${loan.personName}`;
+        }
+    };
+
+    return (
+        <AccordionItem value={loan.id}>
+            <AccordionTrigger>
+                <div className="flex justify-between items-center w-full pr-4">
+                    <span className="font-semibold text-lg">{loan.personName}</span>
+                    <Badge variant={loan.balance > 0 ? 'destructive' : 'default'} className="text-base">{formatCurrency(loan.balance)}</Badge>
+                </div>
+            </AccordionTrigger>
+            <AccordionContent>
+                <Card className="bg-muted/50">
+                    <CardHeader className="pb-2 flex-row justify-between items-center">
+                        <div className="flex items-center gap-2">
+                            <CardDescription className="flex gap-4">
+                                <span>Total Loan: <span className="font-semibold text-foreground">{formatCurrency(loan.totalLoan)}</span></span>
+                                <span>Total Repayment: <span className="font-semibold text-foreground">{formatCurrency(loan.totalRepayment)}</span></span>
+                            </CardDescription>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); onEditLoanName(loan); }}>
+                                <Pencil className="h-4 w-4" />
+                            </Button>
+                        </div>
+                        <div className="flex items-center">
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                        <AlertDialogDescription>This will delete all loan records for {loan.personName} and cannot be undone.</AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => onDeleteLoan(loan)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Date</TableHead>
+                                    <TableHead>Type</TableHead>
+                                    <TableHead>Description</TableHead>
+                                    <TableHead className="text-right">Credit</TableHead>
+                                    <TableHead className="text-right">Debit</TableHead>
+                                    <TableHead className="text-right">Balance</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {transactionsWithRunningBalance.map(t => (
+                                    <TableRow key={t.id}>
+                                        <TableCell>{isValid(parseISO(t.date)) ? format(parseISO(t.date), "dd/MM/yyyy") : '-'}</TableCell>
+                                        <TableCell>
+                                            <Badge variant={t.type === 'loan' ? 'outline' : 'secondary'} className="capitalize">{t.type}</Badge>
+                                        </TableCell>
+                                        <TableCell>{getLoanTransactionDescription(loan, t)}</TableCell>
+                                        <TableCell className="text-right font-mono text-green-600">
+                                            {t.credit > 0 ? formatCurrency(t.credit) : null}
+                                        </TableCell>
+                                        <TableCell className="text-right font-mono text-red-600">
+                                            {t.debit > 0 ? formatCurrency(t.debit) : null}
+                                        </TableCell>
+                                        <TableCell className={cn("text-right font-mono", t.balance > 0 ? 'text-foreground' : '')}>
+                                            {formatCurrency(t.balance)}
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <Button variant="ghost" size="icon" onClick={() => onEditTransaction(loan, t)} className="h-8 w-8">
+                                                <Pencil className="h-4 w-4" />
+                                            </Button>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                        <AlertDialogDescription>This will delete this transaction and cannot be undone.</AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={() => onDeleteTransaction(loan, t)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+            </AccordionContent>
+        </AccordionItem>
+    )
+}
+
+
 export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
   const [loans, setLoans] = useState<Loan[]>([]);
   const [accounts, setAccounts] = useState<Omit<Account, 'balance'>[]>([]);
@@ -456,17 +615,6 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
     { id: 'digital-wallet', name: 'Digital Wallet' },
     ...accounts
   ];
-  
-  const getLoanTransactionDescription = (loan: Loan, transaction: LoanTransaction) => {
-    if (transaction.description != null) return transaction.description;
-
-    if (loan.type === 'given') {
-        return transaction.type === 'loan' ? `Loan to ${loan.personName}` : `Repayment from ${loan.personName}`;
-    } else { // loan.type === 'taken'
-        return transaction.type === 'loan' ? `Loan from ${loan.personName}` : `Repayment to ${loan.personName}`;
-    }
-  }
-
 
   return (
     <>
@@ -582,140 +730,16 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
                 </div>
             ) : (
                 <Accordion type="single" collapsible className="w-full">
-                    {loans.map(loan => {
-                        const transactionsWithRunningBalance = useMemo(() => {
-                            const chronologicalTransactions = [...loan.transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-                        
-                            let runningBalance = 0;
-                            const transactionsWithDetails = chronologicalTransactions.map(transaction => {
-                                let credit = 0;
-                                let debit = 0;
-                                
-                                if (loan.type === 'taken') {
-                                    if (transaction.type === 'loan') {
-                                        credit = transaction.amount;
-                                        runningBalance += transaction.amount;
-                                    } else { // repayment
-                                        debit = transaction.amount;
-                                        runningBalance -= transaction.amount;
-                                    }
-                                } else { // 'given'
-                                    if (transaction.type === 'loan') {
-                                        debit = transaction.amount;
-                                        runningBalance += transaction.amount;
-                                    } else { // repayment
-                                        credit = transaction.amount;
-                                        runningBalance -= transaction.amount;
-                                    }
-                                }
-                        
-                                return { ...transaction, credit, debit, balance: runningBalance };
-                            });
-                        
-                            return transactionsWithDetails.reverse();
-                        }, [loan]);
-
-                        return (
-                        <AccordionItem value={loan.id} key={loan.id}>
-                            <AccordionTrigger>
-                                <div className="flex justify-between items-center w-full pr-4">
-                                    <span className="font-semibold text-lg">{loan.personName}</span>
-                                    <Badge variant={loan.balance > 0 ? 'destructive' : 'default'} className="text-base">{formatCurrency(loan.balance)}</Badge>
-                                </div>
-                            </AccordionTrigger>
-                            <AccordionContent>
-                                <Card className="bg-muted/50">
-                                    <CardHeader className="pb-2 flex-row justify-between items-center">
-                                      <div className="flex items-center gap-2">
-                                        <CardDescription className="flex gap-4">
-                                            <span>Total Loan: <span className="font-semibold text-foreground">{formatCurrency(loan.totalLoan)}</span></span>
-                                            <span>Total Repayment: <span className="font-semibold text-foreground">{formatCurrency(loan.totalRepayment)}</span></span>
-                                        </CardDescription>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => {e.stopPropagation(); openEditLoanNameDialog(loan);}}>
-                                            <Pencil className="h-4 w-4" />
-                                        </Button>
-                                      </div>
-                                        <div className="flex items-center">
-                                            <AlertDialog>
-                                                <AlertDialogTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
-                                                </AlertDialogTrigger>
-                                                <AlertDialogContent>
-                                                    <AlertDialogHeader>
-                                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                        <AlertDialogDescription>This will delete all loan records for {loan.personName} and cannot be undone.</AlertDialogDescription>
-                                                    </AlertDialogHeader>
-                                                    <AlertDialogFooter>
-                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={() => handleDeleteLoan(loan)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                                                    </AlertDialogFooter>
-                                                </AlertDialogContent>
-                                            </AlertDialog>
-                                        </div>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <Table>
-                                            <TableHeader>
-                                                <TableRow>
-                                                    <TableHead>Date</TableHead>
-                                                    <TableHead>Type</TableHead>
-                                                    <TableHead>Description</TableHead>
-                                                    <TableHead className="text-right">Credit</TableHead>
-                                                    <TableHead className="text-right">Debit</TableHead>
-                                                    <TableHead className="text-right">Balance</TableHead>
-                                                    <TableHead className="text-right">Actions</TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {transactionsWithRunningBalance.map(t => (
-                                                    <TableRow key={t.id}>
-                                                        <TableCell>{isValid(parseISO(t.date)) ? format(parseISO(t.date), "dd/MM/yyyy") : '-'}</TableCell>
-                                                        <TableCell>
-                                                          <Badge variant={t.type === 'loan' ? 'outline' : 'secondary'} className="capitalize">{t.type}</Badge>
-                                                        </TableCell>
-                                                        <TableCell>{getLoanTransactionDescription(loan, t)}</TableCell>
-                                                        <TableCell className="text-right font-mono text-green-600">
-                                                            {t.credit > 0 ? formatCurrency(t.credit) : null}
-                                                        </TableCell>
-                                                        <TableCell className="text-right font-mono text-red-600">
-                                                            {t.debit > 0 ? formatCurrency(t.debit) : null}
-                                                        </TableCell>
-                                                        <TableCell className={cn("text-right font-mono", t.balance > 0 ? 'text-foreground' : '')}>
-                                                            {formatCurrency(t.balance)}
-                                                        </TableCell>
-                                                        <TableCell className="text-right">
-                                                           <Button variant="ghost" size="icon" onClick={() => openEditDialog(loan, t)} className="h-8 w-8">
-                                                                <Pencil className="h-4 w-4" />
-                                                            </Button>
-                                                            <AlertDialog>
-                                                                <AlertDialogTrigger asChild>
-                                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
-                                                                        <Trash2 className="h-4 w-4" />
-                                                                    </Button>
-                                                                </AlertDialogTrigger>
-                                                                <AlertDialogContent>
-                                                                    <AlertDialogHeader>
-                                                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                                        <AlertDialogDescription>This will delete this transaction and cannot be undone.</AlertDialogDescription>
-                                                                    </AlertDialogHeader>
-                                                                    <AlertDialogFooter>
-                                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                                        <AlertDialogAction onClick={() => handleDeleteLoanTransaction(loan, t)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                                                                    </AlertDialogFooter>
-                                                                </AlertDialogContent>
-                                                            </AlertDialog>
-                                                        </TableCell>
-                                                    </TableRow>
-                                                ))}
-                                            </TableBody>
-                                        </Table>
-                                    </CardContent>
-                                </Card>
-                            </AccordionContent>
-                        </AccordionItem>
-                    )})}
+                    {loans.map(loan => (
+                      <LoanAccordionItem 
+                        key={loan.id}
+                        loan={loan} 
+                        onEditTransaction={openEditDialog}
+                        onDeleteLoan={handleDeleteLoan}
+                        onDeleteTransaction={handleDeleteLoanTransaction}
+                        onEditLoanName={openEditLoanNameDialog}
+                      />
+                    ))}
                 </Accordion>
             )}
         </CardContent>
