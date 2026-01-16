@@ -71,7 +71,7 @@ const PaginationControls = ({ currentPage, totalPages, setCurrentPage }: { curre
       <Button
         variant="outline"
         className="h-8 w-8 p-0"
-        onClick={() => setCurrentPage(prev => prev - 1)}
+        onClick={() => setCurrentPage(currentPage - 1)}
         disabled={currentPage === 1}
       >
         <span className="sr-only">Go to previous page</span>
@@ -83,7 +83,7 @@ const PaginationControls = ({ currentPage, totalPages, setCurrentPage }: { curre
       <Button
         variant="outline"
         className="h-8 w-8 p-0"
-        onClick={() => setCurrentPage(prev => prev + 1)}
+        onClick={() => setCurrentPage(currentPage + 1)}
         disabled={currentPage === totalPages}
       >
         <span className="sr-only">Next page</span>
@@ -117,7 +117,7 @@ export default function TransactionsPage() {
   const itemsPerPage = 100;
 
   const useDebounce = (callback: Function, delay: number) => {
-    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     return (...args: any) => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       timeoutRef.current = setTimeout(() => {
@@ -678,3 +678,5 @@ const transactionsWithRunningBalance = useMemo(() => {
     </div>
   );
 }
+
+    
