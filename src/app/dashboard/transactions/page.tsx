@@ -401,7 +401,7 @@ export default function TransactionsPage() {
                       <span className="font-bold text-xl text-primary">{formatCurrency(allBalance)}</span>
                     </div>
                     
-                    <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-2 text-left py-1">
+                    <div className="w-full grid grid-cols-1 gap-4 text-left py-1">
                       {/* Bank Column */}
                       <div className="space-y-1">
                         <Label htmlFor={`actual-balance-${primaryAccount.id}`} className="text-xs">Bank Balance</Label>
@@ -571,33 +571,33 @@ export default function TransactionsPage() {
             <Card className="print-hide">
                 <CardContent className="pt-6">
                     <div className="flex flex-col gap-4">
-                        <div className="grid grid-cols-2 gap-2">
-                            <div className="space-y-1">
-                                <Label htmlFor="reconciliation-date-input" className="text-xs flex items-center gap-2">
-                                    <CalendarIcon className="h-4 w-4 text-red-600" />
-                                    Reconciliation Date
-                                </Label>
-                                <Input
-                                    id="reconciliation-date-input"
-                                    type="date"
-                                    value={reconciliationDate ? format(reconciliationDate, 'yyyy-MM-dd') : ''}
-                                    onChange={(e) => {
-                                        const dateValue = e.target.value;
-                                        const newDate = dateValue ? new Date(dateValue) : undefined;
-                                        if (newDate) {
-                                            const timezoneOffset = newDate.getTimezoneOffset() * 60000;
-                                            handleReconciliationDateChange(new Date(newDate.getTime() + timezoneOffset));
-                                        } else {
-                                            handleReconciliationDateChange(undefined);
-                                        }
-                                    }}
-                                    className="w-full h-9"
-                                />
-                            </div>
-                            
-                            <div className="space-y-1">
-                                <Label htmlFor="search-input" className="text-xs">Search Transactions</Label>
-                                <div className="relative">
+                        <div className="space-y-1">
+                            <Label htmlFor="reconciliation-date-input" className="text-xs flex items-center gap-2">
+                                <CalendarIcon className="h-4 w-4 text-red-600" />
+                                Reconciliation Date
+                            </Label>
+                            <Input
+                                id="reconciliation-date-input"
+                                type="date"
+                                value={reconciliationDate ? format(reconciliationDate, 'yyyy-MM-dd') : ''}
+                                onChange={(e) => {
+                                    const dateValue = e.target.value;
+                                    const newDate = dateValue ? new Date(dateValue) : undefined;
+                                    if (newDate) {
+                                        const timezoneOffset = newDate.getTimezoneOffset() * 60000;
+                                        handleReconciliationDateChange(new Date(newDate.getTime() + timezoneOffset));
+                                    } else {
+                                        handleReconciliationDateChange(undefined);
+                                    }
+                                }}
+                                className="w-full h-9"
+                            />
+                        </div>
+                        
+                        <div className="space-y-1">
+                            <Label htmlFor="search-input" className="text-xs">Search Transactions</Label>
+                            <div className="flex items-center gap-2">
+                                <div className="relative flex-grow">
                                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                     <Input
                                     id="search-input"
@@ -608,6 +608,11 @@ export default function TransactionsPage() {
                                     className="w-full rounded-lg bg-background pl-8 h-9"
                                     />
                                 </div>
+                                <AddTransactionDialog accounts={accountDataForDialog}>
+                                    <Button variant="outline" size="icon" className="h-9 w-9 flex-shrink-0">
+                                        <PlusCircle className="h-4 w-4" />
+                                    </Button>
+                                </AddTransactionDialog>
                             </div>
                         </div>
 
@@ -634,11 +639,6 @@ export default function TransactionsPage() {
                                 <Button onClick={handlePrint} variant="outline" size="icon" className="h-9 w-9 flex-shrink-0">
                                     <Printer className="h-4 w-4" />
                                 </Button>
-                                <AddTransactionDialog accounts={accountDataForDialog}>
-                                     <Button variant="outline" size="icon" className="h-9 w-9 flex-shrink-0">
-                                        <PlusCircle className="h-4 w-4" />
-                                    </Button>
-                                </AddTransactionDialog>
                             </div>
                         </div>
                     </div>
@@ -666,3 +666,6 @@ export default function TransactionsPage() {
   );
 }
 
+
+
+    
