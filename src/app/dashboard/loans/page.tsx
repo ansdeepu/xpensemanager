@@ -3,7 +3,7 @@
 
 import { LoanList } from "@/components/dashboard/loans/loan-list";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuthState } from "@/hooks/use-auth-state";
@@ -32,6 +32,8 @@ export default function LoansPage() {
           return {
             id: doc.id,
             ...data,
+            totalLoan,
+            totalRepayment,
             balance: totalLoan - totalRepayment,
           } as Loan;
         });
@@ -44,23 +46,58 @@ export default function LoansPage() {
     }
   }, [user]);
 
-  const totalLoanTaken = !loading ? loans
-    .filter((l) => l.type === 'taken')
-    .reduce((sum, l) => sum + l.balance, 0) : 0;
+  const {
+    totalLoanTaken,
+    totalRepaymentForTaken,
+    balanceLoanTaken,
+    totalLoanGiven,
+    totalRepaymentForGiven,
+    balanceLoanGiven
+  } = useMemo(() => {
+    if (loading) return { totalLoanTaken: 0, totalRepaymentForTaken: 0, balanceLoanTaken: 0, totalLoanGiven: 0, totalRepaymentForGiven: 0, balanceLoanGiven: 0 };
+    
+    const loansTaken = loans.filter((l) => l.type === 'taken');
+    const totalLoanTaken = loansTaken.reduce((sum, l) => sum + l.totalLoan, 0);
+    const totalRepaymentForTaken = loansTaken.reduce((sum, l) => sum + l.totalRepayment, 0);
 
-  const totalLoanGiven = !loading ? loans
-    .filter((l) => l.type === 'given')
-    .reduce((sum, l) => sum + l.balance, 0) : 0;
+    const loansGiven = loans.filter((l) => l.type === 'given');
+    const totalLoanGiven = loansGiven.reduce((sum, l) => sum + l.totalLoan, 0);
+    const totalRepaymentForGiven = loansGiven.reduce((sum, l) => sum + l.totalRepayment, 0);
+
+    return {
+      totalLoanTaken,
+      totalRepaymentForTaken,
+      balanceLoanTaken: totalLoanTaken - totalRepaymentForTaken,
+      totalLoanGiven,
+      totalRepaymentForGiven,
+      balanceLoanGiven: totalLoanGiven - totalRepaymentForGiven
+    };
+  }, [loans, loading]);
+
 
   return (
     <div className="space-y-6">
       <Tabs defaultValue="taken" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="taken">
-            Loan Taken <span className="ml-2 font-bold text-red-600">{!loading && formatCurrency(totalLoanTaken)}</span>
+        <TabsList className="grid w-full grid-cols-2 h-auto">
+          <TabsTrigger value="taken" className="flex flex-col h-auto p-2 items-start text-left">
+            <div className="w-full flex justify-between items-center">
+                <span className="font-semibold text-sm">Loan Taken</span>
+                <span className="font-bold text-lg text-red-600">{!loading && formatCurrency(balanceLoanTaken)}</span>
+            </div>
+            <div className="w-full text-xs text-muted-foreground mt-1 grid grid-cols-2 gap-2">
+                <span>Credit: {formatCurrency(totalLoanTaken)}</span>
+                <span>Debit: {formatCurrency(totalRepaymentForTaken)}</span>
+            </div>
           </TabsTrigger>
-          <TabsTrigger value="given">
-            Loan Given <span className="ml-2 font-bold text-green-600">{!loading && formatCurrency(totalLoanGiven)}</span>
+          <TabsTrigger value="given" className="flex flex-col h-auto p-2 items-start text-left">
+            <div className="w-full flex justify-between items-center">
+                <span className="font-semibold text-sm">Loan Given</span>
+                <span className="font-bold text-lg text-green-600">{!loading && formatCurrency(balanceLoanGiven)}</span>
+            </div>
+             <div className="w-full text-xs text-muted-foreground mt-1 grid grid-cols-2 gap-2">
+                <span>Debit: {formatCurrency(totalLoanGiven)}</span>
+                <span>Credit: {formatCurrency(totalRepaymentForGiven)}</span>
+            </div>
           </TabsTrigger>
         </TabsList>
         <TabsContent value="taken" className="mt-6">
