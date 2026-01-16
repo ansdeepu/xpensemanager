@@ -596,83 +596,82 @@ export default function TransactionsPage() {
           </Tabs>
         </div>
         <div className="lg:col-span-1">
-          <Card className="print-hide">
-              <CardHeader>
-                  <CardTitle>Controls</CardTitle>
-              </CardHeader>
-              <CardContent>
-                  <div className="grid grid-cols-1 gap-4 items-end">
-                      <div className="space-y-2">
-                          <Label htmlFor="reconciliation-date-input" className="flex items-center gap-2">
-                              <CalendarIcon className="h-5 w-5 text-red-600" />
-                              Reconciliation Date
-                          </Label>
-                          <Input
-                              id="reconciliation-date-input"
-                              type="date"
-                              value={reconciliationDate ? format(reconciliationDate, 'yyyy-MM-dd') : ''}
-                              onChange={(e) => {
-                                  const dateValue = e.target.value;
-                                  const newDate = dateValue ? new Date(dateValue) : undefined;
-                                  if (newDate) {
-                                      const timezoneOffset = newDate.getTimezoneOffset() * 60000;
-                                      handleReconciliationDateChange(new Date(newDate.getTime() + timezoneOffset));
-                                  } else {
-                                      handleReconciliationDateChange(undefined);
-                                  }
-                              }}
-                              className="w-full"
-                          />
-                      </div>
-                      
-                      <div className="space-y-2">
-                          <Label htmlFor="search-input">Search Transactions</Label>
-                          <div className="relative">
-                              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                              <Input
-                              id="search-input"
-                              type="search"
-                              placeholder="Search..."
-                              value={searchQuery}
-                              onChange={(e) => setSearchQuery(e.target.value)}
-                              className="w-full rounded-lg bg-background pl-8"
-                              />
-                          </div>
-                      </div>
+            <Card className="print-hide">
+                <CardContent className="pt-6">
+                    <div className="grid grid-cols-1 gap-3">
+                        <div className="space-y-1">
+                            <Label htmlFor="reconciliation-date-input" className="text-xs flex items-center gap-2">
+                                <CalendarIcon className="h-4 w-4 text-red-600" />
+                                Reconciliation Date
+                            </Label>
+                            <Input
+                                id="reconciliation-date-input"
+                                type="date"
+                                value={reconciliationDate ? format(reconciliationDate, 'yyyy-MM-dd') : ''}
+                                onChange={(e) => {
+                                    const dateValue = e.target.value;
+                                    const newDate = dateValue ? new Date(dateValue) : undefined;
+                                    if (newDate) {
+                                        const timezoneOffset = newDate.getTimezoneOffset() * 60000;
+                                        handleReconciliationDateChange(new Date(newDate.getTime() + timezoneOffset));
+                                    } else {
+                                        handleReconciliationDateChange(undefined);
+                                    }
+                                }}
+                                className="w-full h-9"
+                            />
+                        </div>
+                        
+                        <div className="space-y-1">
+                            <Label htmlFor="search-input" className="text-xs">Search Transactions</Label>
+                            <div className="relative">
+                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                id="search-input"
+                                type="search"
+                                placeholder="Search..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full rounded-lg bg-background pl-8 h-9"
+                                />
+                            </div>
+                        </div>
 
-                      <div className="space-y-2">
-                          <Label>Filter by Date Range</Label>
-                          <div className="flex items-center gap-2">
-                              <Input
-                              type="date"
-                              value={startDate}
-                              onChange={(e) => setStartDate(e.target.value)}
-                              className="w-full"
-                              />
-                              <span className="text-muted-foreground">to</span>
-                              <Input
-                              type="date"
-                              value={endDate}
-                              onChange={(e) => setEndDate(e.target.value)}
-                              className="w-full"
-                              min={startDate}
-                              />
-                          </div>
-                      </div>
-                  </div>
-              </CardContent>
-              <CardFooter className="justify-end gap-2">
-                  <AddTransactionDialog accounts={accountDataForDialog} />
-                  <Button onClick={handleClearFilters} variant="ghost">
-                      <XCircle className="mr-2 h-4 w-4" />
-                      Clear
-                  </Button>
-                  <Button onClick={handlePrint} variant="outline">
-                      <Printer className="mr-2 h-4 w-4" />
-                      Print
-                  </Button>
-              </CardFooter>
-          </Card>
+                        <div className="space-y-1">
+                            <Label className="text-xs">Filter by Date Range</Label>
+                            <div className="flex items-center gap-2">
+                                <Input
+                                type="date"
+                                value={startDate}
+                                onChange={(e) => setStartDate(e.target.value)}
+                                className="w-full h-9"
+                                />
+                                <span className="text-muted-foreground text-xs">to</span>
+                                <Input
+                                type="date"
+                                value={endDate}
+                                onChange={(e) => setEndDate(e.target.value)}
+                                className="w-full h-9"
+                                min={startDate}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </CardContent>
+                <CardFooter className="flex-col items-stretch gap-2 pt-4">
+                    <AddTransactionDialog accounts={accountDataForDialog} />
+                     <div className="grid grid-cols-2 gap-2">
+                        <Button onClick={handleClearFilters} variant="ghost" size="sm" className="w-full">
+                            <XCircle className="mr-2 h-4 w-4" />
+                            Clear
+                        </Button>
+                        <Button onClick={handlePrint} variant="outline" size="sm" className="w-full">
+                            <Printer className="mr-2 h-4 w-4" />
+                            Print
+                        </Button>
+                    </div>
+                </CardFooter>
+            </Card>
         </div>
       </div>
       
@@ -694,3 +693,4 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
