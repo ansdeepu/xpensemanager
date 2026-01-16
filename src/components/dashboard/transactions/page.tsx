@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { TransactionTable } from "@/components/dashboard/transactions/transaction-table";
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, orderBy, doc, setDoc, updateDoc } from "firebase/firestore";
-import type { Account, Transaction } from "@/lib/data";
+import type { Account, Transaction, Loan } from "@/lib/data";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format, isAfter, isSameDay, parseISO, startOfDay, endOfDay, isWithinInterval } from "date-fns";
@@ -57,7 +57,7 @@ const textColors = [
   "text-fuchsia-800 dark:text-fuchsia-200",
 ];
 
-const PaginationControls = ({ currentPage, totalPages, setCurrentPage }: { currentPage: number, totalPages: number, setCurrentPage: (page: number | ((prev: number) => number)) => void }) => (
+const PaginationControls = ({ currentPage, totalPages, setCurrentPage }: { currentPage: number, totalPages: number, setCurrentPage: (page: number) => void }) => (
     <div className="flex items-center gap-2 print-hide">
       <Button
         variant="outline"
@@ -71,7 +71,7 @@ const PaginationControls = ({ currentPage, totalPages, setCurrentPage }: { curre
       <Button
         variant="outline"
         className="h-8 w-8 p-0"
-        onClick={() => setCurrentPage(prev => prev - 1)}
+        onClick={() => setCurrentPage(currentPage - 1)}
         disabled={currentPage === 1}
       >
         <span className="sr-only">Go to previous page</span>
@@ -83,7 +83,7 @@ const PaginationControls = ({ currentPage, totalPages, setCurrentPage }: { curre
       <Button
         variant="outline"
         className="h-8 w-8 p-0"
-        onClick={() => setCurrentPage(prev => prev + 1)}
+        onClick={() => setCurrentPage(currentPage + 1)}
         disabled={currentPage === totalPages}
       >
         <span className="sr-only">Next page</span>
@@ -106,6 +106,7 @@ export default function TransactionsPage() {
   const [user, userLoading] = useAuthState();
   const [rawAccounts, setRawAccounts] = useState<Omit<Account, 'balance'>[]>([]);
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
+  const [loans, setLoans] = useState<Loan[]>([]);
   const [walletPreferences, setWalletPreferences] = useState<{ cash?: { balance?: number, date?: string }, digital?: { balance?: number, date?: string } }>({});
   const [dataLoading, setDataLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<string | undefined>();
@@ -117,7 +118,7 @@ export default function TransactionsPage() {
   const itemsPerPage = 100;
 
   const useDebounce = (callback: Function, delay: number) => {
-    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const timeoutRef = useRef<any | null>(null);
     return (...args: any) => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       timeoutRef.current = setTimeout(() => {
@@ -179,10 +180,20 @@ export default function TransactionsPage() {
         }
       });
       
+      const loansQuery = query(collection(db, "loans"), where("userId", "==", user.uid));
+        const unsubscribeLoans = onSnapshot(loansQuery, (snapshot) => {
+            const userLoans = snapshot.docs.map(doc => {
+                const data = doc.data();
+                return { id: doc.id, ...data } as Loan;
+            });
+            setLoans(userLoans);
+        });
+
       return () => {
         unsubscribeAccounts();
         unsubscribeTransactions();
         unsubscribePreferences();
+        unsubscribeLoans();
       };
     } else if (!userLoading) {
       setDataLoading(false);
@@ -253,6 +264,22 @@ export default function TransactionsPage() {
   const secondaryAccounts = accounts.filter(account => !account.isPrimary && (account.name.toLowerCase().includes('hdfc') || account.name.toLowerCase().includes('fed') || account.name.toLowerCase().includes('post') || account.name.toLowerCase().includes('money')));
   const otherAccounts = accounts.filter(account => !account.isPrimary && !secondaryAccounts.some(sa => sa.id === account.id));
 
+  const loanTransactionTypeMap = useMemo(() => {
+    const map = new Map<string, 'loan' | 'repayment'>();
+    if (loans) {
+      for (const loan of loans) {
+        if (loan.transactions) {
+            for (const tx of loan.transactions) {
+                if (tx.id) {
+                    map.set(tx.id, tx.type);
+                }
+            }
+        }
+      }
+    }
+    return map;
+  }, [loans]);
+
   const filteredTransactions = useMemo(() => {
     const isPrimaryView = primaryAccount?.id === activeTab;
     
@@ -290,22 +317,36 @@ export default function TransactionsPage() {
         );
     }
     
+    const getTransactionSortOrder = (t: Transaction) => {
+        if (t.loanTransactionId && loanTransactionTypeMap.has(t.loanTransactionId)) {
+            const loanType = loanTransactionTypeMap.get(t.loanTransactionId);
+            if (loanType === 'loan') return 1;
+            if (loanType === 'repayment') return 4;
+        }
+        if (t.type === 'income') return 2;
+        if (t.type === 'expense') return 3;
+        if (t.type === 'transfer') return 5;
+        return 99;
+    };
+
     return filtered.sort((a, b) => {
       const dateA = new Date(a.date).getTime();
       const dateB = new Date(b.date).getTime();
       if (dateA !== dateB) {
           return dateA - dateB;
       }
-      // If dates are same, transfers come first
-      if (a.type === 'transfer' && b.type !== 'transfer') {
-          return -1;
+      
+      const orderA = getTransactionSortOrder(a);
+      const orderB = getTransactionSortOrder(b);
+      
+      if (orderA !== orderB) {
+        return orderA - orderB;
       }
-      if (b.type === 'transfer' && a.type !== 'transfer') {
-          return 1;
-      }
-      return 0;
+      
+      // Fallback sort for same type on same day, e.g., by amount
+      return b.amount - a.amount;
     });
-  }, [allTransactions, activeTab, startDate, endDate, searchQuery, primaryAccount]);
+  }, [allTransactions, activeTab, startDate, endDate, searchQuery, primaryAccount, loanTransactionTypeMap]);
 
 
 const transactionsWithRunningBalance = useMemo(() => {
@@ -578,8 +619,8 @@ const transactionsWithRunningBalance = useMemo(() => {
         <div className="lg:col-span-1">
             <Card className="print-hide h-full">
                 <CardContent className="pt-6">
-                    <div className="flex flex-col gap-4">
-                        <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-2">
+                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                            <div className="space-y-1">
                                 <Label htmlFor="reconciliation-date-input" className="text-xs flex items-center gap-2">
                                     <CalendarIcon className="h-4 w-4 text-red-600" />
@@ -620,7 +661,7 @@ const transactionsWithRunningBalance = useMemo(() => {
 
                         <div className="space-y-1">
                              <Label className="text-xs">Filter by Date Range</Label>
-                             <div className="flex items-center gap-2">
+                             <div className="grid grid-cols-[1fr_auto_1fr] sm:flex items-center gap-2">
                                 <Input
                                 type="date"
                                 value={startDate}
@@ -638,7 +679,7 @@ const transactionsWithRunningBalance = useMemo(() => {
                             </div>
                         </div>
                         
-                        <div className="flex items-center justify-start gap-2">
+                        <div className="flex flex-wrap items-center justify-start gap-2 pt-1">
                             <Button onClick={handleClearFilters} variant="outline" size="sm">
                                 <XCircle className="mr-2 h-4 w-4" />
                                 Clear
@@ -661,7 +702,7 @@ const transactionsWithRunningBalance = useMemo(() => {
       </div>
       
       <Card>
-          <CardContent className="p-0">
+          <CardContent className="p-0 overflow-x-auto">
             <TransactionTable 
                 transactions={pagedTransactions} 
                 accountId={activeTab || ''}
@@ -671,14 +712,10 @@ const transactionsWithRunningBalance = useMemo(() => {
           </CardContent>
           {totalPages > 1 && (
               <CardFooter className="justify-center border-t p-4 print-hide">
-                <PaginationControls currentPage={currentPage} totalPages={totalPages} setCurrentPage={setCurrentPage} />
+                <PaginationControls currentPage={currentPage} totalPages={totalPages} setCurrentPage={setCurrentPage as (page: number) => void} />
               </CardFooter>
           )}
       </Card>
     </div>
   );
 }
-
-    
-
-    

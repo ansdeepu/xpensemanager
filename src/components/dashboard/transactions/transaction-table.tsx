@@ -444,17 +444,17 @@ export function TransactionTable({
       <Table>
         <TableHeader className="sticky top-0 z-10 bg-background">
             <TableRow>
-            <TableHead>Sl.</TableHead>
-            <TableHead>Date</TableHead>
-            <TableHead>Description</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead>Account</TableHead>
-            <TableHead>Category</TableHead>
-            <TableHead className="text-right">Debit</TableHead>
-            <TableHead className="text-right">Transfer</TableHead>
-            <TableHead className="text-right">Credit</TableHead>
-            <TableHead className="text-right">Balance</TableHead>
-            <TableHead className="text-right print-hide">Actions</TableHead>
+            <TableHead className="whitespace-nowrap">Sl.</TableHead>
+            <TableHead className="whitespace-nowrap">Date</TableHead>
+            <TableHead className="whitespace-nowrap">Description</TableHead>
+            <TableHead className="whitespace-nowrap">Type</TableHead>
+            <TableHead className="whitespace-nowrap">Account</TableHead>
+            <TableHead className="whitespace-nowrap">Category</TableHead>
+            <TableHead className="text-right whitespace-nowrap">Debit</TableHead>
+            <TableHead className="text-right whitespace-nowrap">Transfer</TableHead>
+            <TableHead className="text-right whitespace-nowrap">Credit</TableHead>
+            <TableHead className="text-right whitespace-nowrap">Balance</TableHead>
+            <TableHead className="text-right print-hide whitespace-nowrap">Actions</TableHead>
             </TableRow>
         </TableHeader>
         <TableBody>
