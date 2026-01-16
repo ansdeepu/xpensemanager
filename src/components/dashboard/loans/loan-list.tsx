@@ -467,19 +467,6 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
     }
   }
 
-  const getAmountColor = (loan: Loan, transaction: LoanTransaction) => {
-    if (transaction.type === 'repayment') {
-      return 'text-blue-600';
-    }
-    if (loan.type === 'given') {
-      return 'text-red-600';
-    }
-    if (loan.type === 'taken') {
-      return 'text-green-600';
-    }
-    return '';
-  };
-
 
   return (
     <>
@@ -595,7 +582,40 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
                 </div>
             ) : (
                 <Accordion type="single" collapsible className="w-full">
-                    {loans.map(loan => (
+                    {loans.map(loan => {
+                        const transactionsWithRunningBalance = useMemo(() => {
+                            const chronologicalTransactions = [...loan.transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+                        
+                            let runningBalance = 0;
+                            const transactionsWithDetails = chronologicalTransactions.map(transaction => {
+                                let credit = 0;
+                                let debit = 0;
+                                
+                                if (loan.type === 'taken') {
+                                    if (transaction.type === 'loan') {
+                                        credit = transaction.amount;
+                                        runningBalance += transaction.amount;
+                                    } else { // repayment
+                                        debit = transaction.amount;
+                                        runningBalance -= transaction.amount;
+                                    }
+                                } else { // 'given'
+                                    if (transaction.type === 'loan') {
+                                        debit = transaction.amount;
+                                        runningBalance += transaction.amount;
+                                    } else { // repayment
+                                        credit = transaction.amount;
+                                        runningBalance -= transaction.amount;
+                                    }
+                                }
+                        
+                                return { ...transaction, credit, debit, balance: runningBalance };
+                            });
+                        
+                            return transactionsWithDetails.reverse();
+                        }, [loan]);
+
+                        return (
                         <AccordionItem value={loan.id} key={loan.id}>
                             <AccordionTrigger>
                                 <div className="flex justify-between items-center w-full pr-4">
@@ -642,22 +662,28 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
                                                     <TableHead>Date</TableHead>
                                                     <TableHead>Type</TableHead>
                                                     <TableHead>Description</TableHead>
-                                                    <TableHead>Account</TableHead>
-                                                    <TableHead className="text-right">Amount</TableHead>
+                                                    <TableHead className="text-right">Credit</TableHead>
+                                                    <TableHead className="text-right">Debit</TableHead>
+                                                    <TableHead className="text-right">Balance</TableHead>
                                                     <TableHead className="text-right">Actions</TableHead>
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
-                                                {loan.transactions.map(t => (
+                                                {transactionsWithRunningBalance.map(t => (
                                                     <TableRow key={t.id}>
                                                         <TableCell>{isValid(parseISO(t.date)) ? format(parseISO(t.date), "dd/MM/yyyy") : '-'}</TableCell>
                                                         <TableCell>
                                                           <Badge variant={t.type === 'loan' ? 'outline' : 'secondary'} className="capitalize">{t.type}</Badge>
                                                         </TableCell>
                                                         <TableCell>{getLoanTransactionDescription(loan, t)}</TableCell>
-                                                        <TableCell>{allAccountsForTx.find(a => a.id === t.accountId)?.name}</TableCell>
-                                                        <TableCell className={cn("text-right font-mono", getAmountColor(loan, t))}>
-                                                            {formatCurrency(t.amount)}
+                                                        <TableCell className="text-right font-mono text-green-600">
+                                                            {t.credit > 0 ? formatCurrency(t.credit) : null}
+                                                        </TableCell>
+                                                        <TableCell className="text-right font-mono text-red-600">
+                                                            {t.debit > 0 ? formatCurrency(t.debit) : null}
+                                                        </TableCell>
+                                                        <TableCell className={cn("text-right font-mono", t.balance > 0 ? 'text-foreground' : '')}>
+                                                            {formatCurrency(t.balance)}
                                                         </TableCell>
                                                         <TableCell className="text-right">
                                                            <Button variant="ghost" size="icon" onClick={() => openEditDialog(loan, t)} className="h-8 w-8">
@@ -689,7 +715,7 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
                                 </Card>
                             </AccordionContent>
                         </AccordionItem>
-                    ))}
+                    )})}
                 </Accordion>
             )}
         </CardContent>
