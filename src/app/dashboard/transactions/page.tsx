@@ -598,42 +598,44 @@ export default function TransactionsPage() {
         <div className="lg:col-span-1">
             <Card className="print-hide">
                 <CardContent className="pt-6">
-                    <div className="grid grid-cols-1 gap-3">
-                        <div className="space-y-1">
-                            <Label htmlFor="reconciliation-date-input" className="text-xs flex items-center gap-2">
-                                <CalendarIcon className="h-4 w-4 text-red-600" />
-                                Reconciliation Date
-                            </Label>
-                            <Input
-                                id="reconciliation-date-input"
-                                type="date"
-                                value={reconciliationDate ? format(reconciliationDate, 'yyyy-MM-dd') : ''}
-                                onChange={(e) => {
-                                    const dateValue = e.target.value;
-                                    const newDate = dateValue ? new Date(dateValue) : undefined;
-                                    if (newDate) {
-                                        const timezoneOffset = newDate.getTimezoneOffset() * 60000;
-                                        handleReconciliationDateChange(new Date(newDate.getTime() + timezoneOffset));
-                                    } else {
-                                        handleReconciliationDateChange(undefined);
-                                    }
-                                }}
-                                className="w-full h-9"
-                            />
-                        </div>
-                        
-                        <div className="space-y-1">
-                            <Label htmlFor="search-input" className="text-xs">Search Transactions</Label>
-                            <div className="relative">
-                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <div className="flex flex-col gap-3">
+                        <div className="grid grid-cols-2 gap-2">
+                            <div className="space-y-1">
+                                <Label htmlFor="reconciliation-date-input" className="text-xs flex items-center gap-2">
+                                    <CalendarIcon className="h-4 w-4 text-red-600" />
+                                    Reconciliation Date
+                                </Label>
                                 <Input
-                                id="search-input"
-                                type="search"
-                                placeholder="Search..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full rounded-lg bg-background pl-8 h-9"
+                                    id="reconciliation-date-input"
+                                    type="date"
+                                    value={reconciliationDate ? format(reconciliationDate, 'yyyy-MM-dd') : ''}
+                                    onChange={(e) => {
+                                        const dateValue = e.target.value;
+                                        const newDate = dateValue ? new Date(dateValue) : undefined;
+                                        if (newDate) {
+                                            const timezoneOffset = newDate.getTimezoneOffset() * 60000;
+                                            handleReconciliationDateChange(new Date(newDate.getTime() + timezoneOffset));
+                                        } else {
+                                            handleReconciliationDateChange(undefined);
+                                        }
+                                    }}
+                                    className="w-full h-9"
                                 />
+                            </div>
+                            
+                            <div className="space-y-1">
+                                <Label htmlFor="search-input" className="text-xs">Search Transactions</Label>
+                                <div className="relative">
+                                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                    id="search-input"
+                                    type="search"
+                                    placeholder="Search..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="w-full rounded-lg bg-background pl-8 h-9"
+                                    />
+                                </div>
                             </div>
                         </div>
 
@@ -658,17 +660,17 @@ export default function TransactionsPage() {
                         </div>
                     </div>
                 </CardContent>
-                <CardFooter className="flex-col items-stretch gap-2 pt-4">
-                    <AddTransactionDialog accounts={accountDataForDialog} />
-                     <div className="grid grid-cols-2 gap-2">
-                        <Button onClick={handleClearFilters} variant="ghost" size="sm" className="w-full">
+                <CardFooter className="pt-4">
+                    <div className="grid grid-cols-3 gap-2 w-full">
+                        <Button onClick={handleClearFilters} variant="ghost" size="sm">
                             <XCircle className="mr-2 h-4 w-4" />
                             Clear
                         </Button>
-                        <Button onClick={handlePrint} variant="outline" size="sm" className="w-full">
+                        <Button onClick={handlePrint} variant="outline" size="sm">
                             <Printer className="mr-2 h-4 w-4" />
                             Print
                         </Button>
+                        <AddTransactionDialog accounts={accountDataForDialog} />
                     </div>
                 </CardFooter>
             </Card>

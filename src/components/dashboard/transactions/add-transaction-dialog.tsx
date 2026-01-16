@@ -175,9 +175,9 @@ export function AddTransactionDialog({ accounts: accountData }: { accounts: (Acc
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button className="w-full">
+        <Button size="sm">
           <PlusCircle className="mr-2 h-4 w-4" />
-          Add Transaction
+          Add
         </Button>
       </DialogTrigger>
       <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-xl">
