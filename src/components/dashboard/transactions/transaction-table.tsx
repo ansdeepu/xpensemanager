@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -440,93 +441,91 @@ export function TransactionTable({
 
   return (
     <>
-      <div className="w-full overflow-x-auto">
-        <Table style={{ minWidth: '1400px' }}>
-          <TableHeader className="sticky top-0 z-10 bg-background">
-              <TableRow>
-              <TableHead>Sl.</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead className="min-w-[250px]">Description</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead className="min-w-[180px]">Account</TableHead>
-              <TableHead className="min-w-[180px]">Category</TableHead>
-              <TableHead className="text-right">Debit</TableHead>
-              <TableHead className="text-right">Transfer</TableHead>
-              <TableHead className="text-right">Credit</TableHead>
-              <TableHead className="text-right min-w-[100px]">Balance</TableHead>
-              <TableHead className="text-right print-hide min-w-[120px]">Actions</TableHead>
-              </TableRow>
-          </TableHeader>
-          <TableBody>
-              {transactionsWithColumns.map((t, index) => {
-                const loanInfo = getLoanDisplayInfo(t);
-                
-                const {debit, credit, transfer} = t;
+      <Table style={{ minWidth: '1400px' }}>
+        <TableHeader className="sticky top-0 z-10 bg-background">
+            <TableRow>
+            <TableHead>Sl.</TableHead>
+            <TableHead>Date</TableHead>
+            <TableHead className="min-w-[250px]">Description</TableHead>
+            <TableHead>Type</TableHead>
+            <TableHead className="min-w-[180px]">Account</TableHead>
+            <TableHead className="min-w-[180px]">Category</TableHead>
+            <TableHead className="text-right">Debit</TableHead>
+            <TableHead className="text-right">Transfer</TableHead>
+            <TableHead className="text-right">Credit</TableHead>
+            <TableHead className="text-right min-w-[100px]">Balance</TableHead>
+            <TableHead className="text-right print-hide min-w-[120px]">Actions</TableHead>
+            </TableRow>
+        </TableHeader>
+        <TableBody>
+            {transactionsWithColumns.map((t, index) => {
+              const loanInfo = getLoanDisplayInfo(t);
+              
+              const {debit, credit, transfer} = t;
 
-                return (
-                  <TableRow key={t.id}>
-                      <TableCell className="font-medium">{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
-                      <TableCell>{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
-                      <TableCell className={cn("font-medium break-words", loanInfo.descriptionClassName)}>{loanInfo.description}</TableCell>
-                      <TableCell>
-                        <Badge 
-                            variant={getBadgeVariant(loanInfo.type)}
-                            className="capitalize"
-                            >
-                            {loanInfo.type}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="break-words">{t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} -> ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod)}</TableCell>
-                      <TableCell className="break-words">
-                          <div>{loanInfo.category}</div>
-                          {t.subcategory && <div className="text-sm text-muted-foreground">{t.subcategory}</div>}
-                      </TableCell>
-                      
-                      <TableCell className="text-right font-mono text-red-600">
-                          {debit !== null ? formatCurrency(debit) : null}
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-blue-600">
-                          {transfer !== null ? formatCurrency(transfer) : null}
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-green-600">
-                           {credit !== null ? formatCurrency(credit) : null}
-                      </TableCell>
+              return (
+                <TableRow key={t.id}>
+                    <TableCell className="font-medium">{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
+                    <TableCell>{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
+                    <TableCell className={cn("font-medium break-words", loanInfo.descriptionClassName)}>{loanInfo.description}</TableCell>
+                    <TableCell>
+                      <Badge 
+                          variant={getBadgeVariant(loanInfo.type)}
+                          className="capitalize"
+                          >
+                          {loanInfo.type}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="break-words">{t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} -> ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod)}</TableCell>
+                    <TableCell className="break-words">
+                        <div>{loanInfo.category}</div>
+                        {t.subcategory && <div className="text-sm text-muted-foreground">{t.subcategory}</div>}
+                    </TableCell>
+                    
+                    <TableCell className="text-right font-mono text-red-600">
+                        {debit !== null ? formatCurrency(debit) : null}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-blue-600">
+                        {transfer !== null ? formatCurrency(transfer) : null}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-green-600">
+                         {credit !== null ? formatCurrency(credit) : null}
+                    </TableCell>
 
-                       <TableCell className={cn("text-right font-mono", t.balance < 0 ? 'text-red-600' : '')}>
-                        {formatCurrency(t.balance)}
-                      </TableCell>
-                      <TableCell className="text-right print-hide">
-                          <div className="flex items-center justify-end gap-2">
-                              <Button variant="ghost" size="icon" onClick={() => openEditDialog(t)} className="h-8 w-8">
-                                  <Pencil className="h-4 w-4" />
-                              </Button>
-                              <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-8 w-8">
-                                          <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent onInteractOutside={(e) => e.preventDefault()}>
-                                      <AlertDialogHeader>
-                                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                          <AlertDialogDescription>
-                                              This will permanently delete the transaction. This action cannot be undone and will update account balances.
-                                          </AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                          <AlertDialogAction onClick={() => handleDeleteTransaction(t)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                                      </AlertDialogFooter>
-                                  </AlertDialogContent>
-                              </AlertDialog>
-                          </div>
-                      </TableCell>
-                  </TableRow>
-                );
-              })}
-          </TableBody>
-        </Table>
-      </div>
+                     <TableCell className={cn("text-right font-mono", t.balance < 0 ? 'text-red-600' : '')}>
+                      {formatCurrency(t.balance)}
+                    </TableCell>
+                    <TableCell className="text-right print-hide">
+                        <div className="flex items-center justify-end gap-2">
+                            <Button variant="ghost" size="icon" onClick={() => openEditDialog(t)} className="h-8 w-8">
+                                <Pencil className="h-4 w-4" />
+                            </Button>
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-8 w-8">
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            This will permanently delete the transaction. This action cannot be undone and will update account balances.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleDeleteTransaction(t)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        </div>
+                    </TableCell>
+                </TableRow>
+              );
+            })}
+        </TableBody>
+      </Table>
     <div className="hidden print-block">
       <div id="printable-area">
           <Table>
@@ -686,3 +685,5 @@ export function TransactionTable({
     </>
   );
 }
+
+    
