@@ -190,54 +190,54 @@ export default function TransactionsPage() {
   }, [user, userLoading, dataLoading]);
 
  const { accounts, cashWalletBalance, digitalWalletBalance } = useMemo(() => {
-    const calculatedAccountBalances: { [key: string]: number } = {};
-    rawAccounts.forEach(acc => {
-        calculatedAccountBalances[acc.id] = 0;
-    });
+    let runningCashBalance = 0;
+    let runningDigitalBalance = 0;
+    const runningAccountBalances: { [key: string]: number } = {};
 
-    let calculatedCashBalance = 0;
-    let calculatedDigitalBalance = 0;
+    rawAccounts.forEach(acc => {
+        runningAccountBalances[acc.id] = 0;
+    });
 
     const chronologicalTransactions = [...allTransactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     
     chronologicalTransactions.forEach(t => {
-      if (t.type === 'income' && t.accountId && calculatedAccountBalances[t.accountId] !== undefined) {
-          calculatedAccountBalances[t.accountId] += t.amount;
+      if (t.type === 'income' && t.accountId && runningAccountBalances[t.accountId] !== undefined) {
+          runningAccountBalances[t.accountId] += t.amount;
       } else if (t.type === 'expense') {
-        if (t.paymentMethod === 'online' && t.accountId && calculatedAccountBalances[t.accountId] !== undefined) {
-            calculatedAccountBalances[t.accountId] -= t.amount;
+        if (t.paymentMethod === 'online' && t.accountId && runningAccountBalances[t.accountId] !== undefined) {
+            runningAccountBalances[t.accountId] -= t.amount;
         } else if (t.paymentMethod === 'cash') {
-          calculatedCashBalance -= t.amount;
+          runningCashBalance -= t.amount;
         } else if (t.paymentMethod === 'digital') {
-          calculatedDigitalBalance -= t.amount;
+          runningDigitalBalance -= t.amount;
         }
       } else if (t.type === 'transfer') {
-        if (t.fromAccountId && calculatedAccountBalances[t.fromAccountId] !== undefined) {
-          calculatedAccountBalances[t.fromAccountId] -= t.amount;
+        if (t.fromAccountId && runningAccountBalances[t.fromAccountId] !== undefined) {
+          runningAccountBalances[t.fromAccountId] -= t.amount;
         } else if (t.fromAccountId === 'cash-wallet') {
-          calculatedCashBalance -= t.amount;
+          runningCashBalance -= t.amount;
         } else if (t.fromAccountId === 'digital-wallet') {
-          calculatedDigitalBalance -= t.amount;
+          runningDigitalBalance -= t.amount;
         }
-        if (t.toAccountId && calculatedAccountBalances[t.toAccountId] !== undefined) {
-          calculatedAccountBalances[t.toAccountId] += t.amount;
+        if (t.toAccountId && runningAccountBalances[t.toAccountId] !== undefined) {
+          runningAccountBalances[t.toAccountId] += t.amount;
         } else if (t.toAccountId === 'cash-wallet') {
-          calculatedCashBalance += t.amount;
+          runningCashBalance += t.amount;
         } else if (t.toAccountId === 'digital-wallet') {
-          calculatedDigitalBalance += t.amount;
+          runningDigitalBalance += t.amount;
         }
       }
     });
 
     const finalAccounts = rawAccounts.map(acc => ({
         ...acc,
-        balance: calculatedAccountBalances[acc.id] ?? 0,
+        balance: runningAccountBalances[acc.id] ?? 0,
     }));
     
     return { 
       accounts: finalAccounts, 
-      cashWalletBalance: calculatedCashBalance,
-      digitalWalletBalance: calculatedDigitalBalance 
+      cashWalletBalance: runningCashBalance,
+      digitalWalletBalance: runningDigitalBalance 
     };
   }, [rawAccounts, allTransactions]);
 
@@ -308,10 +308,12 @@ export default function TransactionsPage() {
   }, [allTransactions, activeTab, startDate, endDate, searchQuery, primaryAccount]);
 
 
- const transactionsWithRunningBalance = useMemo(() => {
+const transactionsWithRunningBalance = useMemo(() => {
     let runningBalance = 0;
     
-    return filteredTransactions.map(t => {
+    const chronologicalTransactions = [...filteredTransactions];
+    
+    const calculatedTransactions = chronologicalTransactions.map(t => {
         let effect = 0;
         const isPrimaryView = primaryAccount?.id === activeTab;
         const fromAccountIsWallet = t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
@@ -342,7 +344,9 @@ export default function TransactionsPage() {
         }
         runningBalance += effect;
         return { ...t, balance: runningBalance };
-    }).reverse();
+    });
+
+    return calculatedTransactions.reverse();
 }, [filteredTransactions, activeTab, primaryAccount]);
 
 
@@ -403,7 +407,7 @@ export default function TransactionsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <Tabs defaultValue={primaryAccount?.id || "all-accounts"} value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid grid-cols-1 md:grid-cols-2 gap-2 h-auto items-start p-0 bg-transparent print-hide">
+            <TabsList className="grid grid-cols-1 md:grid-cols-2 gap-2 h-auto items-stretch p-0 bg-transparent print-hide">
                 {primaryAccount && (
                   <TabsTrigger value={primaryAccount.id} className={cn("border flex flex-col h-full p-4 items-start text-left gap-4 w-full data-[state=active]:shadow-lg data-[state=active]:bg-lime-100 dark:data-[state=active]:bg-lime-900/50", "bg-card")}>
                     <div className="w-full flex justify-between">
@@ -492,7 +496,7 @@ export default function TransactionsPage() {
                     </div>
                   </TabsTrigger>
                 )}
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-2 h-full content-stretch">
                   {secondaryAccounts.map((account, index) => {
                     const balanceDifference = getBalanceDifference(account.balance, account.actualBalance);
                     return (
@@ -575,41 +579,42 @@ export default function TransactionsPage() {
             <Card className="print-hide">
                 <CardContent className="pt-6">
                     <div className="flex flex-col gap-4">
-                        
-                        <div className="space-y-1">
-                            <Label htmlFor="reconciliation-date-input" className="text-xs flex items-center gap-2">
-                                <CalendarIcon className="h-4 w-4 text-red-600" />
-                                Reconciliation Date
-                            </Label>
-                            <Input
-                                id="reconciliation-date-input"
-                                type="date"
-                                value={reconciliationDate ? format(reconciliationDate, 'yyyy-MM-dd') : ''}
-                                onChange={(e) => {
-                                    const dateValue = e.target.value;
-                                    const newDate = dateValue ? new Date(dateValue) : undefined;
-                                    if (newDate) {
-                                        const timezoneOffset = newDate.getTimezoneOffset() * 60000;
-                                        handleReconciliationDateChange(new Date(newDate.getTime() + timezoneOffset));
-                                    } else {
-                                        handleReconciliationDateChange(undefined);
-                                    }
-                                }}
-                                className="w-full h-9"
-                            />
-                        </div>
-                        <div className="space-y-1">
-                            <Label htmlFor="search-input" className="text-xs">Search Transactions</Label>
-                            <div className="relative flex-grow">
-                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <div className="grid grid-cols-2 gap-2">
+                           <div className="space-y-1">
+                                <Label htmlFor="reconciliation-date-input" className="text-xs flex items-center gap-2">
+                                    <CalendarIcon className="h-4 w-4 text-red-600" />
+                                    Reconciliation Date
+                                </Label>
                                 <Input
-                                id="search-input"
-                                type="search"
-                                placeholder="Search..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full rounded-lg bg-background pl-8 h-9"
+                                    id="reconciliation-date-input"
+                                    type="date"
+                                    value={reconciliationDate ? format(reconciliationDate, 'yyyy-MM-dd') : ''}
+                                    onChange={(e) => {
+                                        const dateValue = e.target.value;
+                                        const newDate = dateValue ? new Date(dateValue) : undefined;
+                                        if (newDate) {
+                                            const timezoneOffset = newDate.getTimezoneOffset() * 60000;
+                                            handleReconciliationDateChange(new Date(newDate.getTime() + timezoneOffset));
+                                        } else {
+                                            handleReconciliationDateChange(undefined);
+                                        }
+                                    }}
+                                    className="w-full h-9"
                                 />
+                            </div>
+                            <div className="space-y-1">
+                                <Label htmlFor="search-input" className="text-xs">Search Transactions</Label>
+                                <div className="relative flex-grow">
+                                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                    id="search-input"
+                                    type="search"
+                                    placeholder="Search..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="w-full rounded-lg bg-background pl-8 h-9"
+                                    />
+                                </div>
                             </div>
                         </div>
 
@@ -673,9 +678,3 @@ export default function TransactionsPage() {
     </div>
   );
 }
-
-    
-
-    
-
-    
