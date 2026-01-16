@@ -332,9 +332,12 @@ export default function TransactionsPage() {
       } else if (t.type === 'expense') {
         if(accountIsInView) effect = -t.amount;
       } else if (t.type === 'transfer') {
-        if (fromCurrentView && !toCurrentView) {
+        if (fromCurrentView && toCurrentView) {
+            // Internal transfer within the view, no change to total balance
+            effect = 0;
+        } else if (fromCurrentView) {
           effect = -t.amount;
-        } else if (!fromCurrentView && toCurrentView) {
+        } else if (toCurrentView) {
           effect = t.amount;
         }
       }
@@ -532,7 +535,7 @@ export default function TransactionsPage() {
                   {otherAccounts.map((account, index) => {
                     const balanceDifference = getBalanceDifference(account.balance, account.actualBalance);
                     return (
-                      <TabsTrigger key={account.id} value={account.id} className={cn("border flex flex-col h-full p-2 items-start text-left gap-1 data-[state=active]:shadow-lg", tabColors[(secondaryAccounts.length + index) % tabColors.length], textColors[(secondaryAccounts.length + index) % textColors.length])}>
+                      <TabsTrigger key={account.id} value={account.id} className={cn("border flex flex-col h-full p-2 items-start text-left gap-1 data-[state=active]:shadow-lg", tabColors[(secondaryAccounts.length + index) % tabColors.length], textColors[(secondaryAccounts.length + index) % tabColors.length])}>
                           <div className="w-full flex justify-between items-center">
                               <span className="font-semibold text-sm">{account.name}</span>
                               <span className="font-bold text-sm">{formatCurrency(account.balance)}</span>
@@ -574,6 +577,7 @@ export default function TransactionsPage() {
             <Card className="print-hide">
                 <CardContent className="pt-6">
                     <div className="flex flex-col gap-4">
+                        
                         <div className="flex items-end gap-2">
                             <div className="space-y-1">
                                 <Label htmlFor="reconciliation-date-input" className="text-xs flex items-center gap-2">
@@ -611,11 +615,6 @@ export default function TransactionsPage() {
                                     />
                                 </div>
                             </div>
-                            <AddTransactionDialog accounts={accountDataForDialog}>
-                                <Button variant="outline" size="icon" className="h-9 w-9 flex-shrink-0">
-                                    <PlusCircle className="h-4 w-4" />
-                                </Button>
-                            </AddTransactionDialog>
                         </div>
 
                         <div className="space-y-1">
@@ -635,13 +634,21 @@ export default function TransactionsPage() {
                                 className="w-full h-9"
                                 min={startDate}
                                 />
-                                 <Button onClick={handleClearFilters} variant="ghost" size="icon" className="h-9 w-9 flex-shrink-0">
-                                    <XCircle className="h-4 w-4" />
-                                </Button>
-                                <Button onClick={handlePrint} variant="outline" size="icon" className="h-9 w-9 flex-shrink-0">
-                                    <Printer className="h-4 w-4" />
-                                </Button>
                             </div>
+                        </div>
+                        
+                        <div className="flex items-center justify-start gap-2">
+                             <Button onClick={handleClearFilters} variant="ghost" size="icon" className="h-9 w-9 flex-shrink-0">
+                                <XCircle className="h-4 w-4" />
+                            </Button>
+                            <Button onClick={handlePrint} variant="outline" size="icon" className="h-9 w-9 flex-shrink-0">
+                                <Printer className="h-4 w-4" />
+                            </Button>
+                            <AddTransactionDialog accounts={accountDataForDialog}>
+                                <Button variant="outline" size="icon" className="h-9 w-9 flex-shrink-0">
+                                    <PlusCircle className="h-4 w-4" />
+                                </Button>
+                            </AddTransactionDialog>
                         </div>
                     </div>
                 </CardContent>
@@ -667,5 +674,7 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+    
 
     
