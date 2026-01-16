@@ -441,20 +441,20 @@ export function TransactionTable({
 
   return (
     <>
-      <Table style={{ minWidth: '1400px' }}>
+      <Table>
         <TableHeader className="sticky top-0 z-10 bg-background">
             <TableRow>
             <TableHead>Sl.</TableHead>
             <TableHead>Date</TableHead>
-            <TableHead className="min-w-[250px]">Description</TableHead>
+            <TableHead>Description</TableHead>
             <TableHead>Type</TableHead>
-            <TableHead className="min-w-[180px]">Account</TableHead>
-            <TableHead className="min-w-[180px]">Category</TableHead>
+            <TableHead>Account</TableHead>
+            <TableHead>Category</TableHead>
             <TableHead className="text-right">Debit</TableHead>
             <TableHead className="text-right">Transfer</TableHead>
             <TableHead className="text-right">Credit</TableHead>
-            <TableHead className="text-right min-w-[100px]">Balance</TableHead>
-            <TableHead className="text-right print-hide min-w-[120px]">Actions</TableHead>
+            <TableHead className="text-right">Balance</TableHead>
+            <TableHead className="text-right print-hide">Actions</TableHead>
             </TableRow>
         </TableHeader>
         <TableBody>
@@ -506,7 +506,7 @@ export function TransactionTable({
                                         <Trash2 className="h-4 w-4" />
                                     </Button>
                                 </AlertDialogTrigger>
-                                <AlertDialogContent>
+                                <AlertDialogContent onInteractOutside={(e) => e.preventDefault()}>
                                     <AlertDialogHeader>
                                         <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                                         <AlertDialogDescription>
@@ -685,5 +685,3 @@ export function TransactionTable({
     </>
   );
 }
-
-    

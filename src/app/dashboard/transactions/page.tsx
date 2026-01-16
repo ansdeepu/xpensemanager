@@ -702,7 +702,7 @@ const transactionsWithRunningBalance = useMemo(() => {
       </div>
       
       <Card>
-          <CardContent className="p-0 overflow-x-auto">
+          <CardContent className="p-0">
             <TransactionTable 
                 transactions={pagedTransactions} 
                 accountId={activeTab || ''}
@@ -719,9 +719,3 @@ const transactionsWithRunningBalance = useMemo(() => {
     </div>
   );
 }
-
-    
-
-    
-
-    
