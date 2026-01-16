@@ -283,26 +283,25 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
         const financialTxQuery = query(collection(db, "transactions"), where("loanTransactionId", "==", selectedTransaction.id), where("userId", "==", user.uid));
         const financialTxSnapshot = await getDocs(financialTxQuery);
         
+        const otherPartyIsVirtual = !accounts.some(acc => acc.name.toLowerCase() === selectedLoan.personName.toLowerCase());
+        const otherPartyAccountIdForTransfer = otherPartyIsVirtual
+            ? `loan-virtual-account-${selectedLoan.personName.replace(/\s+/g, '-')}`
+            : accounts.find(acc => acc.name.toLowerCase() === selectedLoan.personName.toLowerCase())!.id;
+
+
+        let fromAccountId: string;
+        let toAccountId: string;
+
+        if (selectedLoan.type === 'taken') {
+            fromAccountId = updatedTransaction.type === 'loan' ? otherPartyAccountIdForTransfer : updatedTransaction.accountId;
+            toAccountId = updatedTransaction.type === 'loan' ? updatedTransaction.accountId : otherPartyAccountIdForTransfer;
+        } else { // given
+            fromAccountId = updatedTransaction.type === 'loan' ? updatedTransaction.accountId : otherPartyAccountIdForTransfer;
+            toAccountId = updatedTransaction.type === 'loan' ? otherPartyAccountIdForTransfer : updatedTransaction.accountId;
+        }
+
         if (!financialTxSnapshot.empty) {
             const financialTxDoc = financialTxSnapshot.docs[0];
-            
-            const otherPartyIsVirtual = !accounts.some(acc => acc.name.toLowerCase() === selectedLoan.personName.toLowerCase());
-            const otherPartyAccountIdForTransfer = otherPartyIsVirtual
-                ? `loan-virtual-account-${selectedLoan.personName.replace(/\s+/g, '-')}`
-                : accounts.find(acc => acc.name.toLowerCase() === selectedLoan.personName.toLowerCase())!.id;
-
-
-            let fromAccountId: string;
-            let toAccountId: string;
-
-            if (selectedLoan.type === 'taken') {
-                fromAccountId = updatedTransaction.type === 'loan' ? otherPartyAccountIdForTransfer : updatedTransaction.accountId;
-                toAccountId = updatedTransaction.type === 'loan' ? updatedTransaction.accountId : otherPartyAccountIdForTransfer;
-            } else { // given
-                fromAccountId = updatedTransaction.type === 'loan' ? updatedTransaction.accountId : otherPartyAccountIdForTransfer;
-                toAccountId = updatedTransaction.type === 'loan' ? otherPartyAccountIdForTransfer : updatedTransaction.accountId;
-            }
-
             const updatedFinancialData = {
                 date: updatedTransaction.date,
                 amount: updatedTransaction.amount,
@@ -311,6 +310,29 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
                 toAccountId,
             };
             batch.update(financialTxDoc.ref, updatedFinancialData);
+        } else {
+             // Transaction is missing, so create it
+            let paymentMethod: 'online' | 'cash' | 'digital' = 'online';
+            if (updatedTransaction.accountId === 'cash-wallet') {
+                paymentMethod = 'cash';
+            } else if (updatedTransaction.accountId === 'digital-wallet') {
+                paymentMethod = 'digital';
+            }
+            const newFinancialTransaction: Partial<Transaction> = {
+                userId: user.uid,
+                date: updatedTransaction.date,
+                description: updatedTransaction.description,
+                amount: updatedTransaction.amount,
+                type: 'transfer',
+                fromAccountId,
+                toAccountId,
+                category: 'Loan',
+                paymentMethod: paymentMethod,
+                loanTransactionId: updatedTransaction.id,
+            };
+
+            const transactionRef = doc(collection(db, "transactions"));
+            batch.set(transactionRef, newFinancialTransaction as any);
         }
 
         await batch.commit();
