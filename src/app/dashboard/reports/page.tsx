@@ -1,16 +1,18 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, orderBy, doc } from "firebase/firestore";
 import type { Account, Transaction, Category } from "@/lib/data";
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReportView } from "@/components/dashboard/reports/report-view";
 import { useAuthState } from "@/hooks/use-auth-state";
-import { isAfter, parseISO } from "date-fns";
+import { isAfter, parseISO, format } from "date-fns";
+import { useReportDate } from "@/context/report-date-context";
+import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 
 const formatCurrency = (amount: number) => {
@@ -27,6 +29,7 @@ export default function ReportsPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [walletPreferences, setWalletPreferences] = useState<{ cash?: { balance?: number, date?: string }, digital?: { balance?: number, date?: string } }>({});
   const [dataLoading, setDataLoading] = useState(true);
+  const { currentDate, goToPreviousMonth, goToNextMonth } = useReportDate();
 
   useEffect(() => {
     if (user) {
@@ -159,6 +162,23 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-6">
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                    <CardTitle>Monthly Reports</CardTitle>
+                    <CardDescription>An overview of your finances for the selected month.</CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={goToPreviousMonth}>
+                        <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <span className="text-sm font-medium w-28 text-center">{format(currentDate, "MMMM yyyy")}</span>
+                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={goToNextMonth}>
+                        <ChevronRight className="h-4 w-4" />
+                    </Button>
+                </div>
+            </CardHeader>
+        </Card>
       <Tabs defaultValue={primaryAccount?.id || 'all'} className="w-full">
         <TabsList className="flex w-full overflow-x-auto h-auto p-1">
           <TabsTrigger value="all" className="flex-shrink-0 flex flex-col h-auto p-2">
