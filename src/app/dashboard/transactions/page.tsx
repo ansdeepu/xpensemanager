@@ -314,9 +314,18 @@ export default function TransactionsPage() {
 
     return filteredTransactions.map(t => {
       let effect = 0;
-      const fromCurrentView = isPrimaryView ? (t.fromAccountId === activeTab || t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet') : t.fromAccountId === activeTab;
-      const toCurrentView = isPrimaryView ? (t.toAccountId === activeTab || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet') : t.toAccountId === activeTab;
-      const accountIsInView = isPrimaryView ? (t.accountId === activeTab || t.paymentMethod === 'cash' || t.paymentMethod === 'digital') : t.accountId === activeTab;
+      const fromAccountIsWallet = t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
+      const toAccountIsWallet = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
+      
+      const fromCurrentView = isPrimaryView ? (t.fromAccountId === activeTab || fromAccountIsWallet) : t.fromAccountId === activeTab;
+      const toCurrentView = isPrimaryView ? (t.toAccountId === activeTab || toAccountIsWallet) : t.toAccountId === activeTab;
+      
+      let accountIsInView = false;
+      if (t.type === 'expense' || t.type === 'income') {
+         accountIsInView = isPrimaryView 
+            ? (t.accountId === activeTab || t.paymentMethod === 'cash' || t.paymentMethod === 'digital') 
+            : t.accountId === activeTab;
+      }
         
       if (t.type === 'income') {
         if(accountIsInView) effect = t.amount;
@@ -395,22 +404,22 @@ export default function TransactionsPage() {
           <Tabs defaultValue={primaryAccount?.id || "all-accounts"} value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid grid-cols-1 md:grid-cols-2 gap-2 h-auto items-start p-0 bg-transparent print-hide">
                 {primaryAccount && (
-                  <TabsTrigger value={primaryAccount.id} className={cn("border flex flex-col h-full p-2 items-start text-left gap-1 w-full data-[state=active]:shadow-lg data-[state=active]:bg-lime-100 dark:data-[state=active]:bg-lime-900/50", "bg-card")}>
+                  <TabsTrigger value={primaryAccount.id} className={cn("border flex flex-col h-full p-4 items-start text-left gap-4 w-full data-[state=active]:shadow-lg data-[state=active]:bg-lime-100 dark:data-[state=active]:bg-lime-900/50", "bg-card")}>
                     <div className="w-full flex justify-between">
-                      <span className="font-semibold text-base">Primary ({primaryAccount.name})</span>
-                      <span className="font-bold text-xl text-primary">{formatCurrency(allBalance)}</span>
+                      <span className="font-semibold text-lg">Primary ({primaryAccount.name})</span>
+                      <span className="font-bold text-2xl text-primary">{formatCurrency(allBalance)}</span>
                     </div>
                     
-                    <div className="w-full grid grid-cols-1 gap-4 text-left py-1">
+                    <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-6 text-left py-4">
                       {/* Bank Column */}
-                      <div className="space-y-1">
+                      <div className="space-y-2">
                         <Label htmlFor={`actual-balance-${primaryAccount.id}`} className="text-xs">Bank Balance</Label>
-                        <div className="font-mono text-sm">{formatCurrency(primaryAccount.balance)}</div>
+                        <div className="font-mono text-base">{formatCurrency(primaryAccount.balance)}</div>
                         <Input
                             id={`actual-balance-${primaryAccount.id}`}
                             type="number"
                             placeholder="Actual"
-                            className="hide-number-arrows h-6 text-xs"
+                            className="hide-number-arrows h-7 mt-1 text-xs text-left"
                             defaultValue={primaryAccount.actualBalance ?? ''}
                             onChange={(e) => {
                                 const value = e.target.value === '' ? null : parseFloat(e.target.value)
@@ -419,26 +428,24 @@ export default function TransactionsPage() {
                             onClick={(e) => e.stopPropagation()}
                         />
                         {primaryAccountBalanceDifference !== null && (
-                            <div className="w-full pt-1 flex justify-start">
-                              <p className={cn(
-                                  "text-xs font-medium",
-                                  primaryAccountBalanceDifference === 0 ? "text-green-600" : "text-red-600"
-                              )}>
-                                  Diff: {formatCurrency(primaryAccountBalanceDifference)}
-                              </p>
-                            </div>
+                            <p className={cn(
+                                "text-xs font-medium pt-1",
+                                Math.abs(primaryAccountBalanceDifference) < 0.01 ? "text-green-600" : "text-red-600"
+                            )}>
+                                Diff: {formatCurrency(primaryAccountBalanceDifference)}
+                            </p>
                         )}
                       </div>
 
                       {/* Cash Column */}
-                      <div className="space-y-1">
+                      <div className="space-y-2">
                         <Label htmlFor="actual-balance-cash" className="text-xs">Cash</Label>
-                        <div className="font-mono text-sm">{formatCurrency(cashWalletBalance)}</div>
+                        <div className="font-mono text-base">{formatCurrency(cashWalletBalance)}</div>
                         <Input
                             id="actual-balance-cash"
                             type="number"
                             placeholder="Actual"
-                            className="hide-number-arrows h-6 text-xs"
+                            className="hide-number-arrows h-7 text-left"
                             defaultValue={walletPreferences.cash?.balance ?? ''}
                             onChange={(e) => {
                                 const value = e.target.value === '' ? null : parseFloat(e.target.value)
@@ -447,26 +454,24 @@ export default function TransactionsPage() {
                             onClick={(e) => e.stopPropagation()}
                         />
                         {cashBalanceDifference !== null && (
-                            <div className="w-full pt-1 flex justify-start">
-                                <p className={cn(
-                                    "text-xs font-medium",
-                                    cashBalanceDifference === 0 ? "text-green-600" : "text-red-600"
-                                )}>
-                                    Diff: {formatCurrency(cashBalanceDifference)}
-                                </p>
-                            </div>
+                            <p className={cn(
+                                "text-xs font-medium pt-1",
+                                 Math.abs(cashBalanceDifference) < 0.01 ? "text-green-600" : "text-red-600"
+                            )}>
+                                Diff: {formatCurrency(cashBalanceDifference)}
+                            </p>
                         )}
                       </div>
 
                       {/* Digital Column */}
-                      <div className="space-y-1">
+                      <div className="space-y-2">
                         <Label htmlFor="actual-balance-digital" className="text-xs">Digital</Label>
-                          <div className="font-mono text-sm">{formatCurrency(digitalWalletBalance)}</div>
+                          <div className="font-mono text-base">{formatCurrency(digitalWalletBalance)}</div>
                         <Input
                             id="actual-balance-digital"
                             type="number"
                             placeholder="Actual"
-                            className="hide-number-arrows h-6 text-xs"
+                            className="hide-number-arrows h-7 text-left"
                             defaultValue={walletPreferences.digital?.balance ?? ''}
                             onChange={(e) => {
                                 const value = e.target.value === '' ? null : parseFloat(e.target.value)
@@ -475,14 +480,12 @@ export default function TransactionsPage() {
                             onClick={(e) => e.stopPropagation()}
                         />
                         {digitalBalanceDifference !== null && (
-                            <div className="w-full pt-1 flex justify-start">
-                                <p className={cn(
-                                    "text-xs font-medium",
-                                    digitalBalanceDifference === 0 ? "text-green-600" : "text-red-600"
-                                )}>
-                                    Diff: {formatCurrency(digitalBalanceDifference)}
-                                </p>
-                            </div>
+                            <p className={cn(
+                                "text-xs font-medium pt-1",
+                                 Math.abs(digitalBalanceDifference) < 0.01 ? "text-green-600" : "text-red-600"
+                            )}>
+                                Diff: {formatCurrency(digitalBalanceDifference)}
+                            </p>
                         )}
                       </div>
                     </div>
@@ -517,7 +520,7 @@ export default function TransactionsPage() {
                                   <div className="w-full flex justify-end">
                                       <p className={cn(
                                           "text-xs font-medium",
-                                          balanceDifference === 0 ? "text-green-600" : "text-red-600"
+                                          Math.abs(balanceDifference) < 0.01 ? "text-green-600" : "text-red-600"
                                       )}>
                                           Diff: {formatCurrency(balanceDifference)}
                                       </p>
@@ -554,7 +557,7 @@ export default function TransactionsPage() {
                                   <div className="w-full flex justify-end">
                                       <p className={cn(
                                           "text-xs font-medium",
-                                          balanceDifference === 0 ? "text-green-600" : "text-red-600"
+                                          Math.abs(balanceDifference) < 0.01 ? "text-green-600" : "text-red-600"
                                       )}>
                                           Diff: {formatCurrency(balanceDifference)}
                                       </p>
@@ -571,32 +574,31 @@ export default function TransactionsPage() {
             <Card className="print-hide">
                 <CardContent className="pt-6">
                     <div className="flex flex-col gap-4">
-                        <div className="space-y-1">
-                            <Label htmlFor="reconciliation-date-input" className="text-xs flex items-center gap-2">
-                                <CalendarIcon className="h-4 w-4 text-red-600" />
-                                Reconciliation Date
-                            </Label>
-                            <Input
-                                id="reconciliation-date-input"
-                                type="date"
-                                value={reconciliationDate ? format(reconciliationDate, 'yyyy-MM-dd') : ''}
-                                onChange={(e) => {
-                                    const dateValue = e.target.value;
-                                    const newDate = dateValue ? new Date(dateValue) : undefined;
-                                    if (newDate) {
-                                        const timezoneOffset = newDate.getTimezoneOffset() * 60000;
-                                        handleReconciliationDateChange(new Date(newDate.getTime() + timezoneOffset));
-                                    } else {
-                                        handleReconciliationDateChange(undefined);
-                                    }
-                                }}
-                                className="w-full h-9"
-                            />
-                        </div>
-                        
-                        <div className="space-y-1">
-                            <Label htmlFor="search-input" className="text-xs">Search Transactions</Label>
-                            <div className="flex items-center gap-2">
+                        <div className="flex items-end gap-2">
+                            <div className="space-y-1">
+                                <Label htmlFor="reconciliation-date-input" className="text-xs flex items-center gap-2">
+                                    <CalendarIcon className="h-4 w-4 text-red-600" />
+                                    Reconciliation Date
+                                </Label>
+                                <Input
+                                    id="reconciliation-date-input"
+                                    type="date"
+                                    value={reconciliationDate ? format(reconciliationDate, 'yyyy-MM-dd') : ''}
+                                    onChange={(e) => {
+                                        const dateValue = e.target.value;
+                                        const newDate = dateValue ? new Date(dateValue) : undefined;
+                                        if (newDate) {
+                                            const timezoneOffset = newDate.getTimezoneOffset() * 60000;
+                                            handleReconciliationDateChange(new Date(newDate.getTime() + timezoneOffset));
+                                        } else {
+                                            handleReconciliationDateChange(undefined);
+                                        }
+                                    }}
+                                    className="w-full h-9"
+                                />
+                            </div>
+                            <div className="space-y-1 flex-grow">
+                                <Label htmlFor="search-input" className="text-xs">Search Transactions</Label>
                                 <div className="relative flex-grow">
                                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                     <Input
@@ -608,12 +610,12 @@ export default function TransactionsPage() {
                                     className="w-full rounded-lg bg-background pl-8 h-9"
                                     />
                                 </div>
-                                <AddTransactionDialog accounts={accountDataForDialog}>
-                                    <Button variant="outline" size="icon" className="h-9 w-9 flex-shrink-0">
-                                        <PlusCircle className="h-4 w-4" />
-                                    </Button>
-                                </AddTransactionDialog>
                             </div>
+                            <AddTransactionDialog accounts={accountDataForDialog}>
+                                <Button variant="outline" size="icon" className="h-9 w-9 flex-shrink-0">
+                                    <PlusCircle className="h-4 w-4" />
+                                </Button>
+                            </AddTransactionDialog>
                         </div>
 
                         <div className="space-y-1">
@@ -665,7 +667,5 @@ export default function TransactionsPage() {
     </div>
   );
 }
-
-
 
     
