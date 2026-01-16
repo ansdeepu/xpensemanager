@@ -320,13 +320,13 @@ export default function TransactionsPage() {
     const getTransactionSortOrder = (t: Transaction) => {
         if (t.loanTransactionId && loanTransactionTypeMap.has(t.loanTransactionId)) {
             const loanType = loanTransactionTypeMap.get(t.loanTransactionId);
-            if (loanType === 'loan') return 1; // Loan
-            if (loanType === 'repayment') return 4; // Repayment
+            if (loanType === 'loan') return 1;
+            if (loanType === 'repayment') return 4;
         }
-        if (t.type === 'income') return 2; // Income
-        if (t.type === 'expense') return 3; // Expense
-        if (t.type === 'transfer') return 5; // Pure Transfer
-        return 99; // Fallback
+        if (t.type === 'income') return 2;
+        if (t.type === 'expense') return 3;
+        if (t.type === 'transfer') return 5;
+        return 99;
     };
 
     return filtered.sort((a, b) => {
@@ -445,7 +445,7 @@ const transactionsWithRunningBalance = useMemo(() => {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:items-stretch">
         <div className="lg:col-span-2">
           <Tabs defaultValue={primaryAccount?.id || "all-accounts"} value={activeTab} onValueChange={setActiveTab} className="w-full h-full">
             <TabsList className="grid grid-cols-1 md:grid-cols-2 gap-2 h-auto items-stretch p-0 bg-transparent print-hide">
@@ -617,7 +617,7 @@ const transactionsWithRunningBalance = useMemo(() => {
           </Tabs>
         </div>
         <div className="lg:col-span-1">
-            <Card className="print-hide">
+            <Card className="print-hide h-full">
                 <CardContent className="pt-6">
                     <div className="flex flex-col gap-4">
                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
