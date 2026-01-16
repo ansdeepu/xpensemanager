@@ -618,9 +618,9 @@ const transactionsWithRunningBalance = useMemo(() => {
         </div>
         <div className="lg:col-span-1">
             <Card className="print-hide h-full">
-                <CardContent className="pt-6">
-                    <div className="flex flex-col gap-4">
-                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <CardContent className="pt-4">
+                    <div className="flex flex-col gap-2">
+                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                            <div className="space-y-1">
                                 <Label htmlFor="reconciliation-date-input" className="text-xs flex items-center gap-2">
                                     <CalendarIcon className="h-4 w-4 text-red-600" />
@@ -719,5 +719,7 @@ const transactionsWithRunningBalance = useMemo(() => {
     </div>
   );
 }
+
+    
 
     
