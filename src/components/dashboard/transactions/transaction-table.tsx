@@ -161,7 +161,7 @@ export function TransactionTable({
     
     const getLoanDisplayInfo = useMemo(() => {
         return (t: Transaction) => {
-            const defaultInfo = { isLoan: false, type: t.type, category: t.category, description: t.description, colorClass: '' };
+            const defaultInfo = { isLoan: false, type: t.type, category: t.category, description: t.description, descriptionClassName: "" };
 
             if (t.type !== 'transfer' || !t.loanTransactionId) {
                 return defaultInfo;
@@ -184,7 +184,7 @@ export function TransactionTable({
                 }
                 
                 const description = `${descriptionPrefix} ${otherPartyName}`;
-                return { isLoan: true, type: loanTx.type, category: 'Loan', description, colorClass: 'bg-orange-100 dark:bg-orange-900/50' };
+                return { isLoan: true, type: loanTx.type, category: 'Loan', description, descriptionClassName: 'text-orange-600 font-semibold' };
             }
             
             return defaultInfo;
@@ -466,10 +466,10 @@ export function TransactionTable({
                 const {debit, credit, transfer} = t;
 
                 return (
-                  <TableRow key={t.id} className={loanInfo.colorClass}>
+                  <TableRow key={t.id}>
                       <TableCell className="font-medium">{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
                       <TableCell>{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
-                      <TableCell className="font-medium break-words">{loanInfo.description}</TableCell>
+                      <TableCell className={cn("font-medium break-words", loanInfo.descriptionClassName)}>{loanInfo.description}</TableCell>
                       <TableCell>
                         <Badge 
                             variant={getBadgeVariant(loanInfo.type)}
@@ -688,5 +688,3 @@ export function TransactionTable({
     </>
   );
 }
-
-    

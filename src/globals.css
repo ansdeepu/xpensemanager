@@ -1,0 +1,207 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+@layer base {
+  :root {
+    --background: 150 44% 95%;
+    --foreground: 224 71% 4%;
+    --card: 150 44% 100%;
+    --card-foreground: 224 71% 4%;
+    --popover: 150 44% 100%;
+    --popover-foreground: 224 71% 4%;
+    --primary: 149 47% 62%;
+    --primary-foreground: 224 71% 4%;
+    --secondary: 150 30% 90%;
+    --secondary-foreground: 224 71% 4%;
+    --muted: 150 30% 90%;
+    --muted-foreground: 224 20% 45%;
+    --accent: 43 74% 66%;
+    --accent-foreground: 224 71% 4%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 149 30% 88%;
+    --input: 150 30% 92%;
+    --ring: 149 47% 62%;
+    --chart-1: 149 47% 62%;
+    --chart-2: 43 74% 66%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+    --radius: 0.5rem;
+    --sidebar-background: 149 30% 92%;
+    --sidebar-foreground: 224 71% 10%;
+    --sidebar-primary: 149 47% 62%;
+    --sidebar-primary-foreground: 224 71% 4%;
+    --sidebar-accent: 150 44% 95%;
+    --sidebar-accent-foreground: 224 71% 4%;
+    --sidebar-border: 149 30% 88%;
+    --sidebar-ring: 149 47% 62%;
+  }
+  .dark {
+    --background: 224 71% 4%;
+    --foreground: 150 30% 92%;
+    --card: 224 71% 6%;
+    --card-foreground: 150 30% 92%;
+    --popover: 224 71% 4%;
+    --popover-foreground: 150 30% 92%;
+    --primary: 149 47% 62%;
+    --primary-foreground: 224 71% 4%;
+    --secondary: 224 71% 10%;
+    --secondary-foreground: 150 30% 92%;
+    --muted: 224 71% 10%;
+    --muted-foreground: 150 20% 65%;
+    --accent: 43 74% 66%;
+    --accent-foreground: 224 71% 4%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 224 71% 10%;
+    --input: 224 71% 10%;
+    --ring: 149 47% 62%;
+    --chart-1: 149 47% 62%;
+    --chart-2: 43 74% 66%;
+    --sidebar-background: 224 71% 6%;
+    --sidebar-foreground: 150 30% 92%;
+    --sidebar-primary: 149 47% 62%;
+    --sidebar-primary-foreground: 224 71% 4%;
+    --sidebar-accent: 224 71% 10%;
+    --sidebar-accent-foreground: 150 30% 92%;
+    --sidebar-border: 224 71% 10%;
+    --sidebar-ring: 149 47% 62%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  .hide-number-arrows::-webkit-outer-spin-button,
+  .hide-number-arrows::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  .hide-number-arrows {
+    -moz-appearance: textfield;
+  }
+
+  .line-clamp-4 {
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .text-red-600 {
+    color: hsl(0 84.2% 60.2%);
+  }
+
+  .dark .text-red-600 {
+    color: hsl(0 72.2% 50.6%);
+  }
+
+  .text-green-600 {
+    color: hsl(142.1 76.2% 36.3%);
+  }
+
+  .dark .text-green-600 {
+    color: hsl(142.1 70.6% 45.3%);
+  }
+  .text-blue-600 {
+    color: hsl(210 90% 50%);
+  }
+  .dark .text-blue-600 {
+    color: hsl(210 90% 60%);
+  }
+  .text-orange-600 {
+    color: #ea580c;
+  }
+  .dark .text-orange-600 {
+    color: #f97316;
+  }
+
+  .animate-scroll {
+    animation: scroll var(--animation-duration, 20s) linear infinite;
+  }
+
+  .animation-pause {
+      animation-play-state: paused;
+  }
+
+  @keyframes scroll {
+    0% {
+      transform: translateY(0);
+    }
+    100% {
+      transform: translateY(-50%);
+    }
+  }
+
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  #printable-area, #printable-area * {
+    visibility: visible;
+  }
+
+  #printable-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+
+  .print-hide {
+    display: none;
+  }
+}
+
+.bg-lime-100 { background-color: #f4ffde; }
+.dark .bg-lime-900\/50 { background-color: rgba(53, 72, 33, 0.5); }
+.bg-sky-100 { background-color: #e0f2fe; }
+.dark .bg-sky-900\/50 { background-color: rgba(12, 74, 110, 0.5); }
+.bg-amber-100 { background-color: #fef3c7; }
+.dark .bg-amber-900\/50 { background-color: rgba(120, 53, 15, 0.5); }
+.bg-emerald-100 { background-color: #d1fae5; }
+.dark .bg-emerald-900\/50 { background-color: rgba(6, 78, 59, 0.5); }
+.bg-rose-100 { background-color: #ffe4e6; }
+.dark .bg-rose-900\/50 { background-color: rgba(136, 19, 55, 0.5); }
+.bg-violet-100 { background-color: #ede9fe; }
+.dark .bg-violet-900\/50 { background-color: rgba(76, 29, 149, 0.5); }
+.bg-cyan-100 { background-color: #cffafe; }
+.dark .bg-cyan-900\/50 { background-color: rgba(22, 78, 99, 0.5); }
+.bg-fuchsia-100 { background-color: #fae8ff; }
+.dark .bg-fuchsia-900\/50 { background-color: rgba(112, 26, 117, 0.5); }
+.bg-orange-100 { background-color: #ffedd5; }
+.dark .bg-orange-900\/50 { background-color: rgba(124, 45, 18, 0.5); }
+
+
+.text-sky-800 { color: #075985; }
+.dark .text-sky-200 { color: #bae6fd; }
+.text-amber-800 { color: #92400e; }
+.dark .text-amber-200 { color: #fde68a; }
+.text-emerald-800 { color: #065f46; }
+.dark .text-emerald-200 { color: #a7f3d0; }
+.text-rose-800 { color: #9f1239; }
+.dark .text-rose-200 { color: #fecdd3; }
+.text-violet-800 { color: #5b21b6; }
+.dark .text-violet-200 { color: #ddd6fe; }
+.text-cyan-800 { color: #155e75; }
+.dark .text-cyan-200 { color: #a5f3fc; }
+.text-fuchsia-800 { color: #86198f; }
+.dark .text-fuchsia-200 { color: #f5d0fe; }
