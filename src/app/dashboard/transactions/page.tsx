@@ -117,7 +117,7 @@ export default function TransactionsPage() {
   const itemsPerPage = 100;
 
   const useDebounce = (callback: Function, delay: number) => {
-    const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
     return (...args: any) => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       timeoutRef.current = setTimeout(() => {
@@ -404,7 +404,7 @@ const transactionsWithRunningBalance = useMemo(() => {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:items-start">
         <div className="lg:col-span-2">
           <Tabs defaultValue={primaryAccount?.id || "all-accounts"} value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid grid-cols-1 md:grid-cols-2 gap-2 h-auto items-stretch p-0 bg-transparent print-hide">
@@ -579,42 +579,40 @@ const transactionsWithRunningBalance = useMemo(() => {
             <Card className="print-hide">
                 <CardContent className="pt-6">
                     <div className="flex flex-col gap-4">
-                        <div className="grid grid-cols-2 gap-2">
-                           <div className="space-y-1">
-                                <Label htmlFor="reconciliation-date-input" className="text-xs flex items-center gap-2">
-                                    <CalendarIcon className="h-4 w-4 text-red-600" />
-                                    Reconciliation Date
-                                </Label>
+                        <div className="space-y-1">
+                            <Label htmlFor="reconciliation-date-input" className="text-xs flex items-center gap-2">
+                                <CalendarIcon className="h-4 w-4 text-red-600" />
+                                Reconciliation Date
+                            </Label>
+                            <Input
+                                id="reconciliation-date-input"
+                                type="date"
+                                value={reconciliationDate ? format(reconciliationDate, 'yyyy-MM-dd') : ''}
+                                onChange={(e) => {
+                                    const dateValue = e.target.value;
+                                    const newDate = dateValue ? new Date(dateValue) : undefined;
+                                    if (newDate) {
+                                        const timezoneOffset = newDate.getTimezoneOffset() * 60000;
+                                        handleReconciliationDateChange(new Date(newDate.getTime() + timezoneOffset));
+                                    } else {
+                                        handleReconciliationDateChange(undefined);
+                                    }
+                                }}
+                                className="w-full h-9"
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <Label htmlFor="search-input" className="text-xs">Search Transactions</Label>
+                            <div className="relative flex-grow">
+                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input
-                                    id="reconciliation-date-input"
-                                    type="date"
-                                    value={reconciliationDate ? format(reconciliationDate, 'yyyy-MM-dd') : ''}
-                                    onChange={(e) => {
-                                        const dateValue = e.target.value;
-                                        const newDate = dateValue ? new Date(dateValue) : undefined;
-                                        if (newDate) {
-                                            const timezoneOffset = newDate.getTimezoneOffset() * 60000;
-                                            handleReconciliationDateChange(new Date(newDate.getTime() + timezoneOffset));
-                                        } else {
-                                            handleReconciliationDateChange(undefined);
-                                        }
-                                    }}
-                                    className="w-full h-9"
+                                id="search-input"
+                                type="search"
+                                placeholder="Search..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full rounded-lg bg-background pl-8 h-9"
                                 />
-                            </div>
-                            <div className="space-y-1">
-                                <Label htmlFor="search-input" className="text-xs">Search Transactions</Label>
-                                <div className="relative flex-grow">
-                                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                    id="search-input"
-                                    type="search"
-                                    placeholder="Search..."
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="w-full rounded-lg bg-background pl-8 h-9"
-                                    />
-                                </div>
                             </div>
                         </div>
 
@@ -648,7 +646,7 @@ const transactionsWithRunningBalance = useMemo(() => {
                                 Print
                             </Button>
                             <AddTransactionDialog accounts={accountDataForDialog}>
-                                <Button variant="outline" size="sm">
+                                <Button variant="default" size="sm">
                                     <PlusCircle className="mr-2 h-4 w-4" />
                                     Add
                                 </Button>
@@ -678,5 +676,9 @@ const transactionsWithRunningBalance = useMemo(() => {
     </div>
   );
 }
+
+    
+
+    
 
     
