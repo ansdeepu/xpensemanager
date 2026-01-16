@@ -57,7 +57,7 @@ const textColors = [
   "text-fuchsia-800 dark:text-fuchsia-200",
 ];
 
-const PaginationControls = ({ currentPage, totalPages, setCurrentPage }: { currentPage: number, totalPages: number, setCurrentPage: (page: number) => void }) => (
+const PaginationControls = ({ currentPage, totalPages, setCurrentPage }: { currentPage: number, totalPages: number, setCurrentPage: (page: number | ((prev: number) => number)) => void }) => (
     <div className="flex items-center gap-2 print-hide">
       <Button
         variant="outline"
@@ -71,7 +71,7 @@ const PaginationControls = ({ currentPage, totalPages, setCurrentPage }: { curre
       <Button
         variant="outline"
         className="h-8 w-8 p-0"
-        onClick={() => setCurrentPage(currentPage - 1)}
+        onClick={() => setCurrentPage(prev => prev - 1)}
         disabled={currentPage === 1}
       >
         <span className="sr-only">Go to previous page</span>
@@ -83,7 +83,7 @@ const PaginationControls = ({ currentPage, totalPages, setCurrentPage }: { curre
       <Button
         variant="outline"
         className="h-8 w-8 p-0"
-        onClick={() => setCurrentPage(currentPage + 1)}
+        onClick={() => setCurrentPage(prev => prev + 1)}
         disabled={currentPage === totalPages}
       >
         <span className="sr-only">Next page</span>
@@ -117,7 +117,7 @@ export default function TransactionsPage() {
   const itemsPerPage = 100;
 
   const useDebounce = (callback: Function, delay: number) => {
-    const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
     return (...args: any) => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       timeoutRef.current = setTimeout(() => {
@@ -404,9 +404,9 @@ const transactionsWithRunningBalance = useMemo(() => {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:items-stretch">
         <div className="lg:col-span-2">
-          <Tabs defaultValue={primaryAccount?.id || "all-accounts"} value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <Tabs defaultValue={primaryAccount?.id || "all-accounts"} value={activeTab} onValueChange={setActiveTab} className="w-full h-full">
             <TabsList className="grid grid-cols-1 md:grid-cols-2 gap-2 h-auto items-stretch p-0 bg-transparent print-hide">
                 {primaryAccount && (
                   <TabsTrigger value={primaryAccount.id} className={cn("border flex flex-col h-full p-4 items-start text-left gap-4 w-full data-[state=active]:shadow-lg data-[state=active]:bg-lime-100 dark:data-[state=active]:bg-lime-900/50", "bg-card")}>
@@ -576,10 +576,10 @@ const transactionsWithRunningBalance = useMemo(() => {
           </Tabs>
         </div>
         <div className="lg:col-span-1">
-            <Card className="print-hide">
+            <Card className="print-hide h-full">
                 <CardContent className="pt-6">
                     <div className="flex flex-col gap-4">
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-2 gap-4">
                            <div className="space-y-1">
                                 <Label htmlFor="reconciliation-date-input" className="text-xs flex items-center gap-2">
                                     <CalendarIcon className="h-4 w-4 text-red-600" />
@@ -639,7 +639,7 @@ const transactionsWithRunningBalance = useMemo(() => {
                         </div>
                         
                         <div className="flex items-center justify-start gap-2">
-                            <Button onClick={handleClearFilters} variant="ghost" size="sm">
+                            <Button onClick={handleClearFilters} variant="outline" size="sm">
                                 <XCircle className="mr-2 h-4 w-4" />
                                 Clear
                             </Button>
@@ -648,7 +648,7 @@ const transactionsWithRunningBalance = useMemo(() => {
                                 Print
                             </Button>
                             <AddTransactionDialog accounts={accountDataForDialog}>
-                                <Button variant="outline" size="sm">
+                                <Button size="sm">
                                     <PlusCircle className="mr-2 h-4 w-4" />
                                     Add
                                 </Button>
@@ -678,5 +678,7 @@ const transactionsWithRunningBalance = useMemo(() => {
     </div>
   );
 }
+
+    
 
     
