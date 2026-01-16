@@ -404,10 +404,10 @@ const transactionsWithRunningBalance = useMemo(() => {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:items-stretch">
         <div className="lg:col-span-2">
-          <Tabs defaultValue={primaryAccount?.id || "all-accounts"} value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid grid-cols-1 md:grid-cols-2 gap-2 h-auto items-stretch p-0 bg-transparent print-hide">
+          <Tabs defaultValue={primaryAccount?.id || "all-accounts"} value={activeTab} onValueChange={setActiveTab} className="w-full h-full">
+            <TabsList className="grid grid-cols-1 md:grid-cols-2 gap-2 h-full items-start p-0 bg-transparent print-hide">
                 {primaryAccount && (
                   <TabsTrigger value={primaryAccount.id} className={cn("border flex flex-col h-full p-4 items-start text-left gap-4 w-full data-[state=active]:shadow-lg data-[state=active]:bg-lime-100 dark:data-[state=active]:bg-lime-900/50", "bg-card")}>
                     <div className="w-full flex justify-between">
@@ -496,7 +496,7 @@ const transactionsWithRunningBalance = useMemo(() => {
                     </div>
                   </TabsTrigger>
                 )}
-                <div className="grid grid-cols-2 gap-2 auto-rows-fr">
+                <div className="grid grid-cols-2 gap-2">
                   {secondaryAccounts.map((account, index) => {
                     const balanceDifference = getBalanceDifference(account.balance, account.actualBalance);
                     return (
@@ -576,9 +576,9 @@ const transactionsWithRunningBalance = useMemo(() => {
           </Tabs>
         </div>
         <div className="lg:col-span-1">
-            <Card className="print-hide">
+            <Card className="print-hide h-full">
                 <CardContent className="pt-6">
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-2">
                         <div className="space-y-1">
                             <Label htmlFor="reconciliation-date-input" className="text-xs flex items-center gap-2">
                                 <CalendarIcon className="h-4 w-4 text-red-600" />
@@ -676,5 +676,7 @@ const transactionsWithRunningBalance = useMemo(() => {
     </div>
   );
 }
+
+    
 
     
