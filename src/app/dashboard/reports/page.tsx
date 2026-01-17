@@ -34,11 +34,11 @@ export default function ReportsPage() {
 
   useEffect(() => {
     if (user) {
+      setDataLoading(true);
       const accountsQuery = query(collection(db, "accounts"), where("userId", "==", user.uid), orderBy("order", "asc"));
       const unsubscribeAccounts = onSnapshot(accountsQuery, (snapshot) => {
         const userAccounts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Omit<Account, 'balance'>));
         setRawAccounts(userAccounts);
-        if (dataLoading) setDataLoading(false);
       });
 
       const transactionsQuery = query(collection(db, "transactions"), where("userId", "==", user.uid));
@@ -75,6 +75,7 @@ export default function ReportsPage() {
           } as Loan;
         });
         setLoans(userLoans);
+        setDataLoading(false);
       });
 
       return () => {
@@ -87,7 +88,7 @@ export default function ReportsPage() {
     } else if (!userLoading) {
       setDataLoading(false);
     }
-  }, [user, userLoading, dataLoading]);
+  }, [user, userLoading]);
 
   const { accountBalances, cashWalletBalance, digitalWalletBalance } = useMemo(() => {
     const calculatedAccountBalances: { [key: string]: number } = {};

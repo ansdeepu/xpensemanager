@@ -184,7 +184,17 @@ export default function TransactionsPage() {
         const unsubscribeLoans = onSnapshot(loansQuery, (snapshot) => {
             const userLoans = snapshot.docs.map(doc => {
                 const data = doc.data();
-                return { id: doc.id, ...data } as Loan;
+                const transactions = data.transactions || [];
+                const totalLoan = transactions.filter((t: any) => t.type === 'loan').reduce((sum: number, t: any) => sum + t.amount, 0);
+                const totalRepayment = transactions.filter((t: any) => t.type === 'repayment').reduce((sum: number, t: any) => sum + t.amount, 0);
+                return {
+                    id: doc.id,
+                    ...data,
+                    transactions,
+                    totalLoan,
+                    totalRepayment,
+                    balance: totalLoan - totalRepayment,
+                } as Loan;
             });
             setLoans(userLoans);
         });
@@ -618,7 +628,7 @@ const transactionsWithRunningBalance = useMemo(() => {
         </div>
         <div className="lg:col-span-1">
             <Card className="print-hide h-full">
-                <CardContent className="pt-6">
+                <CardContent className="pt-4">
                     <div className="flex flex-col gap-2">
                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                            <div className="space-y-1">
@@ -702,7 +712,7 @@ const transactionsWithRunningBalance = useMemo(() => {
       </div>
       
       <Card>
-          <CardContent className="p-0 overflow-x-auto">
+          <CardContent className="p-0">
             <TransactionTable 
                 transactions={pagedTransactions} 
                 accountId={activeTab || ''}
