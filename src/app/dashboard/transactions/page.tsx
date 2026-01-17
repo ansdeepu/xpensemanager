@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
@@ -184,7 +183,17 @@ export default function TransactionsPage() {
         const unsubscribeLoans = onSnapshot(loansQuery, (snapshot) => {
             const userLoans = snapshot.docs.map(doc => {
                 const data = doc.data();
-                return { id: doc.id, ...data } as Loan;
+                const transactions = data.transactions || [];
+                const totalLoan = transactions.filter((t: any) => t.type === 'loan').reduce((sum: number, t: any) => sum + t.amount, 0);
+                const totalRepayment = transactions.filter((t: any) => t.type === 'repayment').reduce((sum: number, t: any) => sum + t.amount, 0);
+                return {
+                    id: doc.id,
+                    ...data,
+                    transactions,
+                    totalLoan,
+                    totalRepayment,
+                    balance: totalLoan - totalRepayment,
+                } as Loan;
             });
             setLoans(userLoans);
         });
