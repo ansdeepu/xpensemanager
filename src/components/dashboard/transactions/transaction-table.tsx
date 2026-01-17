@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -165,10 +166,10 @@ export function TransactionTable({
                 return defaultInfo;
             }
 
-            const loan = loans.find(l => (l.transactions || []).some(lt => lt.id === t.loanTransactionId));
+            const loan = loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId));
             
             if (loan) {
-                const loanTx = (loan.transactions || []).find(lt => lt.id === t.loanTransactionId)!;
+                const loanTx = loan.transactions.find(lt => lt.id === t.loanTransactionId)!;
                 const otherPartyName = loan.personName;
                 
                 const isLoanTaken = loan.type === 'taken';
@@ -263,11 +264,13 @@ export function TransactionTable({
       const unsubscribeLoans = onSnapshot(loansQuery, (snapshot) => {
         const userLoans = snapshot.docs.map(doc => {
             const data = doc.data();
-            const totalLoan = (data.transactions || []).filter((t: any) => t.type === 'loan').reduce((sum: number, t: any) => sum + t.amount, 0);
-            const totalRepayment = (data.transactions || []).filter((t: any) => t.type === 'repayment').reduce((sum: number, t: any) => sum + t.amount, 0);
+            const transactions = data.transactions || [];
+            const totalLoan = transactions.filter((t: any) => t.type === 'loan').reduce((sum: number, t: any) => sum + t.amount, 0);
+            const totalRepayment = transactions.filter((t: any) => t.type === 'repayment').reduce((sum: number, t: any) => sum + t.amount, 0);
             return {
                 id: doc.id,
                 ...data,
+                transactions,
                 totalLoan,
                 totalRepayment,
                 balance: totalLoan - totalRepayment,
@@ -386,11 +389,12 @@ export function TransactionTable({
             const loansSnapshot = await getDocs(loansQuery);
 
             for (const loanDoc of loansSnapshot.docs) {
-                const loan = { id: loanDoc.id, ...loanDoc.data() } as Loan;
-                const txIndex = (loan.transactions || []).findIndex(t => t.id === transactionToDelete.loanTransactionId);
+                const loanData = loanDoc.data();
+                const loanTransactions = loanData.transactions || [];
+                const txIndex = loanTransactions.findIndex((t: any) => t.id === transactionToDelete.loanTransactionId);
 
                 if (txIndex !== -1) {
-                    const updatedTransactions = (loan.transactions || []).filter(t => t.id !== transactionToDelete.loanTransactionId);
+                    const updatedTransactions = loanTransactions.filter((t: any) => t.id !== transactionToDelete.loanTransactionId);
                     
                     if (updatedTransactions.length > 0) {
                         batch.update(loanDoc.ref, { transactions: updatedTransactions });
@@ -695,5 +699,3 @@ export function TransactionTable({
     </>
   );
 }
-
-    

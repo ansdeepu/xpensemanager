@@ -34,11 +34,13 @@ export function LoanSummary() {
       const unsubscribe = onSnapshot(q, (snapshot) => {
         const userLoans = snapshot.docs.map((doc) => {
           const data = doc.data();
-          const totalLoan = (data.transactions || []).filter((t: LoanTransaction) => t.type === 'loan').reduce((sum: number, t: LoanTransaction) => sum + t.amount, 0);
-          const totalRepayment = (data.transactions || []).filter((t: LoanTransaction) => t.type === 'repayment').reduce((sum: number, t: LoanTransaction) => sum + t.amount, 0);
+          const transactions = data.transactions || [];
+          const totalLoan = transactions.filter((t: LoanTransaction) => t.type === 'loan').reduce((sum: number, t: LoanTransaction) => sum + t.amount, 0);
+          const totalRepayment = transactions.filter((t: LoanTransaction) => t.type === 'repayment').reduce((sum: number, t: LoanTransaction) => sum + t.amount, 0);
           return {
             id: doc.id,
             ...data,
+            transactions,
             totalLoan,
             totalRepayment,
             balance: totalLoan - totalRepayment,
