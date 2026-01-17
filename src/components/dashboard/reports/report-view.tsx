@@ -288,6 +288,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
   const grandTotalOutflow = monthlyReport.totalExpense + (isPrimaryReport ? totalSpecialExpense : 0) + (!isOverallSummary && !isPrimaryReport ? monthlyReport.totalTransfersOut : 0) + monthlyLoanReport.totalLoanGiven + monthlyLoanReport.totalRepaymentMade;
   const netBalance = grandTotalInflow - grandTotalOutflow;
   const hasTransactions = monthlyTransactions.length > 0;
+  const grandTotalExpense = monthlyReport.totalExpense + (isPrimaryReport ? totalSpecialExpense : 0);
 
   return (
     <>
