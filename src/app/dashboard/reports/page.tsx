@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, orderBy, doc } from "firebase/firestore";
-import type { Account, Transaction, Category } from "@/lib/data";
+import type { Account, Transaction, Category, Loan } from "@/lib/data";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -27,6 +27,7 @@ export default function ReportsPage() {
   const [rawAccounts, setRawAccounts] = useState<Omit<Account, 'balance'>[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [loans, setLoans] = useState<Loan[]>([]);
   const [walletPreferences, setWalletPreferences] = useState<{ cash?: { balance?: number, date?: string }, digital?: { balance?: number, date?: string } }>({});
   const [dataLoading, setDataLoading] = useState(true);
   const { currentDate, goToPreviousMonth, goToNextMonth } = useReportDate();
@@ -56,12 +57,18 @@ export default function ReportsPage() {
           setWalletPreferences(doc.data().wallets || {});
         }
       });
+      
+      const loansQuery = query(collection(db, "loans"), where("userId", "==", user.uid));
+      const unsubscribeLoans = onSnapshot(loansQuery, (snapshot) => {
+          setLoans(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Loan)));
+      });
 
       return () => {
         unsubscribeAccounts();
         unsubscribeTransactions();
         unsubscribeCategories();
         unsubscribePreferences();
+        unsubscribeLoans();
       };
     } else if (!userLoading) {
       setDataLoading(false);
@@ -209,7 +216,7 @@ export default function ReportsPage() {
         </TabsList>
 
         <TabsContent value="all" className="mt-6">
-          <ReportView transactions={transactions} categories={categories} accounts={accounts} isOverallSummary={true} />
+          <ReportView transactions={transactions} categories={categories} accounts={accounts} loans={loans} isOverallSummary={true} />
         </TabsContent>
         
         {accounts.map(account => (
@@ -218,6 +225,7 @@ export default function ReportsPage() {
                 transactions={transactions} 
                 categories={categories}
                 accounts={accounts}
+                loans={loans}
                 isOverallSummary={false} 
                 accountId={account.id}
                 isPrimaryReport={!!account.isPrimary}
