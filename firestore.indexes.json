@@ -91,19 +91,15 @@
     },
     {
       "collectionGroup": "loans",
-      "queryScope": "COLLECTION_GROUP",
+      "queryScope": "COLLECTION",
       "fields": [
-        {
-          "fieldPath": "type",
-          "order": "ASCENDING"
-        },
         {
           "fieldPath": "userId",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "loanDate",
-          "order": "DESCENDING"
+          "fieldPath": "type",
+          "order": "ASCENDING"
         }
       ]
     }
