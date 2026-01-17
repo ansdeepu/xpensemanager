@@ -132,12 +132,12 @@ function SortableAccountCard({ account, onSetPrimary, onEdit, onDelete }: { acco
                         </Button>
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
-                                <Button variant="destructive" size="sm" onClick={(e) => e.stopPropagation()}>
+                                <Button variant="destructive" size="sm">
                                     <Trash2 className="mr-2 h-4 w-4" />
                                     Delete
                                 </Button>
                             </AlertDialogTrigger>
-                            <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                            <AlertDialogContent>
                                 <AlertDialogHeader>
                                     <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                                     <AlertDialogDescription>
