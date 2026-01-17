@@ -44,7 +44,7 @@
       ]
     },
     {
-      "collectionGroup": "categories",
+      "collectionGroup": "transactions",
       "queryScope": "COLLECTION",
       "fields": [
         {
@@ -52,11 +52,7 @@
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "type",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "order",
+          "fieldPath": "loanTransactionId",
           "order": "ASCENDING"
         }
       ]
@@ -67,6 +63,10 @@
       "fields": [
         {
           "fieldPath": "userId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "type",
           "order": "ASCENDING"
         },
         {
