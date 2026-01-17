@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
-import type { Account, Transaction, Category } from "@/lib/data";
+import type { Account, Transaction, Category, Loan } from "@/lib/data";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -24,15 +24,16 @@ export default function ReportsPage() {
   const [rawAccounts, setRawAccounts] = useState<Omit<Account, 'balance'>[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [loans, setLoans] = useState<Loan[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
 
   useEffect(() => {
     if (user) {
+      setDataLoading(true);
       const accountsQuery = query(collection(db, "accounts"), where("userId", "==", user.uid), orderBy("order", "asc"));
       const unsubscribeAccounts = onSnapshot(accountsQuery, (snapshot) => {
         const userAccounts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Omit<Account, 'balance'>));
         setRawAccounts(userAccounts);
-        if (dataLoading) setDataLoading(false);
       });
 
       const transactionsQuery = query(collection(db, "transactions"), where("userId", "==", user.uid));
@@ -44,16 +45,26 @@ export default function ReportsPage() {
       const unsubscribeCategories = onSnapshot(categoriesQuery, (snapshot) => {
         setCategories(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category)));
       });
+      
+      const loansQuery = query(collection(db, "loans"), where("userId", "==", user.uid));
+      const unsubscribeLoans = onSnapshot(loansQuery, (snapshot) => {
+        setLoans(snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        } as Loan)));
+        setDataLoading(false);
+      });
 
       return () => {
         unsubscribeAccounts();
         unsubscribeTransactions();
         unsubscribeCategories();
+        unsubscribeLoans();
       };
     } else if (!userLoading) {
       setDataLoading(false);
     }
-  }, [user, userLoading, dataLoading]);
+  }, [user, userLoading]);
 
   const { accountBalances, cashWalletBalance, digitalWalletBalance } = useMemo(() => {
     const calculatedAccountBalances: { [key: string]: number } = {};
@@ -160,7 +171,7 @@ export default function ReportsPage() {
         </TabsList>
 
         <TabsContent value="all" className="mt-6">
-          <ReportView transactions={transactions} categories={categories} accounts={accounts} isOverallSummary={true} />
+          <ReportView transactions={transactions} categories={categories} accounts={accounts} loans={loans} isOverallSummary={true} />
         </TabsContent>
         
         {accounts.map(account => (
@@ -169,6 +180,7 @@ export default function ReportsPage() {
                 transactions={transactions} 
                 categories={categories}
                 accounts={accounts}
+                loans={loans}
                 isOverallSummary={false} 
                 accountId={account.id}
                 isPrimaryReport={!!account.isPrimary}
@@ -179,7 +191,3 @@ export default function ReportsPage() {
     </div>
   );
 }
-
-    
-
-    
