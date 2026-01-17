@@ -439,7 +439,7 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
         const loanRef = doc(db, "loans", selectedLoan.id);
         batch.update(loanRef, { transactions: newTransactions });
 
-        const financialTxQuery = query(collection(db, "transactions"), where("loanTransactionId", "==", selectedTransaction.id), where("userId", "==", user.uid));
+        const financialTxQuery = query(collection(db, "transactions"), where("userId", "==", user.uid), where("loanTransactionId", "==", selectedTransaction.id));
         const financialTxSnapshot = await getDocs(financialTxQuery);
         
         const otherPartyAccount = accounts.find(acc => acc.name.toLowerCase() === selectedLoan.personName.toLowerCase());
@@ -518,7 +518,7 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
         }
 
         // Find and delete the corresponding financial transaction
-        const financialTxQuery = query(collection(db, "transactions"), where("loanTransactionId", "==", transactionToDelete.id), where("userId", "==", user.uid));
+        const financialTxQuery = query(collection(db, "transactions"), where("userId", "==", user.uid), where("loanTransactionId", "==", transactionToDelete.id));
         const querySnapshot = await getDocs(financialTxQuery);
         if (!querySnapshot.empty) {
             const financialTransactionDoc = querySnapshot.docs[0];
@@ -543,7 +543,7 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
         
         // Find and delete all associated financial transactions
         for (const loanTx of loan.transactions) {
-            const financialTxQuery = query(collection(db, "transactions"), where("loanTransactionId", "==", loanTx.id), where("userId", "==", user.uid));
+            const financialTxQuery = query(collection(db, "transactions"), where("userId", "==", user.uid), where("loanTransactionId", "==", loanTx.id));
             const querySnapshot = await getDocs(financialTxQuery);
             if (!querySnapshot.empty) {
                 const financialTransactionDoc = querySnapshot.docs[0];
@@ -810,3 +810,5 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
     </>
   );
 }
+
+    
