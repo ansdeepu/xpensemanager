@@ -39,6 +39,8 @@ export function LoanSummary() {
           return {
             id: doc.id,
             ...data,
+            totalLoan,
+            totalRepayment,
             balance: totalLoan - totalRepayment,
           } as Loan;
         });
