@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
@@ -60,7 +61,19 @@ export default function ReportsPage() {
       
       const loansQuery = query(collection(db, "loans"), where("userId", "==", user.uid));
       const unsubscribeLoans = onSnapshot(loansQuery, (snapshot) => {
-          setLoans(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Loan)));
+          const userLoans = snapshot.docs.map((doc) => {
+          const data = doc.data();
+          const totalLoan = (data.transactions || []).filter((t: any) => t.type === 'loan').reduce((sum: number, t: any) => sum + t.amount, 0);
+          const totalRepayment = (data.transactions || []).filter((t: any) => t.type === 'repayment').reduce((sum: number, t: any) => sum + t.amount, 0);
+          return {
+            id: doc.id,
+            ...data,
+            totalLoan,
+            totalRepayment,
+            balance: totalLoan - totalRepayment,
+          } as Loan;
+        });
+        setLoans(userLoans);
       });
 
       return () => {
