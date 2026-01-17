@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -389,12 +388,11 @@ export function TransactionTable({
             const loansSnapshot = await getDocs(loansQuery);
 
             for (const loanDoc of loansSnapshot.docs) {
-                const loanData = loanDoc.data();
-                const loanTransactions = loanData.transactions || [];
-                const txIndex = loanTransactions.findIndex((t: any) => t.id === transactionToDelete.loanTransactionId);
+                const loan = { id: loanDoc.id, ...loanDoc.data() } as Loan;
+                const txIndex = loan.transactions.findIndex(t => t.id === transactionToDelete.loanTransactionId);
 
                 if (txIndex !== -1) {
-                    const updatedTransactions = loanTransactions.filter((t: any) => t.id !== transactionToDelete.loanTransactionId);
+                    const updatedTransactions = loan.transactions.filter(t => t.id !== transactionToDelete.loanTransactionId);
                     
                     if (updatedTransactions.length > 0) {
                         batch.update(loanDoc.ref, { transactions: updatedTransactions });
