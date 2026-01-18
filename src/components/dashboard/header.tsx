@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -107,116 +106,118 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b bg-background px-4 md:px-6">
-       <div className="flex items-center gap-6">
-         <div className="flex items-center gap-2">
-            <Link
+      <div className="flex items-center gap-6">
+        <div className="flex items-center gap-2">
+          <Link
             href="/dashboard"
             className="flex items-center gap-2 font-semibold"
-            >
+          >
             <Wallet className="h-6 w-6 text-primary" />
             <span className="">Expense Manager</span>
-            </Link>
-         </div>
+          </Link>
+        </div>
         <nav className="hidden flex-col gap-6 text-lg font-medium md:flex md:flex-row md:items-center md:gap-5 md:text-sm lg:gap-6">
-            {menuItems.map(item => (
+          {menuItems.map(item => (
             <div key={item.href} className="flex items-center gap-1">
-                <Link
-                    href={item.href}
-                    className={cn(
-                        "transition-colors hover:text-foreground",
-                        pathname === item.href ? "text-foreground font-medium" : "text-muted-foreground"
-                    )}
-                >
-                    {item.label}
-                </Link>
-                <Button variant="ghost" size="icon" onClick={() => handleOpenNewWindow(item.href)} aria-label={`Open ${item.label} in new window`} className="h-6 w-6">
-                    <ArrowUpRight className="h-3 w-3" />
-                </Button>
+              <Link
+                href={item.href}
+                className={cn(
+                  "transition-colors hover:text-foreground",
+                  pathname === item.href ? "text-foreground font-medium" : "text-muted-foreground"
+                )}
+              >
+                {item.label}
+              </Link>
+              <Button variant="ghost" size="icon" onClick={() => handleOpenNewWindow(item.href)} aria-label={`Open ${item.label} in new window`} className="h-6 w-6">
+                <ArrowUpRight className="h-3 w-3" />
+              </Button>
             </div>
-            ))}
+          ))}
         </nav>
-       </div>
-        <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-            <SheetTrigger asChild>
-                <Button
-                variant="outline"
-                size="icon"
-                className="shrink-0 md:hidden"
-                >
-                <Menu className="h-5 w-5" />
-                <span className="sr-only">Toggle navigation menu</span>
-                </Button>
-            </SheetTrigger>
-            <SheetContent side="left">
-                <nav className="grid gap-6 text-lg font-medium">
-                <Link
-                    href="/dashboard"
-                    className="flex items-center gap-2 text-lg font-semibold"
-                    onClick={() => setMobileMenuOpen(false)}
-                >
-                    <Wallet className="h-6 w-6 text-primary" />
-                    <span>Expense Manager</span>
-                </Link>
-                {menuItems.map(item => (
-                    <div key={item.href} className="flex items-center justify-between">
-                        <Link
-                            href={item.href}
-                            onClick={() => setMobileMenuOpen(false)}
-                            className={cn(
-                                "transition-colors hover:text-foreground",
-                                pathname === item.href ? "text-foreground" : "text-muted-foreground"
-                            )}
-                        >
-                            {item.label}
-                        </Link>
-                        <Button variant="ghost" size="icon" onClick={() => handleOpenNewWindow(item.href)} aria-label={`Open ${item.label} in new window`} className="h-8 w-8">
-                            <ArrowUpRight className="h-4 w-4" />
-                        </Button>
-                    </div>
-                ))}
-                </nav>
-            </SheetContent>
-        </Sheet>
+      </div>
+
       <div className="flex items-center gap-2">
-        <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="flex items-center gap-2 rounded-full p-1 pr-3">
-                    <Avatar className="h-8 w-8">
-                        {loading || !clientLoaded ? (
-                            <Skeleton className="h-full w-full rounded-full" />
-                        ) : (
-                            <>
-                            <AvatarImage src={user?.photoURL || ''} data-ai-hint="user avatar" />
-                            <AvatarFallback style={{ backgroundColor: avatarColor, color: '#fff' }}>
-                                {getInitials(user?.displayName)}
-                            </AvatarFallback>
-                            </>
-                        )}
-                    </Avatar>
-                    {loading || !clientLoaded ? (
-                        <Skeleton className="h-4 w-20" />
-                    ) : (
-                        <span className="font-medium hidden md:block">{user?.displayName}</span>
+        <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+          <SheetTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              className="shrink-0 md:hidden"
+            >
+              <Menu className="h-5 w-5" />
+              <span className="sr-only">Toggle navigation menu</span>
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left">
+            <nav className="grid gap-6 text-lg font-medium">
+              <Link
+                href="/dashboard"
+                className="flex items-center gap-2 text-lg font-semibold"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <Wallet className="h-6 w-6 text-primary" />
+                <span>Expense Manager</span>
+              </Link>
+              {menuItems.map(item => (
+                <div key={item.href} className="flex items-center justify-between">
+                  <Link
+                    href={item.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={cn(
+                      "transition-colors hover:text-foreground",
+                      pathname === item.href ? "text-foreground" : "text-muted-foreground"
                     )}
-                </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+                  >
+                    {item.label}
+                  </Link>
+                  <Button variant="ghost" size="icon" onClick={() => handleOpenNewWindow(item.href)} aria-label={`Open ${item.label} in new window`} className="h-8 w-8">
+                    <ArrowUpRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </nav>
+          </SheetContent>
+        </Sheet>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="flex items-center gap-2 rounded-full p-1 pr-3">
+              <Avatar className="h-8 w-8">
+                {loading || !clientLoaded ? (
+                  <Skeleton className="h-full w-full rounded-full" />
+                ) : (
+                  <>
+                    <AvatarImage src={user?.photoURL || ''} data-ai-hint="user avatar" />
+                    <AvatarFallback style={{ backgroundColor: avatarColor, color: '#fff' }}>
+                      {getInitials(user?.displayName)}
+                    </AvatarFallback>
+                  </>
+                )}
+              </Avatar>
+              {loading || !clientLoaded ? (
+                <Skeleton className="h-4 w-20" />
+              ) : (
+                <span className="font-medium hidden md:block">{user?.displayName}</span>
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
             <DropdownMenuLabel>{user?.displayName || "My Account"}</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <Link href="/dashboard/profile">
-                <DropdownMenuItem>
+              <DropdownMenuItem>
                 <User className="mr-2 h-4 w-4" />
                 <span>Profile</span>
-                </DropdownMenuItem>
+              </DropdownMenuItem>
             </Link>
             <DropdownMenuSeparator />
             <Link href="/">
-                <DropdownMenuItem onClick={() => auth.signOut()}>
+              <DropdownMenuItem onClick={() => auth.signOut()}>
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Log out</span>
-                </DropdownMenuItem>
+              </DropdownMenuItem>
             </Link>
-            </DropdownMenuContent>
+          </DropdownMenuContent>
         </DropdownMenu>
       </div>
     </header>
