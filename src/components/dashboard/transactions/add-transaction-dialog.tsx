@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useMemo } from "react";
@@ -92,7 +91,17 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
     if (user && db) {
       const categoriesQuery = query(collection(db, "categories"), where("userId", "==", user.uid), orderBy("order", "asc"));
       const unsubscribeCategories = onSnapshot(categoriesQuery, (snapshot) => {
-        const userCategories = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
+        const userCategories = snapshot.docs.map(doc => {
+            const data = doc.data();
+            const subcategoriesFromData = Array.isArray(data.subcategories)
+                ? data.subcategories.sort((a: any, b: any) => (a.order || 0) - (b.order || 0))
+                : [];
+            return {
+                id: doc.id,
+                ...data,
+                subcategories: subcategoriesFromData,
+            } as Category;
+        });
         setCategories(userCategories);
       });
 
@@ -195,7 +204,7 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
             </TabsList>
             <div className="py-4">
                 <TabsContent value="expense" className="mt-0">
-                    <div className="grid grid-cols-1 gap-4">
+                    <div className="space-y-4">
                         <div className="space-y-2">
                             <Label htmlFor="date-expense">Date</Label>
                             <Input id="date-expense" name="date" type="date" defaultValue={format(new Date(), 'yyyy-MM-dd')} required />
@@ -242,7 +251,7 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
                     </div>
                 </TabsContent>
                 <TabsContent value="income" className="mt-0">
-                     <div className="grid grid-cols-1 gap-4">
+                     <div className="space-y-4">
                         <div className="space-y-2">
                             <Label htmlFor="date-income">Date</Label>
                             <Input id="date-income" name="date" type="date" defaultValue={format(new Date(), 'yyyy-MM-dd')} required />
@@ -289,7 +298,7 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
                     </div>
                 </TabsContent>
                 <TabsContent value="transfer" className="mt-0">
-                     <div className="grid grid-cols-1 gap-4">
+                     <div className="space-y-4">
                         <div className="space-y-2">
                             <Label htmlFor="date-transfer">Date</Label>
                             <Input id="date-transfer" name="date" type="date" defaultValue={format(new Date(), 'yyyy-MM-dd')} required />
