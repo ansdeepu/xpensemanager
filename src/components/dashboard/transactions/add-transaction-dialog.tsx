@@ -68,6 +68,8 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
   const [amount, setAmount] = useState("");
   const { toast } = useToast();
 
+  const primaryAccount = accountData.find(acc => 'isPrimary' in acc && (acc as Account).isPrimary);
+
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setAmount(e.target.value);
   };
@@ -177,7 +179,7 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
       <DialogTrigger asChild>
         {children}
       </DialogTrigger>
-      <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-xl">
+      <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Add New Transaction</DialogTitle>
           <DialogDescription>
@@ -193,7 +195,7 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
             </TabsList>
             <div className="py-4">
                 <TabsContent value="expense" className="mt-0">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="date-expense">Date</Label>
                             <Input id="date-expense" name="date" type="date" defaultValue={format(new Date(), 'yyyy-MM-dd')} required />
@@ -222,7 +224,7 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
                         </div>
                          <div className="space-y-2">
                             <Label htmlFor="account-expense">Payment Method</Label>
-                            <Select name="account" required>
+                            <Select name="account" required defaultValue={primaryAccount?.id}>
                                 <SelectTrigger id="account-expense"><SelectValue placeholder="Select method" /></SelectTrigger>
                                 <SelectContent>
                                     {accountData.map(acc => (
@@ -240,7 +242,7 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
                     </div>
                 </TabsContent>
                 <TabsContent value="income" className="mt-0">
-                     <div className="grid grid-cols-2 gap-4">
+                     <div className="grid grid-cols-1 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="date-income">Date</Label>
                             <Input id="date-income" name="date" type="date" defaultValue={format(new Date(), 'yyyy-MM-dd')} required />
@@ -269,7 +271,7 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
                         </div>
                          <div className="space-y-2">
                             <Label htmlFor="account-income">Bank Account</Label>
-                            <Select name="account" required>
+                            <Select name="account" required defaultValue={primaryAccount?.id}>
                                 <SelectTrigger id="account-income"><SelectValue placeholder="Select account" /></SelectTrigger>
                                 <SelectContent>
                                     {bankAccounts.map(acc => (
@@ -287,7 +289,7 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
                     </div>
                 </TabsContent>
                 <TabsContent value="transfer" className="mt-0">
-                     <div className="grid grid-cols-2 gap-4">
+                     <div className="grid grid-cols-1 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="date-transfer">Date</Label>
                             <Input id="date-transfer" name="date" type="date" defaultValue={format(new Date(), 'yyyy-MM-dd')} required />
@@ -322,7 +324,7 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
                                 </SelectContent>
                             </Select>
                         </div>
-                        <div className="space-y-2 col-span-2">
+                        <div className="space-y-2">
                             <Label htmlFor="amount-transfer">Amount</Label>
                             <Input id="amount-transfer" name="amount" placeholder="e.g. 1000" required className="hide-number-arrows" value={amount} onChange={handleAmountChange} onBlur={handleAmountBlur}/>
                         </div>
