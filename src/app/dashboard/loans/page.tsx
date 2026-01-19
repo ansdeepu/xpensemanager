@@ -83,7 +83,7 @@ export default function LoansPage() {
         <TabsList className="grid w-full grid-cols-2 h-auto">
           <TabsTrigger value="taken" className="flex flex-col h-auto p-2 items-start text-left">
             <div className="w-full flex justify-between items-center">
-                <span className="font-semibold text-sm">Loan Taken</span>
+                <span className="font-semibold text-base">Loan Taken</span>
                 <span className="font-bold text-lg text-red-600">{!loading && formatCurrency(balanceLoanTaken)}</span>
             </div>
             <div className="w-full text-xs text-muted-foreground mt-1 grid grid-cols-2 gap-2">
@@ -93,7 +93,7 @@ export default function LoansPage() {
           </TabsTrigger>
           <TabsTrigger value="given" className="flex flex-col h-auto p-2 items-start text-left">
             <div className="w-full flex justify-between items-center">
-                <span className="font-semibold text-sm">Loan Given</span>
+                <span className="font-semibold text-base">Loan Given</span>
                 <span className="font-bold text-lg text-green-600">{!loading && formatCurrency(balanceLoanGiven)}</span>
             </div>
              <div className="w-full text-xs text-muted-foreground mt-1 grid grid-cols-2 gap-2">
