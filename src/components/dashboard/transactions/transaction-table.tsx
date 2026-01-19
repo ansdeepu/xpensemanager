@@ -455,19 +455,19 @@ export function TransactionTable({
   return (
     <>
       <Table>
-        <TableHeader>
+        <TableHeader className="sticky top-16 z-10 bg-background">
           <TableRow>
-            <TableHead className="sticky top-16 z-10 bg-background whitespace-nowrap">Sl.</TableHead>
-            <TableHead className="sticky top-16 z-10 bg-background whitespace-nowrap">Date</TableHead>
-            <TableHead className="sticky top-16 z-10 bg-background whitespace-nowrap">Description</TableHead>
-            <TableHead className="sticky top-16 z-10 bg-background whitespace-nowrap">Type</TableHead>
-            <TableHead className="sticky top-16 z-10 bg-background whitespace-nowrap">Account</TableHead>
-            <TableHead className="sticky top-16 z-10 bg-background whitespace-nowrap">Category</TableHead>
-            <TableHead className="sticky top-16 z-10 bg-background text-right whitespace-nowrap">Debit</TableHead>
-            <TableHead className="sticky top-16 z-10 bg-background text-right whitespace-nowrap">Transfer</TableHead>
-            <TableHead className="sticky top-16 z-10 bg-background text-right whitespace-nowrap">Credit</TableHead>
-            <TableHead className="sticky top-16 z-10 bg-background text-right whitespace-nowrap">Balance</TableHead>
-            <TableHead className="sticky top-16 z-10 bg-background text-right print-hide whitespace-nowrap">Actions</TableHead>
+            <TableHead className="whitespace-nowrap">Sl.</TableHead>
+            <TableHead className="whitespace-nowrap">Date</TableHead>
+            <TableHead className="whitespace-nowrap">Description</TableHead>
+            <TableHead className="whitespace-nowrap">Type</TableHead>
+            <TableHead className="whitespace-nowrap">Account</TableHead>
+            <TableHead className="whitespace-nowrap">Category</TableHead>
+            <TableHead className="text-right whitespace-nowrap">Debit</TableHead>
+            <TableHead className="text-right whitespace-nowrap">Transfer</TableHead>
+            <TableHead className="text-right whitespace-nowrap">Credit</TableHead>
+            <TableHead className="text-right whitespace-nowrap">Balance</TableHead>
+            <TableHead className="text-right print-hide whitespace-nowrap">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -698,5 +698,3 @@ export function TransactionTable({
     </>
   );
 }
-
-    
