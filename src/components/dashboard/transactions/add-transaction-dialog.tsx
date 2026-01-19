@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useMemo } from "react";
@@ -28,7 +29,7 @@ import { collection, addDoc, query, where, onSnapshot, orderBy } from "firebase/
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useAuthState } from "@/hooks/use-auth-state";
-import { Textarea } from "../ui/textarea";
+import { Textarea } from "@/components/ui/textarea";
 
 // Function to safely evaluate math expressions
 const evaluateMath = (expression: string): number | null => {
@@ -204,7 +205,7 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
       <DialogTrigger asChild>
         {children}
       </DialogTrigger>
-      <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-lg">
+      <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Add New Transaction</DialogTitle>
           <DialogDescription>
@@ -380,3 +381,5 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
     </Dialog>
   );
 }
+
+    
