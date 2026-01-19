@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -453,249 +454,247 @@ export function TransactionTable({
 
   return (
     <>
-      <div className="w-full overflow-x-auto">
-        <Table>
-          <TableHeader className="sticky top-16 z-10 bg-background">
-              <TableRow>
-              <TableHead className="whitespace-nowrap">Sl.</TableHead>
-              <TableHead className="whitespace-nowrap">Date</TableHead>
-              <TableHead className="whitespace-nowrap">Description</TableHead>
-              <TableHead className="whitespace-nowrap">Type</TableHead>
-              <TableHead className="whitespace-nowrap">Account</TableHead>
-              <TableHead className="whitespace-nowrap">Category</TableHead>
-              <TableHead className="text-right whitespace-nowrap">Debit</TableHead>
-              <TableHead className="text-right whitespace-nowrap">Transfer</TableHead>
-              <TableHead className="text-right whitespace-nowrap">Credit</TableHead>
-              <TableHead className="text-right whitespace-nowrap">Balance</TableHead>
-              <TableHead className="text-right print-hide whitespace-nowrap">Actions</TableHead>
-              </TableRow>
-          </TableHeader>
-          <TableBody>
-              {transactionsWithColumns.map((t, index) => {
-                const loanInfo = getLoanDisplayInfo(t);
-                
-                const {debit, credit, transfer} = t;
+      <Table>
+        <TableHeader>
+            <TableRow>
+            <TableHead className="sticky top-16 z-10 bg-background whitespace-nowrap">Sl.</TableHead>
+            <TableHead className="sticky top-16 z-10 bg-background whitespace-nowrap">Date</TableHead>
+            <TableHead className="sticky top-16 z-10 bg-background whitespace-nowrap">Description</TableHead>
+            <TableHead className="sticky top-16 z-10 bg-background whitespace-nowrap">Type</TableHead>
+            <TableHead className="sticky top-16 z-10 bg-background whitespace-nowrap">Account</TableHead>
+            <TableHead className="sticky top-16 z-10 bg-background whitespace-nowrap">Category</TableHead>
+            <TableHead className="sticky top-16 z-10 bg-background text-right whitespace-nowrap">Debit</TableHead>
+            <TableHead className="sticky top-16 z-10 bg-background text-right whitespace-nowrap">Transfer</TableHead>
+            <TableHead className="sticky top-16 z-10 bg-background text-right whitespace-nowrap">Credit</TableHead>
+            <TableHead className="sticky top-16 z-10 bg-background text-right whitespace-nowrap">Balance</TableHead>
+            <TableHead className="sticky top-16 z-10 bg-background text-right print-hide whitespace-nowrap">Actions</TableHead>
+            </TableRow>
+        </TableHeader>
+        <TableBody>
+            {transactionsWithColumns.map((t, index) => {
+              const loanInfo = getLoanDisplayInfo(t);
+              
+              const {debit, credit, transfer} = t;
 
-                return (
-                  <TableRow key={t.id}>
-                      <TableCell className="font-medium">{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
-                      <TableCell>{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
-                      <TableCell className={cn("font-medium break-words", loanInfo.descriptionClassName)}>{loanInfo.description}</TableCell>
-                      <TableCell>
-                        <Badge 
-                            variant={getBadgeVariant(loanInfo.type)}
-                            className="capitalize"
-                            >
-                            {loanInfo.type}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="break-words">{t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} -> ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod)}</TableCell>
-                      <TableCell className="break-words">
-                          <div>{loanInfo.category}</div>
-                          {t.subcategory && <div className="text-sm text-muted-foreground">{t.subcategory}</div>}
-                      </TableCell>
+              return (
+                <TableRow key={t.id}>
+                    <TableCell className="font-medium">{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
+                    <TableCell>{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
+                    <TableCell className={cn("font-medium break-words", loanInfo.descriptionClassName)}>{loanInfo.description}</TableCell>
+                    <TableCell>
+                      <Badge 
+                          variant={getBadgeVariant(loanInfo.type)}
+                          className="capitalize"
+                          >
+                          {loanInfo.type}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="break-words">{t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} -> ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod)}</TableCell>
+                    <TableCell className="break-words">
+                        <div>{loanInfo.category}</div>
+                        {t.subcategory && <div className="text-sm text-muted-foreground">{t.subcategory}</div>}
+                    </TableCell>
+                    
+                    <TableCell className="text-right font-mono text-red-600">
+                        {debit !== null ? formatCurrency(debit) : null}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-blue-600">
+                        {transfer !== null ? formatCurrency(transfer) : null}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-green-600">
+                        {credit !== null ? formatCurrency(credit) : null}
+                    </TableCell>
+
+                    <TableCell className={cn("text-right font-mono", t.balance < 0 ? 'text-red-600' : '')}>
+                      {formatCurrency(t.balance)}
+                    </TableCell>
+                    <TableCell className="text-right print-hide">
+                        <div className="flex items-center justify-end gap-2">
+                            <Button variant="ghost" size="icon" onClick={() => openEditDialog(t)} className="h-8 w-8">
+                                <Pencil className="h-4 w-4" />
+                            </Button>
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-8 w-8">
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            This will permanently delete the transaction. This action cannot be undone and will update account balances.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleDeleteTransaction(t)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        </div>
+                    </TableCell>
+                </TableRow>
+              );
+            })}
+        </TableBody>
+      </Table>
+      <div className="hidden print-block">
+        <div id="printable-area">
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Description</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Account</TableHead>
+                        <TableHead>Category</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {transactions.map(t => (
+                        <TableRow key={t.id}>
+                            <TableCell>{format(new Date(t.date), 'dd/MM/yyyy')}</TableCell>
+                            <TableCell>{t.description}</TableCell>
+                            <TableCell>{t.type}</TableCell>
+                            <TableCell>{t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} -> ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod)}</TableCell>
+                            <TableCell>{t.category}{t.subcategory ? ` / ${t.subcategory}` : ''}</TableCell>
+                            <TableCell className={cn("text-right", t.type === 'income' ? 'text-green-600' : 'text-red-600')}>
+                                {t.type !== 'transfer' ? formatCurrency(t.amount) : '-'}
+                            </TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
+        </div>
+      </div>
+
+      {/* Edit Transaction Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+              <form onSubmit={handleEditTransaction}>
+                  <DialogHeader>
+                      <DialogTitle>Edit Transaction</DialogTitle>
+                      <DialogDescription>
+                          Update the details for your transaction. The transaction type cannot be changed.
+                      </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                      <div className="space-y-2">
+                          <Label htmlFor="edit-date">Date</Label>
+                          <Input id="edit-date" name="date" type="date" defaultValue={selectedTransaction ? format(new Date(selectedTransaction.date), 'yyyy-MM-dd') : ''} required />
+                      </div>
+
                       
-                      <TableCell className="text-right font-mono text-red-600">
-                          {debit !== null ? formatCurrency(debit) : null}
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-blue-600">
-                          {transfer !== null ? formatCurrency(transfer) : null}
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-green-600">
-                          {credit !== null ? formatCurrency(credit) : null}
-                      </TableCell>
-
-                      <TableCell className={cn("text-right font-mono", t.balance < 0 ? 'text-red-600' : '')}>
-                        {formatCurrency(t.balance)}
-                      </TableCell>
-                      <TableCell className="text-right print-hide">
-                          <div className="flex items-center justify-end gap-2">
-                              <Button variant="ghost" size="icon" onClick={() => openEditDialog(t)} className="h-8 w-8">
-                                  <Pencil className="h-4 w-4" />
-                              </Button>
-                              <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-8 w-8">
-                                          <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                      <AlertDialogHeader>
-                                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                          <AlertDialogDescription>
-                                              This will permanently delete the transaction. This action cannot be undone and will update account balances.
-                                          </AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                          <AlertDialogAction onClick={() => handleDeleteTransaction(t)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                                      </AlertDialogFooter>
-                                  </AlertDialogContent>
-                              </AlertDialog>
+                          <div className="space-y-2">
+                              <Label htmlFor="edit-description">Description</Label>
+                              <Input id="edit-description" name="description" defaultValue={selectedTransaction?.description} required />
                           </div>
-                      </TableCell>
-                  </TableRow>
-                );
-              })}
-          </TableBody>
-        </Table>
-      </div>
-    <div className="hidden print-block">
-      <div id="printable-area">
-          <Table>
-              <TableHeader>
-                  <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Account</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead className="text-right">Amount</TableHead>
-                  </TableRow>
-              </TableHeader>
-              <TableBody>
-                  {transactions.map(t => (
-                      <TableRow key={t.id}>
-                          <TableCell>{format(new Date(t.date), 'dd/MM/yyyy')}</TableCell>
-                          <TableCell>{t.description}</TableCell>
-                          <TableCell>{t.type}</TableCell>
-                          <TableCell>{t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} -> ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod)}</TableCell>
-                          <TableCell>{t.category}{t.subcategory ? ` / ${t.subcategory}` : ''}</TableCell>
-                          <TableCell className={cn("text-right", t.type === 'income' ? 'text-green-600' : 'text-red-600')}>
-                              {t.type !== 'transfer' ? formatCurrency(t.amount) : '-'}
-                          </TableCell>
-                      </TableRow>
-                  ))}
-              </TableBody>
-          </Table>
-      </div>
-    </div>
+                      
 
-    {/* Edit Transaction Dialog */}
-    <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-md">
-            <form onSubmit={handleEditTransaction}>
-                <DialogHeader>
-                    <DialogTitle>Edit Transaction</DialogTitle>
-                    <DialogDescription>
-                        Update the details for your transaction. The transaction type cannot be changed.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="edit-date">Date</Label>
-                        <Input id="edit-date" name="date" type="date" defaultValue={selectedTransaction ? format(new Date(selectedTransaction.date), 'yyyy-MM-dd') : ''} required />
-                    </div>
+                      {(selectedTransaction?.type === 'expense' || selectedTransaction?.type === 'income') && (
+                          <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                  <Label htmlFor="edit-category">Category</Label>
+                                  <Select name="category" onValueChange={setEditCategory} defaultValue={editCategory}>
+                                      <SelectTrigger id="edit-category">
+                                          <SelectValue placeholder="Select category" />
+                                      </SelectTrigger>
+                                          <SelectContent>
+                                              {categories.filter(c => {
+                                                  if (selectedTransaction?.type === 'expense') {
+                                                      return c.type === 'expense' || c.type === 'bank-expense';
+                                                  }
+                                                  return c.type === selectedTransaction?.type;
+                                              }).map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
+                                          </SelectContent>
+                                  </Select>
+                              </div>
+                              <div className="space-y-2">
+                                  <Label htmlFor="edit-subcategory">Sub-category</Label>
+                                  <Select name="subcategory" defaultValue={selectedTransaction?.subcategory} disabled={!editCategory || editSubcategories.length === 0}>
+                                      <SelectTrigger id="edit-subcategory">
+                                          <SelectValue placeholder="Select sub-category" />
+                                      </SelectTrigger>
+                                          <SelectContent>
+                                              {editSubcategories.map(sub => <SelectItem key={sub.name} value={sub.name}>{sub.name}</SelectItem>)}
+                                          </SelectContent>
+                                  </Select>
+                              </div>
+                          </div>
+                      )}
+                      
+                      {(selectedTransaction?.type === 'income' || selectedTransaction?.type === 'expense') && (
+                           <div className="space-y-2">
+                              <Label htmlFor="edit-account">
+                                  {selectedTransaction?.type === 'expense' ? 'Payment Method' : 'Bank Account'}
+                              </Label>
+                              <Select name="account" required defaultValue={selectedTransaction?.paymentMethod === 'cash' ? 'cash-wallet' : selectedTransaction?.paymentMethod === 'digital' ? 'digital-wallet' : selectedTransaction?.accountId}>
+                                  <SelectTrigger id="edit-account">
+                                      <SelectValue placeholder="Select account" />
+                                  </SelectTrigger>
+                                      <SelectContent>
+                                          {selectedTransaction?.type === 'expense' && (
+                                          <>
+                                              <SelectItem value="cash-wallet">Cash Wallet</SelectItem>
+                                              <SelectItem value="digital-wallet">Digital Wallet</SelectItem>
+                                          </>
+                                          )}
+                                          {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
+                                      </SelectContent>
+                              </Select>
+                          </div>
+                      )}
 
-                    
-                        <div className="space-y-2">
-                            <Label htmlFor="edit-description">Description</Label>
-                            <Input id="edit-description" name="description" defaultValue={selectedTransaction?.description} required />
-                        </div>
-                    
+                      {selectedTransaction?.type === 'transfer' && (
+                          <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                  <Label htmlFor="edit-from-account">From Account</Label>
+                                  <Select name="fromAccount" required defaultValue={selectedTransaction.fromAccountId}>
+                                      <SelectTrigger id="edit-from-account"><SelectValue /></SelectTrigger>
+                                          <SelectContent>
+                                          <SelectItem value="cash-wallet">Cash Wallet</SelectItem>
+                                          <SelectItem value="digital-wallet">Digital Wallet</SelectItem>
+                                          {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
+                                          </SelectContent>
+                                  </Select>
+                              </div>
+                               <div className="space-y-2">
+                                  <Label htmlFor="edit-to-account">To Account</Label>
+                                  <Select name="toAccount" required defaultValue={selectedTransaction.toAccountId}>
+                                      <SelectTrigger id="edit-to-account"><SelectValue /></SelectTrigger>
+                                          <SelectContent>
+                                          <SelectItem value="cash-wallet">Cash Wallet</SelectItem>
+                                          <SelectItem value="digital-wallet">Digital Wallet</SelectItem>
+                                          {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
+                                          </SelectContent>
+                                  </Select>
+                              </div>
+                          </div>
+                      )}
 
-                    {(selectedTransaction?.type === 'expense' || selectedTransaction?.type === 'income') && (
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="edit-category">Category</Label>
-                                <Select name="category" onValueChange={setEditCategory} defaultValue={editCategory}>
-                                    <SelectTrigger id="edit-category">
-                                        <SelectValue placeholder="Select category" />
-                                    </SelectTrigger>
-                                        <SelectContent>
-                                            {categories.filter(c => {
-                                                if (selectedTransaction?.type === 'expense') {
-                                                    return c.type === 'expense' || c.type === 'bank-expense';
-                                                }
-                                                return c.type === selectedTransaction?.type;
-                                            }).map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
-                                        </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="edit-subcategory">Sub-category</Label>
-                                <Select name="subcategory" defaultValue={selectedTransaction?.subcategory} disabled={!editCategory || editSubcategories.length === 0}>
-                                    <SelectTrigger id="edit-subcategory">
-                                        <SelectValue placeholder="Select sub-category" />
-                                    </SelectTrigger>
-                                        <SelectContent>
-                                            {editSubcategories.map(sub => <SelectItem key={sub.name} value={sub.name}>{sub.name}</SelectItem>)}
-                                        </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                    )}
-                    
-                    {(selectedTransaction?.type === 'income' || selectedTransaction?.type === 'expense') && (
-                         <div className="space-y-2">
-                            <Label htmlFor="edit-account">
-                                {selectedTransaction?.type === 'expense' ? 'Payment Method' : 'Bank Account'}
-                            </Label>
-                            <Select name="account" required defaultValue={selectedTransaction?.paymentMethod === 'cash' ? 'cash-wallet' : selectedTransaction?.paymentMethod === 'digital' ? 'digital-wallet' : selectedTransaction?.accountId}>
-                                <SelectTrigger id="edit-account">
-                                    <SelectValue placeholder="Select account" />
-                                </SelectTrigger>
-                                    <SelectContent>
-                                        {selectedTransaction?.type === 'expense' && (
-                                        <>
-                                            <SelectItem value="cash-wallet">Cash Wallet</SelectItem>
-                                            <SelectItem value="digital-wallet">Digital Wallet</SelectItem>
-                                        </>
-                                        )}
-                                        {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
-                                    </SelectContent>
-                            </Select>
-                        </div>
-                    )}
-
-                    {selectedTransaction?.type === 'transfer' && (
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="edit-from-account">From Account</Label>
-                                <Select name="fromAccount" required defaultValue={selectedTransaction.fromAccountId}>
-                                    <SelectTrigger id="edit-from-account"><SelectValue /></SelectTrigger>
-                                        <SelectContent>
-                                        <SelectItem value="cash-wallet">Cash Wallet</SelectItem>
-                                        <SelectItem value="digital-wallet">Digital Wallet</SelectItem>
-                                        {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
-                                        </SelectContent>
-                                </Select>
-                            </div>
-                             <div className="space-y-2">
-                                <Label htmlFor="edit-to-account">To Account</Label>
-                                <Select name="toAccount" required defaultValue={selectedTransaction.toAccountId}>
-                                    <SelectTrigger id="edit-to-account"><SelectValue /></SelectTrigger>
-                                        <SelectContent>
-                                        <SelectItem value="cash-wallet">Cash Wallet</SelectItem>
-                                        <SelectItem value="digital-wallet">Digital Wallet</SelectItem>
-                                        {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
-                                        </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="space-y-2">
-                        <Label htmlFor="edit-amount">Amount</Label>
-                        <Input
-                            id="edit-amount"
-                            name="amount"
-                            placeholder="e.g. 100/2"
-                            required
-                            className="hide-number-arrows"
-                            value={editAmount}
-                            onChange={handleAmountChange(setEditAmount)}
-                            onBlur={() => handleAmountBlur(editAmount, setEditAmount)}
-                        />
-                    </div>
-                </div>
-                <DialogFooter>
-                    <DialogClose asChild><Button type="button" variant="secondary" onClick={() => setSelectedTransaction(null)}>Cancel</Button></DialogClose>
-                    <Button type="submit">Save Changes</Button>
-                </DialogFooter>
-            </form>
-        </DialogContent>
-    </Dialog>
+                      <div className="space-y-2">
+                          <Label htmlFor="edit-amount">Amount</Label>
+                          <Input
+                              id="edit-amount"
+                              name="amount"
+                              placeholder="e.g. 100/2"
+                              required
+                              className="hide-number-arrows"
+                              value={editAmount}
+                              onChange={handleAmountChange(setEditAmount)}
+                              onBlur={() => handleAmountBlur(editAmount, setEditAmount)}
+                          />
+                      </div>
+                  </div>
+                  <DialogFooter>
+                      <DialogClose asChild><Button type="button" variant="secondary" onClick={() => setSelectedTransaction(null)}>Cancel</Button></DialogClose>
+                      <Button type="submit">Save Changes</Button>
+                  </DialogFooter>
+              </form>
+          </DialogContent>
+      </Dialog>
     </>
   );
 }
