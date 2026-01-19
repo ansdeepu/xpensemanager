@@ -222,7 +222,9 @@ export default function TransactionsPage() {
     const cashReconDate = walletPreferences.cash?.date ? parseISO(walletPreferences.cash.date) : new Date(0);
     const digitalReconDate = walletPreferences.digital?.date ? parseISO(walletPreferences.digital.date) : new Date(0);
     
-    allTransactions.forEach(t => {
+    const sortedTransactions = [...allTransactions].sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    sortedTransactions.forEach(t => {
       const transactionDate = parseISO(t.date);
 
       if (t.type === 'income' && t.accountId && calculatedAccountBalances[t.accountId] !== undefined) {
@@ -591,7 +593,7 @@ const transactionsWithRunningBalance = useMemo(() => {
                     </div>
                   </TabsTrigger>
                 )}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 h-full content-stretch">
+                <div className="grid grid-cols-2 gap-2 h-full content-stretch">
                   {secondaryAccounts.map((account, index) => {
                     const balanceDifference = getBalanceDifference(account.balance, account.actualBalance);
                     return (
@@ -756,15 +758,13 @@ const transactionsWithRunningBalance = useMemo(() => {
       </div>
       
       <Card>
-        <div className="relative overflow-x-auto">
-          <div className="h-[calc(100vh_-_22rem)] overflow-auto">
-            <TransactionTable 
-                transactions={pagedTransactions} 
-                accountId={activeTab || ''}
-                currentPage={currentPage}
-                itemsPerPage={itemsPerPage}
-            />
-          </div>
+        <div className="relative h-[calc(100vh_-_22rem)] overflow-auto">
+          <TransactionTable 
+              transactions={pagedTransactions} 
+              accountId={activeTab || ''}
+              currentPage={currentPage}
+              itemsPerPage={itemsPerPage}
+          />
         </div>
           {totalPages > 1 && (
               <CardFooter className="justify-center border-t p-4 print-hide">
