@@ -454,9 +454,9 @@ export function TransactionTable({
 
   return (
     <>
-      <div className="w-full overflow-x-auto">
+      <div className="relative h-[calc(100vh_-_25rem)] w-full overflow-auto">
         <Table>
-          <TableHeader className="sticky top-16 z-10 bg-background">
+          <TableHeader className="sticky top-0 z-10 bg-background">
             <TableRow>
               <TableHead className="whitespace-nowrap">Sl.</TableHead>
               <TableHead className="whitespace-nowrap">Date</TableHead>
