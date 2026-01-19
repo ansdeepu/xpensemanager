@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
@@ -267,7 +268,7 @@ export default function TransactionsPage() {
     });
 
     return { 
-      accountBalances, 
+      accountBalances: calculatedAccountBalances, 
       cashWalletBalance: calculatedCashBalance,
       digitalWalletBalance: calculatedDigitalBalance 
     };
@@ -734,7 +735,7 @@ const transactionsWithRunningBalance = useMemo(() => {
         </div>
       </div>
       
-      <Card>
+      <Card className="overflow-x-auto">
           <CardContent className="p-0">
             <TransactionTable 
                 transactions={pagedTransactions} 
@@ -752,5 +753,3 @@ const transactionsWithRunningBalance = useMemo(() => {
     </div>
   );
 }
-
-    
