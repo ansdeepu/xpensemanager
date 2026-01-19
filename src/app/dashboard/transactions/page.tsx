@@ -389,14 +389,12 @@ const transactionsWithRunningBalance = useMemo(() => {
     } else {
         finalBalance = activeTab ? calculatedAccountBalances[activeTab] ?? 0 : 0;
     }
+    
+    if (filteredTransactions.length === 0) {
+        return [];
+    }
 
-    const reversedChronologicalTransactions = [...filteredTransactions].reverse();
-    
-    let runningBalance = finalBalance;
-    
-    const calculatedTransactions = reversedChronologicalTransactions.map(t => {
-        const currentTransactionBalance = runningBalance;
-        
+    const calculateEffect = (t: Transaction) => {
         let effect = 0;
         const fromAccountIsWallet = t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
         const toAccountIsWallet = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
@@ -424,14 +422,20 @@ const transactionsWithRunningBalance = useMemo(() => {
                 effect = t.amount;
             }
         }
-        
-        const txWithBalance = { ...t, balance: currentTransactionBalance };
-        runningBalance -= effect;
+        return effect;
+    };
 
-        return txWithBalance;
+    const totalEffectOfFiltered = filteredTransactions.reduce((sum, t) => sum + calculateEffect(t), 0);
+    const startingBalance = finalBalance - totalEffectOfFiltered;
+
+    let runningBalance = startingBalance;
+    const chronologicallyCalculated = filteredTransactions.map(t => {
+        const effect = calculateEffect(t);
+        runningBalance += effect;
+        return { ...t, balance: runningBalance };
     });
 
-    return calculatedTransactions;
+    return chronologicallyCalculated;
 }, [filteredTransactions, activeTab, primaryAccount, calculatedAccountBalances, cashWalletBalance, digitalWalletBalance]);
 
 
@@ -767,9 +771,3 @@ const transactionsWithRunningBalance = useMemo(() => {
     </div>
   );
 }
-
-    
-
-    
-
-    
