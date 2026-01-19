@@ -210,7 +210,7 @@ export default function TransactionsPage() {
     }
   }, [user, userLoading, dataLoading]);
 
- const { calculatedAccountBalances, cashWalletBalance, digitalWalletBalance } = useMemo(() => {
+ const { accounts, cashWalletBalance, digitalWalletBalance } = useMemo(() => {
     const calculatedAccountBalances: { [key: string]: number } = {};
     rawAccounts.forEach(acc => {
       calculatedAccountBalances[acc.id] = acc.actualBalance ?? 0;
@@ -267,19 +267,17 @@ export default function TransactionsPage() {
       }
     });
 
+    const finalAccounts = rawAccounts.map(acc => ({
+        ...acc,
+        balance: calculatedAccountBalances[acc.id] ?? 0,
+    }));
+    
     return { 
-      calculatedAccountBalances, 
+      accounts: finalAccounts, 
       cashWalletBalance: calculatedCashBalance,
       digitalWalletBalance: calculatedDigitalBalance 
     };
   }, [rawAccounts, allTransactions, walletPreferences]);
-
-  const accounts = useMemo(() => {
-    return rawAccounts.map(acc => ({
-        ...acc,
-        balance: calculatedAccountBalances[acc.id] ?? (acc.actualBalance ?? 0),
-    }));
-  }, [rawAccounts, calculatedAccountBalances]);
 
 
   const primaryAccount = accounts.find(a => a.isPrimary);
@@ -363,7 +361,7 @@ export default function TransactionsPage() {
       const dateA = new Date(a.date).getTime();
       const dateB = new Date(b.date).getTime();
       if (dateA !== dateB) {
-          return dateA - dateB;
+          return dateB - dateA;
       }
       
       const orderA = getTransactionSortOrder(a);
@@ -381,15 +379,15 @@ export default function TransactionsPage() {
 
 const transactionsWithRunningBalance = useMemo(() => {
     const isPrimaryView = primaryAccount?.id === activeTab;
+    
     let finalBalance = 0;
-
     if (isPrimaryView) {
-        const primaryBalance = primaryAccount ? calculatedAccountBalances[primaryAccount.id] ?? 0 : 0;
+        const primaryBalance = primaryAccount ? accounts.find(a => a.id === primaryAccount.id)!.balance : 0;
         finalBalance = primaryBalance + cashWalletBalance + digitalWalletBalance;
     } else {
-        finalBalance = activeTab ? calculatedAccountBalances[activeTab] ?? 0 : 0;
+        finalBalance = activeTab ? accounts.find(a => a.id === activeTab)?.balance ?? 0 : 0;
     }
-    
+
     if (filteredTransactions.length === 0) {
         return [];
     }
@@ -424,19 +422,25 @@ const transactionsWithRunningBalance = useMemo(() => {
         }
         return effect;
     };
+    
+    const chronologicalTransactions = [...filteredTransactions].reverse();
 
-    const totalEffectOfFiltered = filteredTransactions.reduce((sum, t) => sum + calculateEffect(t), 0);
+    const totalEffectOfFiltered = chronologicalTransactions.reduce((sum, t) => sum + calculateEffect(t), 0);
+    
     const startingBalance = finalBalance - totalEffectOfFiltered;
-
+    
     let runningBalance = startingBalance;
-    const chronologicallyCalculated = filteredTransactions.map(t => {
-        const effect = calculateEffect(t);
-        runningBalance += effect;
-        return { ...t, balance: runningBalance };
+    const balancesMap = new Map<string, number>();
+    chronologicalTransactions.forEach(t => {
+      runningBalance += calculateEffect(t);
+      balancesMap.set(t.id, runningBalance);
     });
 
-    return chronologicallyCalculated;
-}, [filteredTransactions, activeTab, primaryAccount, calculatedAccountBalances, cashWalletBalance, digitalWalletBalance]);
+    return filteredTransactions.map(t => ({
+      ...t,
+      balance: balancesMap.get(t.id) ?? 0,
+    }));
+}, [filteredTransactions, activeTab, primaryAccount, accounts, cashWalletBalance, digitalWalletBalance]);
 
 
   const totalPages = Math.ceil(transactionsWithRunningBalance.length / itemsPerPage);
@@ -482,9 +486,9 @@ const transactionsWithRunningBalance = useMemo(() => {
   const cashBalanceDifference = getBalanceDifference(cashWalletBalance, walletPreferences.cash?.balance);
   const digitalBalanceDifference = getBalanceDifference(digitalWalletBalance, walletPreferences.digital?.balance);
   
-  const primaryAccountBalance = primaryAccount ? calculatedAccountBalances[primaryAccount.id] : 0;
+  const primaryAccountBalance = primaryAccount ? accounts.find(acc => acc.id === primaryAccount.id)?.balance ?? 0 : 0;
   const primaryAccountBalanceDifference = primaryAccount ? getBalanceDifference(primaryAccountBalance, primaryAccount.actualBalance) : null;
-  const allBalance = (primaryAccount ? primaryAccountBalance : 0) + cashWalletBalance + digitalWalletBalance;
+  const allBalance = primaryAccountBalance + cashWalletBalance + digitalWalletBalance;
   
   const accountDataForDialog = [
     { id: 'cash-wallet', name: 'Cash Wallet', balance: cashWalletBalance },
@@ -771,3 +775,5 @@ const transactionsWithRunningBalance = useMemo(() => {
     </div>
   );
 }
+
+    
