@@ -23,12 +23,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { Account, Category, Transaction } from "@/lib/data";
-import { PlusCircle } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
 import { collection, addDoc, query, where, onSnapshot, orderBy } from "firebase/firestore";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useAuthState } from "@/hooks/use-auth-state";
+import { Textarea } from "../ui/textarea";
 
 // Function to safely evaluate math expressions
 const evaluateMath = (expression: string): number | null => {
@@ -204,7 +204,7 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
       <DialogTrigger asChild>
         {children}
       </DialogTrigger>
-      <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-sm">
+      <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Add New Transaction</DialogTitle>
           <DialogDescription>
@@ -221,31 +221,39 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
             <div className="py-4">
                 <TabsContent value="expense" className="mt-0">
                     <div className="space-y-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="date-expense">Date</Label>
-                            <Input id="date-expense" name="date" type="date" defaultValue={format(new Date(), 'yyyy-MM-dd')} required />
+                        <div className="grid grid-cols-2 gap-4">
+                           <div className="space-y-2">
+                                <Label htmlFor="date-expense">Date</Label>
+                                <Input id="date-expense" name="date" type="date" defaultValue={format(new Date(), 'yyyy-MM-dd')} required />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="amount-expense">Amount</Label>
+                                <Input id="amount-expense" name="amount" placeholder="e.g. 500 or 100+50" required className="hide-number-arrows" value={amount} onChange={handleAmountChange} onBlur={handleAmountBlur}/>
+                            </div>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="description-expense">Description</Label>
-                            <Input id="description-expense" name="description" placeholder="e.g. Groceries" required />
+                            <Textarea id="description-expense" name="description" placeholder="e.g. Groceries" required />
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="category-expense">Category</Label>
-                            <Select name="category" onValueChange={setSelectedCategory}>
-                                <SelectTrigger id="category-expense"><SelectValue placeholder="Select category" /></SelectTrigger>
-                                <SelectContent>
-                                    {expenseDropdownCategories.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="subcategory-expense">Sub-category</Label>
-                            <Select name="subcategory" disabled={!selectedCategory || subcategories.length === 0}>
-                                <SelectTrigger id="subcategory-expense"><SelectValue placeholder="Select sub-category" /></SelectTrigger>
-                                <SelectContent>
-                                    {subcategories.map(sub => <SelectItem key={sub.id} value={sub.name}>{sub.name}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
+                         <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="category-expense">Category</Label>
+                                <Select name="category" onValueChange={setSelectedCategory}>
+                                    <SelectTrigger id="category-expense"><SelectValue placeholder="Select category" /></SelectTrigger>
+                                    <SelectContent>
+                                        {expenseDropdownCategories.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="subcategory-expense">Sub-category</Label>
+                                <Select name="subcategory" disabled={!selectedCategory || subcategories.length === 0}>
+                                    <SelectTrigger id="subcategory-expense"><SelectValue placeholder="Select sub-category" /></SelectTrigger>
+                                    <SelectContent>
+                                        {subcategories.map(sub => <SelectItem key={sub.id} value={sub.name}>{sub.name}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
                          <div className="space-y-2">
                             <Label htmlFor="account-expense">Payment Method</Label>
@@ -260,39 +268,43 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
                                 </SelectContent>
                             </Select>
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="amount-expense">Amount</Label>
-                            <Input id="amount-expense" name="amount" placeholder="e.g. 500 or 100+50" required className="hide-number-arrows" value={amount} onChange={handleAmountChange} onBlur={handleAmountBlur}/>
-                        </div>
                     </div>
                 </TabsContent>
                 <TabsContent value="income" className="mt-0">
                      <div className="space-y-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="date-income">Date</Label>
-                            <Input id="date-income" name="date" type="date" defaultValue={format(new Date(), 'yyyy-MM-dd')} required />
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="date-income">Date</Label>
+                                <Input id="date-income" name="date" type="date" defaultValue={format(new Date(), 'yyyy-MM-dd')} required />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="amount-income">Amount</Label>
+                                <Input id="amount-income" name="amount" placeholder="e.g. 50000" required className="hide-number-arrows" value={amount} onChange={handleAmountChange} onBlur={handleAmountBlur}/>
+                            </div>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="description-income">Description</Label>
-                            <Input id="description-income" name="description" placeholder="e.g. Monthly Salary" required />
+                            <Textarea id="description-income" name="description" placeholder="e.g. Monthly Salary" required />
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="category-income">Category</Label>
-                            <Select name="category" onValueChange={setSelectedCategory}>
-                                <SelectTrigger id="category-income"><SelectValue placeholder="Select category" /></SelectTrigger>
-                                <SelectContent>
-                                    {incomeDropdownCategories.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="subcategory-income">Sub-category</Label>
-                            <Select name="subcategory" disabled={!selectedCategory || subcategories.length === 0}>
-                                <SelectTrigger id="subcategory-income"><SelectValue placeholder="Select sub-category" /></SelectTrigger>
-                                <SelectContent>
-                                    {subcategories.map(sub => <SelectItem key={sub.id} value={sub.name}>{sub.name}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
+                         <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="category-income">Category</Label>
+                                <Select name="category" onValueChange={setSelectedCategory}>
+                                    <SelectTrigger id="category-income"><SelectValue placeholder="Select category" /></SelectTrigger>
+                                    <SelectContent>
+                                        {incomeDropdownCategories.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="subcategory-income">Sub-category</Label>
+                                <Select name="subcategory" disabled={!selectedCategory || subcategories.length === 0}>
+                                    <SelectTrigger id="subcategory-income"><SelectValue placeholder="Select sub-category" /></SelectTrigger>
+                                    <SelectContent>
+                                        {subcategories.map(sub => <SelectItem key={sub.id} value={sub.name}>{sub.name}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
                          <div className="space-y-2">
                             <Label htmlFor="account-income">Bank Account</Label>
@@ -307,51 +319,51 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
                                 </SelectContent>
                             </Select>
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="amount-income">Amount</Label>
-                            <Input id="amount-income" name="amount" placeholder="e.g. 50000" required className="hide-number-arrows" value={amount} onChange={handleAmountChange} onBlur={handleAmountBlur}/>
-                        </div>
                     </div>
                 </TabsContent>
                 <TabsContent value="transfer" className="mt-0">
                      <div className="space-y-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="date-transfer">Date</Label>
-                            <Input id="date-transfer" name="date" type="date" defaultValue={format(new Date(), 'yyyy-MM-dd')} required />
+                        <div className="grid grid-cols-2 gap-4">
+                             <div className="space-y-2">
+                                <Label htmlFor="date-transfer">Date</Label>
+                                <Input id="date-transfer" name="date" type="date" defaultValue={format(new Date(), 'yyyy-MM-dd')} required />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="amount-transfer">Amount</Label>
+                                <Input id="amount-transfer" name="amount" placeholder="e.g. 1000" required className="hide-number-arrows" value={amount} onChange={handleAmountChange} onBlur={handleAmountBlur}/>
+                            </div>
                         </div>
-                        <div className="space-y-2">
+                         <div className="space-y-2">
                             <Label htmlFor="description-transfer">Description</Label>
-                            <Input id="description-transfer" name="description" placeholder="e.g. Move to savings" />
+                            <Textarea id="description-transfer" name="description" placeholder="e.g. Move to savings" />
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="fromAccount-transfer">From</Label>
-                            <Select name="fromAccount" required>
-                                <SelectTrigger id="fromAccount-transfer"><SelectValue placeholder="From..." /></SelectTrigger>
-                                <SelectContent>
-                                    {accountData.map(acc => (
-                                      <SelectItem key={acc.id} value={acc.id}>
-                                        {acc.name} ({formatCurrency(acc.balance)})
-                                      </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="toAccount-transfer">To</Label>
-                            <Select name="toAccount" required>
-                                <SelectTrigger id="toAccount-transfer"><SelectValue placeholder="To..." /></SelectTrigger>
-                                <SelectContent>
-                                    {accountData.map(acc => (
-                                      <SelectItem key={acc.id} value={acc.id}>
-                                        {acc.name} ({formatCurrency(acc.balance)})
-                                      </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="amount-transfer">Amount</Label>
-                            <Input id="amount-transfer" name="amount" placeholder="e.g. 1000" required className="hide-number-arrows" value={amount} onChange={handleAmountChange} onBlur={handleAmountBlur}/>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="fromAccount-transfer">From</Label>
+                                <Select name="fromAccount" required>
+                                    <SelectTrigger id="fromAccount-transfer"><SelectValue placeholder="From..." /></SelectTrigger>
+                                    <SelectContent>
+                                        {accountData.map(acc => (
+                                        <SelectItem key={acc.id} value={acc.id}>
+                                            {acc.name} ({formatCurrency(acc.balance)})
+                                        </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="toAccount-transfer">To</Label>
+                                <Select name="toAccount" required>
+                                    <SelectTrigger id="toAccount-transfer"><SelectValue placeholder="To..." /></SelectTrigger>
+                                    <SelectContent>
+                                        {accountData.map(acc => (
+                                        <SelectItem key={acc.id} value={acc.id}>
+                                            {acc.name} ({formatCurrency(acc.balance)})
+                                        </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
                     </div>
                 </TabsContent>
