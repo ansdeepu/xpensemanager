@@ -382,18 +382,6 @@ export default function TransactionsPage() {
 const transactionsWithRunningBalance = useMemo(() => {
     const isPrimaryView = primaryAccount?.id === activeTab;
     
-    let finalBalance = 0;
-    if (isPrimaryView) {
-        const primaryBalance = primaryAccount ? accounts.find(a => a.id === primaryAccount.id)!.balance : 0;
-        finalBalance = primaryBalance + cashWalletBalance + digitalWalletBalance;
-    } else {
-        finalBalance = activeTab ? accounts.find(a => a.id === activeTab)?.balance ?? 0 : 0;
-    }
-
-    if (filteredTransactions.length === 0) {
-        return [];
-    }
-
     const calculateEffect = (t: Transaction) => {
         let effect = 0;
         const fromAccountIsWallet = t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
@@ -427,12 +415,9 @@ const transactionsWithRunningBalance = useMemo(() => {
     
     const chronologicalTransactions = [...filteredTransactions].reverse();
 
-    const totalEffectOfFiltered = chronologicalTransactions.reduce((sum, t) => sum + calculateEffect(t), 0);
-    
-    const startingBalance = finalBalance - totalEffectOfFiltered;
-    
-    let runningBalance = startingBalance;
     const balancesMap = new Map<string, number>();
+    let runningBalance = 0;
+
     chronologicalTransactions.forEach(t => {
       runningBalance += calculateEffect(t);
       balancesMap.set(t.id, runningBalance);
@@ -442,7 +427,7 @@ const transactionsWithRunningBalance = useMemo(() => {
       ...t,
       balance: balancesMap.get(t.id) ?? 0,
     }));
-}, [filteredTransactions, activeTab, primaryAccount, accounts, cashWalletBalance, digitalWalletBalance]);
+}, [filteredTransactions, activeTab, primaryAccount]);
 
 
   const totalPages = Math.ceil(transactionsWithRunningBalance.length / itemsPerPage);
@@ -775,5 +760,3 @@ const transactionsWithRunningBalance = useMemo(() => {
     </div>
   );
 }
-
-    
