@@ -210,7 +210,7 @@ export default function TransactionsPage() {
     }
   }, [user, userLoading, dataLoading]);
 
- const { accounts, cashWalletBalance, digitalWalletBalance } = useMemo(() => {
+  const { accounts, cashWalletBalance, digitalWalletBalance } = useMemo(() => {
     const calculatedAccountBalances: { [key: string]: number } = {};
     rawAccounts.forEach(acc => {
       calculatedAccountBalances[acc.id] = acc.actualBalance ?? 0;
@@ -228,13 +228,15 @@ export default function TransactionsPage() {
       const transactionDate = parseISO(t.date);
 
       if (t.type === 'income' && t.accountId && calculatedAccountBalances[t.accountId] !== undefined) {
-        const accountReconDate = rawAccounts.find(a => a.id === t.accountId)?.actualBalanceDate ? parseISO(rawAccounts.find(a => a.id === t.accountId)!.actualBalanceDate!) : new Date(0);
+        const account = rawAccounts.find(a => a.id === t.accountId);
+        const accountReconDate = account?.actualBalanceDate ? parseISO(account.actualBalanceDate) : new Date(0);
         if (isAfter(transactionDate, accountReconDate)) {
             calculatedAccountBalances[t.accountId] += t.amount;
         }
       } else if (t.type === 'expense') {
         if (t.paymentMethod === 'online' && t.accountId && calculatedAccountBalances[t.accountId] !== undefined) {
-            const accountReconDate = rawAccounts.find(a => a.id === t.accountId)?.actualBalanceDate ? parseISO(rawAccounts.find(a => a.id === t.accountId)!.actualBalanceDate!) : new Date(0);
+            const account = rawAccounts.find(a => a.id === t.accountId);
+            const accountReconDate = account?.actualBalanceDate ? parseISO(account.actualBalanceDate) : new Date(0);
             if (isAfter(transactionDate, accountReconDate)) {
               calculatedAccountBalances[t.accountId] -= t.amount;
             }
@@ -246,7 +248,8 @@ export default function TransactionsPage() {
       } else if (t.type === 'transfer') {
         // From Account
         if (t.fromAccountId && calculatedAccountBalances[t.fromAccountId] !== undefined) {
-            const fromAccountReconDate = rawAccounts.find(a => a.id === t.fromAccountId)?.actualBalanceDate ? parseISO(rawAccounts.find(a => a.id === t.fromAccountId)!.actualBalanceDate!) : new Date(0);
+            const fromAccount = rawAccounts.find(a => a.id === t.fromAccountId);
+            const fromAccountReconDate = fromAccount?.actualBalanceDate ? parseISO(fromAccount.actualBalanceDate) : new Date(0);
             if (isAfter(transactionDate, fromAccountReconDate)) {
               calculatedAccountBalances[t.fromAccountId] -= t.amount;
             }
@@ -257,7 +260,8 @@ export default function TransactionsPage() {
         }
         // To Account
         if (t.toAccountId && calculatedAccountBalances[t.toAccountId] !== undefined) {
-          const toAccountReconDate = rawAccounts.find(a => a.id === t.toAccountId)?.actualBalanceDate ? parseISO(rawAccounts.find(a => a.id === t.toAccountId)!.actualBalanceDate!) : new Date(0);
+          const toAccount = rawAccounts.find(a => a.id === t.toAccountId);
+          const toAccountReconDate = toAccount?.actualBalanceDate ? parseISO(toAccount.actualBalanceDate) : new Date(0);
           if (isAfter(transactionDate, toAccountReconDate)) {
             calculatedAccountBalances[t.toAccountId] += t.amount;
           }
@@ -478,7 +482,7 @@ export default function TransactionsPage() {
     return (
       <div className="space-y-6">
         <Skeleton className="h-48 w-full" />
-        <Skeleton className="h-[600px] w-full" />
+        <Skeleton className="h-[calc(100vh_-_22rem)] w-full" />
       </div>
     );
   }
@@ -781,3 +785,5 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+    
