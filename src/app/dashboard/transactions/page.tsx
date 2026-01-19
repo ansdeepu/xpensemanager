@@ -18,6 +18,11 @@ import { Card, CardFooter, CardHeader, CardContent, CardTitle } from "@/componen
 import { Button } from "@/components/ui/button";
 import { AddTransactionDialog } from "@/components/dashboard/transactions/add-transaction-dialog";
 import { Badge } from "@/components/ui/badge";
+import { AccountDetailsDialog } from "@/components/dashboard/account-details-dialog";
+
+type WalletType = 'cash-wallet' | 'digital-wallet';
+type AccountForDetails = (Account) | { id: WalletType, name: string, balance: number, walletPreferences?: any };
+
 
 const formatCurrency = (amount: number) => {
   if (Object.is(amount, -0)) {
@@ -117,6 +122,9 @@ export default function TransactionsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [reconciliationDate, setReconciliationDate] = useState<Date | undefined>();
   const itemsPerPage = 100;
+  
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const [selectedAccountForDetails, setSelectedAccountForDetails] = useState<AccountForDetails | null>(null);
 
   const useDebounce = (callback: Function, delay: number) => {
     const timeoutRef = useRef<any | null>(null);
@@ -578,6 +586,25 @@ export default function TransactionsPage() {
     ...accounts,
   ];
 
+  const handleAccountClick = (accountOrWallet: Account | WalletType, name?: string) => {
+    let accountDetails: AccountForDetails | null = null;
+    if (typeof accountOrWallet === 'string') { // 'cash-wallet' or 'digital-wallet'
+        accountDetails = {
+            id: accountOrWallet,
+            name: name || (accountOrWallet === 'cash-wallet' ? 'Cash Wallet' : 'Digital Wallet'),
+            balance: accountOrWallet === 'cash-wallet' ? cashWalletBalance : digitalWalletBalance,
+            walletPreferences: walletPreferences
+        };
+    } else {
+        accountDetails = {
+            ...accountOrWallet
+        };
+    }
+    
+    setSelectedAccountForDetails(accountDetails);
+    setIsDetailsDialogOpen(true);
+  };
+
 
   return (
     <div className="space-y-6">
@@ -599,7 +626,7 @@ export default function TransactionsPage() {
                       {/* Bank Column */}
                       <div className="space-y-2">
                         <Label htmlFor={`actual-balance-${primaryAccount.id}`} className="text-xs">Bank Balance</Label>
-                        <div className="font-mono text-base">{formatCurrency(primaryAccountBalance)}</div>
+                        <div onClick={(e) => { e.stopPropagation(); handleAccountClick(primaryAccount); }} className="font-mono text-base cursor-pointer hover:underline">{formatCurrency(primaryAccountBalance)}</div>
                         <Input
                             id={`actual-balance-${primaryAccount.id}`}
                             type="number"
@@ -625,7 +652,7 @@ export default function TransactionsPage() {
                       {/* Cash Column */}
                       <div className="space-y-2">
                         <Label htmlFor="actual-balance-cash" className="text-xs">Cash</Label>
-                        <div className="font-mono text-base">{formatCurrency(cashWalletBalance)}</div>
+                        <div onClick={(e) => { e.stopPropagation(); handleAccountClick('cash-wallet', 'Cash Wallet'); }} className="font-mono text-base cursor-pointer hover:underline">{formatCurrency(cashWalletBalance)}</div>
                         <Input
                             id="actual-balance-cash"
                             type="number"
@@ -651,7 +678,7 @@ export default function TransactionsPage() {
                       {/* Digital Column */}
                       <div className="space-y-2">
                         <Label htmlFor="actual-balance-digital" className="text-xs">Digital</Label>
-                          <div className="font-mono text-base">{formatCurrency(digitalWalletBalance)}</div>
+                        <div onClick={(e) => { e.stopPropagation(); handleAccountClick('digital-wallet', 'Digital Wallet'); }} className="font-mono text-base cursor-pointer hover:underline">{formatCurrency(digitalWalletBalance)}</div>
                         <Input
                             id="actual-balance-digital"
                             type="number"
@@ -686,7 +713,7 @@ export default function TransactionsPage() {
                                 <span className="font-semibold text-sm">{account.name}</span>
                                 {transactionCounts[account.id] > 0 && <Badge variant="outline" className="text-current bg-transparent">{transactionCounts[account.id]}</Badge>}
                               </div>
-                              <span className="font-bold text-sm">{formatCurrency(account.balance)}</span>
+                              <span onClick={(e) => { e.stopPropagation(); handleAccountClick(account); }} className="font-bold text-sm cursor-pointer hover:underline">{formatCurrency(account.balance)}</span>
                           </div>
                           <div className="w-full space-y-1">
                               <div className="flex items-center justify-between gap-2">
@@ -726,7 +753,7 @@ export default function TransactionsPage() {
                                 <span className="font-semibold text-sm">{account.name}</span>
                                 {transactionCounts[account.id] > 0 && <Badge variant="outline" className="text-current bg-transparent">{transactionCounts[account.id]}</Badge>}
                               </div>
-                              <span className="font-bold text-sm">{formatCurrency(account.balance)}</span>
+                              <span onClick={(e) => { e.stopPropagation(); handleAccountClick(account); }} className="font-bold text-sm cursor-pointer hover:underline">{formatCurrency(account.balance)}</span>
                           </div>
                           <div className="w-full space-y-1">
                               <div className="flex items-center justify-between gap-2">
@@ -861,6 +888,13 @@ export default function TransactionsPage() {
               </CardFooter>
           )}
       </Card>
+      
+      <AccountDetailsDialog
+        account={selectedAccountForDetails}
+        transactions={allTransactions}
+        isOpen={isDetailsDialogOpen}
+        onOpenChange={setIsDetailsDialogOpen}
+      />
     </div>
   );
 }
