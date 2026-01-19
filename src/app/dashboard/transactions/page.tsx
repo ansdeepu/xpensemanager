@@ -341,74 +341,6 @@ export default function TransactionsPage() {
   const secondaryAccounts = accounts.filter(account => !account.isPrimary && (account.name.toLowerCase().includes('hdfc') || account.name.toLowerCase().includes('fed') || account.name.toLowerCase().includes('post') || account.name.toLowerCase().includes('money')));
   const otherAccounts = accounts.filter(account => !account.isPrimary && !secondaryAccounts.some(sa => sa.id === account.id));
 
-  const filteredTransactions = useMemo(() => {
-    const isPrimaryView = primaryAccount?.id === activeTab;
-    
-    const sourceTransactions = allTransactions.filter(t => {
-      const fromAccountIsWallet = t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
-      const toAccountIsWallet = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
-      
-      const fromCurrentView = isPrimaryView ? (t.fromAccountId === activeTab || fromAccountIsWallet) : t.fromAccountId === activeTab;
-      const toCurrentView = isPrimaryView ? (t.toAccountId === activeTab || toAccountIsWallet) : t.toAccountId === activeTab;
-      
-      let accountIsInView = false;
-      if (t.type === 'expense' || t.type === 'income') {
-         accountIsInView = isPrimaryView 
-            ? (t.accountId === activeTab || t.paymentMethod === 'cash' || t.paymentMethod === 'digital') 
-            : t.accountId === activeTab;
-      }
-      
-      return fromCurrentView || toCurrentView || accountIsInView;
-    });
-
-    let filtered = [...sourceTransactions];
-
-    if (startDate && endDate) {
-        const interval = { start: startOfDay(new Date(startDate)), end: endOfDay(new Date(endDate)) };
-        filtered = filtered.filter(t => isWithinInterval(new Date(t.date), interval));
-    }
-
-    if (searchQuery) {
-        const lowercasedQuery = searchQuery.toLowerCase();
-        filtered = filtered.filter(t => 
-            t.description.toLowerCase().includes(lowercasedQuery) ||
-            t.category.toLowerCase().includes(lowercasedQuery) ||
-            (t.subcategory && t.subcategory.toLowerCase().includes(lowercasedQuery)) ||
-            t.amount.toString().toLowerCase().includes(lowercasedQuery)
-        );
-    }
-    
-    const getTransactionSortOrder = (t: Transaction) => {
-        if (t.loanTransactionId && loanTransactionTypeMap.has(t.loanTransactionId)) {
-            const loanType = loanTransactionTypeMap.get(t.loanTransactionId);
-            if (loanType === 'loan') return 1;
-            if (loanType === 'repayment') return 4;
-        }
-        if (t.type === 'income') return 2;
-        if (t.type === 'expense') return 3;
-        if (t.type === 'transfer') return 5;
-        return 99;
-    };
-
-    return filtered.sort((a, b) => {
-      const dateA = new Date(a.date).getTime();
-      const dateB = new Date(b.date).getTime();
-      if (dateA !== dateB) {
-          return dateB - dateA;
-      }
-      
-      const orderA = getTransactionSortOrder(a);
-      const orderB = getTransactionSortOrder(b);
-      
-      if (orderA !== orderB) {
-        return orderA - orderB;
-      }
-      
-      // Fallback sort for same type on same day, e.g., by amount
-      return b.amount - a.amount;
-    });
-  }, [allTransactions, activeTab, startDate, endDate, searchQuery, primaryAccount, loanTransactionTypeMap]);
-
     const transactionBalanceMap = useMemo(() => {
         const balances = new Map<string, number>();
         if (!activeTab) return balances;
@@ -507,6 +439,142 @@ export default function TransactionsPage() {
 
     }, [allTransactions, activeTab, primaryAccount, loanTransactionTypeMap]);
 
+  const getAccountName = useCallback((accountId?: string, paymentMethod?: Transaction['paymentMethod']) => {
+    if (accountId === 'cash-wallet' || paymentMethod === 'cash') return "Cash Wallet";
+    if (accountId === 'digital-wallet' || paymentMethod === 'digital') return "Digital Wallet";
+
+    if (accountId?.startsWith('loan-virtual-account-')) {
+        const personName = accountId.replace('loan-virtual-account-', '').replace(/-/g, ' ');
+        const loan = loans.find(l => l.personName.toLowerCase() === personName.toLowerCase());
+        if (loan) return loan.personName;
+        return personName;
+    }
+
+    if (!accountId) return "-";
+    
+    const account = accounts.find((a) => a.id === accountId);
+    if (!account) {
+         const loan = loans.find(l => l.id === accountId);
+         if (loan) return loan.personName;
+         return "N/A";
+    }
+    
+    return account.name;
+  }, [accounts, loans]);
+
+  const getLoanDisplayInfo = useMemo(() => {
+    return (t: Transaction) => {
+        const defaultInfo = { isLoan: false, type: t.type, category: t.category, description: t.description };
+
+        if (t.type !== 'transfer' || !t.loanTransactionId) {
+            return defaultInfo;
+        }
+
+        const loan = loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId));
+        
+        if (loan) {
+            const loanTx = loan.transactions.find(lt => lt.id === t.loanTransactionId)!;
+            const otherPartyName = loan.personName;
+            
+            const isLoanTaken = loan.type === 'taken';
+            const isRepayment = loanTx.type === 'repayment';
+            let descriptionPrefix = '';
+
+            if (isLoanTaken) {
+                descriptionPrefix = isRepayment ? 'Repayment to' : 'Loan from';
+            } else { // 'given'
+                descriptionPrefix = isRepayment ? 'Repayment from' : 'Loan to';
+            }
+            
+            const description = `${descriptionPrefix} ${otherPartyName}`;
+            return { isLoan: true, type: loanTx.type, category: 'Loan', description };
+        }
+        
+        return defaultInfo;
+    };
+  }, [loans]);
+
+  const filteredTransactions = useMemo(() => {
+    const isPrimaryView = primaryAccount?.id === activeTab;
+    
+    const sourceTransactions = allTransactions.filter(t => {
+      const fromAccountIsWallet = t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
+      const toAccountIsWallet = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
+      
+      const fromCurrentView = isPrimaryView ? (t.fromAccountId === activeTab || fromAccountIsWallet) : t.fromAccountId === activeTab;
+      const toCurrentView = isPrimaryView ? (t.toAccountId === activeTab || toAccountIsWallet) : t.toAccountId === activeTab;
+      
+      let accountIsInView = false;
+      if (t.type === 'expense' || t.type === 'income') {
+         accountIsInView = isPrimaryView 
+            ? (t.accountId === activeTab || t.paymentMethod === 'cash' || t.paymentMethod === 'digital') 
+            : t.accountId === activeTab;
+      }
+      
+      return fromCurrentView || toCurrentView || accountIsInView;
+    });
+
+    let filtered = [...sourceTransactions];
+
+    if (startDate && endDate) {
+        const interval = { start: startOfDay(new Date(startDate)), end: endOfDay(new Date(endDate)) };
+        filtered = filtered.filter(t => isWithinInterval(new Date(t.date), interval));
+    }
+
+    if (searchQuery) {
+        const lowercasedQuery = searchQuery.toLowerCase();
+        filtered = filtered.filter(t => {
+            const loanInfo = getLoanDisplayInfo(t);
+            const accountName = t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} -> ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod);
+            const balance = transactionBalanceMap.get(t.id);
+            const balanceString = balance !== undefined ? formatCurrency(balance) : '';
+            const amountString = formatCurrency(t.amount);
+
+            return (
+                format(new Date(t.date), 'dd/MM/yy').toLowerCase().includes(lowercasedQuery) ||
+                loanInfo.description.toLowerCase().includes(lowercasedQuery) ||
+                loanInfo.type.toLowerCase().includes(lowercasedQuery) ||
+                accountName.toLowerCase().includes(lowercasedQuery) ||
+                loanInfo.category.toLowerCase().includes(lowercasedQuery) ||
+                (t.subcategory && t.subcategory.toLowerCase().includes(lowercasedQuery)) ||
+                amountString.toLowerCase().includes(lowercasedQuery) ||
+                balanceString.toLowerCase().includes(lowercasedQuery) ||
+                t.amount.toString().includes(lowercasedQuery)
+            );
+        });
+    }
+    
+    const getTransactionSortOrder = (t: Transaction) => {
+        if (t.loanTransactionId && loanTransactionTypeMap.has(t.loanTransactionId)) {
+            const loanType = loanTransactionTypeMap.get(t.loanTransactionId);
+            if (loanType === 'loan') return 1;
+            if (loanType === 'repayment') return 4;
+        }
+        if (t.type === 'income') return 2;
+        if (t.type === 'expense') return 3;
+        if (t.type === 'transfer') return 5;
+        return 99;
+    };
+
+    return filtered.sort((a, b) => {
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      if (dateA !== dateB) {
+          return dateB - dateA;
+      }
+      
+      const orderA = getTransactionSortOrder(a);
+      const orderB = getTransactionSortOrder(b);
+      
+      if (orderA !== orderB) {
+        return orderA - orderB;
+      }
+      
+      // Fallback sort for same type on same day, e.g., by amount
+      return b.amount - a.amount;
+    });
+  }, [allTransactions, activeTab, startDate, endDate, searchQuery, primaryAccount, loanTransactionTypeMap, getLoanDisplayInfo, getAccountName, transactionBalanceMap]);
+
     const transactionsWithRunningBalance = useMemo(() => {
         return filteredTransactions.map(transaction => {
             return { ...transaction, balance: transactionBalanceMap.get(transaction.id) ?? 0 };
@@ -597,7 +665,6 @@ export default function TransactionsPage() {
                     <div className="w-full flex justify-between">
                       <div className="flex items-center gap-2">
                         <span className="font-semibold text-lg">Primary ({primaryAccount.name})</span>
-                        <Badge variant="outline">{filteredTransactions.length}</Badge>
                       </div>
                       <span className="font-bold text-2xl text-primary">{formatCurrency(allBalance)}</span>
                     </div>
@@ -686,13 +753,11 @@ export default function TransactionsPage() {
                 <div className="grid grid-cols-2 gap-2 h-full content-stretch">
                   {secondaryAccounts.map((account, index) => {
                     const balanceDifference = getBalanceDifference(account.balance, account.actualBalance);
-                    const count = filteredTransactions.filter(t => t.accountId === account.id || t.fromAccountId === account.id || t.toAccountId === account.id).length;
                     return (
                       <TabsTrigger key={account.id} value={account.id} className={cn("border flex flex-col h-full p-2 items-start text-left gap-1 data-[state=active]:shadow-lg", tabColors[index % tabColors.length], textColors[index % textColors.length])}>
                           <div className="w-full flex justify-between items-center">
                               <div className="flex items-center gap-2">
                                 <span className="font-semibold text-sm">{account.name}</span>
-                                <Badge variant="outline" className="h-5">{count}</Badge>
                               </div>
                               <span onClick={(e) => { e.stopPropagation(); handleAccountClick(account); }} className="font-bold text-sm cursor-pointer hover:underline">{formatCurrency(account.balance)}</span>
                           </div>
@@ -727,13 +792,11 @@ export default function TransactionsPage() {
                   )})}
                   {otherAccounts.map((account, index) => {
                     const balanceDifference = getBalanceDifference(account.balance, account.actualBalance);
-                    const count = filteredTransactions.filter(t => t.accountId === account.id || t.fromAccountId === account.id || t.toAccountId === account.id).length;
                     return (
                       <TabsTrigger key={account.id} value={account.id} className={cn("border flex flex-col h-full p-2 items-start text-left gap-1 data-[state=active]:shadow-lg", tabColors[(secondaryAccounts.length + index) % tabColors.length], textColors[(secondaryAccounts.length + index) % textColors.length])}>
                           <div className="w-full flex justify-between items-center">
                               <div className="flex items-center gap-2">
                                 <span className="font-semibold text-sm">{account.name}</span>
-                                <Badge variant="outline" className="h-5">{count}</Badge>
                               </div>
                               <span onClick={(e) => { e.stopPropagation(); handleAccountClick(account); }} className="font-bold text-sm cursor-pointer hover:underline">{formatCurrency(account.balance)}</span>
                           </div>
