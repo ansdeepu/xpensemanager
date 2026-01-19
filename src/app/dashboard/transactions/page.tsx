@@ -531,14 +531,14 @@ export default function TransactionsPage() {
             const amountString = formatCurrency(t.amount);
 
             return (
-                format(new Date(t.date), 'dd/MM/yy').toLowerCase().includes(lowercasedQuery) ||
-                loanInfo.description.toLowerCase().includes(lowercasedQuery) ||
-                loanInfo.type.toLowerCase().includes(lowercasedQuery) ||
-                accountName.toLowerCase().includes(lowercasedQuery) ||
-                loanInfo.category.toLowerCase().includes(lowercasedQuery) ||
+                (format(new Date(t.date), 'dd/MM/yy').toLowerCase().includes(lowercasedQuery)) ||
+                (loanInfo.description && loanInfo.description.toLowerCase().includes(lowercasedQuery)) ||
+                (loanInfo.type && loanInfo.type.toLowerCase().includes(lowercasedQuery)) ||
+                (accountName && accountName.toLowerCase().includes(lowercasedQuery)) ||
+                (loanInfo.category && loanInfo.category.toLowerCase().includes(lowercasedQuery)) ||
                 (t.subcategory && t.subcategory.toLowerCase().includes(lowercasedQuery)) ||
-                amountString.toLowerCase().includes(lowercasedQuery) ||
-                balanceString.toLowerCase().includes(lowercasedQuery) ||
+                (amountString && amountString.toLowerCase().includes(lowercasedQuery)) ||
+                (balanceString && balanceString.toLowerCase().includes(lowercasedQuery)) ||
                 t.amount.toString().includes(lowercasedQuery)
             );
         });
@@ -943,3 +943,5 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+    
