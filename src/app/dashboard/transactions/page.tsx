@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
@@ -569,7 +568,7 @@ const transactionsWithRunningBalance = useMemo(() => {
                     </div>
                   </TabsTrigger>
                 )}
-                <div className="grid grid-cols-2 gap-2 h-full content-stretch">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 h-full content-stretch">
                   {secondaryAccounts.map((account, index) => {
                     const balance = accountBalances[account.id] ?? 0;
                     const balanceDifference = getBalanceDifference(balance, account.actualBalance);
