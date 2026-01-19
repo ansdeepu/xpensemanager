@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
@@ -479,7 +480,7 @@ const transactionsWithRunningBalance = useMemo(() => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:items-stretch">
         <div className="lg:col-span-2">
           <Tabs defaultValue={primaryAccount?.id || "all-accounts"} value={activeTab} onValueChange={setActiveTab} className="w-full h-full">
-            <TabsList className="grid grid-cols-1 md:grid-cols-2 gap-2 h-auto items-stretch p-0 bg-transparent print-hide">
+            <TabsList className="grid grid-cols-1 sm:grid-cols-2 gap-2 h-auto items-stretch p-0 bg-transparent print-hide">
                 {primaryAccount && (
                   <TabsTrigger value={primaryAccount.id} className={cn("border flex flex-col h-full p-4 items-start text-left gap-4 w-full data-[state=active]:shadow-lg data-[state=active]:bg-lime-100 dark:data-[state=active]:bg-lime-900/50", "bg-card")}>
                     <div className="w-full flex justify-between">
@@ -734,7 +735,7 @@ const transactionsWithRunningBalance = useMemo(() => {
         </div>
       </div>
       
-      <Card className="overflow-x-auto">
+      <Card>
           <CardContent className="p-0">
             <TransactionTable 
                 transactions={pagedTransactions} 
