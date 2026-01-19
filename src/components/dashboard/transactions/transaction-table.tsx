@@ -454,21 +454,21 @@ export function TransactionTable({
 
   return (
     <>
-      <div className="overflow-x-auto">
+      <div className="w-full overflow-x-auto">
         <Table>
-          <TableHeader>
+          <TableHeader className="sticky top-16 z-10 bg-background">
             <TableRow>
-              <TableHead className="sticky top-16 bg-background z-10 whitespace-nowrap">Sl.</TableHead>
-              <TableHead className="sticky top-16 bg-background z-10 whitespace-nowrap">Date</TableHead>
-              <TableHead className="sticky top-16 bg-background z-10 whitespace-nowrap">Description</TableHead>
-              <TableHead className="sticky top-16 bg-background z-10 whitespace-nowrap">Type</TableHead>
-              <TableHead className="sticky top-16 bg-background z-10 whitespace-nowrap">Account</TableHead>
-              <TableHead className="sticky top-16 bg-background z-10 whitespace-nowrap">Category</TableHead>
-              <TableHead className="sticky top-16 bg-background z-10 text-right whitespace-nowrap">Debit</TableHead>
-              <TableHead className="sticky top-16 bg-background z-10 text-right whitespace-nowrap">Transfer</TableHead>
-              <TableHead className="sticky top-16 bg-background z-10 text-right whitespace-nowrap">Credit</TableHead>
-              <TableHead className="sticky top-16 bg-background z-10 text-right whitespace-nowrap">Balance</TableHead>
-              <TableHead className="sticky top-16 bg-background z-10 text-right print-hide whitespace-nowrap">Actions</TableHead>
+              <TableHead className="whitespace-nowrap">Sl.</TableHead>
+              <TableHead className="whitespace-nowrap">Date</TableHead>
+              <TableHead className="whitespace-nowrap">Description</TableHead>
+              <TableHead className="whitespace-nowrap">Type</TableHead>
+              <TableHead className="whitespace-nowrap">Account</TableHead>
+              <TableHead className="whitespace-nowrap">Category</TableHead>
+              <TableHead className="text-right whitespace-nowrap">Debit</TableHead>
+              <TableHead className="text-right whitespace-nowrap">Transfer</TableHead>
+              <TableHead className="text-right whitespace-nowrap">Credit</TableHead>
+              <TableHead className="text-right whitespace-nowrap">Balance</TableHead>
+              <TableHead className="text-right print-hide whitespace-nowrap">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

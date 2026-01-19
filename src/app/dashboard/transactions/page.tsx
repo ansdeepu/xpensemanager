@@ -210,7 +210,7 @@ export default function TransactionsPage() {
     }
   }, [user, userLoading, dataLoading]);
 
- const { accountBalances, cashWalletBalance, digitalWalletBalance } = useMemo(() => {
+ const { calculatedAccountBalances, cashWalletBalance, digitalWalletBalance } = useMemo(() => {
     const calculatedAccountBalances: { [key: string]: number } = {};
     rawAccounts.forEach(acc => {
       calculatedAccountBalances[acc.id] = acc.actualBalance ?? 0;
@@ -268,7 +268,7 @@ export default function TransactionsPage() {
     });
 
     return { 
-      accountBalances: calculatedAccountBalances, 
+      calculatedAccountBalances, 
       cashWalletBalance: calculatedCashBalance,
       digitalWalletBalance: calculatedDigitalBalance 
     };
@@ -277,9 +277,9 @@ export default function TransactionsPage() {
   const accounts = useMemo(() => {
     return rawAccounts.map(acc => ({
         ...acc,
-        balance: accountBalances[acc.id] ?? (acc.actualBalance ?? 0),
+        balance: calculatedAccountBalances[acc.id] ?? (acc.actualBalance ?? 0),
     }));
-  }, [rawAccounts, accountBalances]);
+  }, [rawAccounts, calculatedAccountBalances]);
 
 
   const primaryAccount = accounts.find(a => a.isPrimary);
@@ -464,7 +464,7 @@ const transactionsWithRunningBalance = useMemo(() => {
   const cashBalanceDifference = getBalanceDifference(cashWalletBalance, walletPreferences.cash?.balance);
   const digitalBalanceDifference = getBalanceDifference(digitalWalletBalance, walletPreferences.digital?.balance);
   
-  const primaryAccountBalance = primaryAccount ? accountBalances[primaryAccount.id] : 0;
+  const primaryAccountBalance = primaryAccount ? calculatedAccountBalances[primaryAccount.id] : 0;
   const primaryAccountBalanceDifference = primaryAccount ? getBalanceDifference(primaryAccountBalance, primaryAccount.actualBalance) : null;
   const allBalance = (primaryAccount ? primaryAccountBalance : 0) + cashWalletBalance + digitalWalletBalance;
   
@@ -571,13 +571,12 @@ const transactionsWithRunningBalance = useMemo(() => {
                 )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 h-full content-stretch">
                   {secondaryAccounts.map((account, index) => {
-                    const balance = accountBalances[account.id] ?? 0;
-                    const balanceDifference = getBalanceDifference(balance, account.actualBalance);
+                    const balanceDifference = getBalanceDifference(account.balance, account.actualBalance);
                     return (
                       <TabsTrigger key={account.id} value={account.id} className={cn("border flex flex-col h-full p-2 items-start text-left gap-1 data-[state=active]:shadow-lg", tabColors[index % tabColors.length], textColors[index % textColors.length])}>
                           <div className="w-full flex justify-between items-center">
                               <span className="font-semibold text-sm">{account.name}</span>
-                              <span className="font-bold text-sm">{formatCurrency(balance)}</span>
+                              <span className="font-bold text-sm">{formatCurrency(account.balance)}</span>
                           </div>
                           <div className="w-full space-y-1">
                               <div className="flex items-center justify-between gap-2">
@@ -609,13 +608,12 @@ const transactionsWithRunningBalance = useMemo(() => {
                       </TabsTrigger>
                   )})}
                   {otherAccounts.map((account, index) => {
-                    const balance = accountBalances[account.id] ?? 0;
-                    const balanceDifference = getBalanceDifference(balance, account.actualBalance);
+                    const balanceDifference = getBalanceDifference(account.balance, account.actualBalance);
                     return (
                       <TabsTrigger key={account.id} value={account.id} className={cn("border flex flex-col h-full p-2 items-start text-left gap-1 data-[state=active]:shadow-lg", tabColors[(secondaryAccounts.length + index) % tabColors.length], textColors[(secondaryAccounts.length + index) % textColors.length])}>
                           <div className="w-full flex justify-between items-center">
                               <span className="font-semibold text-sm">{account.name}</span>
-                              <span className="font-bold text-sm">{formatCurrency(balance)}</span>
+                              <span className="font-bold text-sm">{formatCurrency(account.balance)}</span>
                           </div>
                           <div className="w-full space-y-1">
                               <div className="flex items-center justify-between gap-2">
