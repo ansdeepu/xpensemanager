@@ -87,6 +87,22 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
     return category?.subcategories || [];
   }, [selectedCategory, categories]);
 
+  const expenseDropdownCategories = useMemo(() => {
+    const expenseCats = categories.filter(c => c.type === 'expense');
+    const bankExpenseCats = categories.filter(c => c.type === 'bank-expense');
+    
+    const sortedExpense = expenseCats.sort((a,b) => (a.order || 0) - (b.order || 0));
+    const sortedBankExpense = bankExpenseCats.sort((a,b) => (a.order || 0) - (b.order || 0));
+    
+    return [...sortedExpense, ...sortedBankExpense];
+  }, [categories]);
+
+  const incomeDropdownCategories = useMemo(() => {
+    return categories
+      .filter(c => c.type === 'income')
+      .sort((a, b) => (a.order || 0) - (b.order || 0));
+  }, [categories]);
+
   useEffect(() => {
     if (user && db) {
       const categoriesQuery = query(collection(db, "categories"), where("userId", "==", user.uid), orderBy("order", "asc"));
@@ -218,7 +234,7 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
                             <Select name="category" onValueChange={setSelectedCategory}>
                                 <SelectTrigger id="category-expense"><SelectValue placeholder="Select category" /></SelectTrigger>
                                 <SelectContent>
-                                    {categories.filter(c => c.type === 'expense' || c.type === 'bank-expense').map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
+                                    {expenseDropdownCategories.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         </div>
@@ -265,7 +281,7 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
                             <Select name="category" onValueChange={setSelectedCategory}>
                                 <SelectTrigger id="category-income"><SelectValue placeholder="Select category" /></SelectTrigger>
                                 <SelectContent>
-                                    {categories.filter(c => c.type === 'income').map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
+                                    {incomeDropdownCategories.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         </div>
