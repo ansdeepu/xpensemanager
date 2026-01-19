@@ -382,15 +382,6 @@ export default function TransactionsPage() {
 const transactionsWithRunningBalance = useMemo(() => {
     const isPrimaryView = primaryAccount?.id === activeTab;
 
-    let endBalance = 0;
-    if (isPrimaryView) {
-        const primaryBalance = accounts.find(acc => acc.id === primaryAccount?.id)?.balance ?? 0;
-        endBalance = primaryBalance + cashWalletBalance + digitalWalletBalance;
-    } else {
-        const activeAccount = accounts.find(acc => acc.id === activeTab);
-        endBalance = activeAccount?.balance ?? 0;
-    }
-
     const calculateEffect = (t: Transaction) => {
         let effect = 0;
         const fromAccountIsWallet = t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
@@ -422,13 +413,32 @@ const transactionsWithRunningBalance = useMemo(() => {
         return effect;
     };
 
-    let runningBalance = endBalance;
+    const totalEffectInView = filteredTransactions.reduce((sum, t) => sum + calculateEffect(t), 0);
+
+    let endBalance = 0;
+    if (isPrimaryView) {
+        const primaryBalance = accounts.find(acc => acc.id === primaryAccount?.id)?.balance ?? 0;
+        endBalance = primaryBalance + cashWalletBalance + digitalWalletBalance;
+    } else {
+        const activeAccount = accounts.find(acc => acc.id === activeTab);
+        endBalance = activeAccount?.balance ?? 0;
+    }
+
+    const startBalanceForView = endBalance - totalEffectInView;
+    
+    const chronologicalTransactions = [...filteredTransactions].reverse(); // Oldest first
+
+    const balances = new Map<string, number>();
+    let runningBalance = startBalanceForView;
+
+    chronologicalTransactions.forEach(transaction => {
+        const effect = calculateEffect(transaction);
+        runningBalance += effect;
+        balances.set(transaction.id, runningBalance);
+    });
 
     return filteredTransactions.map(transaction => {
-        const currentBalance = runningBalance;
-        const effect = calculateEffect(transaction);
-        runningBalance -= effect;
-        return { ...transaction, balance: currentBalance };
+        return { ...transaction, balance: balances.get(transaction.id) ?? 0 };
     });
 }, [filteredTransactions, activeTab, primaryAccount, accounts, cashWalletBalance, digitalWalletBalance]);
 
@@ -763,5 +773,7 @@ const transactionsWithRunningBalance = useMemo(() => {
     </div>
   );
 }
+
+    
 
     
