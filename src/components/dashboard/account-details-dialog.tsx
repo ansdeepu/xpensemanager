@@ -86,7 +86,7 @@ export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChan
 
                 if (t.id === openingBalanceTx?.id) {
                     credit = t.amount;
-                    effect = t.amount;
+                    effect = 0; // The effect is already in the initial runningBalance
                 } else {
                     if (account.id === 'cash-wallet') {
                         if(t.type === 'transfer' && t.toAccountId === 'cash-wallet') { credit = t.amount; effect = t.amount; }
@@ -112,13 +112,8 @@ export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChan
                     }
                 }
                 
-                // For the first transaction (which could be the opening balance), balance is just the effect.
-                // For subsequent ones, it's previous balance + effect.
-                if (breakdown.length > 0) {
-                  runningBalance += effect;
-                } else if (t.id !== openingBalanceTx?.id) {
-                   runningBalance += effect;
-                }
+                // Add the effect of the current transaction to the running balance
+                runningBalance += effect;
 
                 return {
                     id: t.id,
