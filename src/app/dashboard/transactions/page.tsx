@@ -17,6 +17,7 @@ import { useAuthState } from "@/hooks/use-auth-state";
 import { Card, CardFooter, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AddTransactionDialog } from "@/components/dashboard/transactions/add-transaction-dialog";
+import { Badge } from "@/components/ui/badge";
 
 const formatCurrency = (amount: number) => {
   if (Object.is(amount, -0)) {
@@ -255,8 +256,13 @@ export default function TransactionsPage() {
 
     const calculateWalletBalance = (walletType: 'cash' | 'digital') => {
         let runningBalance = 0;
+        const openingBalanceTx = sortedChronologically.find(t => t.category === 'Previous balance' && t.accountId === `${walletType}-wallet`);
+        if(openingBalanceTx) {
+            runningBalance = openingBalanceTx.amount;
+        }
+
         for (const transaction of sortedChronologically) {
-            if (transaction.category === 'Previous balance') continue;
+             if (transaction.category === 'Previous balance') continue;
             let effect = 0;
             if (transaction.paymentMethod === walletType && transaction.type === 'expense') {
                 effect = -transaction.amount;
@@ -277,20 +283,18 @@ export default function TransactionsPage() {
 
     const finalBankAccounts = rawAccounts.map(acc => {
         let runningBalance = 0;
-        let openingBalanceSet = false;
 
         const accountTransactions = sortedChronologically.filter(t => 
              t.accountId === acc.id || t.fromAccountId === acc.id || t.toAccountId === acc.id
         );
+        
+        const openingBalanceTx = accountTransactions.find(t => t.category === 'Previous balance' && t.accountId === acc.id);
+        if (openingBalanceTx) {
+            runningBalance = openingBalanceTx.amount;
+        }
 
         for (const transaction of accountTransactions) {
              let effect = 0;
-             
-             if (transaction.category === 'Previous balance' && transaction.accountId === acc.id && !openingBalanceSet) {
-                runningBalance = transaction.amount;
-                openingBalanceSet = true;
-                continue;
-             }
              if(transaction.category !== 'Previous balance') {
                 if (transaction.type === 'income' && transaction.accountId === acc.id) {
                   effect = transaction.amount;
@@ -329,6 +333,37 @@ export default function TransactionsPage() {
   
   const secondaryAccounts = accounts.filter(account => !account.isPrimary && (account.name.toLowerCase().includes('hdfc') || account.name.toLowerCase().includes('fed') || account.name.toLowerCase().includes('post') || account.name.toLowerCase().includes('money')));
   const otherAccounts = accounts.filter(account => !account.isPrimary && !secondaryAccounts.some(sa => sa.id === account.id));
+
+  const transactionCounts = useMemo(() => {
+    const counts: { [accountId: string]: number } = {};
+    if (!primaryAccount) return {};
+
+    const allAccountIdsForTabs = accounts.map(a => a.id);
+
+    for (const accId of allAccountIdsForTabs) {
+        if (!accId) continue;
+        const isPrimaryView = primaryAccount?.id === accId;
+        const count = allTransactions.filter(t => {
+            const fromAccountIsWallet = t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
+            const toAccountIsWallet = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
+            
+            const fromCurrentView = isPrimaryView ? (t.fromAccountId === accId || fromAccountIsWallet) : t.fromAccountId === accId;
+            const toCurrentView = isPrimaryView ? (t.toAccountId === accId || toAccountIsWallet) : t.toAccountId === accId;
+            
+            let accountIsInView = false;
+            if (t.type === 'expense' || t.type === 'income') {
+                accountIsInView = isPrimaryView 
+                    ? (t.accountId === accId || t.paymentMethod === 'cash' || t.paymentMethod === 'digital') 
+                    : t.accountId === accId;
+            }
+            
+            return fromCurrentView || toCurrentView || accountIsInView;
+        }).length;
+        counts[accId] = count;
+    }
+
+    return counts;
+  }, [allTransactions, accounts, primaryAccount]);
 
   const filteredTransactions = useMemo(() => {
     const isPrimaryView = primaryAccount?.id === activeTab;
@@ -447,15 +482,17 @@ export default function TransactionsPage() {
         });
         
         let runningBalance = 0;
-        let openingBalanceSet = false;
+        
+        const openingBalanceTx = sortedChronologically.find(t => t.category === 'Previous balance');
+        if (openingBalanceTx) {
+            runningBalance = openingBalanceTx.amount;
+        }
+
 
         for (const transaction of sortedChronologically) {
             let effect = 0;
 
-            if (transaction.category === 'Previous balance' && !openingBalanceSet) {
-                runningBalance = transaction.amount;
-                openingBalanceSet = true;
-            } else if (transaction.category !== 'Previous balance') {
+            if (transaction.category !== 'Previous balance') {
                  if (transaction.type === 'income') {
                     effect = transaction.amount;
                 } else if (transaction.type === 'expense') {
@@ -551,7 +588,10 @@ export default function TransactionsPage() {
                 {primaryAccount && (
                   <TabsTrigger value={primaryAccount.id} className={cn("border flex flex-col h-full p-4 items-start text-left gap-4 w-full data-[state=active]:shadow-lg data-[state=active]:bg-lime-100 dark:data-[state=active]:bg-lime-900/50", "bg-card")}>
                     <div className="w-full flex justify-between">
-                      <span className="font-semibold text-lg">Primary ({primaryAccount.name})</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-lg">Primary ({primaryAccount.name})</span>
+                        {transactionCounts[primaryAccount.id] > 0 && <Badge variant="secondary">{transactionCounts[primaryAccount.id]}</Badge>}
+                      </div>
                       <span className="font-bold text-2xl text-primary">{formatCurrency(allBalance)}</span>
                     </div>
                     
@@ -642,7 +682,10 @@ export default function TransactionsPage() {
                     return (
                       <TabsTrigger key={account.id} value={account.id} className={cn("border flex flex-col h-full p-2 items-start text-left gap-1 data-[state=active]:shadow-lg", tabColors[index % tabColors.length], textColors[index % textColors.length])}>
                           <div className="w-full flex justify-between items-center">
-                              <span className="font-semibold text-sm">{account.name}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold text-sm">{account.name}</span>
+                                {transactionCounts[account.id] > 0 && <Badge variant="outline" className="text-current bg-transparent">{transactionCounts[account.id]}</Badge>}
+                              </div>
                               <span className="font-bold text-sm">{formatCurrency(account.balance)}</span>
                           </div>
                           <div className="w-full space-y-1">
@@ -679,7 +722,10 @@ export default function TransactionsPage() {
                     return (
                       <TabsTrigger key={account.id} value={account.id} className={cn("border flex flex-col h-full p-2 items-start text-left gap-1 data-[state=active]:shadow-lg", tabColors[(secondaryAccounts.length + index) % tabColors.length], textColors[(secondaryAccounts.length + index) % textColors.length])}>
                           <div className="w-full flex justify-between items-center">
-                              <span className="font-semibold text-sm">{account.name}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold text-sm">{account.name}</span>
+                                {transactionCounts[account.id] > 0 && <Badge variant="outline" className="text-current bg-transparent">{transactionCounts[account.id]}</Badge>}
+                              </div>
                               <span className="font-bold text-sm">{formatCurrency(account.balance)}</span>
                           </div>
                           <div className="w-full space-y-1">
@@ -818,5 +864,7 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+    
 
     
