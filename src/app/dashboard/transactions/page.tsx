@@ -380,13 +380,24 @@ export default function TransactionsPage() {
 
 
 const transactionsWithRunningBalance = useMemo(() => {
-    let runningBalance = 0;
+    const isPrimaryView = primaryAccount?.id === activeTab;
+    let finalBalance = 0;
+
+    if (isPrimaryView) {
+        const primaryBalance = primaryAccount ? calculatedAccountBalances[primaryAccount.id] ?? 0 : 0;
+        finalBalance = primaryBalance + cashWalletBalance + digitalWalletBalance;
+    } else {
+        finalBalance = activeTab ? calculatedAccountBalances[activeTab] ?? 0 : 0;
+    }
+
+    const reversedChronologicalTransactions = [...filteredTransactions].reverse();
     
-    const chronologicalTransactions = [...filteredTransactions];
+    let runningBalance = finalBalance;
     
-    const calculatedTransactions = chronologicalTransactions.map(t => {
+    const calculatedTransactions = reversedChronologicalTransactions.map(t => {
+        const currentTransactionBalance = runningBalance;
+        
         let effect = 0;
-        const isPrimaryView = primaryAccount?.id === activeTab;
         const fromAccountIsWallet = t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
         const toAccountIsWallet = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
         
@@ -406,19 +417,22 @@ const transactionsWithRunningBalance = useMemo(() => {
             if (accountIsInView) effect = -t.amount;
         } else if (t.type === 'transfer') {
             if (fromCurrentView && toCurrentView) {
-                effect = 0; // Internal transfer within the same view
+                effect = 0;
             } else if (fromCurrentView) {
                 effect = -t.amount;
             } else if (toCurrentView) {
                 effect = t.amount;
             }
         }
-        runningBalance += effect;
-        return { ...t, balance: runningBalance };
+        
+        const txWithBalance = { ...t, balance: currentTransactionBalance };
+        runningBalance -= effect;
+
+        return txWithBalance;
     });
 
-    return calculatedTransactions.reverse();
-}, [filteredTransactions, activeTab, primaryAccount]);
+    return calculatedTransactions;
+}, [filteredTransactions, activeTab, primaryAccount, calculatedAccountBalances, cashWalletBalance, digitalWalletBalance]);
 
 
   const totalPages = Math.ceil(transactionsWithRunningBalance.length / itemsPerPage);
@@ -734,14 +748,16 @@ const transactionsWithRunningBalance = useMemo(() => {
       </div>
       
       <Card>
-          <CardContent className="p-0">
+        <div className="relative overflow-x-auto">
+          <div className="h-[calc(100vh_-_36rem)] overflow-auto">
             <TransactionTable 
                 transactions={pagedTransactions} 
                 accountId={activeTab || ''}
                 currentPage={currentPage}
                 itemsPerPage={itemsPerPage}
             />
-          </CardContent>
+          </div>
+        </div>
           {totalPages > 1 && (
               <CardFooter className="justify-center border-t p-4 print-hide">
                 <PaginationControls currentPage={currentPage} totalPages={totalPages} setCurrentPage={setCurrentPage as (page: number) => void} />
@@ -751,3 +767,5 @@ const transactionsWithRunningBalance = useMemo(() => {
     </div>
   );
 }
+
+    
