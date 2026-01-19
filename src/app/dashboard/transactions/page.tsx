@@ -209,57 +209,77 @@ export default function TransactionsPage() {
     }
   }, [user, userLoading, dataLoading]);
 
- const { accounts, cashWalletBalance, digitalWalletBalance } = useMemo(() => {
-    let runningCashBalance = 0;
-    let runningDigitalBalance = 0;
-    const runningAccountBalances: { [key: string]: number } = {};
-
+ const { accountBalances, cashWalletBalance, digitalWalletBalance } = useMemo(() => {
+    const calculatedAccountBalances: { [key: string]: number } = {};
     rawAccounts.forEach(acc => {
-        runningAccountBalances[acc.id] = 0;
+      calculatedAccountBalances[acc.id] = acc.actualBalance ?? 0;
     });
 
-    const chronologicalTransactions = [...allTransactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    let calculatedCashBalance = walletPreferences.cash?.balance ?? 0;
+    let calculatedDigitalBalance = walletPreferences.digital?.balance ?? 0;
+
+    const cashReconDate = walletPreferences.cash?.date ? parseISO(walletPreferences.cash.date) : new Date(0);
+    const digitalReconDate = walletPreferences.digital?.date ? parseISO(walletPreferences.digital.date) : new Date(0);
     
-    chronologicalTransactions.forEach(t => {
-      if (t.type === 'income' && t.accountId && runningAccountBalances[t.accountId] !== undefined) {
-          runningAccountBalances[t.accountId] += t.amount;
+    allTransactions.forEach(t => {
+      const transactionDate = parseISO(t.date);
+
+      if (t.type === 'income' && t.accountId && calculatedAccountBalances[t.accountId] !== undefined) {
+        const accountReconDate = rawAccounts.find(a => a.id === t.accountId)?.actualBalanceDate ? parseISO(rawAccounts.find(a => a.id === t.accountId)!.actualBalanceDate!) : new Date(0);
+        if (isAfter(transactionDate, accountReconDate)) {
+            calculatedAccountBalances[t.accountId] += t.amount;
+        }
       } else if (t.type === 'expense') {
-        if (t.paymentMethod === 'online' && t.accountId && runningAccountBalances[t.accountId] !== undefined) {
-            runningAccountBalances[t.accountId] -= t.amount;
-        } else if (t.paymentMethod === 'cash') {
-          runningCashBalance -= t.amount;
-        } else if (t.paymentMethod === 'digital') {
-          runningDigitalBalance -= t.amount;
+        if (t.paymentMethod === 'online' && t.accountId && calculatedAccountBalances[t.accountId] !== undefined) {
+            const accountReconDate = rawAccounts.find(a => a.id === t.accountId)?.actualBalanceDate ? parseISO(rawAccounts.find(a => a.id === t.accountId)!.actualBalanceDate!) : new Date(0);
+            if (isAfter(transactionDate, accountReconDate)) {
+              calculatedAccountBalances[t.accountId] -= t.amount;
+            }
+        } else if (t.paymentMethod === 'cash' && isAfter(transactionDate, cashReconDate)) {
+          calculatedCashBalance -= t.amount;
+        } else if (t.paymentMethod === 'digital' && isAfter(transactionDate, digitalReconDate)) {
+          calculatedDigitalBalance -= t.amount;
         }
       } else if (t.type === 'transfer') {
-        if (t.fromAccountId && runningAccountBalances[t.fromAccountId] !== undefined) {
-          runningAccountBalances[t.fromAccountId] -= t.amount;
-        } else if (t.fromAccountId === 'cash-wallet') {
-          runningCashBalance -= t.amount;
-        } else if (t.fromAccountId === 'digital-wallet') {
-          runningDigitalBalance -= t.amount;
+        // From Account
+        if (t.fromAccountId && calculatedAccountBalances[t.fromAccountId] !== undefined) {
+            const fromAccountReconDate = rawAccounts.find(a => a.id === t.fromAccountId)?.actualBalanceDate ? parseISO(rawAccounts.find(a => a.id === t.fromAccountId)!.actualBalanceDate!) : new Date(0);
+            if (isAfter(transactionDate, fromAccountReconDate)) {
+              calculatedAccountBalances[t.fromAccountId] -= t.amount;
+            }
+        } else if (t.fromAccountId === 'cash-wallet' && isAfter(transactionDate, cashReconDate)) {
+          calculatedCashBalance -= t.amount;
+        } else if (t.fromAccountId === 'digital-wallet' && isAfter(transactionDate, digitalReconDate)) {
+          calculatedDigitalBalance -= t.amount;
         }
-        if (t.toAccountId && runningAccountBalances[t.toAccountId] !== undefined) {
-          runningAccountBalances[t.toAccountId] += t.amount;
-        } else if (t.toAccountId === 'cash-wallet') {
-          runningCashBalance += t.amount;
-        } else if (t.toAccountId === 'digital-wallet') {
-          runningDigitalBalance += t.amount;
+        // To Account
+        if (t.toAccountId && calculatedAccountBalances[t.toAccountId] !== undefined) {
+          const toAccountReconDate = rawAccounts.find(a => a.id === t.toAccountId)?.actualBalanceDate ? parseISO(rawAccounts.find(a => a.id === t.toAccountId)!.actualBalanceDate!) : new Date(0);
+          if (isAfter(transactionDate, toAccountReconDate)) {
+            calculatedAccountBalances[t.toAccountId] += t.amount;
+          }
+        } else if (t.toAccountId === 'cash-wallet' && isAfter(transactionDate, cashReconDate)) {
+          calculatedCashBalance += t.amount;
+        } else if (t.toAccountId === 'digital-wallet' && isAfter(transactionDate, digitalReconDate)) {
+          calculatedDigitalBalance += t.amount;
         }
       }
     });
 
-    const finalAccounts = rawAccounts.map(acc => ({
-        ...acc,
-        balance: runningAccountBalances[acc.id] ?? 0,
-    }));
-    
     return { 
-      accounts: finalAccounts, 
-      cashWalletBalance: runningCashBalance,
-      digitalWalletBalance: runningDigitalBalance 
+      accountBalances, 
+      cashWalletBalance: calculatedCashBalance,
+      digitalWalletBalance: calculatedDigitalBalance 
     };
-  }, [rawAccounts, allTransactions]);
+  }, [rawAccounts, allTransactions, walletPreferences]);
+
+  const accounts = useMemo(() => {
+    return rawAccounts.map(acc => ({
+        ...acc,
+        balance: accountBalances[acc.id] ?? (acc.actualBalance ?? 0),
+    }));
+  }, [rawAccounts, accountBalances]);
+
 
   const primaryAccount = accounts.find(a => a.isPrimary);
   
@@ -442,8 +462,10 @@ const transactionsWithRunningBalance = useMemo(() => {
 
   const cashBalanceDifference = getBalanceDifference(cashWalletBalance, walletPreferences.cash?.balance);
   const digitalBalanceDifference = getBalanceDifference(digitalWalletBalance, walletPreferences.digital?.balance);
-  const primaryAccountBalanceDifference = primaryAccount ? getBalanceDifference(primaryAccount.balance, primaryAccount.actualBalance) : null;
-  const allBalance = (primaryAccount ? primaryAccount.balance : 0) + cashWalletBalance + digitalWalletBalance;
+  
+  const primaryAccountBalance = primaryAccount ? accountBalances[primaryAccount.id] : 0;
+  const primaryAccountBalanceDifference = primaryAccount ? getBalanceDifference(primaryAccountBalance, primaryAccount.actualBalance) : null;
+  const allBalance = (primaryAccount ? primaryAccountBalance : 0) + cashWalletBalance + digitalWalletBalance;
   
   const accountDataForDialog = [
     { id: 'cash-wallet', name: 'Cash Wallet', balance: cashWalletBalance },
@@ -469,7 +491,7 @@ const transactionsWithRunningBalance = useMemo(() => {
                       {/* Bank Column */}
                       <div className="space-y-2">
                         <Label htmlFor={`actual-balance-${primaryAccount.id}`} className="text-xs">Bank Balance</Label>
-                        <div className="font-mono text-base">{formatCurrency(primaryAccount.balance)}</div>
+                        <div className="font-mono text-base">{formatCurrency(primaryAccountBalance)}</div>
                         <Input
                             id={`actual-balance-${primaryAccount.id}`}
                             type="number"
@@ -548,12 +570,13 @@ const transactionsWithRunningBalance = useMemo(() => {
                 )}
                 <div className="grid grid-cols-2 gap-2 h-full content-stretch">
                   {secondaryAccounts.map((account, index) => {
-                    const balanceDifference = getBalanceDifference(account.balance, account.actualBalance);
+                    const balance = accountBalances[account.id] ?? 0;
+                    const balanceDifference = getBalanceDifference(balance, account.actualBalance);
                     return (
                       <TabsTrigger key={account.id} value={account.id} className={cn("border flex flex-col h-full p-2 items-start text-left gap-1 data-[state=active]:shadow-lg", tabColors[index % tabColors.length], textColors[index % textColors.length])}>
                           <div className="w-full flex justify-between items-center">
                               <span className="font-semibold text-sm">{account.name}</span>
-                              <span className="font-bold text-sm">{formatCurrency(account.balance)}</span>
+                              <span className="font-bold text-sm">{formatCurrency(balance)}</span>
                           </div>
                           <div className="w-full space-y-1">
                               <div className="flex items-center justify-between gap-2">
@@ -585,12 +608,13 @@ const transactionsWithRunningBalance = useMemo(() => {
                       </TabsTrigger>
                   )})}
                   {otherAccounts.map((account, index) => {
-                    const balanceDifference = getBalanceDifference(account.balance, account.actualBalance);
+                    const balance = accountBalances[account.id] ?? 0;
+                    const balanceDifference = getBalanceDifference(balance, account.actualBalance);
                     return (
                       <TabsTrigger key={account.id} value={account.id} className={cn("border flex flex-col h-full p-2 items-start text-left gap-1 data-[state=active]:shadow-lg", tabColors[(secondaryAccounts.length + index) % tabColors.length], textColors[(secondaryAccounts.length + index) % textColors.length])}>
                           <div className="w-full flex justify-between items-center">
                               <span className="font-semibold text-sm">{account.name}</span>
-                              <span className="font-bold text-sm">{formatCurrency(account.balance)}</span>
+                              <span className="font-bold text-sm">{formatCurrency(balance)}</span>
                           </div>
                           <div className="w-full space-y-1">
                               <div className="flex items-center justify-between gap-2">
@@ -728,3 +752,5 @@ const transactionsWithRunningBalance = useMemo(() => {
     </div>
   );
 }
+
+    
