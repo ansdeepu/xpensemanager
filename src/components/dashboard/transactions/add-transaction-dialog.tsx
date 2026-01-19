@@ -188,7 +188,7 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
       <DialogTrigger asChild>
         {children}
       </DialogTrigger>
-      <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-md">
+      <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>Add New Transaction</DialogTitle>
           <DialogDescription>
