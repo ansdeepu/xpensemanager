@@ -270,7 +270,7 @@ export default function TransactionsPage() {
         }
 
         for (const transaction of sortedChronologically) {
-             if (transaction.category === 'Previous balance') continue;
+             if (transaction.id === openingBalanceTx?.id) continue;
             let effect = 0;
             if (transaction.paymentMethod === walletType && transaction.type === 'expense') {
                 effect = -transaction.amount;
@@ -291,17 +291,14 @@ export default function TransactionsPage() {
 
     const finalBankAccounts = rawAccounts.map(acc => {
         let runningBalance = 0;
-
-        const accountTransactions = sortedChronologically.filter(t => 
-             t.accountId === acc.id || t.fromAccountId === acc.id || t.toAccountId === acc.id
-        );
         
-        const openingBalanceTx = accountTransactions.find(t => t.category === 'Previous balance' && t.accountId === acc.id);
+        const openingBalanceTx = sortedChronologically.find(t => t.category === 'Previous balance' && t.accountId === acc.id);
         if (openingBalanceTx) {
             runningBalance = openingBalanceTx.amount;
         }
 
-        for (const transaction of accountTransactions) {
+        for (const transaction of sortedChronologically) {
+             if (transaction.id === openingBalanceTx?.id) continue;
              let effect = 0;
              if(transaction.category !== 'Previous balance') {
                 if (transaction.type === 'income' && transaction.accountId === acc.id) {
@@ -491,9 +488,17 @@ export default function TransactionsPage() {
         
         let runningBalance = 0;
         
-        const openingBalanceTx = sortedChronologically.find(t => t.category === 'Previous balance');
-        if (openingBalanceTx) {
-            runningBalance = openingBalanceTx.amount;
+        let openingBalanceTx;
+        if(isPrimaryView) {
+            const primaryOpening = sortedChronologically.find(t => t.category === 'Previous balance' && t.accountId === primaryAccount?.id);
+            const cashOpening = sortedChronologically.find(t => t.category === 'Previous balance' && t.accountId === 'cash-wallet');
+            const digitalOpening = sortedChronologically.find(t => t.category === 'Previous balance' && t.accountId === 'digital-wallet');
+            runningBalance = (primaryOpening?.amount || 0) + (cashOpening?.amount || 0) + (digitalOpening?.amount || 0);
+        } else {
+            openingBalanceTx = sortedChronologically.find(t => t.category === 'Previous balance' && t.accountId === activeTab);
+            if (openingBalanceTx) {
+                runningBalance = openingBalanceTx.amount;
+            }
         }
 
 
@@ -902,3 +907,4 @@ export default function TransactionsPage() {
     
 
     
+

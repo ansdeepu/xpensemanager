@@ -53,61 +53,82 @@ export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChan
     const calculationResults = useMemo(() => {
         if (!account) return { breakdown: [], finalBalance: 0 };
         
+        const chronologicalTransactions = [...transactions]
+            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        
         let runningBalance = 0;
         
-        const relevantTransactions = transactions
+        const openingBalanceTx = chronologicalTransactions.find(t => t.category === 'Previous balance' && t.accountId === account.id);
+        if (openingBalanceTx) {
+            runningBalance = openingBalanceTx.amount;
+        }
+
+        const breakdown = chronologicalTransactions
             .filter(t => {
+                if (openingBalanceTx && t.id === openingBalanceTx.id) return true; // Always include opening balance
+                
+                let belongsToAccount = false;
                 if (account.id === 'cash-wallet') {
-                    return t.paymentMethod === 'cash' || t.fromAccountId === 'cash-wallet' || t.toAccountId === 'cash-wallet';
-                }
-                 if (account.id === 'digital-wallet') {
-                    return t.paymentMethod === 'digital' || t.fromAccountId === 'digital-wallet' || t.toAccountId === 'digital-wallet';
-                }
-                // For regular accounts, include their income/expenses and transfers
-                return (t.accountId === account.id && (t.type === 'income' || (t.type === 'expense' && t.paymentMethod === 'online'))) ||
+                    belongsToAccount = t.paymentMethod === 'cash' || t.fromAccountId === 'cash-wallet' || t.toAccountId === 'cash-wallet';
+                } else if (account.id === 'digital-wallet') {
+                    belongsToAccount = t.paymentMethod === 'digital' || t.fromAccountId === 'digital-wallet' || t.toAccountId === 'digital-wallet';
+                } else {
+                    belongsToAccount = (t.accountId === account.id && (t.type === 'income' || (t.type === 'expense' && t.paymentMethod === 'online'))) ||
                        t.fromAccountId === account.id ||
                        t.toAccountId === account.id;
+                }
+                return belongsToAccount && t.category !== 'Previous balance';
             })
-            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+            .map(t => {
+                let credit = 0;
+                let debit = 0;
+                let effect = 0;
 
-        const breakdown = relevantTransactions.map(t => {
-            let credit = 0;
-            let debit = 0;
-
-            if (account.id === 'cash-wallet') {
-                if(t.type === 'transfer' && t.toAccountId === 'cash-wallet') credit = t.amount;
-                if(t.type === 'transfer' && t.fromAccountId === 'cash-wallet') debit = t.amount;
-                if(t.type === 'expense' && t.paymentMethod === 'cash') debit = t.amount;
-            } else if (account.id === 'digital-wallet') {
-                if(t.type === 'transfer' && t.toAccountId === 'digital-wallet') credit = t.amount;
-                if(t.type === 'transfer' && t.fromAccountId === 'digital-wallet') debit = t.amount;
-                if(t.type === 'expense' && t.paymentMethod === 'digital') debit = t.amount;
-            } else { // Regular bank account logic
-                if (t.type === 'income' && t.accountId === account.id) {
+                if (t.id === openingBalanceTx?.id) {
                     credit = t.amount;
-                } else if (t.type === 'expense' && t.accountId === account.id && t.paymentMethod === 'online') {
-                    debit = t.amount;
-                } else if (t.type === 'transfer') {
-                    if (t.fromAccountId === account.id) {
-                        debit = t.amount;
-                    }
-                    if (t.toAccountId === account.id) {
-                        credit = t.amount;
+                    effect = t.amount;
+                } else {
+                    if (account.id === 'cash-wallet') {
+                        if(t.type === 'transfer' && t.toAccountId === 'cash-wallet') { credit = t.amount; effect = t.amount; }
+                        if(t.type === 'transfer' && t.fromAccountId === 'cash-wallet') { debit = t.amount; effect = -t.amount; }
+                        if(t.type === 'expense' && t.paymentMethod === 'cash') { debit = t.amount; effect = -t.amount; }
+                    } else if (account.id === 'digital-wallet') {
+                        if(t.type === 'transfer' && t.toAccountId === 'digital-wallet') { credit = t.amount; effect = t.amount; }
+                        if(t.type === 'transfer' && t.fromAccountId === 'digital-wallet') { debit = t.amount; effect = -t.amount; }
+                        if(t.type === 'expense' && t.paymentMethod === 'digital') { debit = t.amount; effect = -t.amount; }
+                    } else { // Regular bank account logic
+                        if (t.type === 'income' && t.accountId === account.id) {
+                            credit = t.amount; effect = t.amount;
+                        } else if (t.type === 'expense' && t.accountId === account.id && t.paymentMethod === 'online') {
+                            debit = t.amount; effect = -t.amount;
+                        } else if (t.type === 'transfer') {
+                            if (t.fromAccountId === account.id) {
+                                debit = t.amount; effect = -t.amount;
+                            }
+                            if (t.toAccountId === account.id) {
+                                credit = t.amount; effect = t.amount;
+                            }
+                        }
                     }
                 }
-            }
+                
+                // For the first transaction (which could be the opening balance), balance is just the effect.
+                // For subsequent ones, it's previous balance + effect.
+                if (breakdown.length > 0) {
+                  runningBalance += effect;
+                } else if (t.id !== openingBalanceTx?.id) {
+                   runningBalance += effect;
+                }
 
-            runningBalance += credit - debit;
-            
-            return {
-                id: t.id,
-                date: t.date,
-                description: t.description,
-                credit,
-                debit,
-                balance: runningBalance,
-            };
-        });
+                return {
+                    id: t.id,
+                    date: t.date,
+                    description: t.description,
+                    credit,
+                    debit,
+                    balance: runningBalance,
+                };
+            });
         
         return { breakdown: breakdown.reverse(), finalBalance: runningBalance };
 
