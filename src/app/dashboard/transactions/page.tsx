@@ -339,37 +339,6 @@ export default function TransactionsPage() {
   const secondaryAccounts = accounts.filter(account => !account.isPrimary && (account.name.toLowerCase().includes('hdfc') || account.name.toLowerCase().includes('fed') || account.name.toLowerCase().includes('post') || account.name.toLowerCase().includes('money')));
   const otherAccounts = accounts.filter(account => !account.isPrimary && !secondaryAccounts.some(sa => sa.id === account.id));
 
-  const transactionCounts = useMemo(() => {
-    const counts: { [accountId: string]: number } = {};
-    if (!primaryAccount) return {};
-
-    const allAccountIdsForTabs = accounts.map(a => a.id);
-
-    for (const accId of allAccountIdsForTabs) {
-        if (!accId) continue;
-        const isPrimaryView = primaryAccount?.id === accId;
-        const count = allTransactions.filter(t => {
-            const fromAccountIsWallet = t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
-            const toAccountIsWallet = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
-            
-            const fromCurrentView = isPrimaryView ? (t.fromAccountId === accId || fromAccountIsWallet) : t.fromAccountId === accId;
-            const toCurrentView = isPrimaryView ? (t.toAccountId === accId || toAccountIsWallet) : t.toAccountId === accId;
-            
-            let accountIsInView = false;
-            if (t.type === 'expense' || t.type === 'income') {
-                accountIsInView = isPrimaryView 
-                    ? (t.accountId === accId || t.paymentMethod === 'cash' || t.paymentMethod === 'digital') 
-                    : t.accountId === accId;
-            }
-            
-            return fromCurrentView || toCurrentView || accountIsInView;
-        }).length;
-        counts[accId] = count;
-    }
-
-    return counts;
-  }, [allTransactions, accounts, primaryAccount]);
-
   const filteredTransactions = useMemo(() => {
     const isPrimaryView = primaryAccount?.id === activeTab;
     
@@ -622,7 +591,6 @@ export default function TransactionsPage() {
                     <div className="w-full flex justify-between">
                       <div className="flex items-center gap-2">
                         <span className="font-semibold text-lg">Primary ({primaryAccount.name})</span>
-                        {transactionCounts[primaryAccount.id] > 0 && <Badge variant="secondary">{transactionCounts[primaryAccount.id]}</Badge>}
                       </div>
                       <span className="font-bold text-2xl text-primary">{formatCurrency(allBalance)}</span>
                     </div>
@@ -716,7 +684,6 @@ export default function TransactionsPage() {
                           <div className="w-full flex justify-between items-center">
                               <div className="flex items-center gap-2">
                                 <span className="font-semibold text-sm">{account.name}</span>
-                                {transactionCounts[account.id] > 0 && <Badge variant="outline" className="text-current bg-transparent">{transactionCounts[account.id]}</Badge>}
                               </div>
                               <span onClick={(e) => { e.stopPropagation(); handleAccountClick(account); }} className="font-bold text-sm cursor-pointer hover:underline">{formatCurrency(account.balance)}</span>
                           </div>
@@ -756,7 +723,6 @@ export default function TransactionsPage() {
                           <div className="w-full flex justify-between items-center">
                               <div className="flex items-center gap-2">
                                 <span className="font-semibold text-sm">{account.name}</span>
-                                {transactionCounts[account.id] > 0 && <Badge variant="outline" className="text-current bg-transparent">{transactionCounts[account.id]}</Badge>}
                               </div>
                               <span onClick={(e) => { e.stopPropagation(); handleAccountClick(account); }} className="font-bold text-sm cursor-pointer hover:underline">{formatCurrency(account.balance)}</span>
                           </div>
@@ -903,8 +869,3 @@ export default function TransactionsPage() {
     </div>
   );
 }
-
-    
-
-    
-
