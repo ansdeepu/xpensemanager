@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
@@ -271,8 +272,10 @@ export default function TransactionsPage() {
         for (const transaction of sortedChronologically) {
              if (transaction.id === openingBalanceTx?.id) continue;
             let effect = 0;
-            if (transaction.paymentMethod === walletType && transaction.type === 'expense') {
-                effect = -transaction.amount;
+            if (transaction.type === 'expense') {
+              if (transaction.paymentMethod === walletType) {
+                  effect = -transaction.amount;
+              }
             } else if (transaction.type === 'transfer') {
                 if (transaction.fromAccountId === `${walletType}-wallet`) {
                     effect = -transaction.amount;
@@ -475,9 +478,13 @@ export default function TransactionsPage() {
 
             if (transaction.category !== 'Previous balance') {
                  if (transaction.type === 'income') {
-                    effect = transaction.amount;
+                    if (isPrimaryView ? (transaction.accountId === activeTab || transaction.accountId === 'cash-wallet' || transaction.accountId === 'digital-wallet') : transaction.accountId === activeTab) {
+                        effect = transaction.amount;
+                    }
                 } else if (transaction.type === 'expense') {
-                    effect = -transaction.amount;
+                    if (isPrimaryView ? (transaction.accountId === activeTab || transaction.paymentMethod === 'cash' || transaction.paymentMethod === 'digital') : transaction.accountId === activeTab) {
+                        effect = -transaction.amount;
+                    }
                 } else if (transaction.type === 'transfer') {
                     const fromCurrentView = isPrimaryView ? (transaction.fromAccountId === activeTab || transaction.fromAccountId === 'cash-wallet' || transaction.fromAccountId === 'digital-wallet') : transaction.fromAccountId === activeTab;
                     const toCurrentView = isPrimaryView ? (transaction.toAccountId === activeTab || transaction.toAccountId === 'cash-wallet' || transaction.toAccountId === 'digital-wallet') : transaction.toAccountId === activeTab;
@@ -590,6 +597,7 @@ export default function TransactionsPage() {
                     <div className="w-full flex justify-between">
                       <div className="flex items-center gap-2">
                         <span className="font-semibold text-lg">Primary ({primaryAccount.name})</span>
+                        <Badge variant="outline">{filteredTransactions.length}</Badge>
                       </div>
                       <span className="font-bold text-2xl text-primary">{formatCurrency(allBalance)}</span>
                     </div>
@@ -620,6 +628,32 @@ export default function TransactionsPage() {
                             </p>
                         )}
                       </div>
+                      
+                      {/* Digital Column */}
+                      <div className="space-y-2">
+                        <Label htmlFor="actual-balance-digital" className="text-xs">Digital</Label>
+                        <div onClick={(e) => { e.stopPropagation(); handleAccountClick('digital-wallet', 'Digital Wallet'); }} className="font-mono text-base cursor-pointer hover:underline">{formatCurrency(digitalWalletBalance)}</div>
+                        <Input
+                            id="actual-balance-digital"
+                            type="number"
+                            placeholder="Actual"
+                            className="hide-number-arrows h-7 text-left"
+                            defaultValue={walletPreferences.digital?.balance ?? ''}
+                            onChange={(e) => {
+                                const value = e.target.value === '' ? null : parseFloat(e.target.value)
+                                debouncedUpdateWallet('digital', { balance: value })
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                        />
+                        {digitalBalanceDifference !== null && (
+                            <p className={cn(
+                                "text-xs font-medium pt-1",
+                                 Math.abs(digitalBalanceDifference) < 0.01 ? "text-green-600" : "text-red-600"
+                            )}>
+                                Diff: {formatCurrency(digitalBalanceDifference)}
+                            </p>
+                        )}
+                      </div>
 
                       {/* Cash Column */}
                       <div className="space-y-2">
@@ -646,43 +680,19 @@ export default function TransactionsPage() {
                             </p>
                         )}
                       </div>
-
-                      {/* Digital Column */}
-                      <div className="space-y-2">
-                        <Label htmlFor="actual-balance-digital" className="text-xs">Digital</Label>
-                        <div onClick={(e) => { e.stopPropagation(); handleAccountClick('digital-wallet', 'Digital Wallet'); }} className="font-mono text-base cursor-pointer hover:underline">{formatCurrency(digitalWalletBalance)}</div>
-                        <Input
-                            id="actual-balance-digital"
-                            type="number"
-                            placeholder="Actual"
-                            className="hide-number-arrows h-7 text-left"
-                            defaultValue={walletPreferences.digital?.balance ?? ''}
-                            onChange={(e) => {
-                                const value = e.target.value === '' ? null : parseFloat(e.target.value)
-                                debouncedUpdateWallet('digital', { balance: value })
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                        />
-                        {digitalBalanceDifference !== null && (
-                            <p className={cn(
-                                "text-xs font-medium pt-1",
-                                 Math.abs(digitalBalanceDifference) < 0.01 ? "text-green-600" : "text-red-600"
-                            )}>
-                                Diff: {formatCurrency(digitalBalanceDifference)}
-                            </p>
-                        )}
-                      </div>
                     </div>
                   </TabsTrigger>
                 )}
                 <div className="grid grid-cols-2 gap-2 h-full content-stretch">
                   {secondaryAccounts.map((account, index) => {
                     const balanceDifference = getBalanceDifference(account.balance, account.actualBalance);
+                    const count = filteredTransactions.filter(t => t.accountId === account.id || t.fromAccountId === account.id || t.toAccountId === account.id).length;
                     return (
                       <TabsTrigger key={account.id} value={account.id} className={cn("border flex flex-col h-full p-2 items-start text-left gap-1 data-[state=active]:shadow-lg", tabColors[index % tabColors.length], textColors[index % textColors.length])}>
                           <div className="w-full flex justify-between items-center">
                               <div className="flex items-center gap-2">
                                 <span className="font-semibold text-sm">{account.name}</span>
+                                <Badge variant="outline" className="h-5">{count}</Badge>
                               </div>
                               <span onClick={(e) => { e.stopPropagation(); handleAccountClick(account); }} className="font-bold text-sm cursor-pointer hover:underline">{formatCurrency(account.balance)}</span>
                           </div>
@@ -717,11 +727,13 @@ export default function TransactionsPage() {
                   )})}
                   {otherAccounts.map((account, index) => {
                     const balanceDifference = getBalanceDifference(account.balance, account.actualBalance);
+                    const count = filteredTransactions.filter(t => t.accountId === account.id || t.fromAccountId === account.id || t.toAccountId === account.id).length;
                     return (
                       <TabsTrigger key={account.id} value={account.id} className={cn("border flex flex-col h-full p-2 items-start text-left gap-1 data-[state=active]:shadow-lg", tabColors[(secondaryAccounts.length + index) % tabColors.length], textColors[(secondaryAccounts.length + index) % textColors.length])}>
                           <div className="w-full flex justify-between items-center">
                               <div className="flex items-center gap-2">
                                 <span className="font-semibold text-sm">{account.name}</span>
+                                <Badge variant="outline" className="h-5">{count}</Badge>
                               </div>
                               <span onClick={(e) => { e.stopPropagation(); handleAccountClick(account); }} className="font-bold text-sm cursor-pointer hover:underline">{formatCurrency(account.balance)}</span>
                           </div>
