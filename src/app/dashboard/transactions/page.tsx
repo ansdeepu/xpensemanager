@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
@@ -303,7 +302,7 @@ export default function TransactionsPage() {
              if(transaction.category !== 'Previous balance') {
                 if (transaction.type === 'income' && transaction.accountId === acc.id) {
                   effect = transaction.amount;
-              } else if (transaction.type === 'expense' && transaction.accountId === acc.id) {
+              } else if (transaction.type === 'expense' && transaction.accountId === acc.id && transaction.paymentMethod === 'online') {
                   effect = -transaction.amount;
               } else if (transaction.type === 'transfer') {
                   if (transaction.fromAccountId === acc.id) {
