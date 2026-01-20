@@ -318,7 +318,7 @@ export default function TransactionsPage() {
         if (loan.transactions) {
             for (const tx of loan.transactions) {
                 if (tx.id) {
-                    map.set(tx.id, tx.type);
+                    map.set(tx.id, tx.id, tx.type);
                 }
             }
         }
@@ -508,26 +508,29 @@ export default function TransactionsPage() {
     }
 
     if (searchQuery) {
-        const lowercasedQuery = searchQuery.toLowerCase();
-        filtered = filtered.filter(t => {
-            const loanInfo = getLoanDisplayInfo(t);
-            const accountName = t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} -> ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod);
-            const balance = transactionBalanceMap.get(t.id);
-            const balanceString = balance !== undefined ? formatCurrency(balance) : '';
-            const amountString = formatCurrency(t.amount);
+      const lowercasedQuery = searchQuery.toLowerCase();
+      filtered = filtered.filter(t => {
+        const loanInfo = getLoanDisplayInfo(t);
+        const accountName = t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} -> ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod);
+        const balance = transactionBalanceMap.get(t.id);
+        const balanceString = balance !== undefined ? formatCurrency(balance) : '';
+        const amountString = formatCurrency(t.amount);
 
-            return (
-                (t.date && format(new Date(t.date), 'dd/MM/yy').toLowerCase().includes(lowercasedQuery)) ||
-                (loanInfo.description && loanInfo.description.toLowerCase().includes(lowercasedQuery)) ||
-                (loanInfo.type && loanInfo.type.toLowerCase().includes(lowercasedQuery)) ||
-                (accountName && accountName.toLowerCase().includes(lowercasedQuery)) ||
-                (loanInfo.category && loanInfo.category.toLowerCase().includes(lowercasedQuery)) ||
-                (t.subcategory && t.subcategory.toLowerCase().includes(lowercasedQuery)) ||
-                (amountString && amountString.toLowerCase().includes(lowercasedQuery)) ||
-                (balanceString && balanceString.toLowerCase().includes(lowercasedQuery)) ||
-                (t.amount && t.amount.toString().includes(lowercasedQuery))
-            );
-        });
+        const description = loanInfo.description || t.description;
+        const category = loanInfo.category || t.category;
+
+        return (
+            (t.date && format(new Date(t.date), 'dd/MM/yy').toLowerCase().includes(lowercasedQuery)) ||
+            (description && description.toLowerCase().includes(lowercasedQuery)) ||
+            (loanInfo.type && loanInfo.type.toLowerCase().includes(lowercasedQuery)) ||
+            (accountName && accountName.toLowerCase().includes(lowercasedQuery)) ||
+            (category && category.toLowerCase().includes(lowercasedQuery)) ||
+            (t.subcategory && t.subcategory.toLowerCase().includes(lowercasedQuery)) ||
+            (amountString && amountString.toLowerCase().includes(lowercasedQuery)) ||
+            (balanceString && balanceString.toLowerCase().includes(lowercasedQuery)) ||
+            (t.amount && t.amount.toString().includes(lowercasedQuery))
+        );
+      });
     }
     
     const getTransactionSortOrder = (t: Transaction) => {
@@ -645,9 +648,9 @@ export default function TransactionsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:items-stretch">
         <div className="lg:col-span-2">
           <Tabs defaultValue={primaryAccount?.id || "all-accounts"} value={activeTab} onValueChange={setActiveTab} className="w-full h-full">
-            <TabsList className="grid grid-cols-1 sm:grid-cols-2 gap-2 h-auto items-stretch p-0 bg-transparent print-hide">
+            <TabsList className="grid grid-cols-1 md:grid-cols-5 gap-2 h-auto items-stretch p-0 bg-transparent print-hide">
                 {primaryAccount && (
-                  <TabsTrigger value={primaryAccount.id} className={cn("border flex flex-col h-full p-4 items-start text-left gap-4 w-full data-[state=active]:shadow-lg data-[state=active]:bg-lime-100 dark:data-[state=active]:bg-lime-900/50", "bg-card")}>
+                  <TabsTrigger value={primaryAccount.id} className={cn("md:col-span-3 border flex flex-col h-full p-4 items-start text-left gap-4 w-full data-[state=active]:shadow-lg data-[state=active]:bg-lime-100 dark:data-[state=active]:bg-lime-900/50", "bg-card")}>
                     <div className="w-full flex justify-between">
                       <div className="flex items-center gap-2">
                         <span className="font-semibold text-lg">Primary ({primaryAccount.name})</span>
@@ -656,7 +659,7 @@ export default function TransactionsPage() {
                     </div>
                     
                     <div className="w-full text-left py-4">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                             {/* Bank Column */}
                             <div className="space-y-2">
                                 <Label htmlFor={`actual-balance-${primaryAccount.id}`} className="text-xs">Bank Balance</Label>
@@ -767,7 +770,7 @@ export default function TransactionsPage() {
                     </div>
                   </TabsTrigger>
                 )}
-                <div className="grid grid-cols-2 gap-2 h-full content-stretch">
+                <div className="md:col-span-2 grid grid-cols-2 gap-2 h-full content-stretch">
                   {[...secondaryAccounts, ...otherAccounts].map((account, index) => {
                     const balanceDifference = getBalanceDifference(account.balance, account.actualBalance);
                     return (
@@ -921,5 +924,7 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+    
 
     
