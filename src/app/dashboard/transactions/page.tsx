@@ -645,8 +645,7 @@ export default function TransactionsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:items-stretch">
-        <div className="lg:col-span-2">
+      <div>
           <Tabs defaultValue={primaryAccount?.id || "all-accounts"} value={activeTab} onValueChange={setActiveTab} className="w-full h-full">
             <TabsList className="grid grid-cols-1 md:grid-cols-5 gap-2 h-auto items-stretch p-0 bg-transparent print-hide">
                 {primaryAccount && (
@@ -813,93 +812,64 @@ export default function TransactionsPage() {
                 </div>
             </TabsList>
           </Tabs>
-        </div>
-        <div className="lg:col-span-1">
-            <Card className="print-hide h-full">
-                <CardContent className="pt-4">
-                    <div className="flex flex-col gap-2">
-                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                           <div className="space-y-1">
-                                <Label htmlFor="reconciliation-date-input" className="text-xs flex items-center gap-2">
-                                    <CalendarIcon className="h-4 w-4 text-red-600" />
-                                    Reconciliation Date
-                                </Label>
-                                <Input
-                                    id="reconciliation-date-input"
-                                    type="date"
-                                    value={reconciliationDate ? format(reconciliationDate, 'yyyy-MM-dd') : ''}
-                                    onChange={(e) => {
-                                        const dateValue = e.target.value;
-                                        const newDate = dateValue ? new Date(dateValue) : undefined;
-                                        if (newDate) {
-                                            const timezoneOffset = newDate.getTimezoneOffset() * 60000;
-                                            handleReconciliationDateChange(new Date(newDate.getTime() + timezoneOffset));
-                                        } else {
-                                            handleReconciliationDateChange(undefined);
-                                        }
-                                    }}
-                                    className="w-full h-9"
-                                />
-                            </div>
-                            <div className="space-y-1">
-                                <Label htmlFor="search-input" className="text-xs">Search Transactions</Label>
-                                <div className="relative flex-grow">
-                                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                    id="search-input"
-                                    type="search"
-                                    placeholder="Search..."
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="w-full rounded-lg bg-background pl-8 h-9"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="space-y-1">
-                             <Label className="text-xs">Filter by Date Range</Label>
-                             <div className="grid grid-cols-[1fr_auto_1fr] sm:flex items-center gap-2">
-                                <Input
-                                type="date"
-                                value={startDate}
-                                onChange={(e) => setStartDate(e.target.value)}
-                                className="w-full h-9"
-                                />
-                                <span className="text-muted-foreground text-xs">to</span>
-                                <Input
-                                type="date"
-                                value={endDate}
-                                onChange={(e) => setEndDate(e.target.value)}
-                                className="w-full h-9"
-                                min={startDate}
-                                />
-                            </div>
-                        </div>
-                        
-                        <div className="flex flex-wrap items-center justify-start gap-2 pt-1">
-                            <Button onClick={handleClearFilters} variant="outline" size="sm">
-                                <XCircle className="mr-2 h-4 w-4" />
-                                Clear
-                            </Button>
-                            <Button onClick={handlePrint} variant="outline" size="sm">
-                                <Printer className="mr-2 h-4 w-4" />
-                                Print
-                            </Button>
-                            <AddTransactionDialog accounts={accountDataForDialog}>
-                                <Button size="sm">
-                                    <PlusCircle className="mr-2 h-4 w-4" />
-                                    Add
-                                </Button>
-                            </AddTransactionDialog>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-        </div>
       </div>
       
       <Card>
+        <div className="flex flex-wrap items-end gap-4 p-4 border-b print-hide">
+          <div className="space-y-1 flex-grow md:max-w-xs">
+              <Label htmlFor="search-input" className="text-xs">Search Transactions</Label>
+              <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input id="search-input" type="search" placeholder="Search..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full rounded-lg bg-background pl-8 h-9" />
+              </div>
+          </div>
+          <div className="space-y-1">
+              <Label className="text-xs">Filter by Date Range</Label>
+              <div className="flex items-center gap-2">
+                  <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full h-9" aria-label="Start Date" />
+                  <span className="text-muted-foreground text-xs">to</span>
+                  <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full h-9" min={startDate} aria-label="End Date" />
+              </div>
+          </div>
+          <div className="space-y-1">
+              <Label htmlFor="reconciliation-date-input" className="text-xs flex items-center gap-2">
+                  <CalendarIcon className="h-4 w-4 text-red-600" />
+                  Reconciliation Date
+              </Label>
+              <Input
+                  id="reconciliation-date-input"
+                  type="date"
+                  value={reconciliationDate ? format(reconciliationDate, 'yyyy-MM-dd') : ''}
+                  onChange={(e) => {
+                          const dateValue = e.target.value;
+                          const newDate = dateValue ? new Date(dateValue) : undefined;
+                          if (newDate) {
+                              const timezoneOffset = newDate.getTimezoneOffset() * 60000;
+                              handleReconciliationDateChange(new Date(newDate.getTime() + timezoneOffset));
+                          } else {
+                              handleReconciliationDateChange(undefined);
+                          }
+                      }}
+                  className="w-full h-9"
+              />
+          </div>
+          <div className="flex items-center gap-2">
+              <Button onClick={handleClearFilters} variant="outline" size="sm">
+                  <XCircle className="mr-2 h-4 w-4" />
+                  Clear
+              </Button>
+              <Button onClick={handlePrint} variant="outline" size="sm">
+                  <Printer className="mr-2 h-4 w-4" />
+                  Print
+              </Button>
+              <AddTransactionDialog accounts={accountDataForDialog}>
+                  <Button size="sm">
+                      <PlusCircle className="mr-2 h-4 w-4" />
+                      Add
+                  </Button>
+              </AddTransactionDialog>
+          </div>
+        </div>
         <div className="relative h-[calc(100vh_-_22rem)] overflow-auto">
           <TransactionTable 
               transactions={pagedTransactions} 
@@ -924,7 +894,5 @@ export default function TransactionsPage() {
     </div>
   );
 }
-
-    
 
     
