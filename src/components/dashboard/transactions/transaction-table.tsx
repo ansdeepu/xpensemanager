@@ -92,11 +92,13 @@ const evaluateMath = (expression: string): number | null => {
 export function TransactionTable({
   transactions,
   accountId,
+  primaryAccount,
   currentPage,
   itemsPerPage,
 }: {
   transactions: (Transaction & { balance: number })[];
   accountId: string;
+  primaryAccount: Account | undefined;
   currentPage: number;
   itemsPerPage: number;
 }) {
@@ -156,7 +158,7 @@ export function TransactionTable({
         return account.name;
       };
 
-    const primaryAccount = useMemo(() => accounts.find(a => a.isPrimary), [accounts]);
+    const primaryAccountFromProps = useMemo(() => accounts.find(a => a.isPrimary), [accounts]);
     
     const getLoanDisplayInfo = useMemo(() => {
         return (t: Transaction) => {
@@ -189,11 +191,24 @@ export function TransactionTable({
                 if (t.toAccountId === 'cash-wallet' && !fromIsWallet) {
                     return { ...defaultInfo, type: 'withdraw' as const };
                 }
+
+                const primaryEcosystemIds = new Set([
+                    primaryAccount?.id,
+                    'cash-wallet',
+                    'digital-wallet'
+                ].filter(Boolean));
+    
+                const fromInPrimary = primaryEcosystemIds.has(t.fromAccountId);
+                const toInPrimary = primaryEcosystemIds.has(t.toAccountId);
+    
+                if (fromInPrimary && toInPrimary) {
+                     return { ...defaultInfo, type: 'movement' as const };
+                }
             }
             
             return defaultInfo;
         };
-    }, [loans]);
+    }, [loans, primaryAccount]);
     
 
   const transactionsWithColumns = useMemo(() => {
@@ -429,7 +444,7 @@ export function TransactionTable({
     setIsEditDialogOpen(true);
   };
   
-  const getBadgeVariant = (type: Transaction['type'] | 'loan' | 'repayment' | 'withdraw') => {
+  const getBadgeVariant = (type: Transaction['type'] | 'loan' | 'repayment' | 'withdraw' | 'movement') => {
     switch (type) {
       case 'income':
         return 'default';
@@ -439,6 +454,7 @@ export function TransactionTable({
       case 'loan':
       case 'repayment':
       case 'withdraw':
+      case 'movement':
       default:
         return 'secondary';
     }
