@@ -311,6 +311,22 @@ export default function TransactionsPage() {
   const secondaryAccounts = bankAccounts.filter(account => (account.name.toLowerCase().includes('hdfc') || account.name.toLowerCase().includes('fed') || account.name.toLowerCase().includes('post') || account.name.toLowerCase().includes('money')));
   const otherAccounts = bankAccounts.filter(account => !secondaryAccounts.some(sa => sa.id === account.id));
 
+  const loanTransactionTypeMap = useMemo(() => {
+    const map = new Map<string, 'loan' | 'repayment'>();
+    if (loans) {
+      for (const loan of loans) {
+        if (loan.transactions) {
+            for (const tx of loan.transactions) {
+                if (tx.id) {
+                    map.set(tx.id, tx.type);
+                }
+            }
+        }
+      }
+    }
+    return map;
+  }, [loans]);
+
     const transactionBalanceMap = useMemo(() => {
         const balances = new Map<string, number>();
         if (!activeTab) return balances;
@@ -332,19 +348,6 @@ export default function TransactionsPage() {
             }
             return fromCurrentView || toCurrentView || accountIsInView;
         });
-
-        const loanTransactionTypeMap = new Map<string, 'loan' | 'repayment'>();
-        if (loans) {
-          for (const loan of loans) {
-            if (loan.transactions) {
-                for (const tx of loan.transactions) {
-                    if (tx.id) {
-                        loanTransactionTypeMap.set(tx.id, tx.type);
-                    }
-                }
-            }
-          }
-        }
 
         const getTransactionSortOrder = (t: Transaction) => {
              if (t.loanTransactionId && loanTransactionTypeMap.has(t.loanTransactionId)) {
@@ -420,7 +423,7 @@ export default function TransactionsPage() {
         
         return balances;
 
-    }, [allTransactions, activeTab, primaryAccount, loans]);
+    }, [allTransactions, activeTab, primaryAccount, loans, loanTransactionTypeMap]);
 
   const getAccountName = useCallback((accountId?: string, paymentMethod?: Transaction['paymentMethod']) => {
     if (accountId === 'cash-wallet' || paymentMethod === 'cash') return "Cash Wallet";
@@ -527,19 +530,6 @@ export default function TransactionsPage() {
         });
     }
     
-    const loanTransactionTypeMap = new Map<string, 'loan' | 'repayment'>();
-    if (loans) {
-      for (const loan of loans) {
-        if (loan.transactions) {
-            for (const tx of loan.transactions) {
-                if (tx.id) {
-                    loanTransactionTypeMap.set(tx.id, tx.type);
-                }
-            }
-        }
-      }
-    }
-
     const getTransactionSortOrder = (t: Transaction) => {
         if (t.loanTransactionId && loanTransactionTypeMap.has(t.loanTransactionId)) {
             const loanType = loanTransactionTypeMap.get(t.loanTransactionId);
@@ -569,7 +559,7 @@ export default function TransactionsPage() {
       // Fallback sort for same type on same day, e.g., by amount
       return b.amount - a.amount;
     });
-  }, [allTransactions, activeTab, startDate, endDate, searchQuery, primaryAccount, getLoanDisplayInfo, getAccountName, transactionBalanceMap, loans]);
+  }, [allTransactions, activeTab, startDate, endDate, searchQuery, primaryAccount, getLoanDisplayInfo, getAccountName, transactionBalanceMap, loans, loanTransactionTypeMap]);
 
     const transactionsWithRunningBalance = useMemo(() => {
         return filteredTransactions.map(transaction => {
@@ -665,8 +655,8 @@ export default function TransactionsPage() {
                       <span className="font-bold text-2xl text-primary">{formatCurrency(allBalance)}</span>
                     </div>
                     
-                    <div className="w-full space-y-4 text-left py-4">
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                    <div className="w-full text-left py-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                             {/* Bank Column */}
                             <div className="space-y-2">
                                 <Label htmlFor={`actual-balance-${primaryAccount.id}`} className="text-xs">Bank Balance</Label>
@@ -744,48 +734,36 @@ export default function TransactionsPage() {
                                     </p>
                                 )}
                             </div>
+                             {creditCards.map(card => {
+                                const balanceDifference = getBalanceDifference(card.balance, card.actualBalance);
+                                return (
+                                    <div key={card.id} className="space-y-2">
+                                        <Label htmlFor={`actual-balance-${card.id}`} className="text-xs">{card.name}</Label>
+                                        <div onClick={(e) => { e.stopPropagation(); handleAccountClick(card); }} className="font-mono text-base cursor-pointer hover:underline">{formatCurrency(card.balance)}</div>
+                                        <Input
+                                            id={`actual-balance-${card.id}`}
+                                            type="number"
+                                            placeholder="Actual"
+                                            className="hide-number-arrows h-7 text-left"
+                                            defaultValue={card.actualBalance ?? ''}
+                                            onChange={(e) => {
+                                                const value = e.target.value === '' ? null : parseFloat(e.target.value)
+                                                debouncedUpdateAccount(card.id, { actualBalance: value });
+                                            }}
+                                            onClick={(e) => e.stopPropagation()}
+                                        />
+                                        {balanceDifference !== null && (
+                                            <p className={cn(
+                                                "text-xs font-medium pt-1",
+                                                Math.abs(balanceDifference) < 0.01 ? "text-green-600" : "text-red-600"
+                                            )}>
+                                                Diff: {formatCurrency(balanceDifference)}
+                                            </p>
+                                        )}
+                                    </div>
+                                )
+                            })}
                         </div>
-                        
-                        {creditCards.length > 0 && (
-                            <div>
-                                <Label className="text-xs font-semibold">Credit Card Balances</Label>
-                                <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-                                    {creditCards.map(card => {
-                                        const balanceDifference = getBalanceDifference(card.balance, card.actualBalance);
-                                        return (
-                                            <div key={card.id} className="p-2 rounded-md border bg-muted/50">
-                                                <div className="flex justify-between items-center">
-                                                <span className="font-semibold text-sm">{card.name}</span>
-                                                <span className="font-mono text-sm cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); handleAccountClick(card); }}>{formatCurrency(card.balance)}</span>
-                                                </div>
-                                                <div className="flex items-center justify-between gap-2 mt-2">
-                                                <Label htmlFor={`actual-balance-${card.id}`} className="text-xs flex-shrink-0">Actual</Label>
-                                                <Input
-                                                    id={`actual-balance-${card.id}`}
-                                                    type="number"
-                                                    placeholder="Actual"
-                                                    className="hide-number-arrows h-6 text-xs w-20 text-right"
-                                                    defaultValue={card.actualBalance ?? ''}
-                                                    onChange={(e) => {
-                                                        const value = e.target.value === '' ? null : parseFloat(e.target.value)
-                                                        debouncedUpdateAccount(card.id, { actualBalance: value });
-                                                    }}
-                                                    onClick={(e) => e.stopPropagation()}
-                                                />
-                                                </div>
-                                                {balanceDifference !== null && (
-                                                <div className="w-full flex justify-end mt-1">
-                                                    <p className={cn("text-xs font-medium", Math.abs(balanceDifference) < 0.01 ? "text-green-600" : "text-red-600")}>
-                                                    Diff: {formatCurrency(balanceDifference)}
-                                                    </p>
-                                                </div>
-                                                )}
-                                            </div>
-                                        )
-                                    })}
-                                </div>
-                            </div>
-                        )}
                     </div>
                   </TabsTrigger>
                 )}
@@ -943,3 +921,5 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+    
