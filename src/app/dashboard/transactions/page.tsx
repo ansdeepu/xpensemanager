@@ -865,7 +865,7 @@ export default function TransactionsPage() {
                   <Printer className="h-4 w-4" />
               </Button>
               <AddTransactionDialog accounts={accountDataForDialog}>
-                  <Button>
+                  <Button className="w-24">
                       <PlusCircle className="mr-2 h-4 w-4" />
                       Add
                   </Button>
