@@ -816,45 +816,6 @@ export default function TransactionsPage() {
                           </div>
                       </TabsTrigger>
                   )})}
-                   {creditCards.filter(c => c.id !== primaryAccount?.id).map((account, index) => {
-                    const balanceDifference = getBalanceDifference(account.balance, account.actualBalance);
-                    return (
-                      <TabsTrigger key={account.id} value={account.id} className={cn("border flex flex-col h-full p-2 items-start text-left gap-1 data-[state=active]:shadow-lg bg-orange-100 dark:bg-orange-900/50 text-orange-800 dark:text-orange-200")}>
-                          <div className="w-full flex justify-between items-center">
-                              <div className="flex items-center gap-2">
-                                <span className="font-semibold text-sm">{account.name}</span>
-                              </div>
-                              <span onClick={(e) => { e.stopPropagation(); handleAccountClick(account); }} className="font-bold text-sm cursor-pointer hover:underline">{formatCurrency(account.balance)}</span>
-                          </div>
-                          <div className="w-full space-y-1">
-                              <div className="flex items-center justify-between gap-2">
-                                <Label htmlFor={`actual-balance-${account.id}`} className="text-xs flex-shrink-0">Actual</Label>
-                                <Input
-                                    id={`actual-balance-${account.id}`}
-                                    type="number"
-                                    placeholder="Actual"
-                                    className="hide-number-arrows h-6 text-xs w-20 text-right"
-                                    defaultValue={account.actualBalance ?? ''}
-                                    onChange={(e) => {
-                                        const value = e.target.value === '' ? null : parseFloat(e.target.value)
-                                        debouncedUpdateAccount(account.id, { actualBalance: value });
-                                    }}
-                                    onClick={(e) => e.stopPropagation()}
-                                />
-                              </div>
-                              {balanceDifference !== null && (
-                                  <div className="w-full flex justify-end">
-                                      <p className={cn(
-                                          "text-xs font-medium",
-                                          Math.abs(balanceDifference) < 0.01 ? "text-green-600" : "text-red-600"
-                                      )}>
-                                          Diff: {formatCurrency(balanceDifference)}
-                                      </p>
-                                  </div>
-                              )}
-                          </div>
-                      </TabsTrigger>
-                  )})}
                 </div>
             </TabsList>
           </Tabs>
@@ -969,5 +930,7 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+    
 
     
