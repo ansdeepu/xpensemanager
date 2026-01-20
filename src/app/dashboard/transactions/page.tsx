@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
@@ -462,33 +463,46 @@ export default function TransactionsPage() {
     return (t: Transaction) => {
         const defaultInfo = { isLoan: false, type: t.type, category: t.category, description: t.description, descriptionClassName: "" };
 
-        if (t.type !== 'transfer' || !t.loanTransactionId) {
-            return defaultInfo;
-        }
-
-        const loan = loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId));
+        if (t.type === 'transfer') {
+            if (t.loanTransactionId) {
+                const loan = loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId));
         
-        if (loan) {
-            const loanTx = loan.transactions.find(lt => lt.id === t.loanTransactionId)!;
-            const otherPartyName = loan.personName;
-            
-            const isLoanTaken = loan.type === 'taken';
-            const isRepayment = loanTx.type === 'repayment';
-            let descriptionPrefix = '';
+                if (loan) {
+                    const loanTx = loan.transactions.find(lt => lt.id === t.loanTransactionId)!;
+                    const otherPartyName = loan.personName;
+                    
+                    const isLoanTaken = loan.type === 'taken';
+                    const isRepayment = loanTx.type === 'repayment';
+                    let descriptionPrefix = '';
 
-            if (isLoanTaken) {
-                descriptionPrefix = isRepayment ? 'Repayment to' : 'Loan from';
-            } else { // 'given'
-                descriptionPrefix = isRepayment ? 'Repayment from' : 'Loan to';
+                    if (isLoanTaken) {
+                        descriptionPrefix = isRepayment ? 'Repayment to' : 'Loan from';
+                    } else { // 'given'
+                        descriptionPrefix = isRepayment ? 'Repayment from' : 'Loan to';
+                    }
+                    
+                    const description = `${descriptionPrefix} ${otherPartyName}`;
+                    return { isLoan: true, type: loanTx.type, category: 'Loan', description, descriptionClassName: 'text-orange-600 font-bold' };
+                }
             }
-            
-            const description = `${descriptionPrefix} ${otherPartyName}`;
-            return { isLoan: true, type: loanTx.type, category: 'Loan', description, descriptionClassName: 'text-orange-600 font-bold' };
+
+            const fromIsPrimaryBank = t.fromAccountId === primaryAccount?.id;
+            const toIsPrimaryBank = t.toAccountId === primaryAccount?.id;
+            const fromIsWallet = t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
+            const toIsWallet = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
+
+            if (fromIsPrimaryBank && toIsWallet) {
+                return { ...defaultInfo, type: 'issue' as const };
+            }
+
+            if (fromIsWallet && toIsPrimaryBank) {
+                return { ...defaultInfo, type: 'return' as const };
+            }
         }
         
         return defaultInfo;
     };
-  }, [loans]);
+  }, [loans, primaryAccount]);
 
   const filteredTransactions = useMemo(() => {
     const isPrimaryView = primaryAccount?.id === activeTab;
@@ -553,22 +567,18 @@ export default function TransactionsPage() {
     }
     
     const getTransactionSortOrder = (t: Transaction) => {
-        const fromIsWallet = t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
-        const isWithdraw = t.type === 'transfer' && !t.loanTransactionId && t.toAccountId === 'cash-wallet' && !fromIsWallet;
-
         // INFLOWS
         if (t.type === 'income') return 1;
-        if (t.loanTransactionId && loanInfoMap.get(t.loanTransactionId) === 'loan' && loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId))?.type === 'taken') return 2; // Loan Taken
-        if (t.loanTransactionId && loanInfoMap.get(t.loanTransactionId) === 'repayment' && loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId))?.type === 'given') return 3; // Repayment Received
+        if (t.loanTransactionId && loanInfoMap.get(t.loanTransactionId)?.transactionType === 'loan' && loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId))?.type === 'taken') return 2; // Loan Taken
+        if (t.loanTransactionId && loanInfoMap.get(t.loanTransactionId)?.transactionType === 'repayment' && loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId))?.type === 'given') return 3; // Repayment Received
 
         // OUTFLOWS
         if (t.type === 'expense') return 4;
-        if (t.loanTransactionId && loanInfoMap.get(t.loanTransactionId) === 'loan' && loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId))?.type === 'given') return 5; // Loan Given
-        if (t.loanTransactionId && loanInfoMap.get(t.loanTransactionId) === 'repayment' && loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId))?.type === 'taken') return 6; // Repayment Made
+        if (t.loanTransactionId && loanInfoMap.get(t.loanTransactionId)?.transactionType === 'loan' && loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId))?.type === 'given') return 5; // Loan Given
+        if (t.loanTransactionId && loanInfoMap.get(t.loanTransactionId)?.transactionType === 'repayment' && loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId))?.type === 'taken') return 6; // Repayment Made
         
         // NEUTRAL/OTHER
         if (t.type === 'transfer') {
-            if (isWithdraw) return 8; // Withdrawals last among transfers
             return 7;
         }
 
@@ -673,15 +683,86 @@ export default function TransactionsPage() {
 
   return (
     <div className="space-y-6">
+      <div className="flex flex-wrap items-end gap-4 p-4 border-b print-hide">
+        <div className="space-y-1">
+            <Label htmlFor="reconciliation-date-input" className="text-xs flex items-center gap-2">
+                <CalendarIcon className="h-4 w-4 text-red-600" />
+                Reconciliation Date
+            </Label>
+            <Input
+                id="reconciliation-date-input"
+                type="date"
+                value={reconciliationDate ? format(reconciliationDate, 'yyyy-MM-dd') : ''}
+                onChange={(e) => {
+                    const dateValue = e.target.value;
+                    const newDate = dateValue ? new Date(dateValue) : undefined;
+                    if (newDate) {
+                        const timezoneOffset = newDate.getTimezoneOffset() * 60000;
+                        handleReconciliationDateChange(new Date(newDate.getTime() + timezoneOffset));
+                    } else {
+                        handleReconciliationDateChange(undefined);
+                    }
+                }}
+                className="w-full h-9"
+            />
+        </div>
+        <div className="space-y-1 flex-grow">
+            <Label htmlFor="search-input" className="text-xs">Search Transactions</Label>
+            <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                id="search-input"
+                type="search"
+                placeholder="Search..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full rounded-lg bg-background pl-8 h-9"
+                />
+            </div>
+        </div>
+        <div className="space-y-1 flex-grow">
+              <Label className="text-xs">Filter by Date Range</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full h-9"
+                />
+                <span className="text-muted-foreground text-xs">to</span>
+                <Input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-full h-9"
+                min={startDate}
+                />
+            </div>
+        </div>
+        <div className="flex items-center gap-2 pt-1">
+            <Button onClick={handleClearFilters} variant="outline" size="icon" className="h-9 w-9">
+                <XCircle className="h-4 w-4" />
+            </Button>
+              <Button onClick={handlePrint} variant="outline" size="icon" className="h-9 w-9">
+                <Printer className="h-4 w-4" />
+            </Button>
+            <AddTransactionDialog accounts={accountDataForDialog}>
+                <Button className="w-40">
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Add Transaction
+                </Button>
+            </AddTransactionDialog>
+        </div>
+      </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:items-stretch">
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-3">
           <Tabs defaultValue={primaryAccount?.id || "all-accounts"} value={activeTab} onValueChange={setActiveTab} className="w-full h-full">
-            <TabsList className="grid grid-cols-1 md:grid-cols-2 gap-2 h-auto items-stretch p-0 bg-transparent print-hide">
+            <TabsList className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 h-auto items-stretch p-0 bg-transparent print-hide">
                 {primaryAccount && (
                   <TabsTrigger value={primaryAccount.id} className={cn("border flex flex-col h-full p-4 items-start text-left gap-4 w-full data-[state=active]:shadow-lg data-[state=active]:bg-lime-100 dark:data-[state=active]:bg-lime-900/50", "bg-card")}>
                     <div className="w-full flex justify-between">
                       <span className="font-semibold text-lg">Primary ({primaryAccount.name})</span>
-                      <span className="font-bold text-base text-primary">{formatCurrency(allBalance)}</span>
+                      <span className="font-bold text-xl text-primary">{formatCurrency(allBalance)}</span>
                     </div>
                     
                     <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-6 text-left py-4">
@@ -765,64 +846,25 @@ export default function TransactionsPage() {
                     </div>
                   </TabsTrigger>
                 )}
-                <div className="grid grid-cols-2 gap-2 h-full content-stretch">
-                    {creditCards.map((account, index) => {
-                        const calculatedDue = account.balance; // 'balance' for cards is now due amount
-                        const balanceDifference = account.actualBalance !== undefined && account.actualBalance !== null ? calculatedDue - account.actualBalance : null;
-                        return (
-                          <TabsTrigger key={account.id} value={account.id} className={cn("border flex flex-col h-full p-2 items-start text-left gap-1 data-[state=active]:shadow-lg", tabColors[index % tabColors.length], textColors[index % textColors.length])}>
-                              <div className="w-full flex justify-between items-center">
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-semibold text-sm">{account.name}</span>
-                                  </div>
-                                  <span onClick={(e) => { e.stopPropagation(); handleAccountClick(account); }} className="font-bold text-base cursor-pointer hover:underline">{formatCurrency(calculatedDue)}</span>
-                              </div>
-                              <p className="text-xs text-muted-foreground">Available: {formatCurrency((account.limit || 0) - calculatedDue)} of {formatCurrency(account.limit || 0)}</p>
-                              <div className="w-full space-y-1">
-                                  <div className="flex items-center justify-between gap-2">
-                                    <Label htmlFor={`actual-balance-${account.id}`} className="text-xs flex-shrink-0">Actual Due</Label>
-                                    <Input
-                                        id={`actual-balance-${account.id}`}
-                                        type="number"
-                                        placeholder="Actual Due"
-                                        className="hide-number-arrows h-7 text-xs w-24 text-right"
-                                        defaultValue={account.actualBalance ?? ''}
-                                        onChange={(e) => {
-                                            const value = e.target.value === '' ? null : parseFloat(e.target.value)
-                                            debouncedUpdateAccount(account.id, { actualBalance: value });
-                                        }}
-                                        onClick={(e) => e.stopPropagation()}
-                                    />
-                                  </div>
-                                  {balanceDifference !== null && (
-                                      <div className="w-full flex justify-end">
-                                          <p className={cn(
-                                              "text-xs font-medium",
-                                              Math.abs(balanceDifference) < 0.01 ? "text-green-600" : "text-red-600"
-                                          )}>
-                                              Diff: {formatCurrency(balanceDifference)}
-                                          </p>
-                                      </div>
-                                  )}
-                              </div>
-                          </TabsTrigger>
-                        )
-                    })}
-                  {[...secondaryAccounts, ...otherAccounts].map((account, index) => {
-                    const balanceDifference = getBalanceDifference(account.balance, account.actualBalance);
+                {creditCards.map((account, index) => {
+                    const calculatedDue = account.balance; // 'balance' for cards is now due amount
+                    const balanceDifference = getBalanceDifference(calculatedDue, account.actualBalance);
                     return (
-                      <TabsTrigger key={account.id} value={account.id} className={cn("border flex flex-col h-full p-2 items-start text-left gap-1 data-[state=active]:shadow-lg", tabColors[(creditCards.length + index) % tabColors.length], textColors[(creditCards.length + index) % textColors.length])}>
+                      <TabsTrigger key={account.id} value={account.id} className={cn("border flex flex-col h-full p-2 items-start text-left gap-1 data-[state=active]:shadow-lg", tabColors[index % tabColors.length], textColors[index % textColors.length])}>
                           <div className="w-full flex justify-between items-center">
-                              <span className="font-semibold text-sm">{account.name}</span>
-                              <span onClick={(e) => { e.stopPropagation(); handleAccountClick(account); }} className="font-bold text-base cursor-pointer hover:underline">{formatCurrency(account.balance)}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold text-sm">{account.name}</span>
+                              </div>
+                              <span onClick={(e) => { e.stopPropagation(); handleAccountClick(account); }} className="font-bold text-base cursor-pointer hover:underline">{formatCurrency(calculatedDue)}</span>
                           </div>
-                          <div className="w-full space-y-1">
+                           <p className="text-xs text-muted-foreground">Available: {formatCurrency((account.limit || 0) - calculatedDue)} of {formatCurrency(account.limit || 0)}</p>
+                          <div className="w-full space-y-1 mt-auto pt-2">
                               <div className="flex items-center justify-between gap-2">
-                                <Label htmlFor={`actual-balance-${account.id}`} className="text-xs flex-shrink-0">Actual</Label>
+                                <Label htmlFor={`actual-balance-${account.id}`} className="text-xs flex-shrink-0">Actual Due</Label>
                                 <Input
                                     id={`actual-balance-${account.id}`}
                                     type="number"
-                                    placeholder="Actual"
+                                    placeholder="Actual Due"
                                     className="hide-number-arrows h-7 text-xs w-24 text-right"
                                     defaultValue={account.actualBalance ?? ''}
                                     onChange={(e) => {
@@ -844,91 +886,47 @@ export default function TransactionsPage() {
                               )}
                           </div>
                       </TabsTrigger>
-                  )})}
-                </div>
+                    )
+                })}
+                {[...secondaryAccounts, ...otherAccounts].map((account, index) => {
+                    const balanceDifference = getBalanceDifference(account.balance, account.actualBalance);
+                    return (
+                        <TabsTrigger key={account.id} value={account.id} className={cn("border flex flex-col h-full p-2 items-start text-left gap-1 data-[state=active]:shadow-lg", tabColors[(creditCards.length + index) % tabColors.length], textColors[(creditCards.length + index) % textColors.length])}>
+                            <div className="w-full flex justify-between items-center">
+                                <span className="font-semibold text-sm">{account.name}</span>
+                                <span onClick={(e) => { e.stopPropagation(); handleAccountClick(account); }} className="font-bold text-base cursor-pointer hover:underline">{formatCurrency(account.balance)}</span>
+                            </div>
+                            <div className="w-full space-y-1 mt-auto pt-2">
+                                <div className="flex items-center justify-between gap-2">
+                                <Label htmlFor={`actual-balance-${account.id}`} className="text-xs flex-shrink-0">Actual</Label>
+                                <Input
+                                    id={`actual-balance-${account.id}`}
+                                    type="number"
+                                    placeholder="Actual"
+                                    className="hide-number-arrows h-7 text-xs w-24 text-right"
+                                    defaultValue={account.actualBalance ?? ''}
+                                    onChange={(e) => {
+                                        const value = e.target.value === '' ? null : parseFloat(e.target.value)
+                                        debouncedUpdateAccount(account.id, { actualBalance: value });
+                                    }}
+                                    onClick={(e) => e.stopPropagation()}
+                                />
+                                </div>
+                                {balanceDifference !== null && (
+                                    <div className="w-full flex justify-end">
+                                        <p className={cn(
+                                            "text-xs font-medium",
+                                            Math.abs(balanceDifference) < 0.01 ? "text-green-600" : "text-red-600"
+                                        )}>
+                                            Diff: {formatCurrency(balanceDifference)}
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        </TabsTrigger>
+                )})}
             </TabsList>
           </Tabs>
-        </div>
-        <div className="lg:col-span-1">
-            <Card className="print-hide h-full">
-                <CardContent className="pt-4">
-                    <div className="flex flex-col gap-2">
-                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2">
-                           <div className="space-y-1">
-                                <Label htmlFor="reconciliation-date-input" className="text-xs flex items-center gap-2">
-                                    <CalendarIcon className="h-4 w-4 text-red-600" />
-                                    Reconciliation Date
-                                </Label>
-                                <Input
-                                    id="reconciliation-date-input"
-                                    type="date"
-                                    value={reconciliationDate ? format(reconciliationDate, 'yyyy-MM-dd') : ''}
-                                    onChange={(e) => {
-                                        const dateValue = e.target.value;
-                                        const newDate = dateValue ? new Date(dateValue) : undefined;
-                                        if (newDate) {
-                                            const timezoneOffset = newDate.getTimezoneOffset() * 60000;
-                                            handleReconciliationDateChange(new Date(newDate.getTime() + timezoneOffset));
-                                        } else {
-                                            handleReconciliationDateChange(undefined);
-                                        }
-                                    }}
-                                    className="w-full h-9"
-                                />
-                            </div>
-                            <div className="space-y-1">
-                                <Label htmlFor="search-input" className="text-xs">Search Transactions</Label>
-                                <div className="relative flex-grow">
-                                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                    id="search-input"
-                                    type="search"
-                                    placeholder="Search..."
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="w-full rounded-lg bg-background pl-8 h-9"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="space-y-1">
-                             <Label className="text-xs">Filter by Date Range</Label>
-                             <div className="grid grid-cols-[1fr_auto_1fr] sm:grid-cols-2 lg:grid-cols-[1fr_auto_1fr] items-center gap-2">
-                                <Input
-                                type="date"
-                                value={startDate}
-                                onChange={(e) => setStartDate(e.target.value)}
-                                className="w-full h-9"
-                                />
-                                <span className="text-muted-foreground text-xs">to</span>
-                                <Input
-                                type="date"
-                                value={endDate}
-                                onChange={(e) => setEndDate(e.target.value)}
-                                className="w-full h-9"
-                                min={startDate}
-                                />
-                            </div>
-                        </div>
-                        
-                        <div className="flex flex-wrap items-center justify-start gap-2 pt-1">
-                            <Button onClick={handleClearFilters} variant="outline" size="icon" className="h-9 w-9">
-                                <XCircle className="h-4 w-4" />
-                            </Button>
-                             <Button onClick={handlePrint} variant="outline" size="icon" className="h-9 w-9">
-                                <Printer className="h-4 w-4" />
-                            </Button>
-                            <AddTransactionDialog accounts={accountDataForDialog}>
-                                <Button className="w-32">
-                                    <PlusCircle className="mr-2 h-4 w-4" />
-                                    Add
-                                </Button>
-                            </AddTransactionDialog>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
         </div>
       </div>
       
@@ -937,6 +935,7 @@ export default function TransactionsPage() {
           <TransactionTable 
               transactions={pagedTransactions} 
               accountId={activeTab || ''}
+              primaryAccount={primaryAccount}
               currentPage={currentPage}
               itemsPerPage={itemsPerPage}
           />

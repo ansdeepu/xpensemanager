@@ -186,23 +186,17 @@ export function TransactionTable({
                     }
                 }
                 
+                const fromIsPrimaryBank = t.fromAccountId === primaryAccount?.id;
+                const toIsPrimaryBank = t.toAccountId === primaryAccount?.id;
                 const fromIsWallet = t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
+                const toIsWallet = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
 
-                if (t.toAccountId === 'cash-wallet' && !fromIsWallet) {
-                    return { ...defaultInfo, type: 'withdraw' as const };
+                if (fromIsPrimaryBank && toIsWallet) {
+                    return { ...defaultInfo, type: 'issue' as const };
                 }
 
-                const primaryEcosystemIds = new Set([
-                    primaryAccount?.id,
-                    'cash-wallet',
-                    'digital-wallet'
-                ].filter(Boolean));
-    
-                const fromInPrimary = primaryEcosystemIds.has(t.fromAccountId);
-                const toInPrimary = primaryEcosystemIds.has(t.toAccountId);
-    
-                if (fromInPrimary && toInPrimary) {
-                     return { ...defaultInfo, type: 'movement' as const };
+                if (fromIsWallet && toIsPrimaryBank) {
+                    return { ...defaultInfo, type: 'return' as const };
                 }
             }
             
@@ -444,7 +438,7 @@ export function TransactionTable({
     setIsEditDialogOpen(true);
   };
   
-  const getBadgeVariant = (type: Transaction['type'] | 'loan' | 'repayment' | 'withdraw' | 'movement') => {
+  const getBadgeVariant = (type: Transaction['type'] | 'loan' | 'repayment' | 'withdraw' | 'movement' | 'issue' | 'return') => {
     switch (type) {
       case 'income':
         return 'default';
@@ -455,6 +449,8 @@ export function TransactionTable({
       case 'repayment':
       case 'withdraw':
       case 'movement':
+      case 'issue':
+      case 'return':
       default:
         return 'secondary';
     }
