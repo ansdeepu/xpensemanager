@@ -145,13 +145,18 @@ export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChan
 
     if (!account) return null;
 
+    const isCard = 'type' in account && account.type === 'card';
+    const cardLimit = isCard && 'limit' in account ? (account as RegularAccountForDetails).limit : undefined;
+
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
             <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-3xl">
                 <DialogHeader>
                     <DialogTitle>{account.name} - Full Transaction History</DialogTitle>
                     <DialogDescription>
-                       A detailed, all-time breakdown of transactions affecting this account's balance. The final calculated balance is {formatCurrency(calculationResults.finalBalance)}.
+                       A detailed, all-time breakdown of transactions affecting this account's balance. 
+                       The final calculated {isCard ? "due amount" : "balance"} is {formatCurrency(calculationResults.finalBalance)}.
+                       {isCard && cardLimit != null && ` The credit limit is ${formatCurrency(cardLimit)}.`}
                     </DialogDescription>
                 </DialogHeader>
                 <ScrollArea className="max-h-[60vh]">
@@ -160,9 +165,9 @@ export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChan
                             <TableRow>
                                 <TableHead>Date</TableHead>
                                 <TableHead>Description</TableHead>
-                                <TableHead className="text-right">Credit</TableHead>
-                                <TableHead className="text-right">Debit</TableHead>
-                                <TableHead className="text-right">Balance</TableHead>
+                                <TableHead className="text-right">{isCard ? "Payments" : "Credit"}</TableHead>
+                                <TableHead className="text-right">{isCard ? "Charges" : "Debit"}</TableHead>
+                                <TableHead className="text-right">{isCard ? "Due Amount" : "Balance"}</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
