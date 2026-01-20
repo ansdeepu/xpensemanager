@@ -313,14 +313,14 @@ export default function TransactionsPage() {
   const secondaryAccounts = bankAccounts.filter(account => (account.name.toLowerCase().includes('hdfc') || account.name.toLowerCase().includes('fed') || account.name.toLowerCase().includes('post') || account.name.toLowerCase().includes('money')));
   const otherAccounts = bankAccounts.filter(account => !secondaryAccounts.some(sa => sa.id === account.id));
 
-  const loanTransactionTypeMap = useMemo(() => {
-    const map = new Map<string, 'loan' | 'repayment'>();
+  const loanInfoMap = useMemo(() => {
+    const map = new Map<string, { loanType: 'taken' | 'given', transactionType: 'loan' | 'repayment' }>();
     if (loans) {
       for (const loan of loans) {
         if (loan.transactions) {
             for (const tx of loan.transactions) {
                 if (tx.id) {
-                    map.set(tx.id, tx.type);
+                    map.set(tx.id, { loanType: loan.type, transactionType: tx.type });
                 }
             }
         }
@@ -352,14 +352,18 @@ export default function TransactionsPage() {
         });
 
         const getTransactionSortOrder = (t: Transaction) => {
-             if (t.loanTransactionId && loanTransactionTypeMap.has(t.loanTransactionId)) {
-                const loanType = loanTransactionTypeMap.get(t.loanTransactionId);
-                if (loanType === 'loan') return 1;
-                if (loanType === 'repayment') return 4;
+            if (t.loanTransactionId && loanInfoMap.has(t.loanTransactionId)) {
+                const { loanType, transactionType } = loanInfoMap.get(t.loanTransactionId)!;
+                // Inflows
+                if (loanType === 'taken' && transactionType === 'loan') return 2; // Loan Taken
+                if (loanType === 'given' && transactionType === 'repayment') return 3; // Repayment Received
+                // Outflows
+                if (loanType === 'given' && transactionType === 'loan') return 5; // Loan Given
+                if (loanType === 'taken' && transactionType === 'repayment') return 6; // Repayment Made
             }
-            if (t.type === 'income') return 2;
-            if (t.type === 'expense') return 3;
-            if (t.type === 'transfer') return 5;
+            if (t.type === 'income') return 1;
+            if (t.type === 'expense') return 4;
+            if (t.type === 'transfer') return 7;
             return 99;
         };
 
@@ -425,7 +429,7 @@ export default function TransactionsPage() {
         
         return balances;
 
-    }, [allTransactions, activeTab, primaryAccount, loans, loanTransactionTypeMap]);
+    }, [allTransactions, activeTab, primaryAccount, loans, loanInfoMap]);
 
   const getAccountName = useCallback((accountId?: string, paymentMethod?: Transaction['paymentMethod']) => {
     if (accountId === 'cash-wallet' || paymentMethod === 'cash') return "Cash Wallet";
@@ -536,14 +540,18 @@ export default function TransactionsPage() {
     }
     
     const getTransactionSortOrder = (t: Transaction) => {
-        if (t.loanTransactionId && loanTransactionTypeMap.has(t.loanTransactionId)) {
-            const loanType = loanTransactionTypeMap.get(t.loanTransactionId);
-            if (loanType === 'loan') return 1;
-            if (loanType === 'repayment') return 4;
+        if (t.loanTransactionId && loanInfoMap.has(t.loanTransactionId)) {
+            const { loanType, transactionType } = loanInfoMap.get(t.loanTransactionId)!;
+            // Inflows
+            if (loanType === 'taken' && transactionType === 'loan') return 2; // Loan Taken
+            if (loanType === 'given' && transactionType === 'repayment') return 3; // Repayment Received
+            // Outflows
+            if (loanType === 'given' && transactionType === 'loan') return 5; // Loan Given
+            if (loanType === 'taken' && transactionType === 'repayment') return 6; // Repayment Made
         }
-        if (t.type === 'income') return 2;
-        if (t.type === 'expense') return 3;
-        if (t.type === 'transfer') return 5;
+        if (t.type === 'income') return 1;
+        if (t.type === 'expense') return 4;
+        if (t.type === 'transfer') return 7;
         return 99;
     };
 
@@ -564,7 +572,7 @@ export default function TransactionsPage() {
       // Fallback sort for same type on same day, e.g., by amount
       return b.amount - a.amount;
     });
-  }, [allTransactions, activeTab, startDate, endDate, searchQuery, primaryAccount, getLoanDisplayInfo, getAccountName, transactionBalanceMap, loans, loanTransactionTypeMap]);
+  }, [allTransactions, activeTab, startDate, endDate, searchQuery, primaryAccount, getLoanDisplayInfo, getAccountName, transactionBalanceMap, loans, loanInfoMap]);
 
     const transactionsWithRunningBalance = useMemo(() => {
         return filteredTransactions.map(transaction => {
@@ -896,5 +904,7 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+    
 
     
