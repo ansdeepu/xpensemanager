@@ -116,7 +116,18 @@ function SortableAccountCard({ account, onSetPrimary, onEdit, onDelete }: { acco
                         <div className="text-3xl font-bold">
                             {formatCurrency(account.balance)}
                         </div>
-                        <p className="text-sm text-muted-foreground">{account.purpose}</p>
+                         {account.type === 'card' ? (
+                            account.limit != null && account.limit > 0 ? (
+                                <p className="text-xs text-muted-foreground">
+                                    Due of {formatCurrency(account.limit)} limit
+                                </p>
+                            ) : (
+                                <p className="text-xs text-muted-foreground">Amount Due</p>
+                            )
+                        ) : (
+                            <p className="text-xs text-muted-foreground">Current Balance</p>
+                        )}
+                        <p className="text-sm text-muted-foreground mt-2">{account.purpose}</p>
                     </CardContent>
                 </div>
                 <CardFooter className="flex items-center justify-between pt-4">
@@ -170,10 +181,19 @@ export function AccountList() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
+  
+  const [addAccountType, setAddAccountType] = useState<'bank' | 'card'>('bank');
+  const [editAccountType, setEditAccountType] = useState<'bank' | 'card'>('bank');
 
   const [user, loading] = useAuthState();
   const sensors = useSensors(useSensor(PointerSensor));
   const { toast } = useToast();
+
+   useEffect(() => {
+    if (selectedAccount) {
+      setEditAccountType(selectedAccount.type || 'bank');
+    }
+  }, [selectedAccount]);
 
 
   useEffect(() => {
@@ -280,7 +300,7 @@ export function AccountList() {
     
     const isFirstAccount = accounts.length === 0;
 
-    const newAccount = {
+    const newAccount: any = {
       userId: user.uid,
       name: formData.get("name") as string,
       purpose: formData.get("purpose") as string,
@@ -291,9 +311,17 @@ export function AccountList() {
       actualBalance: parseFloat(formData.get("balance") as string) || 0,
     };
 
+    if (type === 'card') {
+        const limit = parseFloat(formData.get("limit") as string);
+        if (!isNaN(limit)) {
+            newAccount.limit = limit;
+        }
+    }
+
     try {
       await addDoc(collection(db, "accounts"), newAccount);
       setIsAddDialogOpen(false);
+      setAddAccountType('bank');
     } catch (error) {
     }
   };
@@ -303,15 +331,35 @@ export function AccountList() {
     if (!user || !selectedAccount) return;
 
     const formData = new FormData(event.currentTarget);
-    const updatedData = {
+    const updatedData: Partial<Account> & { limit?: number | null } = {
       name: formData.get("name") as string,
       purpose: formData.get("purpose") as string,
       type: formData.get("type") as 'bank' | 'card',
     };
 
+    if (updatedData.type === 'card') {
+        const limitVal = formData.get("limit") as string;
+        if (limitVal) {
+            const limit = parseFloat(limitVal);
+            if (!isNaN(limit)) {
+                updatedData.limit = limit;
+            } else {
+                updatedData.limit = null;
+            }
+        } else {
+            updatedData.limit = null;
+        }
+    } else {
+        // Explicitly remove the limit field if it's not a card
+        updatedData.limit = null;
+    }
+
+
     try {
       const accountRef = doc(db, "accounts", selectedAccount.id);
-      await updateDoc(accountRef, updatedData);
+      await updateDoc(accountRef, {
+        ...updatedData
+      });
       setIsEditDialogOpen(false);
       setSelectedAccount(null);
     } catch (error) {
@@ -466,7 +514,12 @@ export function AccountList() {
             Manage your bank accounts and view your wallets.
           </CardDescription>
         </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+            setIsAddDialogOpen(open);
+            if (!open) {
+                setAddAccountType('bank');
+            }
+        }}>
           <DialogTrigger asChild>
             <Button>
               <PlusCircle className="mr-2 h-4 w-4" />
@@ -486,7 +539,7 @@ export function AccountList() {
                   <Label htmlFor="type" className="text-right">
                     Type
                   </Label>
-                  <Select name="type" defaultValue="bank">
+                   <Select name="type" value={addAccountType} onValueChange={(value: 'bank' | 'card') => setAddAccountType(value)}>
                       <SelectTrigger id="type" className="col-span-3">
                           <SelectValue placeholder="Select type" />
                       </SelectTrigger>
@@ -508,11 +561,17 @@ export function AccountList() {
                   </Label>
                   <Input id="purpose" name="purpose" placeholder="e.g. For online shopping" className="col-span-3" required />
                 </div>
+                 {addAccountType === 'card' && (
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="limit" className="text-right">Credit Limit</Label>
+                        <Input id="limit" name="limit" type="number" placeholder="e.g. 100000" className="col-span-3" />
+                    </div>
+                )}
                  <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="balance" className="text-right">
-                    Actual Balance
+                    {addAccountType === 'card' ? 'Current Due' : 'Actual Balance'}
                   </Label>
-                  <Input id="balance" name="balance" type="number" placeholder="e.g. 50000" className="col-span-3" />
+                  <Input id="balance" name="balance" type="number" placeholder={addAccountType === 'card' ? "e.g. 5000" : "e.g. 50000"} className="col-span-3" />
                 </div>
               </div>
               <DialogFooter>
@@ -604,7 +663,7 @@ export function AccountList() {
                     <Label htmlFor="edit-type" className="text-right">
                         Type
                     </Label>
-                    <Select name="type" defaultValue={selectedAccount?.type ?? 'bank'}>
+                     <Select name="type" value={editAccountType} onValueChange={(value: 'bank' | 'card') => setEditAccountType(value)}>
                         <SelectTrigger id="edit-type" className="col-span-3">
                             <SelectValue placeholder="Select type" />
                         </SelectTrigger>
@@ -626,6 +685,12 @@ export function AccountList() {
                     </Label>
                     <Input id="edit-purpose" name="purpose" defaultValue={selectedAccount?.purpose} className="col-span-3" required />
                 </div>
+                 {editAccountType === 'card' && (
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="edit-limit" className="text-right">Credit Limit</Label>
+                        <Input id="edit-limit" name="limit" type="number" defaultValue={selectedAccount?.limit ?? ''} className="col-span-3" />
+                    </div>
+                )}
             </div>
             <DialogFooter>
                 <DialogClose asChild>
