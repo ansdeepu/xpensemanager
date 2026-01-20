@@ -318,7 +318,7 @@ export default function TransactionsPage() {
         if (loan.transactions) {
             for (const tx of loan.transactions) {
                 if (tx.id) {
-                    map.set(tx.id, tx.id, tx.type);
+                    map.set(tx.id, tx.type);
                 }
             }
         }
@@ -816,21 +816,6 @@ export default function TransactionsPage() {
       
       <Card>
         <div className="flex flex-wrap items-end gap-4 p-4 border-b print-hide">
-          <div className="space-y-1 flex-grow md:max-w-xs">
-              <Label htmlFor="search-input" className="text-xs">Search Transactions</Label>
-              <div className="relative">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input id="search-input" type="search" placeholder="Search..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full rounded-lg bg-background pl-8 h-9" />
-              </div>
-          </div>
-          <div className="space-y-1">
-              <Label className="text-xs">Filter by Date Range</Label>
-              <div className="flex items-center gap-2">
-                  <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full h-9" aria-label="Start Date" />
-                  <span className="text-muted-foreground text-xs">to</span>
-                  <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full h-9" min={startDate} aria-label="End Date" />
-              </div>
-          </div>
           <div className="space-y-1">
               <Label htmlFor="reconciliation-date-input" className="text-xs flex items-center gap-2">
                   <CalendarIcon className="h-4 w-4 text-red-600" />
@@ -852,6 +837,21 @@ export default function TransactionsPage() {
                       }}
                   className="w-full h-9"
               />
+          </div>
+          <div className="space-y-1 flex-grow md:max-w-xs">
+              <Label htmlFor="search-input" className="text-xs">Search Transactions</Label>
+              <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input id="search-input" type="search" placeholder="Search..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full rounded-lg bg-background pl-8 h-9" />
+              </div>
+          </div>
+          <div className="space-y-1">
+              <Label className="text-xs">Filter by Date Range</Label>
+              <div className="flex items-center gap-2">
+                  <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full h-9" aria-label="Start Date" />
+                  <span className="text-muted-foreground text-xs">to</span>
+                  <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full h-9" min={startDate} aria-label="End Date" />
+              </div>
           </div>
           <div className="flex items-center gap-2">
               <Button onClick={handleClearFilters} variant="outline" size="sm">
@@ -894,5 +894,7 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+    
 
     
