@@ -311,6 +311,22 @@ export default function TransactionsPage() {
   const secondaryAccounts = bankAccounts.filter(account => (account.name.toLowerCase().includes('hdfc') || account.name.toLowerCase().includes('fed') || account.name.toLowerCase().includes('post') || account.name.toLowerCase().includes('money')));
   const otherAccounts = bankAccounts.filter(account => !secondaryAccounts.some(sa => sa.id === account.id));
 
+  const loanTransactionTypeMap = useMemo(() => {
+    const map = new Map<string, 'loan' | 'repayment'>();
+    if (loans) {
+      for (const loan of loans) {
+        if (loan.transactions) {
+            for (const tx of loan.transactions) {
+                if (tx.id) {
+                    map.set(tx.id, tx.type);
+                }
+            }
+        }
+      }
+    }
+    return map;
+  }, [loans]);
+
     const transactionBalanceMap = useMemo(() => {
         const balances = new Map<string, number>();
         if (!activeTab) return balances;
@@ -953,7 +969,5 @@ export default function TransactionsPage() {
     </div>
   );
 }
-
-    
 
     
