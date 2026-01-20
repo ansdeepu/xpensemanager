@@ -567,22 +567,44 @@ export default function TransactionsPage() {
     }
     
     const getTransactionSortOrder = (t: Transaction) => {
-        // INFLOWS
-        if (t.type === 'income') return 1;
-        if (t.loanTransactionId && loanInfoMap.get(t.loanTransactionId)?.transactionType === 'loan' && loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId))?.type === 'taken') return 2; // Loan Taken
-        if (t.loanTransactionId && loanInfoMap.get(t.loanTransactionId)?.transactionType === 'repayment' && loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId))?.type === 'given') return 3; // Repayment Received
-
-        // OUTFLOWS
-        if (t.type === 'expense') return 4;
-        if (t.loanTransactionId && loanInfoMap.get(t.loanTransactionId)?.transactionType === 'loan' && loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId))?.type === 'given') return 5; // Loan Given
-        if (t.loanTransactionId && loanInfoMap.get(t.loanTransactionId)?.transactionType === 'repayment' && loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId))?.type === 'taken') return 6; // Repayment Made
+        const fromIsPrimaryBank = t.fromAccountId === primaryAccount?.id;
+        const toIsPrimaryBank = t.toAccountId === primaryAccount?.id;
+        const fromIsWallet = t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
+        const toIsWallet = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
         
-        // NEUTRAL/OTHER
-        if (t.type === 'transfer') {
-            return 7;
+        const isIssue = t.type === 'transfer' && !t.loanTransactionId && fromIsPrimaryBank && toIsWallet;
+        const isReturn = t.type === 'transfer' && !t.loanTransactionId && fromIsWallet && toIsPrimaryBank;
+
+        // 1. Income
+        if (t.type === 'income') return 1;
+
+        // 2. Loan Taken
+        if (t.loanTransactionId && loanInfoMap.get(t.loanTransactionId)?.transactionType === 'loan' && loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId))?.type === 'taken') return 2;
+        
+        // 3. Repayment Received (credit)
+        if (t.loanTransactionId && loanInfoMap.get(t.loanTransactionId)?.transactionType === 'repayment' && loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId))?.type === 'given') return 3;
+
+        // 4. Issue
+        if (isIssue) return 4;
+        
+        // 5. Expense
+        if (t.type === 'expense') return 5;
+        
+        // 6. Loan Given
+        if (t.loanTransactionId && loanInfoMap.get(t.loanTransactionId)?.transactionType === 'loan' && loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId))?.type === 'given') return 6;
+
+        // 7. Repayment Made (debit)
+        if (t.loanTransactionId && loanInfoMap.get(t.loanTransactionId)?.transactionType === 'repayment' && loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId))?.type === 'taken') return 7;
+
+        // 8. Transfer
+        if (t.type === 'transfer' && !t.loanTransactionId && !isIssue && !isReturn) {
+            return 8;
         }
 
-        return 99;
+        // 9. Return
+        if (isReturn) return 9;
+
+        return 99; // Fallback
     };
 
     return filtered.sort((a, b) => {
@@ -853,9 +875,9 @@ export default function TransactionsPage() {
                       <TabsTrigger key={account.id} value={account.id} className={cn("border flex flex-col h-full p-2 items-start text-left gap-1 data-[state=active]:shadow-lg", tabColors[index % tabColors.length], textColors[index % textColors.length])}>
                           <div className="w-full flex justify-between items-center">
                               <div className="flex items-center gap-2">
-                                <span className="font-semibold text-sm">{account.name}</span>
+                                <span className="font-semibold text-base">{account.name}</span>
                               </div>
-                              <span onClick={(e) => { e.stopPropagation(); handleAccountClick(account); }} className="font-bold text-base cursor-pointer hover:underline">{formatCurrency(calculatedDue)}</span>
+                              <span onClick={(e) => { e.stopPropagation(); handleAccountClick(account); }} className="font-bold text-lg cursor-pointer hover:underline">{formatCurrency(calculatedDue)}</span>
                           </div>
                            <p className="text-xs text-muted-foreground">Available: {formatCurrency((account.limit || 0) - calculatedDue)} of {formatCurrency(account.limit || 0)}</p>
                           <div className="w-full space-y-1 mt-auto pt-2">
@@ -865,7 +887,7 @@ export default function TransactionsPage() {
                                     id={`actual-balance-${account.id}`}
                                     type="number"
                                     placeholder="Actual Due"
-                                    className="hide-number-arrows h-7 text-xs w-24 text-right"
+                                    className="hide-number-arrows h-7 text-sm w-24 text-right"
                                     defaultValue={account.actualBalance ?? ''}
                                     onChange={(e) => {
                                         const value = e.target.value === '' ? null : parseFloat(e.target.value)
@@ -893,8 +915,8 @@ export default function TransactionsPage() {
                     return (
                         <TabsTrigger key={account.id} value={account.id} className={cn("border flex flex-col h-full p-2 items-start text-left gap-1 data-[state=active]:shadow-lg", tabColors[(creditCards.length + index) % tabColors.length], textColors[(creditCards.length + index) % textColors.length])}>
                             <div className="w-full flex justify-between items-center">
-                                <span className="font-semibold text-sm">{account.name}</span>
-                                <span onClick={(e) => { e.stopPropagation(); handleAccountClick(account); }} className="font-bold text-base cursor-pointer hover:underline">{formatCurrency(account.balance)}</span>
+                                <span className="font-semibold text-base">{account.name}</span>
+                                <span onClick={(e) => { e.stopPropagation(); handleAccountClick(account); }} className="font-bold text-lg cursor-pointer hover:underline">{formatCurrency(account.balance)}</span>
                             </div>
                             <div className="w-full space-y-1 mt-auto pt-2">
                                 <div className="flex items-center justify-between gap-2">
@@ -903,7 +925,7 @@ export default function TransactionsPage() {
                                     id={`actual-balance-${account.id}`}
                                     type="number"
                                     placeholder="Actual"
-                                    className="hide-number-arrows h-7 text-xs w-24 text-right"
+                                    className="hide-number-arrows h-7 text-sm w-24 text-right"
                                     defaultValue={account.actualBalance ?? ''}
                                     onChange={(e) => {
                                         const value = e.target.value === '' ? null : parseFloat(e.target.value)
