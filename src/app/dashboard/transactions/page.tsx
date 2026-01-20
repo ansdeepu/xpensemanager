@@ -552,19 +552,25 @@ export default function TransactionsPage() {
 
         if (t.loanTransactionId && loanInfoMap.has(t.loanTransactionId)) {
             const { loanType, transactionType } = loanInfoMap.get(t.loanTransactionId)!;
-            if (loanType === 'taken' && transactionType === 'repayment') return 3; // Repayment Made
-            if (loanType === 'given' && transactionType === 'loan') return 4; // Loan Given
-            if (loanType === 'given' && transactionType === 'repayment') return 6; // Repayment Received
-            if (loanType === 'taken' && transactionType === 'loan') return 7; // Loan Taken
+            // INFLOWS
+            if (loanType === 'taken' && transactionType === 'loan') return 2; // Loan Taken
+            if (loanType === 'given' && transactionType === 'repayment') return 3; // Repayment Received
+            // OUTFLOWS
+            if (loanType === 'given' && transactionType === 'loan') return 5; // Loan Given
+            if (loanType === 'taken' && transactionType === 'repayment') return 6; // Repayment Made
         }
         
+        // INFLOWS
+        if (t.type === 'income') return 1;
+        
+        // OUTFLOWS
+        if (t.type === 'expense') return 4;
+        
+        // NEUTRAL/OTHER
         if (t.type === 'transfer') {
-            if (isWithdraw) return 2;
-            return 1;
+            if (isWithdraw) return 8;
+            return 7;
         }
-
-        if (t.type === 'expense') return 5;
-        if (t.type === 'income') return 8;
         return 99;
     };
 
@@ -685,7 +691,7 @@ export default function TransactionsPage() {
                             {/* Bank Column */}
                             <div className="space-y-2">
                                 <Label htmlFor={`actual-balance-${primaryAccount.id}`} className="text-xs">Bank Balance</Label>
-                                <div onClick={(e) => { e.stopPropagation(); handleAccountClick(primaryAccount); }} className="font-mono text-base cursor-pointer hover:underline">{formatCurrency(primaryAccountBalance)}</div>
+                                <div onClick={(e) => { e.stopPropagation(); handleAccountClick(primaryAccount); }} className="font-mono text-lg cursor-pointer hover:underline">{formatCurrency(primaryAccountBalance)}</div>
                                 <Input
                                     id={`actual-balance-${primaryAccount.id}`}
                                     type="number"
@@ -711,7 +717,7 @@ export default function TransactionsPage() {
                             {/* Digital Column */}
                             <div className="space-y-2">
                                 <Label htmlFor="actual-balance-digital" className="text-xs">Digital</Label>
-                                <div onClick={(e) => { e.stopPropagation(); handleAccountClick('digital-wallet', 'Digital Wallet'); }} className="font-mono text-base cursor-pointer hover:underline">{formatCurrency(digitalWalletBalance)}</div>
+                                <div onClick={(e) => { e.stopPropagation(); handleAccountClick('digital-wallet', 'Digital Wallet'); }} className="font-mono text-lg cursor-pointer hover:underline">{formatCurrency(digitalWalletBalance)}</div>
                                 <Input
                                     id="actual-balance-digital"
                                     type="number"
@@ -737,7 +743,7 @@ export default function TransactionsPage() {
                             {/* Cash Column */}
                             <div className="space-y-2">
                                 <Label htmlFor="actual-balance-cash" className="text-xs">Cash</Label>
-                                <div onClick={(e) => { e.stopPropagation(); handleAccountClick('cash-wallet', 'Cash Wallet'); }} className="font-mono text-base cursor-pointer hover:underline">{formatCurrency(cashWalletBalance)}</div>
+                                <div onClick={(e) => { e.stopPropagation(); handleAccountClick('cash-wallet', 'Cash Wallet'); }} className="font-mono text-lg cursor-pointer hover:underline">{formatCurrency(cashWalletBalance)}</div>
                                 <Input
                                     id="actual-balance-cash"
                                     type="number"
@@ -766,7 +772,7 @@ export default function TransactionsPage() {
                                 return (
                                     <div key={card.id} className="space-y-2">
                                         <Label htmlFor={`actual-balance-${card.id}`} className="text-xs">{card.name}</Label>
-                                        <div onClick={(e) => { e.stopPropagation(); handleAccountClick(card); }} className="font-mono text-base cursor-pointer hover:underline">{formatCurrency(displayBalance)}</div>
+                                        <div onClick={(e) => { e.stopPropagation(); handleAccountClick(card); }} className="font-mono text-lg cursor-pointer hover:underline">{formatCurrency(displayBalance)}</div>
                                         <Input
                                             id={`actual-balance-${card.id}`}
                                             type="number"
