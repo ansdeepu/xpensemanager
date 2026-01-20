@@ -51,6 +51,7 @@ const tabColors = [
   "bg-violet-100 dark:bg-violet-200",
   "bg-cyan-100 dark:bg-cyan-200",
   "bg-fuchsia-100 dark:bg-fuchsia-200",
+  "bg-orange-100 dark:bg-orange-900/50",
 ];
 
 const textColors = [
@@ -61,6 +62,7 @@ const textColors = [
   "text-violet-800 dark:text-violet-200",
   "text-cyan-800 dark:text-cyan-200",
   "text-fuchsia-800 dark:text-fuchsia-200",
+  "text-orange-800 dark:text-orange-200",
 ];
 
 const PaginationControls = ({ currentPage, totalPages, setCurrentPage }: { currentPage: number, totalPages: number, setCurrentPage: (page: number) => void }) => (
@@ -258,7 +260,7 @@ export default function TransactionsPage() {
         if (t.fromAccountId && runningAccountBalances[t.fromAccountId] !== undefined) {
           const fromAccount = accountMap.get(t.fromAccountId);
           if (fromAccount?.type === 'card') {
-            runningAccountBalances[t.fromAccountId] += t.amount; // Cash advance
+            runningAccountBalances[t.fromAccountId] += t.amount; // Cash advance increases debt
           } else {
             runningAccountBalances[t.fromAccountId] -= t.amount;
           }
@@ -737,15 +739,17 @@ export default function TransactionsPage() {
                                 )}
                             </div>
                              {creditCards.map(card => {
-                                const balanceDifference = getBalanceDifference(card.balance, card.actualBalance);
+                                const dueAmount = card.balance;
+                                const displayBalance = (card.limit && card.limit > 0) ? card.limit - dueAmount : -dueAmount;
+                                const balanceDifference = getBalanceDifference(dueAmount, card.actualBalance);
                                 return (
                                     <div key={card.id} className="space-y-2">
                                         <Label htmlFor={`actual-balance-${card.id}`} className="text-xs">{card.name}</Label>
-                                        <div onClick={(e) => { e.stopPropagation(); handleAccountClick(card); }} className="font-mono text-lg cursor-pointer hover:underline">{formatCurrency(card.balance)}</div>
+                                        <div onClick={(e) => { e.stopPropagation(); handleAccountClick(card); }} className="font-mono text-lg cursor-pointer hover:underline">{formatCurrency(displayBalance)}</div>
                                         <Input
                                             id={`actual-balance-${card.id}`}
                                             type="number"
-                                            placeholder="Actual"
+                                            placeholder="Actual Due"
                                             className="hide-number-arrows h-8 text-sm text-left"
                                             defaultValue={card.actualBalance ?? ''}
                                             onChange={(e) => {
@@ -892,3 +896,5 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+    

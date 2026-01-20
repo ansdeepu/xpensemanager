@@ -83,6 +83,7 @@ export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChan
                 let credit = 0;
                 let debit = 0;
                 let effect = 0;
+                const isCard = 'type' in account && account.type === 'card';
 
                 if (t.id === openingBalanceTx?.id) {
                     credit = t.amount;
@@ -96,6 +97,18 @@ export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChan
                         if(t.type === 'transfer' && t.toAccountId === 'digital-wallet') { credit = t.amount; effect = t.amount; }
                         if(t.type === 'transfer' && t.fromAccountId === 'digital-wallet') { debit = t.amount; effect = -t.amount; }
                         if(t.type === 'expense' && t.paymentMethod === 'digital') { debit = t.amount; effect = -t.amount; }
+                    } else if (isCard) {
+                        // Card logic: 'balance' is amount due
+                        if (t.type === 'expense' && t.accountId === account.id && t.paymentMethod === 'online') {
+                            debit = t.amount; effect = t.amount; // Expenses increase due
+                        } else if (t.type === 'transfer') {
+                            if (t.toAccountId === account.id) { // Payment to card
+                                credit = t.amount; effect = -t.amount; // Decreases due
+                            }
+                            if (t.fromAccountId === account.id) { // Cash advance
+                                debit = t.amount; effect = t.amount; // Increases due
+                            }
+                        }
                     } else { // Regular bank account logic
                         if (t.type === 'income' && t.accountId === account.id) {
                             credit = t.amount; effect = t.amount;
@@ -188,3 +201,5 @@ export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChan
         </Dialog>
     )
 }
+
+    
