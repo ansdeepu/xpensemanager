@@ -767,17 +767,22 @@ export default function TransactionsPage() {
                             </div>
                              {creditCards.map(card => {
                                 const dueAmount = card.balance;
-                                const displayBalance = (card.limit && card.limit > 0) ? card.limit - dueAmount : -dueAmount;
+                                const availableCredit = (card.limit && card.limit > 0) ? card.limit - dueAmount : undefined;
                                 const balanceDifference = getBalanceDifference(dueAmount, card.actualBalance);
                                 return (
                                     <div key={card.id} className="space-y-2">
                                         <Label htmlFor={`actual-balance-${card.id}`} className="text-xs">{card.name}</Label>
-                                        <div onClick={(e) => { e.stopPropagation(); handleAccountClick(card); }} className="font-mono text-lg cursor-pointer hover:underline">{formatCurrency(displayBalance)}</div>
+                                        <div onClick={(e) => { e.stopPropagation(); handleAccountClick(card); }} className="font-mono text-base cursor-pointer hover:underline">{formatCurrency(dueAmount)}</div>
+                                        {availableCredit !== undefined && (
+                                            <p className="text-xs text-muted-foreground">
+                                                Available: {formatCurrency(availableCredit)}
+                                            </p>
+                                        )}
                                         <Input
                                             id={`actual-balance-${card.id}`}
                                             type="number"
                                             placeholder="Actual Due"
-                                            className="hide-number-arrows h-8 text-sm text-left"
+                                            className="hide-number-arrows h-8 text-xs text-left"
                                             defaultValue={card.actualBalance ?? ''}
                                             onChange={(e) => {
                                                 const value = e.target.value === '' ? null : parseFloat(e.target.value)
