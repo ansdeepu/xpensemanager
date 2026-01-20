@@ -46,11 +46,11 @@ const formatCurrency = (amount: number) => {
 const tabColors = [
   "bg-sky-100 dark:bg-sky-900/50",
   "bg-amber-100 dark:bg-amber-900/50",
-  "bg-emerald-100 dark:bg-emerald-200",
-  "bg-rose-100 dark:bg-rose-200",
-  "bg-violet-100 dark:bg-violet-200",
-  "bg-cyan-100 dark:bg-cyan-200",
-  "bg-fuchsia-100 dark:bg-fuchsia-200",
+  "bg-emerald-100 dark:bg-emerald-900/50",
+  "bg-rose-100 dark:bg-rose-900/50",
+  "bg-violet-100 dark:bg-violet-900/50",
+  "bg-cyan-100 dark:bg-cyan-900/50",
+  "bg-fuchsia-100 dark:bg-fuchsia-900/50",
   "bg-orange-100 dark:bg-orange-900/50",
 ];
 
@@ -362,16 +362,19 @@ export default function TransactionsPage() {
         });
 
         const getTransactionSortOrder = (t: Transaction) => {
-            if (t.loanTransactionId && loanInfoMap.has(t.loanTransactionId)) {
-                const { loanType, transactionType } = loanInfoMap.get(t.loanTransactionId)!;
-                if (loanType === 'taken' && transactionType === 'repayment') return 2; // Repayment Made
-                if (loanType === 'given' && transactionType === 'loan') return 3; // Loan Given
-                if (loanType === 'given' && transactionType === 'repayment') return 5; // Repayment Received
-                if (loanType === 'taken' && transactionType === 'loan') return 6; // Loan Taken
-            }
-            if (t.type === 'transfer') return 1;
-            if (t.type === 'expense') return 4;
-            if (t.type === 'income') return 7;
+            const loanInfo = getLoanDisplayInfo(t);
+            
+            if (loanInfo.type === 'return') return 1;
+            if (t.type === 'transfer' && !loanInfo.isLoan) return 2;
+            if (loanInfo.isLoan && loanInfo.type === 'repayment' && loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId))?.type === 'taken') return 3; // Repayment Made
+            if (loanInfo.isLoan && loanInfo.type === 'loan' && loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId))?.type === 'given') return 4; // Loan Given
+            if (t.type === 'expense') return 5;
+            if (loanInfo.type === 'issue') return 6; 
+            
+            if (loanInfo.isLoan && loanInfo.type === 'repayment' && loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId))?.type === 'given') return 7; // Repayment Received
+            if (loanInfo.isLoan && loanInfo.type === 'loan' && loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId))?.type === 'taken') return 8; // Loan Taken
+            if (t.type === 'income') return 9;
+
             return 99;
         };
 
@@ -770,12 +773,12 @@ export default function TransactionsPage() {
                       {/* Bank Column */}
                       <div className="space-y-2">
                         <Label htmlFor={`actual-balance-${primaryAccount.id}`} className="text-xs">Bank Balance</Label>
-                        <div className="font-mono text-base">{formatCurrency(primaryAccount.balance)}</div>
+                        <div className="text-2xl font-bold">{formatCurrency(primaryAccount.balance)}</div>
                         <Input
                             id={`actual-balance-${primaryAccount.id}`}
                             type="number"
                             placeholder="Actual"
-                            className="hide-number-arrows h-8 mt-1 text-xs text-left"
+                            className="hide-number-arrows h-8 mt-1 text-sm text-center"
                             defaultValue={primaryAccount.actualBalance ?? ''}
                             onChange={(e) => {
                                 const value = e.target.value === '' ? null : parseFloat(e.target.value)
@@ -796,12 +799,12 @@ export default function TransactionsPage() {
                       {/* Cash Column */}
                       <div className="space-y-2">
                         <Label htmlFor="actual-balance-cash" className="text-xs">Cash</Label>
-                        <div className="font-mono text-base">{formatCurrency(cashWalletBalance)}</div>
+                        <div className="text-2xl font-bold">{formatCurrency(cashWalletBalance)}</div>
                         <Input
                             id="actual-balance-cash"
                             type="number"
                             placeholder="Actual"
-                            className="hide-number-arrows h-8 text-left text-xs"
+                            className="hide-number-arrows h-8 text-sm text-center"
                             defaultValue={walletPreferences.cash?.balance ?? ''}
                             onChange={(e) => {
                                 const value = e.target.value === '' ? null : parseFloat(e.target.value)
@@ -822,12 +825,12 @@ export default function TransactionsPage() {
                       {/* Digital Column */}
                       <div className="space-y-2">
                         <Label htmlFor="actual-balance-digital" className="text-xs">Digital</Label>
-                          <div className="font-mono text-base">{formatCurrency(digitalWalletBalance)}</div>
+                          <div className="text-2xl font-bold">{formatCurrency(digitalWalletBalance)}</div>
                         <Input
                             id="actual-balance-digital"
                             type="number"
                             placeholder="Actual"
-                            className="hide-number-arrows h-8 text-left text-xs"
+                            className="hide-number-arrows h-8 text-sm text-center"
                             defaultValue={walletPreferences.digital?.balance ?? ''}
                             onChange={(e) => {
                                 const value = e.target.value === '' ? null : parseFloat(e.target.value)
@@ -852,12 +855,13 @@ export default function TransactionsPage() {
                           return (
                             <div className="space-y-2">
                                 <Label htmlFor={`actual-balance-${sbiCreditCard.id}`} className="text-xs">{sbiCreditCard.name}</Label>
-                                <div className="font-mono text-base">{formatCurrency(calculatedDue)}</div>
+                                <div className="text-2xl font-bold">{formatCurrency(calculatedDue)}</div>
+                                <p className="text-xs text-muted-foreground">Available: {formatCurrency((sbiCreditCard.limit || 0) - calculatedDue)}</p>
                                 <Input
                                     id={`actual-balance-${sbiCreditCard.id}`}
                                     type="number"
                                     placeholder="Actual Due"
-                                    className="hide-number-arrows h-8 mt-1 text-xs text-left"
+                                    className="hide-number-arrows h-8 mt-1 text-sm text-center"
                                     defaultValue={sbiCreditCard.actualBalance ?? ''}
                                     onChange={(e) => {
                                         const value = e.target.value === '' ? null : parseFloat(e.target.value);
@@ -880,25 +884,22 @@ export default function TransactionsPage() {
                   </TabsTrigger>
                 )}
                 {otherCreditCards.map((account, index) => {
-                    const calculatedDue = account.balance; // 'balance' for cards is now due amount
+                    const calculatedDue = account.balance;
                     const balanceDifference = getBalanceDifference(calculatedDue, account.actualBalance);
                     return (
-                      <TabsTrigger key={account.id} value={account.id} className={cn("border flex flex-col h-full p-2 items-start text-left gap-1 data-[state=active]:shadow-lg", tabColors[index % tabColors.length], textColors[index % textColors.length])}>
+                      <TabsTrigger key={account.id} value={account.id} className={cn("border flex flex-col h-full p-4 items-start text-left gap-1 data-[state=active]:shadow-lg", tabColors[index % tabColors.length], textColors[index % textColors.length])}>
                           <div className="w-full flex justify-between items-center">
-                              <div className="flex items-center gap-2">
-                                <span className="font-semibold text-base">{account.name}</span>
-                              </div>
+                              <span className="font-semibold text-base">{account.name}</span>
                               <span onClick={(e) => { e.stopPropagation(); handleAccountClick(account); }} className="font-bold text-lg cursor-pointer hover:underline">{formatCurrency(calculatedDue)}</span>
                           </div>
-                           <p className="text-xs text-muted-foreground">Available: {formatCurrency((account.limit || 0) - calculatedDue)} of {formatCurrency(account.limit || 0)}</p>
-                          <div className="w-full space-y-1 mt-auto pt-2">
+                          <div className="w-full mt-auto pt-2 space-y-2">
                               <div className="flex items-center justify-between gap-2">
-                                <Label htmlFor={`actual-balance-${account.id}`} className="text-xs flex-shrink-0">Actual Due</Label>
+                                <span className="text-sm">Actual</span>
                                 <Input
                                     id={`actual-balance-${account.id}`}
                                     type="number"
                                     placeholder="Actual Due"
-                                    className="hide-number-arrows h-7 text-sm w-24 text-right"
+                                    className="hide-number-arrows h-8 text-sm w-24 text-center"
                                     defaultValue={account.actualBalance ?? ''}
                                     onChange={(e) => {
                                         const value = e.target.value === '' ? null : parseFloat(e.target.value)
@@ -908,9 +909,9 @@ export default function TransactionsPage() {
                                 />
                               </div>
                               {balanceDifference !== null && (
-                                  <div className="w-full flex justify-end">
+                                  <div className="w-full text-right">
                                       <p className={cn(
-                                          "text-xs font-medium",
+                                          "text-sm font-medium",
                                           Math.abs(balanceDifference) < 0.01 ? "text-green-600" : "text-red-600"
                                       )}>
                                           Diff: {formatCurrency(balanceDifference)}
@@ -924,31 +925,31 @@ export default function TransactionsPage() {
                 {[...secondaryAccounts, ...otherAccounts].map((account, index) => {
                     const balanceDifference = getBalanceDifference(account.balance, account.actualBalance);
                     return (
-                        <TabsTrigger key={account.id} value={account.id} className={cn("border flex flex-col h-full p-2 items-start text-left gap-1 data-[state=active]:shadow-lg", tabColors[(otherCreditCards.length + index) % tabColors.length], textColors[(otherCreditCards.length + index) % textColors.length])}>
+                        <TabsTrigger key={account.id} value={account.id} className={cn("border flex flex-col h-full p-4 items-start text-left gap-1 data-[state=active]:shadow-lg", tabColors[(otherCreditCards.length + index) % tabColors.length], textColors[(otherCreditCards.length + index) % textColors.length])}>
                             <div className="w-full flex justify-between items-center">
                                 <span className="font-semibold text-base">{account.name}</span>
                                 <span onClick={(e) => { e.stopPropagation(); handleAccountClick(account); }} className="font-bold text-lg cursor-pointer hover:underline">{formatCurrency(account.balance)}</span>
                             </div>
-                            <div className="w-full space-y-1 mt-auto pt-2">
+                            <div className="w-full mt-auto pt-2 space-y-2">
                                 <div className="flex items-center justify-between gap-2">
-                                <Label htmlFor={`actual-balance-${account.id}`} className="text-xs flex-shrink-0">Actual</Label>
-                                <Input
-                                    id={`actual-balance-${account.id}`}
-                                    type="number"
-                                    placeholder="Actual"
-                                    className="hide-number-arrows h-7 text-sm w-24 text-right"
-                                    defaultValue={account.actualBalance ?? ''}
-                                    onChange={(e) => {
-                                        const value = e.target.value === '' ? null : parseFloat(e.target.value)
-                                        debouncedUpdateAccount(account.id, { actualBalance: value });
-                                    }}
-                                    onClick={(e) => e.stopPropagation()}
-                                />
+                                    <span className="text-sm">Actual</span>
+                                    <Input
+                                        id={`actual-balance-${account.id}`}
+                                        type="number"
+                                        placeholder="Actual"
+                                        className="hide-number-arrows h-8 text-sm w-24 text-center"
+                                        defaultValue={account.actualBalance ?? ''}
+                                        onChange={(e) => {
+                                            const value = e.target.value === '' ? null : parseFloat(e.target.value)
+                                            debouncedUpdateAccount(account.id, { actualBalance: value });
+                                        }}
+                                        onClick={(e) => e.stopPropagation()}
+                                    />
                                 </div>
                                 {balanceDifference !== null && (
-                                    <div className="w-full flex justify-end">
+                                    <div className="w-full text-right">
                                         <p className={cn(
-                                            "text-xs font-medium",
+                                            "text-sm font-medium",
                                             Math.abs(balanceDifference) < 0.01 ? "text-green-600" : "text-red-600"
                                         )}>
                                             Diff: {formatCurrency(balanceDifference)}
