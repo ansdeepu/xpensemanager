@@ -677,7 +677,7 @@ export default function TransactionsPage() {
                       <div className="flex items-center gap-2">
                         <span className="font-semibold text-lg">Primary ({primaryAccount.name})</span>
                       </div>
-                      <span className="font-bold text-2xl text-primary">{formatCurrency(allBalance)}</span>
+                      <span className="font-bold text-xl text-primary">{formatCurrency(allBalance)}</span>
                     </div>
                     
                     <div className="w-full text-left py-4">
@@ -685,12 +685,12 @@ export default function TransactionsPage() {
                             {/* Bank Column */}
                             <div className="space-y-2">
                                 <Label htmlFor={`actual-balance-${primaryAccount.id}`} className="text-xs">Bank Balance</Label>
-                                <div onClick={(e) => { e.stopPropagation(); handleAccountClick(primaryAccount); }} className="font-mono text-lg cursor-pointer hover:underline">{formatCurrency(primaryAccountBalance)}</div>
+                                <div onClick={(e) => { e.stopPropagation(); handleAccountClick(primaryAccount); }} className="font-mono text-base cursor-pointer hover:underline">{formatCurrency(primaryAccountBalance)}</div>
                                 <Input
                                     id={`actual-balance-${primaryAccount.id}`}
                                     type="number"
                                     placeholder="Actual"
-                                    className="hide-number-arrows h-8 text-lg text-left"
+                                    className="hide-number-arrows h-8 text-base text-left"
                                     defaultValue={primaryAccount.actualBalance ?? ''}
                                     onChange={(e) => {
                                         const value = e.target.value === '' ? null : parseFloat(e.target.value)
@@ -711,12 +711,12 @@ export default function TransactionsPage() {
                             {/* Digital Column */}
                             <div className="space-y-2">
                                 <Label htmlFor="actual-balance-digital" className="text-xs">Digital</Label>
-                                <div onClick={(e) => { e.stopPropagation(); handleAccountClick('digital-wallet', 'Digital Wallet'); }} className="font-mono text-lg cursor-pointer hover:underline">{formatCurrency(digitalWalletBalance)}</div>
+                                <div onClick={(e) => { e.stopPropagation(); handleAccountClick('digital-wallet', 'Digital Wallet'); }} className="font-mono text-base cursor-pointer hover:underline">{formatCurrency(digitalWalletBalance)}</div>
                                 <Input
                                     id="actual-balance-digital"
                                     type="number"
                                     placeholder="Actual"
-                                    className="hide-number-arrows h-8 text-lg text-left"
+                                    className="hide-number-arrows h-8 text-base text-left"
                                     defaultValue={walletPreferences.digital?.balance ?? ''}
                                     onChange={(e) => {
                                         const value = e.target.value === '' ? null : parseFloat(e.target.value)
@@ -737,12 +737,12 @@ export default function TransactionsPage() {
                             {/* Cash Column */}
                             <div className="space-y-2">
                                 <Label htmlFor="actual-balance-cash" className="text-xs">Cash</Label>
-                                <div onClick={(e) => { e.stopPropagation(); handleAccountClick('cash-wallet', 'Cash Wallet'); }} className="font-mono text-lg cursor-pointer hover:underline">{formatCurrency(cashWalletBalance)}</div>
+                                <div onClick={(e) => { e.stopPropagation(); handleAccountClick('cash-wallet', 'Cash Wallet'); }} className="font-mono text-base cursor-pointer hover:underline">{formatCurrency(cashWalletBalance)}</div>
                                 <Input
                                     id="actual-balance-cash"
                                     type="number"
                                     placeholder="Actual"
-                                    className="hide-number-arrows h-8 text-lg text-left"
+                                    className="hide-number-arrows h-8 text-base text-left"
                                     defaultValue={walletPreferences.cash?.balance ?? ''}
                                     onChange={(e) => {
                                         const value = e.target.value === '' ? null : parseFloat(e.target.value)
@@ -766,12 +766,12 @@ export default function TransactionsPage() {
                                 return (
                                     <div key={card.id} className="space-y-2">
                                         <Label htmlFor={`actual-balance-${card.id}`} className="text-xs">{card.name}</Label>
-                                        <div onClick={(e) => { e.stopPropagation(); handleAccountClick(card); }} className="font-mono text-lg cursor-pointer hover:underline">{formatCurrency(displayBalance)}</div>
+                                        <div onClick={(e) => { e.stopPropagation(); handleAccountClick(card); }} className="font-mono text-base cursor-pointer hover:underline">{formatCurrency(displayBalance)}</div>
                                         <Input
                                             id={`actual-balance-${card.id}`}
                                             type="number"
                                             placeholder="Actual Due"
-                                            className="hide-number-arrows h-8 text-lg text-left"
+                                            className="hide-number-arrows h-8 text-base text-left"
                                             defaultValue={card.actualBalance ?? ''}
                                             onChange={(e) => {
                                                 const value = e.target.value === '' ? null : parseFloat(e.target.value)
@@ -803,7 +803,7 @@ export default function TransactionsPage() {
                               <div className="flex items-center gap-2">
                                 <span className="font-semibold text-sm">{account.name}</span>
                               </div>
-                              <span onClick={(e) => { e.stopPropagation(); handleAccountClick(account); }} className="font-bold text-lg cursor-pointer hover:underline">{formatCurrency(account.balance)}</span>
+                              <span onClick={(e) => { e.stopPropagation(); handleAccountClick(account); }} className="font-bold text-base cursor-pointer hover:underline">{formatCurrency(account.balance)}</span>
                           </div>
                           <div className="w-full space-y-1">
                               <div className="flex items-center justify-between gap-2">
@@ -812,7 +812,7 @@ export default function TransactionsPage() {
                                     id={`actual-balance-${account.id}`}
                                     type="number"
                                     placeholder="Actual"
-                                    className="hide-number-arrows h-8 text-lg w-24 text-right"
+                                    className="hide-number-arrows h-8 text-base w-24 text-right"
                                     defaultValue={account.actualBalance ?? ''}
                                     onChange={(e) => {
                                         const value = e.target.value === '' ? null : parseFloat(e.target.value)
