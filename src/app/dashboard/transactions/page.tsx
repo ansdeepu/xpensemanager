@@ -311,22 +311,6 @@ export default function TransactionsPage() {
   const secondaryAccounts = bankAccounts.filter(account => (account.name.toLowerCase().includes('hdfc') || account.name.toLowerCase().includes('fed') || account.name.toLowerCase().includes('post') || account.name.toLowerCase().includes('money')));
   const otherAccounts = bankAccounts.filter(account => !secondaryAccounts.some(sa => sa.id === account.id));
 
-  const loanTransactionTypeMap = useMemo(() => {
-    const map = new Map<string, 'loan' | 'repayment'>();
-    if (loans) {
-      for (const loan of loans) {
-        if (loan.transactions) {
-            for (const tx of loan.transactions) {
-                if (tx.id) {
-                    map.set(tx.id, tx.type);
-                }
-            }
-        }
-      }
-    }
-    return map;
-  }, [loans]);
-
     const transactionBalanceMap = useMemo(() => {
         const balances = new Map<string, number>();
         if (!activeTab) return balances;
@@ -348,6 +332,19 @@ export default function TransactionsPage() {
             }
             return fromCurrentView || toCurrentView || accountIsInView;
         });
+
+        const loanTransactionTypeMap = new Map<string, 'loan' | 'repayment'>();
+        if (loans) {
+          for (const loan of loans) {
+            if (loan.transactions) {
+                for (const tx of loan.transactions) {
+                    if (tx.id) {
+                        loanTransactionTypeMap.set(tx.id, tx.type);
+                    }
+                }
+            }
+          }
+        }
 
         const getTransactionSortOrder = (t: Transaction) => {
              if (t.loanTransactionId && loanTransactionTypeMap.has(t.loanTransactionId)) {
@@ -423,7 +420,7 @@ export default function TransactionsPage() {
         
         return balances;
 
-    }, [allTransactions, activeTab, primaryAccount, loanTransactionTypeMap]);
+    }, [allTransactions, activeTab, primaryAccount, loans]);
 
   const getAccountName = useCallback((accountId?: string, paymentMethod?: Transaction['paymentMethod']) => {
     if (accountId === 'cash-wallet' || paymentMethod === 'cash') return "Cash Wallet";
@@ -530,6 +527,19 @@ export default function TransactionsPage() {
         });
     }
     
+    const loanTransactionTypeMap = new Map<string, 'loan' | 'repayment'>();
+    if (loans) {
+      for (const loan of loans) {
+        if (loan.transactions) {
+            for (const tx of loan.transactions) {
+                if (tx.id) {
+                    loanTransactionTypeMap.set(tx.id, tx.type);
+                }
+            }
+        }
+      }
+    }
+
     const getTransactionSortOrder = (t: Transaction) => {
         if (t.loanTransactionId && loanTransactionTypeMap.has(t.loanTransactionId)) {
             const loanType = loanTransactionTypeMap.get(t.loanTransactionId);
@@ -559,7 +569,7 @@ export default function TransactionsPage() {
       // Fallback sort for same type on same day, e.g., by amount
       return b.amount - a.amount;
     });
-  }, [allTransactions, activeTab, startDate, endDate, searchQuery, primaryAccount, loanTransactionTypeMap, getLoanDisplayInfo, getAccountName, transactionBalanceMap]);
+  }, [allTransactions, activeTab, startDate, endDate, searchQuery, primaryAccount, getLoanDisplayInfo, getAccountName, transactionBalanceMap, loans]);
 
     const transactionsWithRunningBalance = useMemo(() => {
         return filteredTransactions.map(transaction => {
@@ -733,11 +743,10 @@ export default function TransactionsPage() {
                             </p>
                         )}
                       </div>
-                    </div>
-                     {creditCards.length > 0 && (
-                        <div className="mt-4 pt-4 border-t">
+                       {creditCards.length > 0 && (
+                        <div className="sm:col-span-3 mt-4">
                             <Label className="text-xs font-semibold">Credit Card Balances</Label>
-                            <div className="mt-2 space-y-2">
+                            <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
                             {creditCards.map(card => {
                                 const balanceDifference = getBalanceDifference(card.balance, card.actualBalance);
                                 return (
@@ -774,6 +783,7 @@ export default function TransactionsPage() {
                             </div>
                         </div>
                         )}
+                    </div>
                   </TabsTrigger>
                 )}
                 <div className="grid grid-cols-2 gap-2 h-full content-stretch">
@@ -930,7 +940,3 @@ export default function TransactionsPage() {
     </div>
   );
 }
-
-    
-
-    
