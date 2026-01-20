@@ -198,6 +198,7 @@ export function TransactionTable({
 
   const transactionsWithColumns = useMemo(() => {
     const isPrimaryView = primaryAccount?.id === accountId;
+    const creditCardIds = accounts.filter(a => a.type === 'card').map(a => a.id);
 
     return transactions.map(t => {
       let debit = null;
@@ -208,11 +209,11 @@ export function TransactionTable({
       const toAccountIsWallet = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
       
       const fromCurrentView = isPrimaryView 
-          ? (t.fromAccountId === accountId || fromAccountIsWallet)
+          ? (t.fromAccountId === accountId || fromAccountIsWallet || (t.fromAccountId && creditCardIds.includes(t.fromAccountId)))
           : t.fromAccountId === accountId;
 
       const toCurrentView = isPrimaryView
-          ? (t.toAccountId === accountId || toAccountIsWallet)
+          ? (t.toAccountId === accountId || toAccountIsWallet || (t.toAccountId && creditCardIds.includes(t.toAccountId)))
           : t.toAccountId === accountId;
 
       if (t.type === 'income') {
@@ -223,7 +224,7 @@ export function TransactionTable({
           }
       } else if (t.type === 'expense') {
           if(isPrimaryView) {
-              if (t.accountId === accountId || t.paymentMethod === 'cash' || t.paymentMethod === 'digital') {
+              if (t.accountId === accountId || t.paymentMethod === 'cash' || t.paymentMethod === 'digital' || (t.accountId && creditCardIds.includes(t.accountId))) {
                   debit = t.amount;
               }
           } else {
@@ -248,7 +249,7 @@ export function TransactionTable({
           transfer
       }
     });
-  }, [transactions, accountId, primaryAccount]);
+  }, [transactions, accountId, primaryAccount, accounts]);
 
 
    useEffect(() => {

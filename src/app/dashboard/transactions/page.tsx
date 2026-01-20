@@ -486,19 +486,28 @@ export default function TransactionsPage() {
 
   const filteredTransactions = useMemo(() => {
     const isPrimaryView = primaryAccount?.id === activeTab;
+    const creditCardIds = creditCards.map(c => c.id);
     
     const sourceTransactions = allTransactions.filter(t => {
       const fromAccountIsWallet = t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
       const toAccountIsWallet = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
       
-      const fromCurrentView = isPrimaryView ? (t.fromAccountId === activeTab || fromAccountIsWallet) : t.fromAccountId === activeTab;
-      const toCurrentView = isPrimaryView ? (t.toAccountId === activeTab || toAccountIsWallet) : t.toAccountId === activeTab;
-      
+      let fromCurrentView: boolean;
+      let toCurrentView: boolean;
       let accountIsInView = false;
-      if (t.type === 'expense' || t.type === 'income') {
-         accountIsInView = isPrimaryView 
-            ? (t.accountId === activeTab || t.paymentMethod === 'cash' || t.paymentMethod === 'digital') 
-            : t.accountId === activeTab;
+      
+      if (isPrimaryView) {
+          fromCurrentView = t.fromAccountId === activeTab || fromAccountIsWallet || (t.fromAccountId ? creditCardIds.includes(t.fromAccountId) : false);
+          toCurrentView = t.toAccountId === activeTab || toAccountIsWallet || (t.toAccountId ? creditCardIds.includes(t.toAccountId) : false);
+          if (t.type === 'expense' || t.type === 'income') {
+              accountIsInView = t.accountId === activeTab || t.paymentMethod === 'cash' || t.paymentMethod === 'digital' || (t.accountId ? creditCardIds.includes(t.accountId) : false);
+          }
+      } else {
+          fromCurrentView = t.fromAccountId === activeTab;
+          toCurrentView = t.toAccountId === activeTab;
+          if (t.type === 'expense' || t.type === 'income') {
+            accountIsInView = t.accountId === activeTab;
+          }
       }
       
       return fromCurrentView || toCurrentView || accountIsInView;
@@ -576,7 +585,7 @@ export default function TransactionsPage() {
       // Fallback sort for same type on same day, e.g., by amount
       return b.amount - a.amount;
     });
-  }, [allTransactions, activeTab, startDate, endDate, searchQuery, primaryAccount, getLoanDisplayInfo, getAccountName, transactionBalanceMap, loans, loanInfoMap]);
+  }, [allTransactions, activeTab, startDate, endDate, searchQuery, primaryAccount, getLoanDisplayInfo, getAccountName, transactionBalanceMap, loans, loanInfoMap, creditCards]);
 
     const transactionsWithRunningBalance = useMemo(() => {
         return filteredTransactions.map(transaction => {
