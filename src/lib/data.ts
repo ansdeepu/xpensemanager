@@ -8,6 +8,7 @@ export type Account = {
   balance: number;
   icon: string;
   purpose: string;
+  type?: 'bank' | 'card';
   isPrimary?: boolean;
   order: number;
   actualBalance?: number;

@@ -59,6 +59,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { restrictToWindowEdges } from '@dnd-kit/modifiers';
 import { useToast } from "@/hooks/use-toast";
 import { useAuthState } from "@/hooks/use-auth-state";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-IN", {
@@ -95,7 +96,7 @@ function SortableAccountCard({ account, onSetPrimary, onEdit, onDelete }: { acco
         transition,
     };
     
-    const IconComponent = iconComponents[account.icon] || Landmark;
+    const IconComponent = account.type === 'card' ? CreditCard : (iconComponents[account.icon] || Landmark);
 
 
     return (
@@ -223,18 +224,39 @@ export function AccountList() {
     rawAccounts.forEach(acc => {
         balances[acc.id] = 0; // Start with 0
     });
+    
+    const accountMap = new Map(rawAccounts.map(acc => [acc.id, acc]));
 
     transactions.forEach(t => {
         if (t.type === 'income' && t.accountId && balances[t.accountId] !== undefined) {
-            balances[t.accountId] += t.amount;
+            const account = accountMap.get(t.accountId);
+            // Income only affects bank accounts
+            if(account?.type !== 'card') {
+                balances[t.accountId] += t.amount;
+            }
         } else if (t.type === 'expense' && t.accountId && t.paymentMethod === 'online' && balances[t.accountId] !== undefined) {
-            balances[t.accountId] -= t.amount;
+            const account = accountMap.get(t.accountId);
+            if (account?.type === 'card') {
+                balances[t.accountId] += t.amount; // For cards, expenses increase balance (debt)
+            } else {
+                balances[t.accountId] -= t.amount;
+            }
         } else if (t.type === 'transfer') {
             if (t.fromAccountId && balances[t.fromAccountId] !== undefined) {
-                balances[t.fromAccountId] -= t.amount;
+                const fromAccount = accountMap.get(t.fromAccountId);
+                if (fromAccount?.type === 'card') {
+                    balances[t.fromAccountId] += t.amount; // Cash advance increases debt
+                } else {
+                    balances[t.fromAccountId] -= t.amount;
+                }
             }
             if (t.toAccountId && balances[t.toAccountId] !== undefined) {
-                balances[t.toAccountId] += t.amount;
+                const toAccount = accountMap.get(t.toAccountId);
+                if (toAccount?.type === 'card') {
+                    balances[t.toAccountId] -= t.amount; // Payment to card decreases debt
+                } else {
+                    balances[t.toAccountId] += t.amount;
+                }
             }
         }
     });
@@ -253,6 +275,7 @@ export function AccountList() {
     if (!user) return;
 
     const formData = new FormData(event.currentTarget);
+    const type = formData.get("type") as 'bank' | 'card';
     const { name: iconName } = getRandomIcon();
     
     const isFirstAccount = accounts.length === 0;
@@ -261,7 +284,8 @@ export function AccountList() {
       userId: user.uid,
       name: formData.get("name") as string,
       purpose: formData.get("purpose") as string,
-      icon: iconName,
+      type: type,
+      icon: type === 'card' ? 'CreditCard' : iconName,
       isPrimary: isFirstAccount,
       order: accounts.length,
       actualBalance: parseFloat(formData.get("balance") as string) || 0,
@@ -282,6 +306,7 @@ export function AccountList() {
     const updatedData = {
       name: formData.get("name") as string,
       purpose: formData.get("purpose") as string,
+      type: formData.get("type") as 'bank' | 'card',
     };
 
     try {
@@ -451,23 +476,37 @@ export function AccountList() {
           <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-[425px]">
             <form onSubmit={handleAddAccount}>
               <DialogHeader>
-                <DialogTitle>Add New Bank Account</DialogTitle>
+                <DialogTitle>Add New Account</DialogTitle>
                 <DialogDescription>
-                  Enter the details for your new bank account.
+                  Enter the details for your new account.
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="type" className="text-right">
+                    Type
+                  </Label>
+                  <Select name="type" defaultValue="bank">
+                      <SelectTrigger id="type" className="col-span-3">
+                          <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                          <SelectItem value="bank">Bank Account</SelectItem>
+                          <SelectItem value="card">Credit Card</SelectItem>
+                      </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="name" className="text-right">
                     Name
                   </Label>
-                  <Input id="name" name="name" placeholder="e.g. Savings" className="col-span-3" required />
+                  <Input id="name" name="name" placeholder="e.g. HDFC Credit Card" className="col-span-3" required />
                 </div>
                  <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="purpose" className="text-right">
                     Purpose
                   </Label>
-                  <Input id="purpose" name="purpose" placeholder="e.g. Salary Account" className="col-span-3" required />
+                  <Input id="purpose" name="purpose" placeholder="e.g. For online shopping" className="col-span-3" required />
                 </div>
                  <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="balance" className="text-right">
@@ -561,6 +600,20 @@ export function AccountList() {
                 </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="edit-type" className="text-right">
+                        Type
+                    </Label>
+                    <Select name="type" defaultValue={selectedAccount?.type ?? 'bank'}>
+                        <SelectTrigger id="edit-type" className="col-span-3">
+                            <SelectValue placeholder="Select type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="bank">Bank Account</SelectItem>
+                            <SelectItem value="card">Credit Card</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="edit-name" className="text-right">
                         Name

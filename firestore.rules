@@ -13,7 +13,8 @@ service cloud.firestore {
       allow create: if isOwner(request.resource.data.userId)
                     && request.resource.data.name is string
                     && request.resource.data.name.size() > 0
-                    && request.resource.data.order is number;
+                    && request.resource.data.order is number
+                    && request.resource.data.type in ['bank', 'card'];
       allow update: if isOwner(resource.data.userId);
       allow delete: if isOwner(resource.data.userId);
     }
