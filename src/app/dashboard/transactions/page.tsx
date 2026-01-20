@@ -354,16 +354,14 @@ export default function TransactionsPage() {
         const getTransactionSortOrder = (t: Transaction) => {
             if (t.loanTransactionId && loanInfoMap.has(t.loanTransactionId)) {
                 const { loanType, transactionType } = loanInfoMap.get(t.loanTransactionId)!;
-                // Inflows
-                if (loanType === 'taken' && transactionType === 'loan') return 2; // Loan Taken
-                if (loanType === 'given' && transactionType === 'repayment') return 3; // Repayment Received
-                // Outflows
-                if (loanType === 'given' && transactionType === 'loan') return 5; // Loan Given
-                if (loanType === 'taken' && transactionType === 'repayment') return 6; // Repayment Made
+                if (loanType === 'taken' && transactionType === 'repayment') return 2; // Repayment Made
+                if (loanType === 'given' && transactionType === 'loan') return 3; // Loan Given
+                if (loanType === 'given' && transactionType === 'repayment') return 5; // Repayment Received
+                if (loanType === 'taken' && transactionType === 'loan') return 6; // Loan Taken
             }
-            if (t.type === 'income') return 1;
+            if (t.type === 'transfer') return 1;
             if (t.type === 'expense') return 4;
-            if (t.type === 'transfer') return 7;
+            if (t.type === 'income') return 7;
             return 99;
         };
 
@@ -542,16 +540,14 @@ export default function TransactionsPage() {
     const getTransactionSortOrder = (t: Transaction) => {
         if (t.loanTransactionId && loanInfoMap.has(t.loanTransactionId)) {
             const { loanType, transactionType } = loanInfoMap.get(t.loanTransactionId)!;
-            // Inflows
-            if (loanType === 'taken' && transactionType === 'loan') return 2; // Loan Taken
-            if (loanType === 'given' && transactionType === 'repayment') return 3; // Repayment Received
-            // Outflows
-            if (loanType === 'given' && transactionType === 'loan') return 5; // Loan Given
-            if (loanType === 'taken' && transactionType === 'repayment') return 6; // Repayment Made
+            if (loanType === 'taken' && transactionType === 'repayment') return 2; // Repayment Made
+            if (loanType === 'given' && transactionType === 'loan') return 3; // Loan Given
+            if (loanType === 'given' && transactionType === 'repayment') return 5; // Repayment Received
+            if (loanType === 'taken' && transactionType === 'loan') return 6; // Loan Taken
         }
-        if (t.type === 'income') return 1;
+        if (t.type === 'transfer') return 1;
         if (t.type === 'expense') return 4;
-        if (t.type === 'transfer') return 7;
+        if (t.type === 'income') return 7;
         return 99;
     };
 
