@@ -454,7 +454,7 @@ export default function TransactionsPage() {
 
   const getLoanDisplayInfo = useMemo(() => {
     return (t: Transaction) => {
-        const defaultInfo = { isLoan: false, type: t.type, category: t.category, description: t.description };
+        const defaultInfo = { isLoan: false, type: t.type, category: t.category, description: t.description, descriptionClassName: "" };
 
         if (t.type !== 'transfer' || !t.loanTransactionId) {
             return defaultInfo;
@@ -477,7 +477,7 @@ export default function TransactionsPage() {
             }
             
             const description = `${descriptionPrefix} ${otherPartyName}`;
-            return { isLoan: true, type: loanTx.type, category: 'Loan', description };
+            return { isLoan: true, type: loanTx.type, category: 'Loan', description, descriptionClassName: 'text-orange-600 font-bold' };
         }
         
         return defaultInfo;
@@ -538,16 +538,24 @@ export default function TransactionsPage() {
     }
     
     const getTransactionSortOrder = (t: Transaction) => {
+        const fromIsWallet = t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
+        const isWithdraw = t.type === 'transfer' && !t.loanTransactionId && t.toAccountId === 'cash-wallet' && !fromIsWallet;
+
         if (t.loanTransactionId && loanInfoMap.has(t.loanTransactionId)) {
             const { loanType, transactionType } = loanInfoMap.get(t.loanTransactionId)!;
-            if (loanType === 'taken' && transactionType === 'repayment') return 2; // Repayment Made
-            if (loanType === 'given' && transactionType === 'loan') return 3; // Loan Given
-            if (loanType === 'given' && transactionType === 'repayment') return 5; // Repayment Received
-            if (loanType === 'taken' && transactionType === 'loan') return 6; // Loan Taken
+            if (loanType === 'taken' && transactionType === 'repayment') return 3; // Repayment Made
+            if (loanType === 'given' && transactionType === 'loan') return 4; // Loan Given
+            if (loanType === 'given' && transactionType === 'repayment') return 6; // Repayment Received
+            if (loanType === 'taken' && transactionType === 'loan') return 7; // Loan Taken
         }
-        if (t.type === 'transfer') return 1;
-        if (t.type === 'expense') return 4;
-        if (t.type === 'income') return 7;
+        
+        if (t.type === 'transfer') {
+            if (isWithdraw) return 2;
+            return 1;
+        }
+
+        if (t.type === 'expense') return 5;
+        if (t.type === 'income') return 8;
         return 99;
     };
 
@@ -673,7 +681,7 @@ export default function TransactionsPage() {
                                     id={`actual-balance-${primaryAccount.id}`}
                                     type="number"
                                     placeholder="Actual"
-                                    className="hide-number-arrows h-8 text-sm text-left"
+                                    className="hide-number-arrows h-8 text-lg text-left"
                                     defaultValue={primaryAccount.actualBalance ?? ''}
                                     onChange={(e) => {
                                         const value = e.target.value === '' ? null : parseFloat(e.target.value)
@@ -699,7 +707,7 @@ export default function TransactionsPage() {
                                     id="actual-balance-digital"
                                     type="number"
                                     placeholder="Actual"
-                                    className="hide-number-arrows h-8 text-sm text-left"
+                                    className="hide-number-arrows h-8 text-lg text-left"
                                     defaultValue={walletPreferences.digital?.balance ?? ''}
                                     onChange={(e) => {
                                         const value = e.target.value === '' ? null : parseFloat(e.target.value)
@@ -725,7 +733,7 @@ export default function TransactionsPage() {
                                     id="actual-balance-cash"
                                     type="number"
                                     placeholder="Actual"
-                                    className="hide-number-arrows h-8 text-sm text-left"
+                                    className="hide-number-arrows h-8 text-lg text-left"
                                     defaultValue={walletPreferences.cash?.balance ?? ''}
                                     onChange={(e) => {
                                         const value = e.target.value === '' ? null : parseFloat(e.target.value)
@@ -754,7 +762,7 @@ export default function TransactionsPage() {
                                             id={`actual-balance-${card.id}`}
                                             type="number"
                                             placeholder="Actual Due"
-                                            className="hide-number-arrows h-8 text-sm text-left"
+                                            className="hide-number-arrows h-8 text-lg text-left"
                                             defaultValue={card.actualBalance ?? ''}
                                             onChange={(e) => {
                                                 const value = e.target.value === '' ? null : parseFloat(e.target.value)
@@ -786,7 +794,7 @@ export default function TransactionsPage() {
                               <div className="flex items-center gap-2">
                                 <span className="font-semibold text-sm">{account.name}</span>
                               </div>
-                              <span onClick={(e) => { e.stopPropagation(); handleAccountClick(account); }} className="font-bold text-sm cursor-pointer hover:underline">{formatCurrency(account.balance)}</span>
+                              <span onClick={(e) => { e.stopPropagation(); handleAccountClick(account); }} className="font-bold text-lg cursor-pointer hover:underline">{formatCurrency(account.balance)}</span>
                           </div>
                           <div className="w-full space-y-1">
                               <div className="flex items-center justify-between gap-2">
@@ -795,7 +803,7 @@ export default function TransactionsPage() {
                                     id={`actual-balance-${account.id}`}
                                     type="number"
                                     placeholder="Actual"
-                                    className="hide-number-arrows h-8 text-sm w-24 text-right"
+                                    className="hide-number-arrows h-8 text-lg w-24 text-right"
                                     defaultValue={account.actualBalance ?? ''}
                                     onChange={(e) => {
                                         const value = e.target.value === '' ? null : parseFloat(e.target.value)
@@ -904,3 +912,4 @@ export default function TransactionsPage() {
     
 
     
+

@@ -162,28 +162,33 @@ export function TransactionTable({
         return (t: Transaction) => {
             const defaultInfo = { isLoan: false, type: t.type, category: t.category, description: t.description, descriptionClassName: "" };
 
-            if (t.type !== 'transfer' || !t.loanTransactionId) {
-                return defaultInfo;
-            }
+            if (t.type === 'transfer') {
+                if (t.loanTransactionId) {
+                    const loan = loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId));
+                    if (loan) {
+                        const loanTx = loan.transactions.find(lt => lt.id === t.loanTransactionId)!;
+                        const otherPartyName = loan.personName;
+                        
+                        const isLoanTaken = loan.type === 'taken';
+                        const isRepayment = loanTx.type === 'repayment';
+                        let descriptionPrefix = '';
 
-            const loan = loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId));
-            
-            if (loan) {
-                const loanTx = loan.transactions.find(lt => lt.id === t.loanTransactionId)!;
-                const otherPartyName = loan.personName;
-                
-                const isLoanTaken = loan.type === 'taken';
-                const isRepayment = loanTx.type === 'repayment';
-                let descriptionPrefix = '';
-
-                if (isLoanTaken) {
-                    descriptionPrefix = isRepayment ? 'Repayment to' : 'Loan from';
-                } else { // 'given'
-                    descriptionPrefix = isRepayment ? 'Repayment from' : 'Loan to';
+                        if (isLoanTaken) {
+                            descriptionPrefix = isRepayment ? 'Repayment to' : 'Loan from';
+                        } else { // 'given'
+                            descriptionPrefix = isRepayment ? 'Repayment from' : 'Loan to';
+                        }
+                        
+                        const description = `${descriptionPrefix} ${otherPartyName}`;
+                        return { isLoan: true, type: loanTx.type, category: 'Loan', description, descriptionClassName: 'text-orange-600 font-bold' };
+                    }
                 }
                 
-                const description = `${descriptionPrefix} ${otherPartyName}`;
-                return { isLoan: true, type: loanTx.type, category: 'Loan', description, descriptionClassName: 'text-orange-600 font-bold' };
+                const fromIsWallet = t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
+
+                if (t.toAccountId === 'cash-wallet' && !fromIsWallet) {
+                    return { ...defaultInfo, type: 'withdraw' as const };
+                }
             }
             
             return defaultInfo;
@@ -423,7 +428,7 @@ export function TransactionTable({
     setIsEditDialogOpen(true);
   };
   
-  const getBadgeVariant = (type: Transaction['type'] | 'loan' | 'repayment') => {
+  const getBadgeVariant = (type: Transaction['type'] | 'loan' | 'repayment' | 'withdraw') => {
     switch (type) {
       case 'income':
         return 'default';
@@ -432,6 +437,7 @@ export function TransactionTable({
       case 'transfer':
       case 'loan':
       case 'repayment':
+      case 'withdraw':
       default:
         return 'secondary';
     }
