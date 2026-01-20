@@ -572,21 +572,16 @@ export default function TransactionsPage() {
     const getTransactionSortOrder = (t: Transaction) => {
         const loanInfo = getLoanDisplayInfo(t);
         
-        // INFLOWS
-        if (t.type === 'income') return 1;
-        if (loanInfo.isLoan && loanInfo.type === 'loan') return 2; // Loan Taken
-        if (loanInfo.isLoan && loanInfo.type === 'repayment') return 3; // Repayment Received
-
-        // OUTFLOWS
+        if (loanInfo.type === 'return') return 1;
+        if (t.type === 'transfer' && !loanInfo.isLoan) return 2;
+        if (loanInfo.isLoan && loanInfo.type === 'repayment' && loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId))?.type === 'taken') return 3; // Repayment Made
+        if (loanInfo.isLoan && loanInfo.type === 'loan' && loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId))?.type === 'given') return 4; // Loan Given
         if (t.type === 'expense') return 5;
-        if (loanInfo.isLoan && loanInfo.type === 'loan') return 6; // Loan Given
-        if (loanInfo.isLoan && loanInfo.type === 'repayment') return 7; // Repayment Made
+        if (loanInfo.type === 'issue') return 6; 
         
-        // NEUTRAL/OTHER
-        if (loanInfo.type === 'issue') return 4;
-        if (loanInfo.type === 'return') return 9;
-        if (t.type === 'transfer' && !loanInfo.isLoan) return 8;
-
+        if (loanInfo.isLoan && loanInfo.type === 'repayment' && loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId))?.type === 'given') return 7; // Repayment Received
+        if (loanInfo.isLoan && loanInfo.type === 'loan' && loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId))?.type === 'taken') return 8; // Loan Taken
+        if (t.type === 'income') return 9;
 
         return 99;
     };
@@ -767,14 +762,14 @@ export default function TransactionsPage() {
                 {primaryAccount && (
                   <TabsTrigger value={primaryAccount.id} className={cn("border flex flex-col h-full p-4 items-start text-left gap-4 w-full data-[state=active]:shadow-lg data-[state=active]:bg-lime-100 dark:data-[state=active]:bg-lime-900/50", "bg-card")}>
                     <div className="w-full flex justify-between">
-                      <span className="font-semibold text-lg">Primary ({primaryAccount.name})</span>
+                      <span className="font-semibold text-base">Primary ({primaryAccount.name})</span>
                       <span className="font-bold text-lg text-primary">{formatCurrency(allBalance)}</span>
                     </div>
                     
                     <div className="w-full grid grid-cols-1 sm:grid-cols-4 gap-4 text-left py-4">
                       {/* Bank Column */}
                       <div className="space-y-2">
-                        <Label htmlFor={`actual-balance-${primaryAccount.id}`} className="text-sm">Bank Balance</Label>
+                        <Label htmlFor={`actual-balance-${primaryAccount.id}`} className="text-xs">Bank Balance</Label>
                         <div className="font-mono text-base">{formatCurrency(primaryAccount.balance)}</div>
                         <Input
                             id={`actual-balance-${primaryAccount.id}`}
@@ -800,7 +795,7 @@ export default function TransactionsPage() {
 
                       {/* Cash Column */}
                       <div className="space-y-2">
-                        <Label htmlFor="actual-balance-cash" className="text-sm">Cash</Label>
+                        <Label htmlFor="actual-balance-cash" className="text-xs">Cash</Label>
                         <div className="font-mono text-base">{formatCurrency(cashWalletBalance)}</div>
                         <Input
                             id="actual-balance-cash"
@@ -826,7 +821,7 @@ export default function TransactionsPage() {
 
                       {/* Digital Column */}
                       <div className="space-y-2">
-                        <Label htmlFor="actual-balance-digital" className="text-sm">Digital</Label>
+                        <Label htmlFor="actual-balance-digital" className="text-xs">Digital</Label>
                           <div className="font-mono text-base">{formatCurrency(digitalWalletBalance)}</div>
                         <Input
                             id="actual-balance-digital"
@@ -856,7 +851,7 @@ export default function TransactionsPage() {
                           const balanceDifference = getBalanceDifference(calculatedDue, sbiCreditCard.actualBalance);
                           return (
                             <div className="space-y-2">
-                                <Label htmlFor={`actual-balance-${sbiCreditCard.id}`} className="text-sm">{sbiCreditCard.name}</Label>
+                                <Label htmlFor={`actual-balance-${sbiCreditCard.id}`} className="text-xs">{sbiCreditCard.name}</Label>
                                 <div className="font-mono text-base">{formatCurrency(calculatedDue)}</div>
                                 <Input
                                     id={`actual-balance-${sbiCreditCard.id}`}
@@ -994,5 +989,3 @@ export default function TransactionsPage() {
     </div>
   );
 }
-
-    
