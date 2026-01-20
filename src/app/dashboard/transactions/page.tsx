@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
@@ -339,109 +338,6 @@ export default function TransactionsPage() {
     return map;
   }, [loans]);
 
-    const transactionBalanceMap = useMemo(() => {
-        const balances = new Map<string, number>();
-        if (!activeTab) return balances;
-
-        const isPrimaryView = primaryAccount?.id === activeTab;
-
-        const allRelevantTransactions = allTransactions.filter(t => {
-            const fromAccountIsWallet = t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
-            const toAccountIsWallet = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
-            
-            const fromCurrentView = isPrimaryView ? (t.fromAccountId === activeTab || fromAccountIsWallet) : t.fromAccountId === activeTab;
-            const toCurrentView = isPrimaryView ? (t.toAccountId === activeTab || toAccountIsWallet) : t.toAccountId === activeTab;
-            
-            let accountIsInView = false;
-            if (t.type === 'expense' || t.type === 'income') {
-              accountIsInView = isPrimaryView 
-                  ? (t.accountId === activeTab || t.paymentMethod === 'cash' || t.paymentMethod === 'digital') 
-                  : t.accountId === activeTab;
-            }
-            return fromCurrentView || toCurrentView || accountIsInView;
-        });
-
-        const getTransactionSortOrder = (t: Transaction) => {
-            const loanInfo = getLoanDisplayInfo(t);
-            
-            if (loanInfo.type === 'return') return 1;
-            if (t.type === 'transfer' && !loanInfo.isLoan) return 2;
-            if (loanInfo.isLoan && loanInfo.type === 'repayment' && loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId))?.type === 'taken') return 3; // Repayment Made
-            if (loanInfo.isLoan && loanInfo.type === 'loan' && loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId))?.type === 'given') return 4; // Loan Given
-            if (t.type === 'expense') return 5;
-            if (loanInfo.type === 'issue') return 6; 
-            
-            if (loanInfo.isLoan && loanInfo.type === 'repayment' && loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId))?.type === 'given') return 7; // Repayment Received
-            if (loanInfo.isLoan && loanInfo.type === 'loan' && loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId))?.type === 'taken') return 8; // Loan Taken
-            if (t.type === 'income') return 9;
-
-            return 99;
-        };
-
-        const sortedChronologically = allRelevantTransactions.sort((a, b) => {
-            const dateA = new Date(a.date).getTime();
-            const dateB = new Date(b.date).getTime();
-            if (dateA !== dateB) {
-                return dateA - dateB;
-            }
-            const orderA = getTransactionSortOrder(a);
-            const orderB = getTransactionSortOrder(b);
-            if (orderA !== orderB) {
-                return orderA - orderB;
-            }
-            return a.amount - b.amount;
-        });
-        
-        let runningBalance = 0;
-        
-        let openingBalanceTx;
-        if(isPrimaryView) {
-            const primaryOpening = sortedChronologically.find(t => t.category === 'Previous balance' && t.accountId === primaryAccount?.id);
-            const cashOpening = sortedChronologically.find(t => t.category === 'Previous balance' && t.accountId === 'cash-wallet');
-            const digitalOpening = sortedChronologically.find(t => t.category === 'Previous balance' && t.accountId === 'digital-wallet');
-            runningBalance = (primaryOpening?.amount || 0) + (cashOpening?.amount || 0) + (digitalOpening?.amount || 0);
-        } else {
-            openingBalanceTx = sortedChronologically.find(t => t.category === 'Previous balance' && t.accountId === activeTab);
-            if (openingBalanceTx) {
-                runningBalance = openingBalanceTx.amount;
-            }
-        }
-
-
-        for (const transaction of sortedChronologically) {
-            let effect = 0;
-
-            if (transaction.category !== 'Previous balance') {
-                 if (transaction.type === 'income') {
-                    if (isPrimaryView ? (transaction.accountId === activeTab || transaction.accountId === 'cash-wallet' || transaction.accountId === 'digital-wallet') : transaction.accountId === activeTab) {
-                        effect = transaction.amount;
-                    }
-                } else if (transaction.type === 'expense') {
-                    if (isPrimaryView ? (transaction.accountId === activeTab || transaction.paymentMethod === 'cash' || transaction.paymentMethod === 'digital') : transaction.accountId === activeTab) {
-                        effect = -transaction.amount;
-                    }
-                } else if (transaction.type === 'transfer') {
-                    const fromCurrentView = isPrimaryView ? (transaction.fromAccountId === activeTab || transaction.fromAccountId === 'cash-wallet' || transaction.fromAccountId === 'digital-wallet') : transaction.fromAccountId === activeTab;
-                    const toCurrentView = isPrimaryView ? (transaction.toAccountId === activeTab || transaction.toAccountId === 'cash-wallet' || transaction.toAccountId === 'digital-wallet') : transaction.toAccountId === activeTab;
-                    
-                    if (fromCurrentView && toCurrentView) {
-                        // Internal transfer within the view, no net change to the total balance
-                        effect = 0;
-                    } else if (fromCurrentView) {
-                        effect = -transaction.amount;
-                    } else if (toCurrentView) {
-                        effect = transaction.amount;
-                    }
-                }
-                runningBalance += effect;
-            }
-            balances.set(transaction.id, runningBalance);
-        }
-        
-        return balances;
-
-    }, [allTransactions, activeTab, primaryAccount, loans, loanInfoMap]);
-
   const getAccountName = useCallback((accountId?: string, paymentMethod?: Transaction['paymentMethod']) => {
     if (accountId === 'cash-wallet' || paymentMethod === 'cash') return "Cash Wallet";
     if (accountId === 'digital-wallet' || paymentMethod === 'digital') return "Digital Wallet";
@@ -509,6 +405,109 @@ export default function TransactionsPage() {
         return defaultInfo;
     };
   }, [loans, primaryAccount]);
+
+  const transactionBalanceMap = useMemo(() => {
+      const balances = new Map<string, number>();
+      if (!activeTab) return balances;
+
+      const isPrimaryView = primaryAccount?.id === activeTab;
+
+      const allRelevantTransactions = allTransactions.filter(t => {
+          const fromAccountIsWallet = t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
+          const toAccountIsWallet = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
+          
+          const fromCurrentView = isPrimaryView ? (t.fromAccountId === activeTab || fromAccountIsWallet) : t.fromAccountId === activeTab;
+          const toCurrentView = isPrimaryView ? (t.toAccountId === activeTab || toAccountIsWallet) : t.toAccountId === activeTab;
+          
+          let accountIsInView = false;
+          if (t.type === 'expense' || t.type === 'income') {
+            accountIsInView = isPrimaryView 
+                ? (t.accountId === activeTab || t.paymentMethod === 'cash' || t.paymentMethod === 'digital') 
+                : t.accountId === activeTab;
+          }
+          return fromCurrentView || toCurrentView || accountIsInView;
+      });
+
+      const getTransactionSortOrder = (t: Transaction) => {
+          const loanInfo = getLoanDisplayInfo(t);
+          
+          if (loanInfo.type === 'return') return 1;
+          if (t.type === 'transfer' && !loanInfo.isLoan) return 2;
+          if (loanInfo.isLoan && loanInfo.type === 'repayment' && loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId))?.type === 'taken') return 3; // Repayment Made
+          if (loanInfo.isLoan && loanInfo.type === 'loan' && loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId))?.type === 'given') return 4; // Loan Given
+          if (t.type === 'expense') return 5;
+          if (loanInfo.type === 'issue') return 6; 
+          
+          if (loanInfo.isLoan && loanInfo.type === 'repayment' && loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId))?.type === 'given') return 7; // Repayment Received
+          if (loanInfo.isLoan && loanInfo.type === 'loan' && loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId))?.type === 'taken') return 8; // Loan Taken
+          if (t.type === 'income') return 9;
+
+          return 99;
+      };
+
+      const sortedChronologically = allRelevantTransactions.sort((a, b) => {
+          const dateA = new Date(a.date).getTime();
+          const dateB = new Date(b.date).getTime();
+          if (dateA !== dateB) {
+              return dateA - dateB;
+          }
+          const orderA = getTransactionSortOrder(a);
+          const orderB = getTransactionSortOrder(b);
+          if (orderA !== orderB) {
+              return orderA - orderB;
+          }
+          return a.amount - b.amount;
+      });
+      
+      let runningBalance = 0;
+      
+      let openingBalanceTx;
+      if(isPrimaryView) {
+          const primaryOpening = sortedChronologically.find(t => t.category === 'Previous balance' && t.accountId === primaryAccount?.id);
+          const cashOpening = sortedChronologically.find(t => t.category === 'Previous balance' && t.accountId === 'cash-wallet');
+          const digitalOpening = sortedChronologically.find(t => t.category === 'Previous balance' && t.accountId === 'digital-wallet');
+          runningBalance = (primaryOpening?.amount || 0) + (cashOpening?.amount || 0) + (digitalOpening?.amount || 0);
+      } else {
+          openingBalanceTx = sortedChronologically.find(t => t.category === 'Previous balance' && t.accountId === activeTab);
+          if (openingBalanceTx) {
+              runningBalance = openingBalanceTx.amount;
+          }
+      }
+
+
+      for (const transaction of sortedChronologically) {
+          let effect = 0;
+
+          if (transaction.category !== 'Previous balance') {
+               if (transaction.type === 'income') {
+                  if (isPrimaryView ? (transaction.accountId === activeTab || transaction.accountId === 'cash-wallet' || transaction.accountId === 'digital-wallet') : transaction.accountId === activeTab) {
+                      effect = transaction.amount;
+                  }
+              } else if (transaction.type === 'expense') {
+                  if (isPrimaryView ? (transaction.accountId === activeTab || transaction.paymentMethod === 'cash' || transaction.paymentMethod === 'digital') : transaction.accountId === activeTab) {
+                      effect = -transaction.amount;
+                  }
+              } else if (transaction.type === 'transfer') {
+                  const fromCurrentView = isPrimaryView ? (transaction.fromAccountId === activeTab || transaction.fromAccountId === 'cash-wallet' || transaction.fromAccountId === 'digital-wallet') : transaction.fromAccountId === activeTab;
+                  const toCurrentView = isPrimaryView ? (transaction.toAccountId === activeTab || transaction.toAccountId === 'cash-wallet' || transaction.toAccountId === 'digital-wallet') : transaction.toAccountId === activeTab;
+                  
+                  if (fromCurrentView && toCurrentView) {
+                      // Internal transfer within the view, no net change to the total balance
+                      effect = 0;
+                  } else if (fromCurrentView) {
+                      effect = -transaction.amount;
+                  } else if (toCurrentView) {
+                      effect = transaction.amount;
+                  }
+              }
+              runningBalance += effect;
+          }
+          balances.set(transaction.id, runningBalance);
+      }
+      
+      return balances;
+
+  }, [allTransactions, activeTab, primaryAccount, loans, loanInfoMap, getLoanDisplayInfo]);
 
   const filteredTransactions = useMemo(() => {
     const isPrimaryView = primaryAccount?.id === activeTab;
