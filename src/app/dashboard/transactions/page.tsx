@@ -219,114 +219,82 @@ export default function TransactionsPage() {
     }
   }, [user, userLoading, dataLoading]);
 
-  const loanTransactionTypeMap = useMemo(() => {
-    const map = new Map<string, 'loan' | 'repayment'>();
-    if (loans) {
-      for (const loan of loans) {
-        if (loan.transactions) {
-            for (const tx of loan.transactions) {
-                if (tx.id) {
-                    map.set(tx.id, tx.type);
-                }
+  const { accounts, cashWalletBalance, digitalWalletBalance } = useMemo(() => {
+    let runningCashBalance = 0;
+    let runningDigitalBalance = 0;
+    const runningAccountBalances: { [key: string]: number } = {};
+    const accountMap = new Map(rawAccounts.map(acc => [acc.id, acc]));
+
+    rawAccounts.forEach(acc => {
+        runningAccountBalances[acc.id] = 0;
+    });
+
+    const chronologicalTransactions = [...allTransactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    
+    chronologicalTransactions.forEach(t => {
+      // Income
+      if (t.type === 'income' && t.accountId && runningAccountBalances[t.accountId] !== undefined) {
+          const account = accountMap.get(t.accountId);
+          if (account?.type !== 'card') { // Income doesn't go to cards
+            runningAccountBalances[t.accountId] += t.amount;
+          }
+      // Expense
+      } else if (t.type === 'expense') {
+        if (t.paymentMethod === 'online' && t.accountId && runningAccountBalances[t.accountId] !== undefined) {
+            const account = accountMap.get(t.accountId);
+            if (account?.type === 'card') {
+              runningAccountBalances[t.accountId] += t.amount; // Debt increases
+            } else {
+              runningAccountBalances[t.accountId] -= t.amount;
             }
+        } else if (t.paymentMethod === 'cash') {
+          runningCashBalance -= t.amount;
+        } else if (t.paymentMethod === 'digital') {
+          runningDigitalBalance -= t.amount;
+        }
+      // Transfer
+      } else if (t.type === 'transfer') {
+        // From account
+        if (t.fromAccountId && runningAccountBalances[t.fromAccountId] !== undefined) {
+          const fromAccount = accountMap.get(t.fromAccountId);
+          if (fromAccount?.type === 'card') {
+            runningAccountBalances[t.fromAccountId] += t.amount; // Cash advance
+          } else {
+            runningAccountBalances[t.fromAccountId] -= t.amount;
+          }
+        } else if (t.fromAccountId === 'cash-wallet') {
+          runningCashBalance -= t.amount;
+        } else if (t.fromAccountId === 'digital-wallet') {
+          runningDigitalBalance -= t.amount;
+        }
+
+        // To account
+        if (t.toAccountId && runningAccountBalances[t.toAccountId] !== undefined) {
+          const toAccount = accountMap.get(t.toAccountId);
+          if (toAccount?.type === 'card') {
+            runningAccountBalances[t.toAccountId] -= t.amount; // Paying off card
+          } else {
+            runningAccountBalances[t.toAccountId] += t.amount;
+          }
+        } else if (t.toAccountId === 'cash-wallet') {
+          runningCashBalance += t.amount;
+        } else if (t.toAccountId === 'digital-wallet') {
+          runningDigitalBalance += t.amount;
         }
       }
-    }
-    return map;
-  }, [loans]);
-
-  const { accounts, cashWalletBalance, digitalWalletBalance } = useMemo(() => {
-    const getTransactionSortOrder = (t: Transaction) => {
-        if (t.loanTransactionId && loanTransactionTypeMap.has(t.loanTransactionId)) {
-            const loanType = loanTransactionTypeMap.get(t.loanTransactionId);
-            if (loanType === 'loan') return 1;
-            if (loanType === 'repayment') return 4;
-        }
-        if (t.type === 'income') return 2;
-        if (t.type === 'expense') return 3;
-        if (t.type === 'transfer') return 5;
-        return 99;
-    };
-
-    const sortedChronologically = [...allTransactions].sort((a, b) => {
-        const dateA = new Date(a.date).getTime();
-        const dateB = new Date(b.date).getTime();
-        if (dateA !== dateB) {
-            return dateA - dateB;
-        }
-        const orderA = getTransactionSortOrder(a);
-        const orderB = getTransactionSortOrder(b);
-        if (orderA !== orderB) {
-            return orderA - orderB;
-        }
-        return a.amount - b.amount; // fallback
     });
 
-    const calculateWalletBalance = (walletType: 'cash' | 'digital') => {
-        let runningBalance = 0;
-        const openingBalanceTx = sortedChronologically.find(t => t.category === 'Previous balance' && t.accountId === `${walletType}-wallet`);
-        if(openingBalanceTx) {
-            runningBalance = openingBalanceTx.amount;
-        }
-
-        for (const transaction of sortedChronologically) {
-             if (transaction.id === openingBalanceTx?.id) continue;
-            let effect = 0;
-            if (transaction.type === 'expense') {
-              if (transaction.paymentMethod === walletType) {
-                  effect = -transaction.amount;
-              }
-            } else if (transaction.type === 'transfer') {
-                if (transaction.fromAccountId === `${walletType}-wallet`) {
-                    effect = -transaction.amount;
-                } else if (transaction.toAccountId === `${walletType}-wallet`) {
-                    effect = transaction.amount;
-                }
-            }
-            runningBalance += effect;
-        }
-        return runningBalance;
-    }
-
-    const finalCashBalance = calculateWalletBalance('cash');
-    const finalDigitalBalance = calculateWalletBalance('digital');
-
-    const finalBankAccounts = rawAccounts.map(acc => {
-        let runningBalance = 0;
-        
-        const openingBalanceTx = sortedChronologically.find(t => t.category === 'Previous balance' && t.accountId === acc.id);
-        if (openingBalanceTx) {
-            runningBalance = openingBalanceTx.amount;
-        }
-
-        for (const transaction of sortedChronologically) {
-             if (transaction.id === openingBalanceTx?.id) continue;
-             let effect = 0;
-             if(transaction.category !== 'Previous balance') {
-                if (transaction.type === 'income' && transaction.accountId === acc.id) {
-                  effect = transaction.amount;
-              } else if (transaction.type === 'expense' && transaction.accountId === acc.id && transaction.paymentMethod === 'online') {
-                  effect = -transaction.amount;
-              } else if (transaction.type === 'transfer') {
-                  if (transaction.fromAccountId === acc.id) {
-                      effect = -transaction.amount;
-                  } else if (transaction.toAccountId === acc.id) {
-                      effect = transaction.amount;
-                  }
-              }
-               runningBalance += effect;
-             }
-        }
-        return {...acc, balance: runningBalance};
-    });
-
+    const finalAccounts = rawAccounts.map(acc => ({
+        ...acc,
+        balance: runningAccountBalances[acc.id] ?? 0,
+    }));
+    
     return { 
-      accounts: finalBankAccounts, 
-      cashWalletBalance: finalCashBalance,
-      digitalWalletBalance: finalDigitalBalance 
+      accounts: finalAccounts, 
+      cashWalletBalance: runningCashBalance,
+      digitalWalletBalance: runningDigitalBalance 
     };
-
-  }, [rawAccounts, allTransactions, loanTransactionTypeMap]);
+  }, [rawAccounts, allTransactions]);
 
 
   const primaryAccount = accounts.find(a => a.isPrimary);
@@ -337,9 +305,11 @@ export default function TransactionsPage() {
     }
   }, [primaryAccount, activeTab]);
 
+  const creditCards = accounts.filter(account => account.type === 'card');
+  const bankAccounts = accounts.filter(account => account.type !== 'card' && !account.isPrimary);
   
-  const secondaryAccounts = accounts.filter(account => !account.isPrimary && (account.name.toLowerCase().includes('hdfc') || account.name.toLowerCase().includes('fed') || account.name.toLowerCase().includes('post') || account.name.toLowerCase().includes('money')));
-  const otherAccounts = accounts.filter(account => !account.isPrimary && !secondaryAccounts.some(sa => sa.id === account.id));
+  const secondaryAccounts = bankAccounts.filter(account => (account.name.toLowerCase().includes('hdfc') || account.name.toLowerCase().includes('fed') || account.name.toLowerCase().includes('post') || account.name.toLowerCase().includes('money')));
+  const otherAccounts = bankAccounts.filter(account => !secondaryAccounts.some(sa => sa.id === account.id));
 
     const transactionBalanceMap = useMemo(() => {
         const balances = new Map<string, number>();
@@ -748,10 +718,50 @@ export default function TransactionsPage() {
                         )}
                       </div>
                     </div>
+                     {creditCards.length > 0 && (
+                        <div className="mt-4 pt-4 border-t">
+                            <Label className="text-xs font-semibold">Credit Card Balances</Label>
+                            <div className="mt-2 space-y-2">
+                            {creditCards.map(card => {
+                                const balanceDifference = getBalanceDifference(card.balance, card.actualBalance);
+                                return (
+                                <div key={card.id} className="p-2 rounded-md border bg-muted/50">
+                                    <div className="flex justify-between items-center">
+                                    <span className="font-semibold text-sm">{card.name}</span>
+                                    <span className="font-mono text-sm cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); handleAccountClick(card); }}>{formatCurrency(card.balance)}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between gap-2 mt-2">
+                                    <Label htmlFor={`actual-balance-${card.id}`} className="text-xs flex-shrink-0">Actual</Label>
+                                    <Input
+                                        id={`actual-balance-${card.id}`}
+                                        type="number"
+                                        placeholder="Actual"
+                                        className="hide-number-arrows h-6 text-xs w-20 text-right"
+                                        defaultValue={card.actualBalance ?? ''}
+                                        onChange={(e) => {
+                                            const value = e.target.value === '' ? null : parseFloat(e.target.value)
+                                            debouncedUpdateAccount(card.id, { actualBalance: value });
+                                        }}
+                                        onClick={(e) => e.stopPropagation()}
+                                    />
+                                    </div>
+                                    {balanceDifference !== null && (
+                                    <div className="w-full flex justify-end mt-1">
+                                        <p className={cn("text-xs font-medium", Math.abs(balanceDifference) < 0.01 ? "text-green-600" : "text-red-600")}>
+                                        Diff: {formatCurrency(balanceDifference)}
+                                        </p>
+                                    </div>
+                                    )}
+                                </div>
+                                )
+                            })}
+                            </div>
+                        </div>
+                        )}
                   </TabsTrigger>
                 )}
                 <div className="grid grid-cols-2 gap-2 h-full content-stretch">
-                  {secondaryAccounts.map((account, index) => {
+                  {[...secondaryAccounts, ...otherAccounts].map((account, index) => {
                     const balanceDifference = getBalanceDifference(account.balance, account.actualBalance);
                     return (
                       <TabsTrigger key={account.id} value={account.id} className={cn("border flex flex-col h-full p-2 items-start text-left gap-1 data-[state=active]:shadow-lg", tabColors[index % tabColors.length], textColors[index % textColors.length])}>
@@ -790,10 +800,10 @@ export default function TransactionsPage() {
                           </div>
                       </TabsTrigger>
                   )})}
-                  {otherAccounts.map((account, index) => {
+                   {creditCards.filter(c => c.id !== primaryAccount?.id).map((account, index) => {
                     const balanceDifference = getBalanceDifference(account.balance, account.actualBalance);
                     return (
-                      <TabsTrigger key={account.id} value={account.id} className={cn("border flex flex-col h-full p-2 items-start text-left gap-1 data-[state=active]:shadow-lg", tabColors[(secondaryAccounts.length + index) % tabColors.length], textColors[(secondaryAccounts.length + index) % textColors.length])}>
+                      <TabsTrigger key={account.id} value={account.id} className={cn("border flex flex-col h-full p-2 items-start text-left gap-1 data-[state=active]:shadow-lg bg-orange-100 dark:bg-orange-900/50 text-orange-800 dark:text-orange-200")}>
                           <div className="w-full flex justify-between items-center">
                               <div className="flex items-center gap-2">
                                 <span className="font-semibold text-sm">{account.name}</span>
@@ -943,5 +953,7 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+    
 
     

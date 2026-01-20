@@ -124,12 +124,6 @@ body {
   .dark .text-blue-600 {
     color: hsl(210 90% 60%);
   }
-  .text-orange-600 {
-    color: #ea580c;
-  }
-  .dark .text-orange-600 {
-    color: #f97316;
-  }
 
   .animate-scroll {
     animation: scroll var(--animation-duration, 20s) linear infinite;
@@ -205,3 +199,7 @@ body {
 .dark .text-cyan-200 { color: #a5f3fc; }
 .text-fuchsia-800 { color: #86198f; }
 .dark .text-fuchsia-200 { color: #f5d0fe; }
+.text-orange-800 { color: #9a3412; }
+.dark .text-orange-200 { color: #fed7aa; }
+
+    
