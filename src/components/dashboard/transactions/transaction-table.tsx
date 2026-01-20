@@ -192,11 +192,13 @@ export function TransactionTable({
                 const toIsWallet = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
 
                 if (fromIsPrimaryBank && toIsWallet) {
-                    return { ...defaultInfo, type: 'issue' as const };
+                    const toWalletName = t.toAccountId === 'cash-wallet' ? 'Cash' : 'Digital';
+                    return { ...defaultInfo, type: 'issue' as const, description: `Issue to ${toWalletName} Wallet` };
                 }
 
                 if (fromIsWallet && toIsPrimaryBank) {
-                    return { ...defaultInfo, type: 'return' as const };
+                    const fromWalletName = t.fromAccountId === 'cash-wallet' ? 'Cash' : 'Digital';
+                    return { ...defaultInfo, type: 'return' as const, description: `Return from ${fromWalletName} Wallet` };
                 }
             }
             

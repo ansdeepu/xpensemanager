@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
@@ -45,11 +46,11 @@ const formatCurrency = (amount: number) => {
 const tabColors = [
   "bg-sky-100 dark:bg-sky-900/50",
   "bg-amber-100 dark:bg-amber-900/50",
-  "bg-emerald-100 dark:bg-emerald-900/50",
-  "bg-rose-100 dark:bg-rose-900/50",
-  "bg-violet-100 dark:bg-violet-900/50",
-  "bg-cyan-100 dark:bg-cyan-900/50",
-  "bg-fuchsia-100 dark:bg-fuchsia-900/50",
+  "bg-emerald-100 dark:bg-emerald-200",
+  "bg-rose-100 dark:bg-rose-200",
+  "bg-violet-100 dark:bg-violet-200",
+  "bg-cyan-100 dark:bg-cyan-200",
+  "bg-fuchsia-100 dark:bg-fuchsia-200",
   "bg-orange-100 dark:bg-orange-900/50",
 ];
 
@@ -394,11 +395,15 @@ export default function TransactionsPage() {
             const toIsWallet = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
 
             if (fromIsPrimaryBank && toIsWallet) {
-                return { ...defaultInfo, type: 'issue' as const };
+                const toWalletName = t.toAccountId === 'cash-wallet' ? 'Cash' : 'Digital';
+                const description = `Issue to ${toWalletName} Wallet`;
+                return { ...defaultInfo, type: 'issue' as const, description };
             }
 
             if (fromIsWallet && toIsPrimaryBank) {
-                return { ...defaultInfo, type: 'return' as const };
+                const fromWalletName = t.fromAccountId === 'cash-wallet' ? 'Cash' : 'Digital';
+                const description = `Return from ${fromWalletName} Wallet`;
+                return { ...defaultInfo, type: 'return' as const, description };
             }
         }
         
@@ -507,7 +512,7 @@ export default function TransactionsPage() {
       
       return balances;
 
-  }, [allTransactions, activeTab, primaryAccount, loans, loanInfoMap, getLoanDisplayInfo]);
+  }, [allTransactions, activeTab, primaryAccount, loans, getLoanDisplayInfo]);
 
   const filteredTransactions = useMemo(() => {
     const isPrimaryView = primaryAccount?.id === activeTab;
