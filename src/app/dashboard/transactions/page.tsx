@@ -696,7 +696,7 @@ export default function TransactionsPage() {
                                     id={`actual-balance-${primaryAccount.id}`}
                                     type="number"
                                     placeholder="Actual"
-                                    className="hide-number-arrows h-8 text-base text-left"
+                                    className="hide-number-arrows h-8 text-sm text-left"
                                     defaultValue={primaryAccount.actualBalance ?? ''}
                                     onChange={(e) => {
                                         const value = e.target.value === '' ? null : parseFloat(e.target.value)
@@ -722,7 +722,7 @@ export default function TransactionsPage() {
                                     id="actual-balance-digital"
                                     type="number"
                                     placeholder="Actual"
-                                    className="hide-number-arrows h-8 text-base text-left"
+                                    className="hide-number-arrows h-8 text-sm text-left"
                                     defaultValue={walletPreferences.digital?.balance ?? ''}
                                     onChange={(e) => {
                                         const value = e.target.value === '' ? null : parseFloat(e.target.value)
@@ -748,7 +748,7 @@ export default function TransactionsPage() {
                                     id="actual-balance-cash"
                                     type="number"
                                     placeholder="Actual"
-                                    className="hide-number-arrows h-8 text-base text-left"
+                                    className="hide-number-arrows h-8 text-sm text-left"
                                     defaultValue={walletPreferences.cash?.balance ?? ''}
                                     onChange={(e) => {
                                         const value = e.target.value === '' ? null : parseFloat(e.target.value)
@@ -777,7 +777,7 @@ export default function TransactionsPage() {
                                             id={`actual-balance-${card.id}`}
                                             type="number"
                                             placeholder="Actual Due"
-                                            className="hide-number-arrows h-8 text-base text-left"
+                                            className="hide-number-arrows h-8 text-sm text-left"
                                             defaultValue={card.actualBalance ?? ''}
                                             onChange={(e) => {
                                                 const value = e.target.value === '' ? null : parseFloat(e.target.value)
@@ -818,7 +818,7 @@ export default function TransactionsPage() {
                                     id={`actual-balance-${account.id}`}
                                     type="number"
                                     placeholder="Actual"
-                                    className="hide-number-arrows h-8 text-base w-24 text-right"
+                                    className="hide-number-arrows h-8 text-xs w-24 text-right"
                                     defaultValue={account.actualBalance ?? ''}
                                     onChange={(e) => {
                                         const value = e.target.value === '' ? null : parseFloat(e.target.value)
