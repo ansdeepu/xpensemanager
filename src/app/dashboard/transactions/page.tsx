@@ -116,6 +116,7 @@ export default function TransactionsPage() {
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [loans, setLoans] = useState<Loan[]>([]);
   const [walletPreferences, setWalletPreferences] = useState<{ cash?: { balance?: number, date?: string }, digital?: { balance?: number, date?: string } }>({});
+  const [actualTotalBalance, setActualTotalBalance] = useState<number | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<string | undefined>();
   const [searchQuery, setSearchQuery] = useState("");
@@ -154,6 +155,12 @@ export default function TransactionsPage() {
     await setDoc(prefRef, { wallets: updatedWallets }, { merge: true });
   }, 500), [user, walletPreferences, reconciliationDate]);
   
+  const debouncedUpdateTotalActualBalance = useCallback(useDebounce(async (data: { actualTotalBalance: number | null }) => {
+    if (!user) return;
+    const prefRef = doc(db, "user_preferences", user.uid);
+    await setDoc(prefRef, data, { merge: true });
+  }, 500), [user]);
+  
   const handleReconciliationDateChange = async (date: Date | undefined) => {
     setReconciliationDate(date);
     if (!user || !date) return;
@@ -181,6 +188,7 @@ export default function TransactionsPage() {
         if (doc.exists()) {
           const prefs = doc.data();
           setWalletPreferences(prefs.wallets || {});
+          setActualTotalBalance(prefs.actualTotalBalance ?? null);
           if (prefs.reconciliationDate) {
               setReconciliationDate(new Date(prefs.reconciliationDate));
           } else {
@@ -638,13 +646,10 @@ export default function TransactionsPage() {
       if (Math.abs(diff) < 0.01) diff = 0;
       return diff;
   }
-
-  const cashBalanceDifference = getBalanceDifference(cashWalletBalance, walletPreferences.cash?.balance);
-  const digitalBalanceDifference = getBalanceDifference(digitalWalletBalance, walletPreferences.digital?.balance);
   
   const primaryAccountBalance = primaryAccount ? accounts.find(acc => acc.id === primaryAccount.id)?.balance ?? 0 : 0;
-  const primaryAccountBalanceDifference = primaryAccount ? getBalanceDifference(primaryAccountBalance, primaryAccount.actualBalance) : null;
   const allBalance = primaryAccountBalance + cashWalletBalance + digitalWalletBalance;
+  const totalBalanceDifference = actualTotalBalance !== null ? allBalance - actualTotalBalance : null;
   
   const accountDataForDialog = [
     { id: 'cash-wallet', name: 'Cash Wallet', balance: cashWalletBalance },
@@ -683,125 +688,33 @@ export default function TransactionsPage() {
                       <div className="flex items-center gap-2">
                         <span className="font-semibold text-lg">Primary ({primaryAccount.name})</span>
                       </div>
-                      <span className="font-bold text-xl text-primary">{formatCurrency(allBalance)}</span>
+                      <span className="font-bold text-lg text-primary">{formatCurrency(allBalance)}</span>
                     </div>
                     
                     <div className="w-full text-left py-4">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                            {/* Bank Column */}
-                            <div className="space-y-2">
-                                <Label htmlFor={`actual-balance-${primaryAccount.id}`} className="text-xs">Bank Balance</Label>
-                                <div onClick={(e) => { e.stopPropagation(); handleAccountClick(primaryAccount); }} className="font-mono text-lg cursor-pointer hover:underline">{formatCurrency(primaryAccountBalance)}</div>
-                                <Input
-                                    id={`actual-balance-${primaryAccount.id}`}
-                                    type="number"
-                                    placeholder="Actual"
-                                    className="hide-number-arrows h-8 text-sm text-left"
-                                    defaultValue={primaryAccount.actualBalance ?? ''}
-                                    onChange={(e) => {
-                                        const value = e.target.value === '' ? null : parseFloat(e.target.value)
-                                        debouncedUpdateAccount(primaryAccount.id, { actualBalance: value });
-                                    }}
-                                    onClick={(e) => e.stopPropagation()}
-                                />
-                                {primaryAccountBalanceDifference !== null && (
-                                    <p className={cn(
-                                        "text-xs font-medium pt-1",
-                                        Math.abs(primaryAccountBalanceDifference) < 0.01 ? "text-green-600" : "text-red-600"
-                                    )}>
-                                        Diff: {formatCurrency(primaryAccountBalanceDifference)}
-                                    </p>
-                                )}
-                            </div>
-                            
-                            {/* Digital Column */}
-                            <div className="space-y-2">
-                                <Label htmlFor="actual-balance-digital" className="text-xs">Digital</Label>
-                                <div onClick={(e) => { e.stopPropagation(); handleAccountClick('digital-wallet', 'Digital Wallet'); }} className="font-mono text-lg cursor-pointer hover:underline">{formatCurrency(digitalWalletBalance)}</div>
-                                <Input
-                                    id="actual-balance-digital"
-                                    type="number"
-                                    placeholder="Actual"
-                                    className="hide-number-arrows h-8 text-sm text-left"
-                                    defaultValue={walletPreferences.digital?.balance ?? ''}
-                                    onChange={(e) => {
-                                        const value = e.target.value === '' ? null : parseFloat(e.target.value)
-                                        debouncedUpdateWallet('digital', { balance: value })
-                                    }}
-                                    onClick={(e) => e.stopPropagation()}
-                                />
-                                {digitalBalanceDifference !== null && (
-                                    <p className={cn(
-                                        "text-xs font-medium pt-1",
-                                        Math.abs(digitalBalanceDifference) < 0.01 ? "text-green-600" : "text-red-600"
-                                    )}>
-                                        Diff: {formatCurrency(digitalBalanceDifference)}
-                                    </p>
-                                )}
-                            </div>
-
-                            {/* Cash Column */}
-                            <div className="space-y-2">
-                                <Label htmlFor="actual-balance-cash" className="text-xs">Cash</Label>
-                                <div onClick={(e) => { e.stopPropagation(); handleAccountClick('cash-wallet', 'Cash Wallet'); }} className="font-mono text-lg cursor-pointer hover:underline">{formatCurrency(cashWalletBalance)}</div>
-                                <Input
-                                    id="actual-balance-cash"
-                                    type="number"
-                                    placeholder="Actual"
-                                    className="hide-number-arrows h-8 text-sm text-left"
-                                    defaultValue={walletPreferences.cash?.balance ?? ''}
-                                    onChange={(e) => {
-                                        const value = e.target.value === '' ? null : parseFloat(e.target.value)
-                                        debouncedUpdateWallet('cash', { balance: value })
-                                    }}
-                                    onClick={(e) => e.stopPropagation()}
-                                />
-                                {cashBalanceDifference !== null && (
-                                    <p className={cn(
-                                        "text-xs font-medium pt-1",
-                                        Math.abs(cashBalanceDifference) < 0.01 ? "text-green-600" : "text-red-600"
-                                    )}>
-                                        Diff: {formatCurrency(cashBalanceDifference)}
-                                    </p>
-                                )}
-                            </div>
-                             {creditCards.map(card => {
-                                const dueAmount = card.balance;
-                                const availableCredit = (card.limit && card.limit > 0) ? card.limit - dueAmount : undefined;
-                                const balanceDifference = getBalanceDifference(dueAmount, card.actualBalance);
-                                return (
-                                    <div key={card.id} className="space-y-2">
-                                        <Label htmlFor={`actual-balance-${card.id}`} className="text-xs">{card.name}</Label>
-                                        <div onClick={(e) => { e.stopPropagation(); handleAccountClick(card); }} className="font-mono text-base cursor-pointer hover:underline">{formatCurrency(dueAmount)}</div>
-                                        {availableCredit !== undefined && (
-                                            <p className="text-xs text-muted-foreground">
-                                                Available: {formatCurrency(availableCredit)}
-                                            </p>
-                                        )}
-                                        <Input
-                                            id={`actual-balance-${card.id}`}
-                                            type="number"
-                                            placeholder="Actual Due"
-                                            className="hide-number-arrows h-8 text-xs text-left"
-                                            defaultValue={card.actualBalance ?? ''}
-                                            onChange={(e) => {
-                                                const value = e.target.value === '' ? null : parseFloat(e.target.value)
-                                                debouncedUpdateAccount(card.id, { actualBalance: value });
-                                            }}
-                                            onClick={(e) => e.stopPropagation()}
-                                        />
-                                        {balanceDifference !== null && (
-                                            <p className={cn(
-                                                "text-xs font-medium pt-1",
-                                                Math.abs(balanceDifference) < 0.01 ? "text-green-600" : "text-red-600"
-                                            )}>
-                                                Diff: {formatCurrency(balanceDifference)}
-                                            </p>
-                                        )}
-                                    </div>
-                                )
-                            })}
-                        </div>
+                      <div className="space-y-2">
+                          <Label htmlFor="actual-total-balance" className="text-sm">Actual Total Balance</Label>
+                          <Input
+                              id="actual-total-balance"
+                              type="number"
+                              placeholder="Enter total actual balance"
+                              className="hide-number-arrows h-9 text-base text-left"
+                              defaultValue={actualTotalBalance ?? ''}
+                              onChange={(e) => {
+                                  const value = e.target.value === '' ? null : parseFloat(e.target.value);
+                                  debouncedUpdateTotalActualBalance({ actualTotalBalance: value });
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                          />
+                          {totalBalanceDifference !== null && (
+                              <p className={cn(
+                                  "text-sm font-medium pt-1",
+                                  Math.abs(totalBalanceDifference) < 0.01 ? "text-green-600" : "text-red-600"
+                              )}>
+                                  Diff: {formatCurrency(totalBalanceDifference)}
+                              </p>
+                          )}
+                      </div>
                     </div>
                   </TabsTrigger>
                 )}
@@ -928,3 +841,5 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+    
