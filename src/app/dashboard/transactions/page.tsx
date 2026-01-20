@@ -854,7 +854,7 @@ export default function TransactionsPage() {
                   className="w-full h-9"
               />
           </div>
-          <div className="space-y-1 flex-grow md:max-w-xs">
+          <div className="space-y-1 md:max-w-xs">
               <Label htmlFor="search-input" className="text-xs">Search Transactions</Label>
               <div className="relative">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -877,7 +877,7 @@ export default function TransactionsPage() {
                   <Printer className="h-4 w-4" />
               </Button>
               <AddTransactionDialog accounts={accountDataForDialog}>
-                  <Button className="w-24">
+                  <Button className="w-32">
                       <PlusCircle className="mr-2 h-4 w-4" />
                       Add
                   </Button>
@@ -908,8 +908,3 @@ export default function TransactionsPage() {
     </div>
   );
 }
-
-    
-
-    
-
