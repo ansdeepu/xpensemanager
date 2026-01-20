@@ -854,16 +854,14 @@ export default function TransactionsPage() {
               </div>
           </div>
           <div className="flex items-center gap-2">
-              <Button onClick={handleClearFilters} variant="outline" size="sm">
-                  <XCircle className="mr-2 h-4 w-4" />
-                  Clear
+               <Button onClick={handleClearFilters} variant="outline" size="icon" className="h-9 w-9">
+                  <XCircle className="h-4 w-4" />
               </Button>
-              <Button onClick={handlePrint} variant="outline" size="sm">
-                  <Printer className="mr-2 h-4 w-4" />
-                  Print
+              <Button onClick={handlePrint} variant="outline" size="icon" className="h-9 w-9">
+                  <Printer className="h-4 w-4" />
               </Button>
               <AddTransactionDialog accounts={accountDataForDialog}>
-                  <Button size="sm">
+                  <Button>
                       <PlusCircle className="mr-2 h-4 w-4" />
                       Add
                   </Button>
@@ -894,6 +892,8 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+    
 
     
 
