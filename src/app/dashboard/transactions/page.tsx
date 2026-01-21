@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { useAuthState } from "@/hooks/use-auth-state";
-import { Card, CardFooter } from "@/components/ui/card";
+import { Card, CardFooter, CardHeader, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AddTransactionDialog } from "@/components/dashboard/transactions/add-transaction-dialog";
 import { AccountDetailsDialog } from "@/components/dashboard/account-details-dialog";
@@ -270,124 +270,99 @@ export default function TransactionsPage() {
   }, [loans, rawAccounts]);
 
   const { accounts, cashWalletBalance, digitalWalletBalance, transactionBalanceMap } = useMemo(() => {
-    // This hook calculates all balances in a single, chronological pass to ensure consistency.
-
-    // 1. Initialize all running balances from their reconciled values.
+    // 1. Calculate final balances for header cards (based on pure transaction history)
     const accountMap = new Map(rawAccounts.map(acc => [acc.id, acc]));
-    const runningAccountBalances: { [key: string]: number } = {};
+    const finalAccountBalances: { [key: string]: number } = {};
     rawAccounts.forEach(acc => {
-      runningAccountBalances[acc.id] = acc.actualBalance ?? 0;
+      finalAccountBalances[acc.id] = 0;
     });
-    let runningCashBalance = walletPreferences.cash?.balance ?? 0;
-    let runningDigitalBalance = walletPreferences.digital?.balance ?? 0;
-    
-    // 2. Create a map of reconciliation dates for quick lookup.
-    const reconDates = new Map<string, Date>();
-    rawAccounts.forEach(acc => reconDates.set(acc.id, acc.actualBalanceDate ? parseISO(acc.actualBalanceDate) : new Date(0)));
-    reconDates.set('cash-wallet', walletPreferences.cash?.date ? parseISO(walletPreferences.cash.date) : new Date(0));
-    reconDates.set('digital-wallet', walletPreferences.digital?.date ? parseISO(walletPreferences.digital.date) : new Date(0));
+    let finalCashBalance = 0;
+    let finalDigitalBalance = 0;
 
-    // 3. Sort all transactions chronologically to process them in order.
-    const getTransactionSortOrder = (t: Transaction) => {
-        const loanInfo = getLoanDisplayInfo(t);
-        if (loanInfo.type === 'return') return 1;
-        if (t.type === 'transfer' && !loanInfo.isLoan) return 2;
-        if (loanInfo.isLoan && loanInfo.type === 'repayment' && loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId))?.type === 'taken') return 3;
-        if (loanInfo.isLoan && loanInfo.type === 'loan' && loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId))?.type === 'given') return 4;
-        if (t.type === 'expense') return 5;
-        if (loanInfo.type === 'issue') return 6; 
-        if (loanInfo.isLoan && loanInfo.type === 'repayment' && loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId))?.type === 'given') return 7;
-        if (loanInfo.isLoan && loanInfo.type === 'loan' && loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId))?.type === 'taken') return 8;
-        if (t.type === 'income') return 9;
-        return 99;
-    };
+    const chronologicalTransactions = [...allTransactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-    const chronologicalTransactions = [...allTransactions].sort((a, b) => {
-      const dateA = new Date(a.date).getTime();
-      const dateB = new Date(b.date).getTime();
-      if(dateA !== dateB) return dateA - dateB;
-      const orderA = getTransactionSortOrder(a);
-      const orderB = getTransactionSortOrder(b);
-      return orderA - orderB;
-    });
-
-    const primaryAcc = rawAccounts.find(a => a.isPrimary);
-    const creditCardsList = rawAccounts.filter(a => a.type === 'card');
-
-    // 4. This map will store the running balance for the table view.
-    const balances = new Map<string, number>();
-
-    // 5. Single pass through all transactions.
     chronologicalTransactions.forEach(t => {
-      const transactionDate = new Date(t.date);
-      
-      // A. Update individual account balances if the transaction is after its reconciliation date.
-      if (t.type === 'income' && t.accountId) {
-        if (transactionDate > (reconDates.get(t.accountId) ?? new Date(0))) {
-          const account = accountMap.get(t.accountId);
-          if (account?.type !== 'card') {
-            runningAccountBalances[t.accountId] += t.amount;
-          }
-        }
+      if (t.type === 'income' && t.accountId && finalAccountBalances[t.accountId] !== undefined) {
+        const account = accountMap.get(t.accountId);
+        if (account?.type !== 'card') finalAccountBalances[t.accountId] += t.amount;
       } else if (t.type === 'expense') {
-        const accountIdForRecon = (t.paymentMethod === 'online' ? t.accountId : `${t.paymentMethod}-wallet`)!;
-        if (transactionDate > (reconDates.get(accountIdForRecon) ?? new Date(0))) {
-            if (t.paymentMethod === 'online' && t.accountId) {
-                const account = accountMap.get(t.accountId);
-                if (account?.type === 'card') runningAccountBalances[t.accountId] += t.amount; // Debt increases
-                else runningAccountBalances[t.accountId] -= t.amount;
-            } else if (t.paymentMethod === 'cash') {
-                runningCashBalance -= t.amount;
-            } else if (t.paymentMethod === 'digital') {
-                runningDigitalBalance -= t.amount;
-            }
-        }
+        if (t.paymentMethod === 'online' && t.accountId && finalAccountBalances[t.accountId] !== undefined) {
+          const account = accountMap.get(t.accountId);
+          if (account?.type === 'card') finalAccountBalances[t.accountId] += t.amount;
+          else finalAccountBalances[t.accountId] -= t.amount;
+        } else if (t.paymentMethod === 'cash') finalCashBalance -= t.amount;
+        else if (t.paymentMethod === 'digital') finalDigitalBalance -= t.amount;
       } else if (t.type === 'transfer') {
-        if (t.fromAccountId && transactionDate > (reconDates.get(t.fromAccountId) ?? new Date(0))) {
-            if(accountMap.has(t.fromAccountId)) {
-                const fromAccount = accountMap.get(t.fromAccountId)!;
-                if(fromAccount.type === 'card') runningAccountBalances[t.fromAccountId] += t.amount; // Cash advance
-                else runningAccountBalances[t.fromAccountId] -= t.amount;
-            } else if (t.fromAccountId === 'cash-wallet') runningCashBalance -= t.amount;
-            else if (t.fromAccountId === 'digital-wallet') runningDigitalBalance -= t.amount;
-        }
-        if (t.toAccountId && transactionDate > (reconDates.get(t.toAccountId) ?? new Date(0))) {
-            if(accountMap.has(t.toAccountId)) {
-                const toAccount = accountMap.get(t.toAccountId)!;
-                if(toAccount.type === 'card') runningAccountBalances[t.toAccountId] -= t.amount; // Card payment
-                else runningAccountBalances[t.toAccountId] += t.amount;
-            } else if (t.toAccountId === 'cash-wallet') runningCashBalance += t.amount;
-            else if (t.toAccountId === 'digital-wallet') runningDigitalBalance += t.amount;
-        }
+        if (t.fromAccountId && finalAccountBalances[t.fromAccountId] !== undefined) {
+          const fromAccount = accountMap.get(t.fromAccountId);
+          if (fromAccount?.type === 'card') finalAccountBalances[t.fromAccountId] += t.amount;
+          else finalAccountBalances[t.fromAccountId] -= t.amount;
+        } else if (t.fromAccountId === 'cash-wallet') finalCashBalance -= t.amount;
+        else if (t.fromAccountId === 'digital-wallet') finalDigitalBalance -= t.amount;
+        
+        if (t.toAccountId && finalAccountBalances[t.toAccountId] !== undefined) {
+          const toAccount = accountMap.get(t.toAccountId);
+          if (toAccount?.type === 'card') finalAccountBalances[t.toAccountId] -= t.amount;
+          else finalAccountBalances[t.toAccountId] += t.amount;
+        } else if (t.toAccountId === 'cash-wallet') finalCashBalance += t.amount;
+        else if (t.toAccountId === 'digital-wallet') finalDigitalBalance += t.amount;
       }
-
-      // B. After updating individual running balances, calculate the balance for the currently active view.
-      let currentViewBalance = 0;
-      const isPrimaryView = activeTab === primaryAcc?.id;
-      if (isPrimaryView && primaryAcc) {
-        const totalCardDue = creditCardsList.reduce((sum, card) => sum + runningAccountBalances[card.id], 0);
-        currentViewBalance = runningAccountBalances[primaryAcc.id] + runningCashBalance + runningDigitalBalance - totalCardDue;
-      } else if (activeTab) {
-        currentViewBalance = runningAccountBalances[activeTab] ?? 0;
-      }
-      
-      // C. Store this view-specific balance for the transaction table.
-      balances.set(t.id, currentViewBalance);
     });
 
-    // 6. Format the final results for the header cards.
     const finalAccounts = rawAccounts.map(acc => ({
       ...acc,
-      balance: runningAccountBalances[acc.id] ?? 0,
+      balance: finalAccountBalances[acc.id] ?? 0,
     }));
+    const primaryAccountForCalc = finalAccounts.find(a => a.isPrimary);
     
+    // 2. Calculate running balance for the table view
+    const balances = new Map<string, number>();
+    let runningBalanceForView = 0;
+    const creditCardIds = rawAccounts.filter(a => a.type === 'card').map(a => a.id);
+    const isPrimaryView = primaryAccountForCalc?.id === activeTab;
+
+    chronologicalTransactions.forEach(t => {
+      let effect = 0;
+      if (isPrimaryView) {
+        const fromAccountIsWallet = t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
+        const toAccountIsWallet = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
+        const fromCurrentView = t.fromAccountId === activeTab || fromAccountIsWallet || (t.fromAccountId && creditCardIds.includes(t.fromAccountId));
+        const toCurrentView = t.toAccountId === activeTab || toAccountIsWallet || (t.toAccountId && creditCardIds.includes(t.toAccountId));
+        
+        if (t.type === 'income' && t.accountId === activeTab) {
+          effect = t.amount;
+        } else if (t.type === 'expense') {
+          if (t.accountId === activeTab || t.paymentMethod === 'cash' || t.paymentMethod === 'digital' || (t.accountId && creditCardIds.includes(t.accountId))) {
+            effect = -t.amount;
+          }
+        } else if (t.type === 'transfer') {
+          if (fromCurrentView && !toCurrentView) effect = -t.amount;
+          else if (!fromCurrentView && toCurrentView) effect = t.amount;
+        }
+      } else { // Not primary view
+        const account = rawAccounts.find(a => a.id === activeTab);
+        if (account?.type === 'card') {
+          if (t.type === 'expense' && t.accountId === activeTab) effect = t.amount;
+          else if (t.type === 'transfer' && t.toAccountId === activeTab) effect = -t.amount;
+          else if (t.type === 'transfer' && t.fromAccountId === activeTab) effect = t.amount;
+        } else { // bank account
+          if (t.type === 'income' && t.accountId === activeTab) effect = t.amount;
+          else if (t.type === 'expense' && t.accountId === activeTab) effect = -t.amount;
+          else if (t.type === 'transfer' && t.fromAccountId === activeTab) effect = -t.amount;
+          else if (t.type === 'transfer' && t.toAccountId === activeTab) effect = t.amount;
+        }
+      }
+      runningBalanceForView += effect;
+      balances.set(t.id, runningBalanceForView);
+    });
+
     return { 
       accounts: finalAccounts, 
-      cashWalletBalance: runningCashBalance,
-      digitalWalletBalance: runningDigitalBalance,
+      cashWalletBalance: finalCashBalance,
+      digitalWalletBalance: finalDigitalBalance,
       transactionBalanceMap: balances
     };
-  }, [rawAccounts, allTransactions, walletPreferences, activeTab, loans, getLoanDisplayInfo]);
+}, [rawAccounts, allTransactions, activeTab]);
 
   
   const primaryAccount = useMemo(() => accounts.find(a => a.isPrimary), [accounts]);
@@ -946,4 +921,5 @@ export default function TransactionsPage() {
   );
 }
 
+    
     
