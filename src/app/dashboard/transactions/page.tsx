@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
@@ -247,7 +248,7 @@ export default function TransactionsPage() {
         if (t.paymentMethod === 'online' && t.accountId && accountBalances[t.accountId] !== undefined) {
             const account = accountMap.get(t.accountId);
             if (account?.type === 'card') {
-              accountBalances[t.accountId] += t.amount; 
+              accountBalances[t.accountId] -= t.amount; 
             } else {
               accountBalances[t.accountId] -= t.amount;
             }
@@ -261,7 +262,7 @@ export default function TransactionsPage() {
         if (t.fromAccountId && accountBalances[t.fromAccountId] !== undefined) {
           const fromAccount = accountMap.get(t.fromAccountId);
           if (fromAccount?.type === 'card') {
-            accountBalances[t.fromAccountId] += t.amount; // Cash advance
+            accountBalances[t.fromAccountId] -= t.amount;
           } else {
             accountBalances[t.fromAccountId] -= t.amount;
           }
@@ -274,7 +275,7 @@ export default function TransactionsPage() {
         if (t.toAccountId && accountBalances[t.toAccountId] !== undefined) {
            const toAccount = accountMap.get(t.toAccountId);
            if (toAccount?.type === 'card') {
-             accountBalances[t.toAccountId] -= t.amount; // Payment
+             accountBalances[t.toAccountId] += t.amount;
            } else {
              accountBalances[t.toAccountId] += t.amount;
            }
@@ -440,9 +441,9 @@ export default function TransactionsPage() {
                 else if(t.type === 'transfer' && t.fromAccountId === 'digital-wallet') effect = -t.amount;
                 else if(t.type === 'expense' && t.paymentMethod === 'digital') effect = -t.amount;
             } else if (isCard) {
-                if (t.type === 'expense' && t.accountId === activeTab) effect = t.amount;
-                else if (t.type === 'transfer' && t.toAccountId === activeTab) effect = -t.amount; // payment decreases due
-                else if (t.type === 'transfer' && t.fromAccountId === activeTab) effect = t.amount; // cash advance
+                if (t.type === 'expense' && t.accountId === activeTab) effect = -t.amount;
+                else if (t.type === 'transfer' && t.toAccountId === activeTab) effect = t.amount; // payment decreases due
+                else if (t.type === 'transfer' && t.fromAccountId === activeTab) effect = -t.amount; // cash advance
             } else { // Regular bank account
                 if (t.type === 'income' && t.accountId === activeTab) effect = t.amount;
                 else if (t.type === 'expense' && t.accountId === activeTab) effect = -t.amount;
@@ -493,7 +494,7 @@ export default function TransactionsPage() {
 
     return { filteredTransactions: displayTransactions, transactionBalanceMap: balances };
 
-  }, [allTransactions, activeTab, startDate, endDate, searchQuery, getLoanDisplayInfo, getAccountName, accounts, loans, primaryAccount]);
+  }, [allTransactions, accounts, activeTab, startDate, endDate, searchQuery, getLoanDisplayInfo, getAccountName, loans, primaryAccount]);
 
   const transactionsWithRunningBalance = useMemo(() => {
     return filteredTransactions.map(transaction => ({
@@ -653,10 +654,10 @@ export default function TransactionsPage() {
       </div>
       
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 h-auto p-0 bg-transparent print-hide">
+        <TabsList className="grid grid-cols-12 gap-4 h-auto p-0 bg-transparent print-hide">
             {primaryAccount && (
-              <TabsTrigger value={primaryAccount.id} asChild>
-                  <div className={cn("rounded-lg border-2 flex flex-col p-3 items-start text-left gap-2 cursor-pointer transition-shadow h-full col-span-1 md:col-span-2 lg:col-span-4", activeTab === primaryAccount.id ? "shadow-lg border-primary bg-lime-100/50 dark:bg-lime-900/50" : "bg-card")}>
+              <TabsTrigger value={primaryAccount.id} asChild className="col-span-12">
+                  <div className={cn("rounded-lg border-2 flex flex-col p-3 items-start text-left gap-2 cursor-pointer transition-shadow h-full w-full", activeTab === primaryAccount.id ? "shadow-lg border-primary bg-lime-100/50 dark:bg-lime-900/50" : "bg-card")}>
                       <div className="w-full flex justify-between items-center">
                           <h3 className="font-semibold text-lg">Primary ({primaryAccount.name})</h3>
                           <span className="font-bold text-xl text-green-600">{formatCurrency(primaryAllBalance)}</span>
@@ -749,7 +750,7 @@ export default function TransactionsPage() {
                 const balanceDifference = getBalanceDifference(account.balance, account.actualBalance);
                 const isCard = account.type === 'card';
                 return (
-                    <TabsTrigger key={account.id} value={account.id} asChild>
+                    <TabsTrigger key={account.id} value={account.id} asChild className="col-span-12 sm:col-span-6 md:col-span-4 lg:col-span-3">
                         <div 
                             className={cn(
                                 "rounded-lg border flex flex-col p-3 items-start text-left gap-1 cursor-pointer transition-shadow h-full", 
@@ -826,5 +827,3 @@ export default function TransactionsPage() {
     </div>
   );
 }
-
-    
