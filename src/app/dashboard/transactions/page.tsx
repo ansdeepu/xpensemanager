@@ -604,11 +604,8 @@ export default function TransactionsPage() {
             {primaryAccount && (
               <TabsTrigger value={primaryAccount.id} asChild className="lg:col-span-1">
                   <div className={cn("rounded-lg border-2 flex flex-col p-3 items-start text-left gap-2 cursor-pointer transition-shadow h-full w-full", activeTab === primaryAccount.id ? "shadow-lg border-primary bg-lime-100/50 dark:bg-lime-900/50" : "bg-card")}>
-                      <div className="w-full text-center mb-2">
-                            <h3 className="font-semibold text-lg">Primary ({primaryAccount.name})</h3>
-                      </div>
                       <div className="w-full flex justify-between items-center">
-                            <span className="font-bold text-lg">Total Balance</span>
+                            <h3 className="font-semibold text-lg">Primary ({primaryAccount.name})</h3>
                           <span className="font-bold text-xl text-green-600">{formatCurrency(primaryAllBalance + (primaryAccount.balance < 0 ? primaryAccount.balance : 0))}</span>
                       </div>
 
@@ -850,3 +847,5 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+    
