@@ -785,7 +785,7 @@ export default function TransactionsPage() {
                 placeholder="Search..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded-lg bg-background pl-8 h-9"
+                className="w-full rounded-lg pl-8 h-9"
                 />
             </div>
         </div>
