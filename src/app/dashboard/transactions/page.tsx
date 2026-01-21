@@ -690,78 +690,6 @@ export default function TransactionsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end gap-4 p-4 border-b print-hide">
-        <div className="space-y-1">
-            <Label htmlFor="reconciliation-date-input" className="text-xs flex items-center gap-2">
-                <CalendarIcon className="h-4 w-4 text-red-600" />
-                Reconciliation Date
-            </Label>
-            <Input
-                id="reconciliation-date-input"
-                type="date"
-                value={reconciliationDate ? format(reconciliationDate, 'yyyy-MM-dd') : ''}
-                onChange={(e) => {
-                    const dateValue = e.target.value;
-                    const newDate = dateValue ? new Date(dateValue) : undefined;
-                    if (newDate) {
-                        const timezoneOffset = newDate.getTimezoneOffset() * 60000;
-                        handleReconciliationDateChange(new Date(newDate.getTime() + timezoneOffset));
-                    } else {
-                        handleReconciliationDateChange(undefined);
-                    }
-                }}
-                className="w-full h-9"
-            />
-        </div>
-        <div className="space-y-1 flex-grow">
-            <Label htmlFor="search-input" className="text-xs">Search Transactions</Label>
-            <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                id="search-input"
-                type="search"
-                placeholder="Search..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded-lg bg-background pl-8 h-9"
-                />
-            </div>
-        </div>
-        <div className="space-y-1 flex-grow">
-              <Label className="text-xs">Filter by Date Range</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-full h-9"
-                />
-                <span className="text-muted-foreground text-xs">to</span>
-                <Input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-full h-9"
-                min={startDate}
-                />
-            </div>
-        </div>
-        <div className="flex items-center gap-2 pt-1">
-            <Button onClick={handleClearFilters} variant="outline" size="icon" className="h-9 w-9">
-                <XCircle className="h-4 w-4" />
-            </Button>
-              <Button onClick={handlePrint} variant="outline" size="icon" className="h-9 w-9">
-                <Printer className="h-4 w-4" />
-            </Button>
-            <AddTransactionDialog accounts={accountDataForDialog}>
-                <Button className="w-40">
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Add Transaction
-                </Button>
-            </AddTransactionDialog>
-        </div>
-      </div>
-      
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 print-hide">
         {/* Primary Account Card */}
         {primaryAccount && (
@@ -931,6 +859,78 @@ export default function TransactionsPage() {
             })}
         </div>
     </div>
+
+      <div className="flex flex-wrap items-end gap-4 p-4 border-b print-hide">
+        <div className="space-y-1">
+            <Label htmlFor="reconciliation-date-input" className="text-xs flex items-center gap-2">
+                <CalendarIcon className="h-4 w-4 text-red-600" />
+                Reconciliation Date
+            </Label>
+            <Input
+                id="reconciliation-date-input"
+                type="date"
+                value={reconciliationDate ? format(reconciliationDate, 'yyyy-MM-dd') : ''}
+                onChange={(e) => {
+                    const dateValue = e.target.value;
+                    const newDate = dateValue ? new Date(dateValue) : undefined;
+                    if (newDate) {
+                        const timezoneOffset = newDate.getTimezoneOffset() * 60000;
+                        handleReconciliationDateChange(new Date(newDate.getTime() + timezoneOffset));
+                    } else {
+                        handleReconciliationDateChange(undefined);
+                    }
+                }}
+                className="w-full h-9"
+            />
+        </div>
+        <div className="space-y-1 flex-grow">
+            <Label htmlFor="search-input" className="text-xs">Search Transactions</Label>
+            <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                id="search-input"
+                type="search"
+                placeholder="Search..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full rounded-lg bg-background pl-8 h-9"
+                />
+            </div>
+        </div>
+        <div className="space-y-1 flex-grow">
+              <Label className="text-xs">Filter by Date Range</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full h-9"
+                />
+                <span className="text-muted-foreground text-xs">to</span>
+                <Input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-full h-9"
+                min={startDate}
+                />
+            </div>
+        </div>
+        <div className="flex items-center gap-2 pt-1">
+            <Button onClick={handleClearFilters} variant="outline" size="icon" className="h-9 w-9">
+                <XCircle className="h-4 w-4" />
+            </Button>
+              <Button onClick={handlePrint} variant="outline" size="icon" className="h-9 w-9">
+                <Printer className="h-4 w-4" />
+            </Button>
+            <AddTransactionDialog accounts={accountDataForDialog}>
+                <Button className="w-40">
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Add Transaction
+                </Button>
+            </AddTransactionDialog>
+        </div>
+      </div>
       
       <Card>
         <div className="relative h-[calc(100vh_-_22rem)] overflow-auto">
@@ -958,5 +958,3 @@ export default function TransactionsPage() {
     </div>
   );
 }
-
-    
