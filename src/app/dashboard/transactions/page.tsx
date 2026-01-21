@@ -591,8 +591,8 @@ export default function TransactionsPage() {
   }
 
   
-  const getBalanceDifference = (calculatedBalance: number, actualBalance?: number | null) => {
-      if (actualBalance === undefined || actualBalance === null) return null;
+  const getBalanceDifference = (calculatedBalance?: number | null, actualBalance?: number | null) => {
+      if (actualBalance === undefined || actualBalance === null || calculatedBalance === undefined || calculatedBalance === null) return null;
       let diff = calculatedBalance - actualBalance;
       if (Math.abs(diff) < 0.01) diff = 0;
       return diff;
@@ -652,6 +652,8 @@ export default function TransactionsPage() {
   });
 
   const primaryAllBalance = (primaryAccount?.balance || 0) + cashWalletBalance + digitalWalletBalance;
+  const primaryCardBalanceDifference = primaryCreditCard ? getBalanceDifference(primaryCreditCard.actualBalance, primaryCreditCard.balance) : null;
+
 
   return (
     <div className="space-y-6">
@@ -728,6 +730,7 @@ export default function TransactionsPage() {
                               <div className="space-y-1">
                                   <Label className="text-sm">{primaryCreditCard.name}</Label>
                                   <div className="font-mono text-lg">{formatCurrency((primaryCreditCard.limit || 0) - primaryCreditCard.balance)}</div>
+                                  <p className="text-xs text-muted-foreground">Available</p>
                                   <Input
                                       type="number"
                                       placeholder="Actual Due"
@@ -736,9 +739,9 @@ export default function TransactionsPage() {
                                       onChange={(e) => debouncedUpdateAccount(primaryCreditCard.id, { actualBalance: e.target.value === '' ? null : parseFloat(e.target.value) })}
                                       onClick={(e) => e.stopPropagation()}
                                   />
-                                  {getBalanceDifference(primaryCreditCard.balance, primaryCreditCard.actualBalance) !== null && (
-                                      <p className={cn("text-xs font-medium pt-1", Math.abs(getBalanceDifference(primaryCreditCard.balance, primaryCreditCard.actualBalance)!) < 0.01 ? "text-green-600" : "text-red-600")}>
-                                          Diff: {formatCurrency(getBalanceDifference(primaryCreditCard.balance, primaryCreditCard.actualBalance)!)}
+                                  {primaryCardBalanceDifference !== null && (
+                                      <p className={cn("text-xs font-medium pt-1", Math.abs(primaryCardBalanceDifference) < 0.01 ? "text-green-600" : "text-red-600")}>
+                                          Diff: {formatCurrency(primaryCardBalanceDifference)}
                                       </p>
                                   )}
                               </div>
@@ -751,7 +754,7 @@ export default function TransactionsPage() {
               {sortedDisplayAccounts.map((account, index) => {
                   const isCard = account.type === 'card';
                   const calculatedBalance = isCard ? (account.limit || 0) - account.balance : account.balance;
-                  const balanceDifference = getBalanceDifference(account.balance, account.actualBalance);
+                  const balanceDifference = isCard ? getBalanceDifference(account.actualBalance, account.balance) : getBalanceDifference(account.balance, account.actualBalance);
 
                   return (
                       <TabsTrigger key={account.id} value={account.id} asChild>
@@ -767,6 +770,7 @@ export default function TransactionsPage() {
                                   <span className="font-semibold text-base">{account.name}</span>
                                   <span onClick={(e) => { e.stopPropagation(); handleAccountClick(account as Account, account.name); }} className="font-bold text-lg cursor-pointer hover:underline">{formatCurrency(calculatedBalance)}</span>
                               </div>
+                               {isCard && <p className="text-xs text-muted-foreground">Available</p>}
                               <div className="w-full mt-auto space-y-1 pt-2">
                                   <div className="flex items-center justify-between gap-2">
                                   <Label htmlFor={`actual-balance-${account.id}`} className="text-sm flex-shrink-0">{isCard ? 'Actual Due' : 'Actual'}</Label>
@@ -899,6 +903,8 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+    
 
     
 
