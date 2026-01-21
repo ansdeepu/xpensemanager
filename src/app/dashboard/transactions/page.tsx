@@ -383,31 +383,31 @@ export default function TransactionsPage() {
   const getTransactionSortOrder = useCallback((t: Transaction) => {
     const loanInfo = getLoanDisplayInfo(t);
     
-    // 1. Income
-    if (loanInfo.type === 'income') return 1;
-    // 2. Return
-    if (loanInfo.type === 'return') return 2;
-    // 3. Transfer
-    if (loanInfo.type === 'transfer' && !loanInfo.isLoan) return 3;
+    // 1. Return
+    if (loanInfo.type === 'return') return 1;
+    // 2. Transfer
+    if (loanInfo.type === 'transfer' && !loanInfo.isLoan) return 2;
 
     if (loanInfo.isLoan) {
         const loan = loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId));
         if(loan) {
-            // 4. Repayment (Debit)
-            if (loanInfo.type === 'repayment' && loan.type === 'taken') return 4;
-            // 5. Loan Given
-            if (loanInfo.type === 'loan' && loan.type === 'given') return 5;
-             // 8. Repayment (Credit)
-            if (loanInfo.type === 'repayment' && loan.type === 'given') return 8;
-            // 9. Loan Taken
-            if (loanInfo.type === 'loan' && loan.type === 'taken') return 9;
+            // 3. Repayment (Debit)
+            if (loanInfo.type === 'repayment' && loan.type === 'taken') return 3;
+            // 4. Loan Given
+            if (loanInfo.type === 'loan' && loan.type === 'given') return 4;
+            // 7. Repayment (Credit)
+            if (loanInfo.type === 'repayment' && loan.type === 'given') return 7;
+            // 8. Loan Taken
+            if (loanInfo.type === 'loan' && loan.type === 'taken') return 8;
         }
     }
 
-    // 6. Expense
-    if (loanInfo.type === 'expense') return 6;
-    // 7. Issue
-    if (loanInfo.type === 'issue') return 7;
+    // 5. Expense
+    if (loanInfo.type === 'expense') return 5;
+    // 6. Issue
+    if (loanInfo.type === 'issue') return 6;
+    // 9. Income
+    if (loanInfo.type === 'income') return 9;
 
     return 99; // Fallback
   }, [getLoanDisplayInfo, loans]);
@@ -899,6 +899,8 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+    
 
     
 
