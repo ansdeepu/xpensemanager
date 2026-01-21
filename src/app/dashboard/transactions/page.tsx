@@ -693,7 +693,7 @@ export default function TransactionsPage() {
                         {/* Bank Column */}
                         <div className="space-y-1">
                             <p className="text-sm text-muted-foreground">Bank Balance</p>
-                            <p className="font-bold text-2xl">{formatCurrency(primaryAccount.balance)}</p>
+                            <p className="font-bold text-xl">{formatCurrency(primaryAccount.balance)}</p>
                             <Input
                                 id={`actual-balance-${primaryAccount.id}`}
                                 type="number"
@@ -716,7 +716,7 @@ export default function TransactionsPage() {
                         {/* Digital Column */}
                         <div className="space-y-1">
                             <p className="text-sm text-muted-foreground">Digital</p>
-                            <p className="font-bold text-2xl">{formatCurrency(digitalWalletBalance)}</p>
+                            <p className="font-bold text-xl">{formatCurrency(digitalWalletBalance)}</p>
                             <Input
                                 id="actual-balance-digital"
                                 type="number"
@@ -739,7 +739,7 @@ export default function TransactionsPage() {
                         {/* Cash Column */}
                         <div className="space-y-1">
                             <p className="text-sm text-muted-foreground">Cash</p>
-                            <p className="font-bold text-2xl">{formatCurrency(cashWalletBalance)}</p>
+                            <p className="font-bold text-xl">{formatCurrency(cashWalletBalance)}</p>
                             <Input
                                 id="actual-balance-cash"
                                 type="number"
@@ -766,7 +766,7 @@ export default function TransactionsPage() {
                             return (
                                 <div className="space-y-1">
                                     <p className="text-sm text-muted-foreground">{sbiCreditCard.name}</p>
-                                    <p className="font-bold text-2xl">{formatCurrency(calculatedDue)}</p>
+                                    <p className="font-bold text-xl">{formatCurrency(calculatedDue)}</p>
                                     <Input
                                         id={`actual-balance-${sbiCreditCard.id}`}
                                         type="number"
@@ -942,3 +942,5 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+    
