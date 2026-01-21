@@ -322,23 +322,7 @@ export default function TransactionsPage() {
   const secondaryAccounts = bankAccounts.filter(account => (account.name.toLowerCase().includes('hdfc') || account.name.toLowerCase().includes('fed') || account.name.toLowerCase().includes('post') || account.name.toLowerCase().includes('money')));
   const otherAccounts = bankAccounts.filter(account => !secondaryAccounts.some(sa => sa.id === account.id));
 
-  const loanInfoMap = useMemo(() => {
-    const map = new Map<string, { loanType: 'taken' | 'given', transactionType: 'loan' | 'repayment' }>();
-    if (loans) {
-      for (const loan of loans) {
-        if (loan.transactions) {
-            for (const tx of loan.transactions) {
-                if (tx.id) {
-                    map.set(tx.id, { loanType: loan.type, transactionType: tx.type });
-                }
-            }
-        }
-      }
-    }
-    return map;
-  }, [loans]);
-
-   const getLoanDisplayInfo = useMemo(() => {
+  const getLoanDisplayInfo = useMemo(() => {
     return (t: Transaction) => {
         const defaultInfo = { isLoan: false, type: t.type, category: t.category, description: t.description, descriptionClassName: "" };
 
@@ -410,20 +394,20 @@ export default function TransactionsPage() {
       });
 
       const getTransactionSortOrder = (t: Transaction) => {
-          const loanInfo = getLoanDisplayInfo(t);
-          
-          if (loanInfo.type === 'return') return 1;
-          if (t.type === 'transfer' && !loanInfo.isLoan) return 2;
-          if (loanInfo.isLoan && loanInfo.type === 'repayment' && loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId))?.type === 'taken') return 3; // Repayment Made
-          if (loanInfo.isLoan && loanInfo.type === 'loan' && loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId))?.type === 'given') return 4; // Loan Given
-          if (t.type === 'expense') return 5;
-          if (loanInfo.type === 'issue') return 6; 
-          
-          if (loanInfo.isLoan && loanInfo.type === 'repayment' && loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId))?.type === 'given') return 7; // Repayment Received
-          if (loanInfo.isLoan && loanInfo.type === 'loan' && loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId))?.type === 'taken') return 8; // Loan Taken
-          if (t.type === 'income') return 9;
+        const loanInfo = getLoanDisplayInfo(t);
+        
+        if (loanInfo.type === 'return') return 1;
+        if (t.type === 'transfer' && !loanInfo.isLoan) return 2;
+        if (loanInfo.isLoan && loanInfo.type === 'repayment' && loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId))?.type === 'taken') return 3; // Repayment Made
+        if (loanInfo.isLoan && loanInfo.type === 'loan' && loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId))?.type === 'given') return 4; // Loan Given
+        if (t.type === 'expense') return 5;
+        if (loanInfo.type === 'issue') return 6; 
+        
+        if (loanInfo.isLoan && loanInfo.type === 'repayment' && loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId))?.type === 'given') return 7; // Repayment Received
+        if (loanInfo.isLoan && loanInfo.type === 'loan' && loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId))?.type === 'taken') return 8; // Loan Taken
+        if (t.type === 'income') return 9;
 
-          return 99;
+        return 99;
       };
 
       const sortedChronologically = allRelevantTransactions.sort((a, b) => {
@@ -609,7 +593,7 @@ export default function TransactionsPage() {
       // Fallback sort for same type on same day, e.g., by amount
       return b.amount - a.amount;
     });
-  }, [allTransactions, activeTab, startDate, endDate, searchQuery, primaryAccount, getLoanDisplayInfo, getAccountName, transactionBalanceMap, loans, loanInfoMap, creditCards]);
+  }, [allTransactions, activeTab, startDate, endDate, searchQuery, primaryAccount, getLoanDisplayInfo, getAccountName, transactionBalanceMap, loans, creditCards]);
 
     const transactionsWithRunningBalance = useMemo(() => {
         return filteredTransactions.map(transaction => {
@@ -893,7 +877,7 @@ export default function TransactionsPage() {
                 placeholder="Search..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded-lg bg-background pl-8 h-9"
+                className="w-full rounded-lg pl-8 h-9"
                 />
             </div>
         </div>
@@ -924,9 +908,9 @@ export default function TransactionsPage() {
                 <Printer className="h-4 w-4" />
             </Button>
             <AddTransactionDialog accounts={accountDataForDialog}>
-                <Button>
+                <Button className="w-24">
                     <PlusCircle className="mr-2 h-4 w-4" />
-                    Add Transaction
+                    Add
                 </Button>
             </AddTransactionDialog>
         </div>
