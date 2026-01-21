@@ -681,7 +681,6 @@ export default function TransactionsPage() {
                               <div className="space-y-1">
                                   <Label className="text-sm">{primaryCreditCard.name}</Label>
                                   <div className="font-mono text-lg">{formatCurrency((primaryCreditCard.limit || 0) - primaryCreditCard.balance)}</div>
-                                  {primaryCreditCard.limit && <p className="text-xs text-muted-foreground">Due: {formatCurrency(primaryCreditCard.balance)}</p>}
                                   <Input
                                       type="number"
                                       placeholder="Actual Due"
@@ -721,10 +720,6 @@ export default function TransactionsPage() {
                                   <span className="font-semibold text-base">{account.name}</span>
                                   <span onClick={(e) => { e.stopPropagation(); handleAccountClick(account as Account, account.name); }} className="font-bold text-lg cursor-pointer hover:underline">{formatCurrency(calculatedBalance)}</span>
                               </div>
-                              {isCard && (
-                                  <p className="text-xs text-muted-foreground">Due: {formatCurrency(account.balance)} of {formatCurrency(account.limit || 0)}</p>
-                              )}
-
                               <div className="w-full mt-auto space-y-1 pt-2">
                                   <div className="flex items-center justify-between gap-2">
                                   <Label htmlFor={`actual-balance-${account.id}`} className="text-sm flex-shrink-0">{isCard ? 'Actual Due' : 'Actual'}</Label>
@@ -857,7 +852,5 @@ export default function TransactionsPage() {
     </div>
   );
 }
-
-    
 
     
