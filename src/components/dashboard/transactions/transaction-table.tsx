@@ -612,7 +612,7 @@ export function TransactionTable({
                       
                           <div className="space-y-2">
                               <Label htmlFor="edit-description">Description</Label>
-                              <Input id="edit-description" name="description" defaultValue={selectedTransaction?.description} required />
+                              <Input id="edit-description" name="description" defaultValue={selectedTransaction?.description} />
                           </div>
                       
 
@@ -721,3 +721,5 @@ export function TransactionTable({
     </>
   );
 }
+
+    
