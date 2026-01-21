@@ -247,7 +247,7 @@ export default function TransactionsPage() {
         if (t.paymentMethod === 'online' && t.accountId && runningAccountBalances[t.accountId] !== undefined) {
             const account = accountMap.get(t.accountId);
             if (account?.type === 'card') {
-              runningAccountBalances[t.accountId] -= t.amount; // Debt increases
+              runningAccountBalances[t.accountId] -= t.amount; // For cards, balance is what you owe, so it's negative
             } else {
               runningAccountBalances[t.accountId] -= t.amount;
             }
@@ -262,7 +262,7 @@ export default function TransactionsPage() {
         if (t.fromAccountId && runningAccountBalances[t.fromAccountId] !== undefined) {
           const fromAccount = accountMap.get(t.fromAccountId);
           if (fromAccount?.type === 'card') {
-            runningAccountBalances[t.fromAccountId] -= t.amount; // Cash advance increases debt
+            runningAccountBalances[t.fromAccountId] -= t.amount; // Cash advance increases debt (more negative)
           } else {
             runningAccountBalances[t.fromAccountId] -= t.amount;
           }
@@ -276,7 +276,7 @@ export default function TransactionsPage() {
         if (t.toAccountId && runningAccountBalances[t.toAccountId] !== undefined) {
           const toAccount = accountMap.get(t.toAccountId);
           if (toAccount?.type === 'card') {
-            runningAccountBalances[t.toAccountId] += t.amount; // Paying off card
+            runningAccountBalances[t.toAccountId] += t.amount; // Paying off card decreases debt (less negative)
           } else {
             runningAccountBalances[t.toAccountId] += t.amount;
           }
@@ -304,6 +304,7 @@ export default function TransactionsPage() {
 
         chronologicalTransactions.forEach(t => {
             let effect = 0;
+            const isCard = activeAccount?.type === 'card';
 
             if (isPrimaryView) {
                 const isToPrimaryEcosystem = t.toAccountId === primaryAccount?.id || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
@@ -321,7 +322,7 @@ export default function TransactionsPage() {
                     if (isFromPrimaryEcosystem && !isToPrimaryEcosystem) { effect = -t.amount; }
                     else if (!isFromPrimaryEcosystem && isToPrimaryEcosystem) { effect = t.amount; }
                 }
-            } else if (activeAccount?.type === 'card') {
+            } else if (isCard) {
                 if (t.type === 'expense' && t.accountId === activeTab) { effect = -t.amount; } // increases due
                 else if (t.type === 'transfer' && t.toAccountId === activeTab) { effect = t.amount; } // payment decreases due
                 else if (t.type === 'transfer' && t.fromAccountId === activeTab) { effect = -t.amount; } // cash advance increases due
@@ -344,7 +345,7 @@ export default function TransactionsPage() {
       digitalWalletBalance: runningDigitalBalance,
       transactionBalanceMap: runningBalances
     };
-  }, [rawAccounts, allTransactions, walletPreferences, activeTab, primaryAccount]);
+  }, [rawAccounts, allTransactions, walletPreferences, activeTab]);
 
   useEffect(() => {
     if (primaryAccount && !activeTab) {
@@ -667,9 +668,9 @@ export default function TransactionsPage() {
             {primaryAccountFull && (
                 <TabsTrigger value={primaryAccountFull.id} asChild>
                   <div className={cn("border rounded-lg p-4 cursor-pointer transition-shadow w-full h-full text-left", activeTab === primaryAccountFull.id ? "bg-lime-100/50 dark:bg-lime-900/50 ring-2 ring-primary shadow-lg" : "bg-card")}>
-                       <div className="w-full flex justify-between items-start mb-2">
-                          <h3 className="font-semibold text-lg">Primary ({primaryAccountFull.name})</h3>
-                          <span className="font-bold text-xl text-green-600">{formatCurrency(allBalance)}</span>
+                      <h3 className="font-semibold text-lg mb-2">Primary ({primaryAccountFull.name})</h3>
+                      <div className="text-right mb-4">
+                        <span className="font-bold text-xl text-green-600">{formatCurrency(allBalance)}</span>
                       </div>
                       
                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
@@ -924,5 +925,3 @@ export default function TransactionsPage() {
     </div>
   );
 }
-
-    
