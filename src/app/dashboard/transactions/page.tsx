@@ -345,7 +345,7 @@ export default function TransactionsPage() {
       digitalWalletBalance: runningDigitalBalance,
       transactionBalanceMap: runningBalances
     };
-  }, [rawAccounts, allTransactions, walletPreferences, activeTab]);
+  }, [rawAccounts, allTransactions, walletPreferences, activeTab, primaryAccount]);
 
   useEffect(() => {
     if (primaryAccount && !activeTab) {
@@ -664,10 +664,10 @@ export default function TransactionsPage() {
       </div>
       
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4 h-auto p-0 bg-transparent print-hide">
+        <TabsList className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-auto p-0 bg-transparent print-hide">
             {primaryAccountFull && (
                 <TabsTrigger value={primaryAccountFull.id} asChild>
-                  <div className={cn("border rounded-lg p-4 cursor-pointer transition-shadow w-full h-full text-left", activeTab === primaryAccountFull.id ? "bg-lime-100/50 dark:bg-lime-900/50 ring-2 ring-primary shadow-lg" : "bg-card")}>
+                  <div className={cn("lg:col-span-2 border rounded-lg p-4 cursor-pointer transition-shadow w-full h-full text-left", activeTab === primaryAccountFull.id ? "bg-lime-100/50 dark:bg-lime-900/50 ring-2 ring-primary shadow-lg" : "bg-card")}>
                       <h3 className="font-semibold text-lg mb-2">Primary ({primaryAccountFull.name})</h3>
                       <div className="text-right mb-4">
                         <span className="font-bold text-xl text-green-600">{formatCurrency(allBalance)}</span>
@@ -800,7 +800,6 @@ export default function TransactionsPage() {
                 </TabsTrigger>
             )}
             
-            {/* Other Accounts Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                  {otherCreditCards.map((account, index) => {
                     const balanceDifference = getBalanceDifference(account.balance, account.actualBalance);
@@ -925,3 +924,5 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+    
