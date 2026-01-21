@@ -383,34 +383,30 @@ export default function TransactionsPage() {
   const getTransactionSortOrder = useCallback((t: Transaction) => {
     const loanInfo = getLoanDisplayInfo(t);
     
-    // Custom sort order based on user's list (9, 1, 2, 3, 4, 5, 6, 7, 8)
-    // 9. Income: display as first
+    // 1. Income
     if (loanInfo.type === 'income') return 1;
-
-    // 1. Return
+    // 2. Return
     if (loanInfo.type === 'return') return 2;
-    
-    // 2. Transfer
+    // 3. Transfer
     if (loanInfo.type === 'transfer' && !loanInfo.isLoan) return 3;
 
     if (loanInfo.isLoan) {
         const loan = loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId));
         if(loan) {
-            // 3. Repayment (Debit)
+            // 4. Repayment (Debit)
             if (loanInfo.type === 'repayment' && loan.type === 'taken') return 4;
-            // 4. Loan Given
+            // 5. Loan Given
             if (loanInfo.type === 'loan' && loan.type === 'given') return 5;
-            // 7. Repayment (Credit)
+             // 8. Repayment (Credit)
             if (loanInfo.type === 'repayment' && loan.type === 'given') return 8;
-            // 8. Loan Taken
+            // 9. Loan Taken
             if (loanInfo.type === 'loan' && loan.type === 'taken') return 9;
         }
     }
 
-    // 5. Expense
+    // 6. Expense
     if (loanInfo.type === 'expense') return 6;
-
-    // 6. Issue
+    // 7. Issue
     if (loanInfo.type === 'issue') return 7;
 
     return 99; // Fallback
@@ -903,6 +899,8 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+    
 
     
 
