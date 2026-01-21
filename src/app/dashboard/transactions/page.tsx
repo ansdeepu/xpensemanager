@@ -46,24 +46,25 @@ const formatCurrency = (amount: number) => {
 const tabColors = [
   "bg-sky-100 dark:bg-sky-900/50",
   "bg-amber-100 dark:bg-amber-900/50",
-  "bg-emerald-100 dark:bg-emerald-200",
-  "bg-rose-100 dark:bg-rose-200",
-  "bg-violet-100 dark:bg-violet-200",
-  "bg-cyan-100 dark:bg-cyan-200",
-  "bg-fuchsia-100 dark:bg-fuchsia-200",
+  "bg-emerald-100 dark:bg-emerald-900/50",
+  "bg-rose-100 dark:bg-rose-900/50",
+  "bg-violet-100 dark:bg-violet-900/50",
+  "bg-cyan-100 dark:bg-cyan-900/50",
+  "bg-fuchsia-100 dark:bg-fuchsia-900/50",
   "bg-orange-100 dark:bg-orange-900/50",
 ];
 
 const textColors = [
   "text-sky-800 dark:text-sky-200",
   "text-amber-800 dark:text-amber-200",
-  "text-emerald-800 dark:text-emerald-200",
-  "text-rose-800 dark:text-rose-200",
-  "text-violet-800 dark:text-violet-200",
-  "text-cyan-800 dark:text-cyan-200",
-  "text-fuchsia-800 dark:text-fuchsia-200",
-  "text-orange-800 dark:text-orange-200",
+  "text-emerald-800 dark:text-emerald-800",
+  "text-rose-800 dark:text-rose-800",
+  "text-violet-800 dark:text-violet-800",
+  "text-cyan-800 dark:text-cyan-800",
+  "text-fuchsia-800 dark:text-fuchsia-800",
+  "text-orange-800 dark:text-orange-800",
 ];
+
 
 const PaginationControls = ({ currentPage, totalPages, setCurrentPage }: { currentPage: number, totalPages: number, setCurrentPage: (page: number) => void }) => (
     <div className="flex items-center gap-2 print-hide">
@@ -127,8 +128,6 @@ export default function TransactionsPage() {
   
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [selectedAccountForDetails, setSelectedAccountForDetails] = useState<AccountForDetails | null>(null);
-
-  const primaryAccount = useMemo(() => rawAccounts.find(a => a.isPrimary), [rawAccounts]);
 
   const useDebounce = (callback: Function, delay: number) => {
     const timeoutRef = useRef<any | null>(null);
@@ -223,145 +222,81 @@ export default function TransactionsPage() {
     }
   }, [user, userLoading, dataLoading]);
 
-  const { accounts, cashWalletBalance, digitalWalletBalance, transactionBalanceMap } = useMemo(() => {
-    let runningCashBalance = 0;
-    let runningDigitalBalance = 0;
-    const runningAccountBalances: { [key: string]: number } = {};
+  // This calculates the final balance for each account to be displayed in the tab headers
+  const { accounts, cashWalletBalance, digitalWalletBalance } = useMemo(() => {
+    let cashBalance = 0;
+    let digitalBalance = 0;
+    const accountBalances: { [key: string]: number } = {};
     const accountMap = new Map(rawAccounts.map(acc => [acc.id, acc]));
 
     rawAccounts.forEach(acc => {
-        runningAccountBalances[acc.id] = 0;
+        accountBalances[acc.id] = 0;
     });
 
     const chronologicalTransactions = [...allTransactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     
     chronologicalTransactions.forEach(t => {
       // Income
-      if (t.type === 'income' && t.accountId && runningAccountBalances[t.accountId] !== undefined) {
+      if (t.type === 'income' && t.accountId && accountBalances[t.accountId] !== undefined) {
           const account = accountMap.get(t.accountId);
-          if (account?.type !== 'card') { // Income doesn't go to cards
-            runningAccountBalances[t.accountId] += t.amount;
+          if (account?.type !== 'card') {
+            accountBalances[t.accountId] += t.amount;
           }
       // Expense
       } else if (t.type === 'expense') {
-        if (t.paymentMethod === 'online' && t.accountId && runningAccountBalances[t.accountId] !== undefined) {
+        if (t.paymentMethod === 'online' && t.accountId && accountBalances[t.accountId] !== undefined) {
             const account = accountMap.get(t.accountId);
             if (account?.type === 'card') {
-              runningAccountBalances[t.accountId] -= t.amount; // For cards, balance is what you owe, so it's negative
+              accountBalances[t.accountId] -= t.amount; 
             } else {
-              runningAccountBalances[t.accountId] -= t.amount;
+              accountBalances[t.accountId] -= t.amount;
             }
         } else if (t.paymentMethod === 'cash') {
-          runningCashBalance -= t.amount;
+          cashBalance -= t.amount;
         } else if (t.paymentMethod === 'digital') {
-          runningDigitalBalance -= t.amount;
+          digitalBalance -= t.amount;
         }
       // Transfer
       } else if (t.type === 'transfer') {
-        // From account
-        if (t.fromAccountId && runningAccountBalances[t.fromAccountId] !== undefined) {
-          const fromAccount = accountMap.get(t.fromAccountId);
-          if (fromAccount?.type === 'card') {
-            runningAccountBalances[t.fromAccountId] -= t.amount; // Cash advance increases debt (more negative)
-          } else {
-            runningAccountBalances[t.fromAccountId] -= t.amount;
-          }
+        if (t.fromAccountId && accountBalances[t.fromAccountId] !== undefined) {
+          accountBalances[t.fromAccountId] -= t.amount;
         } else if (t.fromAccountId === 'cash-wallet') {
-          runningCashBalance -= t.amount;
+          cashBalance -= t.amount;
         } else if (t.fromAccountId === 'digital-wallet') {
-          runningDigitalBalance -= t.amount;
+          digitalBalance -= t.amount;
         }
 
-        // To account
-        if (t.toAccountId && runningAccountBalances[t.toAccountId] !== undefined) {
-          const toAccount = accountMap.get(t.toAccountId);
-          if (toAccount?.type === 'card') {
-            runningAccountBalances[t.toAccountId] += t.amount; // Paying off card decreases debt (less negative)
-          } else {
-            runningAccountBalances[t.toAccountId] += t.amount;
-          }
+        if (t.toAccountId && accountBalances[t.toAccountId] !== undefined) {
+          accountBalances[t.toAccountId] += t.amount;
         } else if (t.toAccountId === 'cash-wallet') {
-          runningCashBalance += t.amount;
+          cashBalance += t.amount;
         } else if (t.toAccountId === 'digital-wallet') {
-          runningDigitalBalance += t.amount;
+          digitalBalance += t.amount;
         }
       }
     });
 
-    const finalAccounts = rawAccounts.map(acc => {
-        return {
-          ...acc,
-          balance: runningAccountBalances[acc.id] ?? 0,
-        };
-    });
+    const finalAccounts = rawAccounts.map(acc => ({
+        ...acc,
+        balance: accountBalances[acc.id] ?? 0,
+    }));
     
-    // --- Calculate running balance for the transaction table ---
-    const runningBalances = new Map<string, number>();
-    if (activeTab) {
-        let runningBalance = 0;
-        const activeAccount = rawAccounts.find(a => a.id === activeTab);
-        const isPrimaryView = primaryAccount?.id === activeTab;
-
-        chronologicalTransactions.forEach(t => {
-            let effect = 0;
-            const isCard = activeAccount?.type === 'card';
-
-            if (isPrimaryView) {
-                const isToPrimaryEcosystem = t.toAccountId === primaryAccount?.id || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
-                const isFromPrimaryEcosystem = t.fromAccountId === primaryAccount?.id || t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
-                const creditCardIds = rawAccounts.filter(a => a.type === 'card').map(a => a.id);
-                const isCreditCardExpense = t.type === 'expense' && t.accountId && creditCardIds.includes(t.accountId);
-
-                if (t.type === 'income' && isToPrimaryEcosystem) {
-                    effect = t.amount;
-                } else if (t.type === 'expense' && !isCreditCardExpense) {
-                    if (t.paymentMethod === 'online' && t.accountId === primaryAccount?.id) { effect = -t.amount; } 
-                    else if (t.paymentMethod === 'cash') { effect = -t.amount; }
-                    else if (t.paymentMethod === 'digital') { effect = -t.amount; }
-                } else if (t.type === 'transfer') {
-                    if (isFromPrimaryEcosystem && !isToPrimaryEcosystem) { effect = -t.amount; }
-                    else if (!isFromPrimaryEcosystem && isToPrimaryEcosystem) { effect = t.amount; }
-                }
-            } else if (isCard) {
-                if (t.type === 'expense' && t.accountId === activeTab) { effect = -t.amount; } // increases due
-                else if (t.type === 'transfer' && t.toAccountId === activeTab) { effect = t.amount; } // payment decreases due
-                else if (t.type === 'transfer' && t.fromAccountId === activeTab) { effect = -t.amount; } // cash advance increases due
-            } else { // Regular bank account
-                if (t.type === 'income' && t.accountId === activeTab) { effect = t.amount; }
-                else if (t.type === 'expense' && t.accountId === activeTab) { effect = -t.amount; }
-                else if (t.type === 'transfer') {
-                    if (t.fromAccountId === activeTab) { effect = -t.amount; }
-                    if (t.toAccountId === activeTab) { effect = t.amount; }
-                }
-            }
-            runningBalance += effect;
-            runningBalances.set(t.id, runningBalance);
-        });
-    }
-
     return { 
       accounts: finalAccounts, 
-      cashWalletBalance: runningCashBalance,
-      digitalWalletBalance: runningDigitalBalance,
-      transactionBalanceMap: runningBalances
+      cashWalletBalance: cashBalance,
+      digitalWalletBalance: digitalBalance 
     };
-  }, [rawAccounts, allTransactions, walletPreferences, activeTab, primaryAccount]);
+  }, [rawAccounts, allTransactions]);
 
+
+  const primaryAccount = useMemo(() => accounts.find(a => a.isPrimary), [accounts]);
+  
   useEffect(() => {
     if (primaryAccount && !activeTab) {
       setActiveTab(primaryAccount.id);
     }
   }, [primaryAccount, activeTab]);
-
-  const creditCards = useMemo(() => accounts.filter(account => account.type === 'card'), [accounts]);
-  const sbiCreditCard = useMemo(() => creditCards.find(card => card.name.toLowerCase().includes('sbi credit card')), [creditCards]);
-  const otherCreditCards = useMemo(() => creditCards.filter(card => !sbiCreditCard || card.id !== sbiCreditCard.id), [creditCards, sbiCreditCard]);
-
-  const bankAccounts = useMemo(() => accounts.filter(account => account.type !== 'card' && !account.isPrimary), [accounts]);
   
-  const secondaryAccounts = useMemo(() => bankAccounts.filter(account => (account.name.toLowerCase().includes('hdfc') || account.name.toLowerCase().includes('fed') || account.name.toLowerCase().includes('post') || account.name.toLowerCase().includes('money'))), [bankAccounts]);
-  const otherAccounts = useMemo(() => bankAccounts.filter(account => !secondaryAccounts.some(sa => sa.id === account.id)), [bankAccounts, secondaryAccounts]);
-
   const getAccountName = useCallback((accountId?: string, paymentMethod?: Transaction['paymentMethod']) => {
     if (accountId === 'cash-wallet' || paymentMethod === 'cash') return "Cash Wallet";
     if (accountId === 'digital-wallet' || paymentMethod === 'digital') return "Digital Wallet";
@@ -384,7 +319,6 @@ export default function TransactionsPage() {
     
     return account.name;
   }, [accounts, loans]);
-
 
   const getLoanDisplayInfo = useMemo(() => {
     return (t: Transaction) => {
@@ -436,53 +370,69 @@ export default function TransactionsPage() {
     };
   }, [loans, rawAccounts]);
 
-  const primaryAccountFull = useMemo(() => accounts.find(a => a.isPrimary), [accounts]);
 
-  const filteredTransactions = useMemo(() => {
-    const isPrimaryView = primaryAccount?.id === activeTab;
-    const creditCardIds = creditCards.map(c => c.id);
-    
+  const { filteredTransactions, transactionBalanceMap } = useMemo(() => {
+    if (!activeTab) return { filteredTransactions: [], transactionBalanceMap: new Map() };
+
+    // 1. Get all transactions relevant to the active tab
     const sourceTransactions = allTransactions.filter(t => {
-      const fromAccountIsWallet = t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
-      const toAccountIsWallet = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
-      
-      let fromCurrentView: boolean;
-      let toCurrentView: boolean;
-      let accountIsInView = false;
-      
-      if (isPrimaryView) {
-          fromCurrentView = t.fromAccountId === activeTab || fromAccountIsWallet || (t.fromAccountId ? creditCardIds.includes(t.fromAccountId) : false);
-          toCurrentView = t.toAccountId === activeTab || toAccountIsWallet || (t.toAccountId ? creditCardIds.includes(t.toAccountId) : false);
-          if (t.type === 'expense' || t.type === 'income') {
-              accountIsInView = t.accountId === activeTab || t.paymentMethod === 'cash' || t.paymentMethod === 'digital' || (t.accountId ? creditCardIds.includes(t.accountId) : false);
-          }
-      } else {
-          fromCurrentView = t.fromAccountId === activeTab;
-          toCurrentView = t.toAccountId === activeTab;
-          if (t.type === 'expense' || t.type === 'income') {
-            accountIsInView = t.accountId === activeTab;
-          }
+      if (activeTab === 'cash-wallet') {
+        return t.paymentMethod === 'cash' || t.fromAccountId === 'cash-wallet' || t.toAccountId === 'cash-wallet';
       }
-      
-      return fromCurrentView || toCurrentView || accountIsInView;
+      if (activeTab === 'digital-wallet') {
+        return t.paymentMethod === 'digital' || t.fromAccountId === 'digital-wallet' || t.toAccountId === 'digital-wallet';
+      }
+      return t.accountId === activeTab || t.fromAccountId === activeTab || t.toAccountId === activeTab;
     });
 
-    let filtered = [...sourceTransactions];
+    // 2. Calculate running balance from the beginning of time
+    const chronologicalTransactions = [...sourceTransactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const balances = new Map<string, number>();
+    let runningBalance = 0;
+    const activeAccountInfo = accounts.find(a => a.id === activeTab);
+    const isCard = activeAccountInfo?.type === 'card';
 
+    chronologicalTransactions.forEach(t => {
+        let effect = 0;
+        if (activeTab === 'cash-wallet') {
+            if(t.type === 'transfer' && t.toAccountId === 'cash-wallet') effect = t.amount;
+            else if(t.type === 'transfer' && t.fromAccountId === 'cash-wallet') effect = -t.amount;
+            else if(t.type === 'expense' && t.paymentMethod === 'cash') effect = -t.amount;
+        } else if (activeTab === 'digital-wallet') {
+            if(t.type === 'transfer' && t.toAccountId === 'digital-wallet') effect = t.amount;
+            else if(t.type === 'transfer' && t.fromAccountId === 'digital-wallet') effect = -t.amount;
+            else if(t.type === 'expense' && t.paymentMethod === 'digital') effect = -t.amount;
+        } else if (isCard) {
+            if (t.type === 'expense' && t.accountId === activeTab) effect = -t.amount;
+            else if (t.type === 'transfer' && t.toAccountId === activeTab) effect = t.amount; // payment decreases due
+            else if (t.type === 'transfer' && t.fromAccountId === activeTab) effect = -t.amount; // cash advance
+        } else { // Regular bank account
+            if (t.type === 'income' && t.accountId === activeTab) effect = t.amount;
+            else if (t.type === 'expense' && t.accountId === activeTab) effect = -t.amount;
+            else if (t.type === 'transfer') {
+                if (t.fromAccountId === activeTab) effect = -t.amount;
+                if (t.toAccountId === activeTab) effect = t.amount;
+            }
+        }
+        runningBalance += effect;
+        balances.set(t.id, runningBalance);
+    });
+
+    // 3. Filter for display (date range, search)
+    let displayTransactions = [...sourceTransactions];
     if (startDate && endDate) {
         const interval = { start: startOfDay(new Date(startDate)), end: endOfDay(new Date(endDate)) };
-        filtered = filtered.filter(t => isWithinInterval(new Date(t.date), interval));
+        displayTransactions = displayTransactions.filter(t => isWithinInterval(new Date(t.date), interval));
     }
 
     if (searchQuery) {
       const lowercasedQuery = searchQuery.toLowerCase();
-      filtered = filtered.filter(t => {
+      displayTransactions = displayTransactions.filter(t => {
         const loanInfo = getLoanDisplayInfo(t);
         const accountName = t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} -> ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod);
-        const balance = transactionBalanceMap.get(t.id);
+        const balance = balances.get(t.id);
         const balanceString = balance !== undefined ? formatCurrency(balance) : '';
         const amountString = formatCurrency(t.amount);
-
         const description = loanInfo.description || t.description;
         const category = loanInfo.category || t.category;
 
@@ -500,21 +450,19 @@ export default function TransactionsPage() {
       });
     }
 
-    return filtered.sort((a, b) => {
-      const dateA = new Date(a.date).getTime();
-      const dateB = new Date(b.date).getTime();
-      if (dateA !== dateB) {
-          return dateB - dateA;
-      }
-      return b.amount - a.amount;
-    });
-  }, [allTransactions, activeTab, startDate, endDate, searchQuery, primaryAccount, getLoanDisplayInfo, getAccountName, transactionBalanceMap, loans, creditCards]);
+    // 4. Sort for display (newest first)
+    displayTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-    const transactionsWithRunningBalance = useMemo(() => {
-        return filteredTransactions.map(transaction => {
-            return { ...transaction, balance: transactionBalanceMap.get(transaction.id) ?? 0 };
-        });
-    }, [filteredTransactions, transactionBalanceMap]);
+    return { filteredTransactions: displayTransactions, transactionBalanceMap: balances };
+
+  }, [allTransactions, activeTab, startDate, endDate, searchQuery, getLoanDisplayInfo, getAccountName, accounts, loans]);
+
+  const transactionsWithRunningBalance = useMemo(() => {
+    return filteredTransactions.map(transaction => ({
+        ...transaction,
+        balance: transactionBalanceMap.get(transaction.id) ?? 0,
+    }));
+  }, [filteredTransactions, transactionBalanceMap]);
 
   const totalPages = Math.ceil(transactionsWithRunningBalance.length / itemsPerPage);
 
@@ -551,18 +499,10 @@ export default function TransactionsPage() {
   
   const getBalanceDifference = (calculatedBalance: number, actualBalance?: number | null) => {
       if (actualBalance === undefined || actualBalance === null) return null;
-      const effectiveCalculated = calculatedBalance;
-      let diff = effectiveCalculated - actualBalance;
+      let diff = calculatedBalance - actualBalance;
       if (Math.abs(diff) < 0.01) diff = 0;
       return diff;
   }
-  
-  const cashBalanceDifference = getBalanceDifference(cashWalletBalance, walletPreferences.cash?.balance);
-  const digitalBalanceDifference = getBalanceDifference(digitalWalletBalance, walletPreferences.digital?.balance);
-  
-  const primaryAccountBalanceDifference = primaryAccountFull ? getBalanceDifference(primaryAccountFull.balance, primaryAccountFull.actualBalance) : null;
-  const sbiCreditCardBalanceDifference = sbiCreditCard ? getBalanceDifference(sbiCreditCard.balance, sbiCreditCard.actualBalance) : null;
-  const allBalance = (primaryAccountFull ? primaryAccountFull.balance : 0) + cashWalletBalance + digitalWalletBalance + (creditCards.reduce((sum, card) => sum + card.balance, 0));
   
   const accountDataForDialog = [
     { id: 'cash-wallet', name: 'Cash Wallet', balance: cashWalletBalance },
@@ -588,6 +528,13 @@ export default function TransactionsPage() {
     setSelectedAccountForDetails(accountDetails);
     setIsDetailsDialogOpen(true);
   };
+  
+  const allDisplayAccounts = [
+    ...(primaryAccount ? [accounts.find(a => a.id === primaryAccount.id)!] : []),
+    ...accounts.filter(a => !a.isPrimary),
+    { id: 'cash-wallet', name: 'Cash Wallet', balance: cashWalletBalance, type: 'wallet', actualBalance: walletPreferences.cash?.balance },
+    { id: 'digital-wallet', name: 'Digital Wallet', balance: digitalWalletBalance, type: 'wallet', actualBalance: walletPreferences.digital?.balance },
+  ].filter(Boolean) as (Account & {type: 'bank' | 'card'} | {id: WalletType, name: string, balance: number, type:'wallet', actualBalance: number | undefined})[];
 
 
   return (
@@ -665,232 +612,72 @@ export default function TransactionsPage() {
       </div>
       
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-auto p-0 bg-transparent print-hide">
-            {primaryAccountFull && (
-                <TabsTrigger value={primaryAccountFull.id} asChild>
-                  <div className={cn("border rounded-lg p-4 cursor-pointer transition-shadow w-full h-full text-left", activeTab === primaryAccountFull.id ? "bg-lime-100/50 dark:bg-lime-900/50 ring-2 ring-primary shadow-lg" : "bg-card")}>
-                      <div className="w-full flex justify-between items-start mb-4">
-                          <h3 className="font-semibold text-lg">Primary ({primaryAccountFull.name})</h3>
-                          <span className="font-bold text-xl text-primary">{formatCurrency(allBalance)}</span>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2">
-                          
-                          <div className="space-y-1">
-                              <Label className="text-sm">Bank Balance</Label>
-                              <p 
-                                  className="font-bold text-lg cursor-pointer hover:underline"
-                                  onClick={(e) => { e.stopPropagation(); if(primaryAccountFull) handleAccountClick(primaryAccountFull); }}
-                              >
-                                  {formatCurrency(primaryAccountFull.balance)}
-                              </p>
-                              <Input
-                                  type="number"
-                                  placeholder="Actual"
-                                  className="hide-number-arrows h-8 mt-1 text-sm text-left bg-background"
-                                  defaultValue={primaryAccountFull.actualBalance ?? ''}
-                                  onChange={(e) => {
-                                      const value = e.target.value === '' ? null : parseFloat(e.target.value)
-                                      debouncedUpdateAccount(primaryAccountFull.id, { actualBalance: value });
-                                  }}
-                                  onClick={(e) => e.stopPropagation()}
-                              />
-                              {primaryAccountBalanceDifference !== null && (
-                                  <p className={cn("text-xs font-medium pt-1", Math.abs(primaryAccountBalanceDifference) < 0.01 ? "text-green-600" : "text-red-600")}>
-                                      Diff: {formatCurrency(primaryAccountBalanceDifference)}
-                                  </p>
-                              )}
-                          </div>
+        <TabsList className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 h-auto p-0 bg-transparent print-hide">
+            {allDisplayAccounts.map((account, index) => {
+                const isWallet = account.type === 'wallet';
+                const isCard = account.type === 'card';
+                const balanceDifference = getBalanceDifference(account.balance, account.actualBalance);
+                 const tabColorIndex = (accounts.findIndex(acc => acc.id === account.id) + 2) % tabColors.length;
 
-                          <div className="space-y-1">
-                              <Label className="text-sm">Digital</Label>
-                              <p 
-                                  className="font-bold text-lg cursor-pointer hover:underline"
-                                  onClick={(e) => { e.stopPropagation(); handleAccountClick('digital-wallet'); }}
-                              >
-                                  {formatCurrency(digitalWalletBalance)}
-                              </p>
-                              <Input
-                                  type="number"
-                                  placeholder="Actual"
-                                  className="hide-number-arrows h-8 text-left text-sm bg-background"
-                                  defaultValue={walletPreferences.digital?.balance ?? ''}
-                                  onChange={(e) => {
-                                      const value = e.target.value === '' ? null : parseFloat(e.target.value)
-                                      debouncedUpdateWallet('digital', { balance: value })
-                                  }}
-                                  onClick={(e) => e.stopPropagation()}
-                              />
-                              {digitalBalanceDifference !== null && (
-                                  <p className={cn("text-xs font-medium pt-1", Math.abs(digitalBalanceDifference) < 0.01 ? "text-green-600" : "text-red-600")}>
-                                      Diff: {formatCurrency(digitalBalanceDifference)}
-                                  </p>
-                              )}
-                          </div>
+                return (
+                    <TabsTrigger key={account.id} value={account.id} asChild>
+                        <div 
+                            className={cn(
+                                "rounded-lg border flex flex-col p-3 items-start text-left gap-1 cursor-pointer transition-shadow h-full", 
+                                activeTab === account.id ? "shadow-lg ring-2 ring-primary" : "bg-card",
+                                account.id === primaryAccount?.id && "bg-lime-100/50 dark:bg-lime-900/50",
+                                !isWallet && account.id !== primaryAccount?.id && tabColors[tabColorIndex],
+                                !isWallet && account.id !== primaryAccount?.id && textColors[tabColorIndex]
+                            )}
+                        >
+                            <div className="w-full flex justify-between items-start">
+                                <span className="font-semibold text-base">{account.name}</span>
+                                <span onClick={(e) => { e.stopPropagation(); handleAccountClick(account as Account, account.name); }} className="font-bold text-lg cursor-pointer hover:underline">{formatCurrency(account.balance)}</span>
+                            </div>
+                            {isCard && 'limit' in account && account.limit && (
+                                <p className="text-xs text-muted-foreground">Available: {formatCurrency(account.limit + account.balance)}</p>
+                            )}
 
-                          <div className="space-y-1">
-                              <Label className="text-sm">Cash</Label>
-                              <p 
-                                  className="font-bold text-lg cursor-pointer hover:underline"
-                                  onClick={(e) => { e.stopPropagation(); handleAccountClick('cash-wallet'); }}
-                              >
-                                  {formatCurrency(cashWalletBalance)}
-                              </p>
-                              <Input
-                                  type="number"
-                                  placeholder="Actual"
-                                  className="hide-number-arrows h-8 text-left text-sm bg-background"
-                                  defaultValue={walletPreferences.cash?.balance ?? ''}
-                                  onChange={(e) => {
-                                      const value = e.target.value === '' ? null : parseFloat(e.target.value)
-                                      debouncedUpdateWallet('cash', { balance: value })
-                                  }}
-                                  onClick={(e) => e.stopPropagation()}
-                              />
-                              {cashBalanceDifference !== null && (
-                                  <p className={cn("text-xs font-medium pt-1", Math.abs(cashBalanceDifference) < 0.01 ? "text-green-600" : "text-red-600")}>
-                                      Diff: {formatCurrency(cashBalanceDifference)}
-                                  </p>
-                              )}
-                          </div>
-                           
-                          {sbiCreditCard ? (
-                            <div className="space-y-1">
-                                <Label className="text-sm">{sbiCreditCard.name}</Label>
-                                <p 
-                                  className="font-bold text-lg cursor-pointer hover:underline"
-                                  onClick={(e) => { e.stopPropagation(); if(sbiCreditCard) handleAccountClick(sbiCreditCard); }}
-                                  >
-                                      {formatCurrency(sbiCreditCard.balance)}
-                                </p>
-                                {sbiCreditCard.limit && sbiCreditCard.limit > 0 && (
-                                    <p className="text-xs text-muted-foreground">
-                                        Available: {formatCurrency(sbiCreditCard.limit + sbiCreditCard.balance)}
-                                    </p>
-                                )}
+                            <div className="w-full mt-auto space-y-1 pt-2">
+                                <div className="flex items-center justify-between gap-2">
+                                <Label htmlFor={`actual-balance-${account.id}`} className="text-sm flex-shrink-0">{isCard ? 'Actual Due' : 'Actual'}</Label>
                                 <Input
+                                    id={`actual-balance-${account.id}`}
                                     type="number"
-                                    placeholder="Actual Due"
-                                    className="hide-number-arrows h-8 mt-1 text-sm text-left bg-background"
-                                    defaultValue={sbiCreditCard.actualBalance ?? ''}
+                                    placeholder={isCard ? 'Actual Due' : 'Actual'}
+                                    className="hide-number-arrows h-8 text-sm w-24 text-right bg-background"
+                                    defaultValue={account.actualBalance ?? ''}
                                     onChange={(e) => {
                                         const value = e.target.value === '' ? null : parseFloat(e.target.value);
-                                        debouncedUpdateAccount(sbiCreditCard.id, { actualBalance: value });
+                                        if (isWallet) {
+                                            debouncedUpdateWallet(account.id as 'cash' | 'digital', { balance: value });
+                                        } else {
+                                            debouncedUpdateAccount(account.id, { actualBalance: value });
+                                        }
                                     }}
                                     onClick={(e) => e.stopPropagation()}
                                 />
-                                {sbiCreditCardBalanceDifference !== null && (
-                                    <p className={cn("text-xs font-medium pt-1", Math.abs(sbiCreditCardBalanceDifference) < 0.01 ? "text-green-600" : "text-red-600")}>
-                                        Diff: {formatCurrency(sbiCreditCardBalanceDifference)}
-                                    </p>
-                                )}
-                            </div>
-                          ) : <div />}
-                      </div>
-                  </div>
-                </TabsTrigger>
-            )}
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                 {otherCreditCards.map((account, index) => {
-                    const balanceDifference = getBalanceDifference(account.balance, account.actualBalance);
-                    return (
-                         <TabsTrigger key={account.id} value={account.id} asChild>
-                            <div 
-                                className={cn(
-                                    "rounded-lg border flex flex-col p-3 items-start text-left gap-1 cursor-pointer transition-shadow h-full", 
-                                    activeTab === account.id ? "shadow-lg ring-2 ring-primary" : "",
-                                    tabColors[index % tabColors.length], 
-                                    textColors[index % textColors.length]
-                                )}
-                            >
-                                <div className="w-full flex justify-between items-start">
-                                    <span className="font-semibold text-base">{account.name}</span>
-                                    <span onClick={(e) => { e.stopPropagation(); handleAccountClick(account); }} className="font-bold text-lg cursor-pointer hover:underline">{formatCurrency(account.balance)}</span>
                                 </div>
-                                <div className="w-full mt-auto space-y-1 pt-2">
-                                    <div className="flex items-center justify-between gap-2">
-                                    <Label htmlFor={`actual-balance-${account.id}`} className="text-sm flex-shrink-0">Actual Due</Label>
-                                    <Input
-                                        id={`actual-balance-${account.id}`}
-                                        type="number"
-                                        placeholder="Actual"
-                                        className="hide-number-arrows h-8 text-sm w-24 text-right bg-card"
-                                        defaultValue={account.actualBalance ?? ''}
-                                        onChange={(e) => {
-                                            const value = e.target.value === '' ? null : parseFloat(e.target.value)
-                                            debouncedUpdateAccount(account.id, { actualBalance: value });
-                                        }}
-                                        onClick={(e) => e.stopPropagation()}
-                                    />
+                                {balanceDifference !== null && (
+                                    <div className="w-full text-right mt-1">
+                                        <p className={cn(
+                                            "text-xs font-medium",
+                                            Math.abs(balanceDifference) < 0.01 ? "text-green-600" : "text-red-600"
+                                        )}>
+                                            Diff: {formatCurrency(balanceDifference)}
+                                        </p>
                                     </div>
-                                    {balanceDifference !== null && (
-                                        <div className="w-full text-right mt-1">
-                                            <p className={cn(
-                                                "text-xs font-medium",
-                                                Math.abs(balanceDifference) < 0.01 ? "text-green-600" : "text-red-600"
-                                            )}>
-                                                Diff: {formatCurrency(balanceDifference)}
-                                            </p>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </TabsTrigger>
-                    )
-                })}
-                 {[...secondaryAccounts, ...otherAccounts].map((account, index) => {
-                    const balanceDifference = getBalanceDifference(account.balance, account.actualBalance);
-                    return (
-                         <TabsTrigger key={account.id} value={account.id} asChild>
-                             <div 
-                                className={cn(
-                                    "rounded-lg border flex flex-col p-3 items-start text-left gap-1 cursor-pointer transition-shadow h-full", 
-                                    activeTab === account.id ? "shadow-lg ring-2 ring-primary" : "",
-                                    tabColors[(creditCards.length + index) % tabColors.length], 
-                                    textColors[(creditCards.length + index) % textColors.length]
                                 )}
-                            >
-                                <div className="w-full flex justify-between items-start">
-                                    <span className="font-semibold text-base">{account.name}</span>
-                                    <span onClick={(e) => { e.stopPropagation(); handleAccountClick(account); }} className="font-bold text-lg cursor-pointer hover:underline">{formatCurrency(account.balance)}</span>
-                                </div>
-                                <div className="w-full mt-auto space-y-1 pt-2">
-                                    <div className="flex items-center justify-between gap-2">
-                                        <Label htmlFor={`actual-balance-${account.id}`} className="text-sm flex-shrink-0">Actual</Label>
-                                        <Input
-                                            id={`actual-balance-${account.id}`}
-                                            type="number"
-                                            placeholder="Actual"
-                                            className="hide-number-arrows h-8 text-sm w-24 text-right bg-card"
-                                            defaultValue={account.actualBalance ?? ''}
-                                            onChange={(e) => {
-                                                const value = e.target.value === '' ? null : parseFloat(e.target.value)
-                                                debouncedUpdateAccount(account.id, { actualBalance: value });
-                                            }}
-                                            onClick={(e) => e.stopPropagation()}
-                                        />
-                                    </div>
-                                    {balanceDifference !== null && (
-                                        <div className="w-full text-right mt-1">
-                                            <p className={cn(
-                                                "text-xs font-medium",
-                                                Math.abs(balanceDifference) < 0.01 ? "text-green-600" : "text-red-600"
-                                            )}>
-                                                Diff: {formatCurrency(balanceDifference)}
-                                            </p>
-                                        </div>
-                                    )}
-                                </div>
                             </div>
-                        </TabsTrigger>
-                )})}
-            </div>
+                        </div>
+                    </TabsTrigger>
+                )
+            })}
         </TabsList>
       </Tabs>
       
       <Card>
-        <div className="relative h-[calc(100vh_-_22rem)] overflow-auto">
+        <div className="relative h-full overflow-auto">
           <TransactionTable 
               transactions={pagedTransactions} 
               accountId={activeTab || ''}
