@@ -669,8 +669,11 @@ export default function TransactionsPage() {
             {primaryAccountFull && (
                 <TabsTrigger value={primaryAccountFull.id} asChild>
                   <div className={cn("border rounded-lg p-4 cursor-pointer transition-shadow w-full h-full text-left", activeTab === primaryAccountFull.id ? "bg-lime-100/50 dark:bg-lime-900/50 ring-2 ring-primary shadow-lg" : "bg-card")}>
-                      <div className="w-full flex justify-between items-center mb-4">
+                      <div className="text-center mb-2">
                           <h3 className="font-semibold text-lg">Primary ({primaryAccountFull.name})</h3>
+                      </div>
+                      <div className="w-full flex justify-between items-center mb-4 border-b pb-2">
+                          <h4 className="text-sm font-medium text-muted-foreground">Total Balance</h4>
                           <span className="font-bold text-xl text-primary">{formatCurrency(allBalance)}</span>
                       </div>
                       
