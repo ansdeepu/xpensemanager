@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
@@ -283,8 +284,8 @@ export default function TransactionsPage() {
     // 2. Create a map of reconciliation dates for quick lookup.
     const reconDates = new Map<string, Date>();
     rawAccounts.forEach(acc => reconDates.set(acc.id, acc.actualBalanceDate ? parseISO(acc.actualBalanceDate) : new Date(0)));
-    reconDates.set('cash-wallet', walletPreferences.cash?.date ? parseISO(walletPreferences.cash.date) : new Date(0)));
-    reconDates.set('digital-wallet', walletPreferences.digital?.date ? parseISO(walletPreferences.digital.date) : new Date(0)));
+    reconDates.set('cash-wallet', walletPreferences.cash?.date ? parseISO(walletPreferences.cash.date) : new Date(0));
+    reconDates.set('digital-wallet', walletPreferences.digital?.date ? parseISO(walletPreferences.digital.date) : new Date(0));
 
     // 3. Sort all transactions chronologically to process them in order.
     const getTransactionSortOrder = (t: Transaction) => {
@@ -944,3 +945,5 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+    
