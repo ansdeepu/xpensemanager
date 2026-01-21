@@ -652,7 +652,12 @@ export default function TransactionsPage() {
   });
 
   const primaryAllBalance = (primaryAccount?.balance || 0) + cashWalletBalance + digitalWalletBalance;
-  const primaryCardBalanceDifference = primaryCreditCard ? getBalanceDifference(primaryCreditCard.actualBalance, primaryCreditCard.balance) : null;
+
+  const primaryCardAvailable = primaryCreditCard ? (primaryCreditCard.limit || 0) - primaryCreditCard.balance : 0;
+  let primaryCardBalanceDifference: number | null = null;
+  if (primaryCreditCard?.actualBalance !== undefined && primaryCreditCard?.actualBalance !== null) {
+    primaryCardBalanceDifference = primaryCardAvailable - primaryCreditCard.actualBalance;
+  }
 
 
   return (
@@ -663,8 +668,7 @@ export default function TransactionsPage() {
               <TabsTrigger value={primaryAccount.id} asChild className="lg:col-span-1">
                   <div className={cn("rounded-lg border-2 flex flex-col p-3 items-start text-left gap-2 cursor-pointer transition-shadow h-full w-full", activeTab === primaryAccount.id ? "shadow-lg border-primary bg-lime-100/50 dark:bg-lime-900/50" : "bg-card")}>
                        <div className="w-full flex justify-between items-center">
-                            <h3 className="font-semibold text-lg">Primary ({primaryAccount.name})</h3>
-                            <span className="font-bold text-xl text-green-600">{formatCurrency(primaryAllBalance)}</span>
+                            <h3 className="font-semibold text-lg">Primary ({primaryAccount.name}): {formatCurrency(primaryAllBalance)}</h3>
                       </div>
 
                       <div className="w-full grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-left pt-2">
@@ -729,7 +733,7 @@ export default function TransactionsPage() {
                           {primaryCreditCard && (
                               <div className="space-y-1">
                                   <Label className="text-sm">{primaryCreditCard.name}</Label>
-                                  <div className="font-mono text-lg">{formatCurrency((primaryCreditCard.limit || 0) - primaryCreditCard.balance)}</div>
+                                  <div className="font-mono text-lg">{formatCurrency(primaryCardAvailable)}</div>
                                   <Input
                                       type="number"
                                       placeholder="Actual Due"
@@ -752,8 +756,17 @@ export default function TransactionsPage() {
             <div className="lg:col-span-1 grid grid-cols-1 md:grid-cols-2 gap-4">
               {sortedDisplayAccounts.map((account, index) => {
                   const isCard = account.type === 'card';
-                  const calculatedBalance = isCard ? (account.limit || 0) - account.balance : account.balance;
-                  const balanceDifference = isCard ? getBalanceDifference(account.actualBalance, account.balance) : getBalanceDifference(account.balance, account.actualBalance);
+                  const calculatedAvailable = (account.limit || 0) - account.balance;
+                  const calculatedBalance = isCard ? calculatedAvailable : account.balance;
+                  
+                  let balanceDifference: number | null = null;
+                  if (isCard) {
+                      if (account.actualBalance !== undefined && account.actualBalance !== null) {
+                          balanceDifference = calculatedAvailable - account.actualBalance;
+                      }
+                  } else {
+                      balanceDifference = getBalanceDifference(account.balance, account.actualBalance);
+                  }
 
                   return (
                       <TabsTrigger key={account.id} value={account.id} asChild>
@@ -901,5 +914,3 @@ export default function TransactionsPage() {
     </div>
   );
 }
-
-    
