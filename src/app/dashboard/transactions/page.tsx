@@ -390,11 +390,11 @@ export default function TransactionsPage() {
     if (loanInfo.isLoan) {
         const loan = loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId));
         if(loan) {
-            // 3. Repayment (Debit)
+            // 3. Repayment Made (Debit)
             if (loanInfo.type === 'repayment' && loan.type === 'taken') return 3;
             // 4. Loan Given
             if (loanInfo.type === 'loan' && loan.type === 'given') return 4;
-            // 7. Repayment (Credit)
+            // 7. Repayment Received (Credit)
             if (loanInfo.type === 'repayment' && loan.type === 'given') return 7;
             // 8. Loan Taken
             if (loanInfo.type === 'loan' && loan.type === 'taken') return 8;
@@ -928,7 +928,3 @@ export default function TransactionsPage() {
     </div>
   );
 }
-
-    
-
-    
