@@ -493,59 +493,59 @@ export default function TransactionsPage() {
     // 4. Calculate balances in reverse
     const balances = new Map<string, number>();
     
-    // Determine the final balance, which corresponds to the newest transaction
     let finalBalance = 0;
     const activeAccountInfo = accounts.find(a => a.id === activeTab);
 
     if (isPrimaryView) {
         const primaryBalance = accounts.find(a => a.id === primaryAccount?.id)?.balance ?? 0;
-        const allCardDue = accounts.filter(a => a.type === 'card').reduce((sum, card) => sum + card.balance, 0);
-        finalBalance = primaryBalance + cashWalletBalance + digitalWalletBalance - allCardDue;
-    } else if (activeTab === 'cash-wallet') {
-        finalBalance = cashWalletBalance;
-    } else if (activeTab === 'digital-wallet') {
-        finalBalance = digitalWalletBalance;
+        finalBalance = primaryBalance + cashWalletBalance + digitalWalletBalance;
     } else if (activeAccountInfo) {
         finalBalance = activeAccountInfo.balance;
     }
 
     let runningBalance = finalBalance;
 
-    // Iterate from newest to oldest transaction
     for (const t of displayTransactions) {
       balances.set(t.id, runningBalance);
 
       let effect = 0;
       
-      const fromAccountIsWallet = t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
-      const toAccountIsWallet = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
-      
-      const fromCurrentView = isPrimaryView ? (t.fromAccountId === activeTab || fromAccountIsWallet || (t.fromAccountId && creditCardIds.includes(t.fromAccountId))) : t.fromAccountId === activeTab;
-      const toCurrentView = isPrimaryView ? (t.toAccountId === activeTab || toAccountIsWallet || (t.toAccountId && creditCardIds.includes(t.toAccountId))) : t.toAccountId === activeTab;
-      const accountInView = isPrimaryView ? (t.accountId === activeTab || t.paymentMethod === 'cash' || t.paymentMethod === 'digital' || (t.accountId && creditCardIds.includes(t.accountId))) : t.accountId === activeTab;
-      
-      if (activeAccountInfo?.type === 'card' && !isPrimaryView) {
-        // Special logic for individual credit card view
-        if (t.type === 'expense' && t.accountId === activeTab) {
-            effect = t.amount; // Expense increases amount due
-        } else if (t.type === 'transfer' && t.fromAccountId === activeTab) {
-            effect = t.amount; // Cash advance increases amount due
-        } else if (t.type === 'transfer' && t.toAccountId === activeTab) {
-            effect = -t.amount; // Payment decreases amount due
-        }
-      } else {
-        // Standard logic for bank accounts and primary view
-        if (t.type === 'income') {
-            if (accountInView) effect = t.amount;
-        } else if (t.type === 'expense') {
-            if (accountInView) effect = -t.amount;
-        } else if (t.type === 'transfer') {
-              if (fromCurrentView && !toCurrentView) {
-                effect = -t.amount;
-              } else if (!fromCurrentView && toCurrentView) {
-                effect = t.amount;
+      if (isPrimaryView) {
+          const accountIsInEcosystem = t.accountId === activeTab || t.paymentMethod === 'cash' || t.paymentMethod === 'digital';
+          const fromAccountIsInEcosystem = t.fromAccountId === activeTab || t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
+          const toAccountIsInEcosystem = t.toAccountId === activeTab || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
+
+          if (t.type === 'income' && accountIsInEcosystem) {
+              effect = t.amount;
+          } else if (t.type === 'expense' && accountIsInEcosystem) {
+              effect = -t.amount;
+          } else if (t.type === 'transfer') {
+              if (fromAccountIsInEcosystem && !toAccountIsInEcosystem) {
+                  effect = -t.amount;
+              } else if (!fromAccountIsInEcosystem && toAccountIsInEcosystem) {
+                  effect = t.amount;
               }
-        }
+          }
+      } else if (activeAccountInfo?.type === 'card') {
+          if (t.type === 'expense' && t.accountId === activeTab) {
+              effect = t.amount;
+          } else if (t.type === 'transfer' && t.fromAccountId === activeTab) {
+              effect = t.amount;
+          } else if (t.type === 'transfer' && t.toAccountId === activeTab) {
+              effect = -t.amount;
+          }
+      } else { // Non-card, non-primary bank account
+          if (t.type === 'income' && t.accountId === activeTab) {
+              effect = t.amount;
+          } else if (t.type === 'expense' && t.accountId === activeTab) {
+              effect = -t.amount;
+          } else if (t.type === 'transfer') {
+              if (t.fromAccountId === activeTab) {
+                  effect = -t.amount;
+              } else if (t.toAccountId === activeTab) {
+                  effect = t.amount;
+              }
+          }
       }
       
       runningBalance -= effect;
@@ -665,7 +665,7 @@ export default function TransactionsPage() {
   
   let primaryCardBalanceDifference: number | null = null;
   if (primaryCreditCard?.actualBalance !== undefined && primaryCreditCard?.actualBalance !== null) {
-      primaryCardBalanceDifference = primaryCardAvailable - primaryCreditCard.actualBalance;
+      primaryCardBalanceDifference = primaryCreditCard.balance - primaryCreditCard.actualBalance;
   }
 
 
@@ -766,7 +766,7 @@ export default function TransactionsPage() {
                     
                     let balanceDifference: number | null = null;
                      if (account.actualBalance !== undefined && account.actualBalance !== null) {
-                        balanceDifference = isCard ? (availableBalance - account.actualBalance) : (account.balance - account.actualBalance);
+                        balanceDifference = isCard ? (calculatedDue - account.actualBalance) : (account.balance - account.actualBalance);
                     }
 
                   return (
@@ -916,3 +916,5 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+    
