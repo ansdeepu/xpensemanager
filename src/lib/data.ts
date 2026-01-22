@@ -13,7 +13,7 @@ export type Account = {
   order: number;
   actualBalance?: number;
   actualBalanceDate?: string;
-  limit?: number;
+  limit?: number | null;
 };
 
 export type Bill = {

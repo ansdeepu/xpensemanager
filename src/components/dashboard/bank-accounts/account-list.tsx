@@ -331,7 +331,7 @@ export function AccountList() {
     if (!user || !selectedAccount) return;
 
     const formData = new FormData(event.currentTarget);
-    const updatedData: Partial<Account> & { limit?: number | null } = {
+    const updatedData: Partial<Account> = {
       name: formData.get("name") as string,
       purpose: formData.get("purpose") as string,
       type: formData.get("type") as 'bank' | 'card',

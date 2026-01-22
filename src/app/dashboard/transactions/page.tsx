@@ -57,12 +57,12 @@ const tabColors = [
 const textColors = [
   "text-sky-800 dark:text-sky-200",
   "text-amber-800 dark:text-amber-200",
-  "text-emerald-800 dark:text-emerald-800",
-  "text-rose-800 dark:text-rose-800",
-  "text-violet-800 dark:text-violet-800",
-  "text-cyan-800 dark:text-cyan-800",
-  "text-fuchsia-800 dark:text-fuchsia-800",
-  "text-orange-800 dark:text-orange-800",
+  "text-emerald-800 dark:text-emerald-200",
+  "text-rose-800 dark:text-rose-200",
+  "text-violet-800 dark:text-violet-200",
+  "text-cyan-800 dark:text-cyan-200",
+  "text-fuchsia-800 dark:text-fuchsia-200",
+  "text-orange-800 dark:text-orange-200",
 ];
 
 
@@ -514,16 +514,27 @@ export default function TransactionsPage() {
           const accountIsInEcosystem = t.accountId === activeTab || t.paymentMethod === 'cash' || t.paymentMethod === 'digital';
           const fromAccountIsInEcosystem = t.fromAccountId === activeTab || t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
           const toAccountIsInEcosystem = t.toAccountId === activeTab || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
+          const creditCardIsInEcosystem = t.accountId ? creditCardIds.includes(t.accountId) : false;
+          const fromCreditCardInEcosystem = t.fromAccountId ? creditCardIds.includes(t.fromAccountId) : false;
+          const toCreditCardInEcosystem = t.toAccountId ? creditCardIds.includes(t.toAccountId) : false;
+
 
           if (t.type === 'income' && accountIsInEcosystem) {
               effect = t.amount;
           } else if (t.type === 'expense' && accountIsInEcosystem) {
               effect = -t.amount;
-          } else if (t.type === 'transfer') {
-              if (fromAccountIsInEcosystem && !toAccountIsInEcosystem) {
-                  effect = -t.amount;
-              } else if (!fromAccountIsInEcosystem && toAccountIsInEcosystem) {
-                  effect = t.amount;
+          } else if (t.type === 'expense' && creditCardIsInEcosystem) {
+              effect = 0; // Don't affect primary balance for CC expenses
+          }
+          else if (t.type === 'transfer') {
+              if ((fromAccountIsInEcosystem || fromCreditCardInEcosystem) && (toAccountIsInEcosystem || toCreditCardInEcosystem)) {
+                  // Internal transfer within the ecosystem. No net effect.
+                  effect = 0;
+              }
+              else if (fromAccountIsInEcosystem || fromCreditCardInEcosystem) {
+                  effect = -t.amount; // Outflow
+              } else if (toAccountIsInEcosystem || toCreditCardInEcosystem) {
+                  effect = t.amount; // Inflow
               }
           }
       } else if (activeAccountInfo?.type === 'card') {
@@ -665,7 +676,7 @@ export default function TransactionsPage() {
   
   let primaryCardBalanceDifference: number | null = null;
   if (primaryCreditCard?.actualBalance !== undefined && primaryCreditCard?.actualBalance !== null) {
-      primaryCardBalanceDifference = primaryCreditCard.actualBalance - primaryCreditCard.balance;
+      primaryCardBalanceDifference = (primaryCreditCard.limit || 0) - primaryCreditCard.balance - primaryCreditCard.actualBalance;
   }
 
 
@@ -767,7 +778,7 @@ export default function TransactionsPage() {
                     
                     let balanceDifference: number | null = null;
                      if (account.actualBalance !== undefined && account.actualBalance !== null) {
-                        balanceDifference = isCard ? (account.actualBalance - calculatedDue) : (account.balance - account.actualBalance);
+                        balanceDifference = isCard ? (account.limit || 0) - account.balance - account.actualBalance : (account.balance - account.actualBalance);
                     }
 
                   return (
