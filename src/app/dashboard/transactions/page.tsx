@@ -665,7 +665,7 @@ export default function TransactionsPage() {
   
   let primaryCardBalanceDifference: number | null = null;
   if (primaryCreditCard?.actualBalance !== undefined && primaryCreditCard?.actualBalance !== null) {
-      primaryCardBalanceDifference = primaryCreditCard.balance - primaryCreditCard.actualBalance;
+      primaryCardBalanceDifference = primaryCreditCard.actualBalance - primaryCreditCard.balance;
   }
 
 
@@ -678,7 +678,8 @@ export default function TransactionsPage() {
                     <TabsTrigger value={primaryAccount.id} asChild>
                         <div className={cn("rounded-lg border-2 flex flex-col p-3 items-start text-left gap-2 cursor-pointer transition-shadow h-full w-full", activeTab === primaryAccount.id ? "shadow-lg border-primary bg-lime-100/50 dark:bg-lime-900/50" : "bg-card")}>
                             <div className="w-full flex justify-between items-center">
-                                  <h3 className="font-semibold text-lg">Primary ({primaryAccount.name}): {formatCurrency(primaryAllBalance)}</h3>
+                                  <h3 className="font-semibold text-lg">Primary ({primaryAccount.name})</h3>
+                                  <span className="font-bold text-xl text-primary">{formatCurrency(primaryAllBalance)}</span>
                             </div>
                             <div className="w-full grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-left pt-2">
                                 <div className="space-y-1">
@@ -766,7 +767,7 @@ export default function TransactionsPage() {
                     
                     let balanceDifference: number | null = null;
                      if (account.actualBalance !== undefined && account.actualBalance !== null) {
-                        balanceDifference = isCard ? (calculatedDue - account.actualBalance) : (account.balance - account.actualBalance);
+                        balanceDifference = isCard ? (account.actualBalance - calculatedDue) : (account.balance - account.actualBalance);
                     }
 
                   return (
@@ -916,5 +917,7 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+    
 
     
