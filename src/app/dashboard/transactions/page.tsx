@@ -382,33 +382,32 @@ export default function TransactionsPage() {
 
   const getTransactionSortOrder = useCallback((t: Transaction) => {
     const loanInfo = getLoanDisplayInfo(t);
-    
-    // 1. Return
-    if (loanInfo.type === 'return') return 1;
-    // 2. Transfer
-    if (loanInfo.type === 'transfer' && !loanInfo.isLoan) return 2;
+    // 1. Income
+    if (loanInfo.type === 'income') return 1;
+    // 2. Return
+    if (loanInfo.type === 'return') return 2;
+    // 3. Transfer
+    if (loanInfo.type === 'transfer' && !loanInfo.isLoan) return 3;
 
     if (loanInfo.isLoan) {
         const loan = loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId));
         if(loan) {
-            // 3. Repayment (Debit)
-            if (loanInfo.type === 'repayment' && loan.type === 'taken') return 3;
-            // 4. Loan Given
-            if (loanInfo.type === 'loan' && loan.type === 'given') return 4;
-            // 7. Repayment (Credit)
-            if (loanInfo.type === 'repayment' && loan.type === 'given') return 7;
-            // 8. Loan Taken
-            if (loanInfo.type === 'loan' && loan.type === 'taken') return 8;
+            // 4. Repayment (Debit)
+            if (loanInfo.type === 'repayment' && loan.type === 'taken') return 4;
+            // 5. Loan Given
+            if (loanInfo.type === 'loan' && loan.type === 'given') return 5;
+            // 8. Repayment (Credit)
+            if (loanInfo.type === 'repayment' && loan.type === 'given') return 8;
+            // 9. Loan Taken
+            if (loanInfo.type === 'loan' && loan.type === 'taken') return 9;
         }
     }
 
-    // 5. Expense
-    if (loanInfo.type === 'expense') return 5;
-    // 6. Issue
-    if (loanInfo.type === 'issue') return 6;
-    // 9. Income
-    if (loanInfo.type === 'income') return 9;
-
+    // 6. Expense
+    if (loanInfo.type === 'expense') return 6;
+    // 7. Issue
+    if (loanInfo.type === 'issue') return 7;
+    
     return 99; // Fallback
   }, [getLoanDisplayInfo, loans]);
 
@@ -416,21 +415,33 @@ export default function TransactionsPage() {
  const { filteredTransactions, transactionBalanceMap } = useMemo(() => {
     if (!activeTab) return { filteredTransactions: [], transactionBalanceMap: new Map() };
 
+    const isPrimaryView = activeTab === primaryAccount?.id;
+    const creditCardIds = accounts.filter(acc => acc.type === 'card').map(acc => acc.id);
+    
     // 1. Filter transactions by active tab
     const sourceTransactions = allTransactions.filter(t => {
-      if (activeTab === 'cash-wallet') {
-        return t.paymentMethod === 'cash' || t.fromAccountId === 'cash-wallet' || t.toAccountId === 'cash-wallet';
-      }
-      if (activeTab === 'digital-wallet') {
-        return t.paymentMethod === 'digital' || t.fromAccountId === 'digital-wallet' || t.toAccountId === 'digital-wallet';
-      }
-      if (activeTab === primaryAccount?.id) {
-          const isPrimaryAccountTx = t.accountId === activeTab || t.fromAccountId === activeTab || t.toAccountId === activeTab;
-          const isWalletTx = t.paymentMethod === 'cash' || t.paymentMethod === 'digital' || t.fromAccountId === 'cash-wallet' || t.toAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet' || t.toAccountId === 'digital-wallet';
-          const isCreditCardTx = accounts.some(acc => acc.type === 'card' && (t.accountId === acc.id || t.fromAccountId === acc.id || t.toAccountId === acc.id));
-          return isPrimaryAccountTx || isWalletTx || isCreditCardTx;
-      }
-      return t.accountId === activeTab || t.fromAccountId === activeTab || t.toAccountId === activeTab;
+        const fromAccountIsWallet = t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
+        const toAccountIsWallet = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
+        
+        let fromCurrentView: boolean;
+        let toCurrentView: boolean;
+        let accountIsInView = false;
+        
+        if (isPrimaryView) {
+            fromCurrentView = t.fromAccountId === activeTab || fromAccountIsWallet || (t.fromAccountId ? creditCardIds.includes(t.fromAccountId) : false);
+            toCurrentView = t.toAccountId === activeTab || toAccountIsWallet || (t.toAccountId ? creditCardIds.includes(t.toAccountId) : false);
+            if (t.type === 'expense' || t.type === 'income') {
+                accountIsInView = t.accountId === activeTab || t.paymentMethod === 'cash' || t.paymentMethod === 'digital' || (t.accountId ? creditCardIds.includes(t.accountId) : false);
+            }
+        } else {
+            fromCurrentView = t.fromAccountId === activeTab;
+            toCurrentView = t.toAccountId === activeTab;
+            if (t.type === 'expense' || t.type === 'income') {
+              accountIsInView = t.accountId === activeTab;
+            }
+        }
+        
+        return fromCurrentView || toCurrentView || accountIsInView;
     });
     
     // 2. Further filter by date range and search query
@@ -470,7 +481,6 @@ export default function TransactionsPage() {
           return dateB - dateA; // Sort by date descending
       }
 
-      // If dates are same, sort by custom order
       const orderA = getTransactionSortOrder(a);
       const orderB = getTransactionSortOrder(b);
 
@@ -478,71 +488,65 @@ export default function TransactionsPage() {
         return orderA - orderB;
       }
       
-      // Fallback for same type on same day
       return b.amount - a.amount;
     });
     
     // 4. Calculate balances in reverse
     const balances = new Map<string, number>();
-    const isPrimaryView = activeTab === primaryAccount?.id;
     
+    // Determine the final balance, which corresponds to the newest transaction
     let finalBalance = 0;
+    const activeAccountInfo = accounts.find(a => a.id === activeTab);
+
     if (isPrimaryView) {
         const primaryBalance = accounts.find(a => a.id === primaryAccount?.id)?.balance ?? 0;
-        finalBalance = primaryBalance + cashWalletBalance + digitalWalletBalance;
+        const allCardDue = accounts.filter(a => a.type === 'card').reduce((sum, card) => sum + card.balance, 0);
+        finalBalance = primaryBalance + cashWalletBalance + digitalWalletBalance - allCardDue;
     } else if (activeTab === 'cash-wallet') {
         finalBalance = cashWalletBalance;
     } else if (activeTab === 'digital-wallet') {
         finalBalance = digitalWalletBalance;
-    } else {
-        finalBalance = accounts.find(a => a.id === activeTab)?.balance ?? 0;
+    } else if (activeAccountInfo) {
+        finalBalance = activeAccountInfo.balance;
     }
 
     let runningBalance = finalBalance;
-    const reversedTransactions = [...displayTransactions].reverse();
 
-    for (const t of reversedTransactions) {
+    // Iterate from newest to oldest transaction
+    for (const t of displayTransactions) {
       balances.set(t.id, runningBalance);
-      let effect = 0;
-      if (isPrimaryView) {
-        if (t.type === 'income' && (t.accountId === activeTab || t.accountId === 'cash-wallet' || t.accountId === 'digital-wallet')) {
-          effect = t.amount;
-        } else if (t.type === 'expense' && (t.accountId === activeTab || t.paymentMethod === 'cash' || t.paymentMethod === 'digital')) {
-          effect = -t.amount;
-        } else if (t.type === 'transfer') {
-            const fromIsEcosystem = t.fromAccountId === activeTab || t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
-            const toIsEcosystem = t.toAccountId === activeTab || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
-            if (fromIsEcosystem && !toIsEcosystem) {
-                effect = -t.amount;
-            } else if (!fromIsEcosystem && toIsEcosystem) {
-                effect = t.amount;
-            }
-        }
-      } else {
-         const activeAccountInfo = accounts.find(a => a.id === activeTab);
-         const isCard = activeAccountInfo?.type === 'card';
 
-          if (isCard) {
-              if (t.type === 'expense' && t.accountId === activeTab) effect = t.amount; // debit increases due
-              if (t.type === 'transfer' && t.toAccountId === activeTab) effect = -t.amount; // payment to card
-          } else {
-              if (t.type === 'income' && t.accountId === activeTab) effect = t.amount;
-              if (t.type === 'expense' && t.accountId === activeTab) effect = -t.amount;
-              if (t.type === 'transfer') {
-                  if (t.fromAccountId === activeTab) effect = -t.amount;
-                  if (t.toAccountId === activeTab) effect = t.amount;
-              }
-          }
-           if (activeTab === 'cash-wallet') {
-                if(t.type === 'transfer' && t.toAccountId === 'cash-wallet') effect = t.amount;
-                else if(t.type === 'transfer' && t.fromAccountId === 'cash-wallet') effect = -t.amount;
-                else if(t.type === 'expense' && t.paymentMethod === 'cash') effect = -t.amount;
-            } else if (activeTab === 'digital-wallet') {
-                if(t.type === 'transfer' && t.toAccountId === 'digital-wallet') effect = t.amount;
-                else if(t.type === 'transfer' && t.fromAccountId === 'digital-wallet') effect = -t.amount;
-                else if(t.type === 'expense' && t.paymentMethod === 'digital') effect = -t.amount;
+      let effect = 0;
+      
+      const fromAccountIsWallet = t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
+      const toAccountIsWallet = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
+      
+      const fromCurrentView = isPrimaryView ? (t.fromAccountId === activeTab || fromAccountIsWallet || (t.fromAccountId && creditCardIds.includes(t.fromAccountId))) : t.fromAccountId === activeTab;
+      const toCurrentView = isPrimaryView ? (t.toAccountId === activeTab || toAccountIsWallet || (t.toAccountId && creditCardIds.includes(t.toAccountId))) : t.toAccountId === activeTab;
+      const accountInView = isPrimaryView ? (t.accountId === activeTab || t.paymentMethod === 'cash' || t.paymentMethod === 'digital' || (t.accountId && creditCardIds.includes(t.accountId))) : t.accountId === activeTab;
+
+      if (t.type === 'income') {
+          if (accountInView) effect = t.amount;
+      } else if (t.type === 'expense') {
+          if (accountInView) effect = -t.amount;
+      } else if (t.type === 'transfer') {
+            if (fromCurrentView && !toCurrentView) {
+              effect = -t.amount;
+            } else if (!fromCurrentView && toCurrentView) {
+              effect = t.amount;
             }
       }
+      
+      if (activeAccountInfo?.type === 'card' && !isPrimaryView) {
+        if (t.type === 'expense' && t.accountId === activeTab) {
+            effect = t.amount;
+        } else if (t.type === 'transfer' && t.toAccountId === activeTab) {
+            effect = -t.amount;
+        } else {
+            effect = 0;
+        }
+      }
+      
       runningBalance -= effect;
     }
 
@@ -591,8 +595,8 @@ export default function TransactionsPage() {
   }
 
   
-  const getBalanceDifference = (calculatedBalance?: number | null, actualBalance?: number | null) => {
-      if (actualBalance === undefined || actualBalance === null || calculatedBalance === undefined || calculatedBalance === null) return null;
+  const getBalanceDifference = (calculatedBalance: number, actualBalance?: number | null) => {
+      if (actualBalance === undefined || actualBalance === null) return null;
       let diff = calculatedBalance - actualBalance;
       if (Math.abs(diff) < 0.01) diff = 0;
       return diff;
@@ -653,7 +657,11 @@ export default function TransactionsPage() {
 
   const primaryAllBalance = (primaryAccount?.balance || 0) + cashWalletBalance + digitalWalletBalance;
 
-  const primaryCardAvailable = primaryCreditCard ? (primaryCreditCard.limit || 0) - primaryCreditCard.balance : 0;
+  let primaryCardAvailable = 0;
+  if(primaryCreditCard) {
+    primaryCardAvailable = (primaryCreditCard.limit || 0) - primaryCreditCard.balance;
+  }
+  
   let primaryCardBalanceDifference: number | null = null;
   if (primaryCreditCard?.actualBalance !== undefined && primaryCreditCard?.actualBalance !== null) {
     primaryCardBalanceDifference = primaryCardAvailable - primaryCreditCard.actualBalance;
@@ -662,111 +670,103 @@ export default function TransactionsPage() {
 
   return (
     <div className="space-y-6">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-auto p-0 bg-transparent print-hide">
-            {primaryAccount && (
-              <TabsTrigger value={primaryAccount.id} asChild className="lg:col-span-1">
-                  <div className={cn("rounded-lg border-2 flex flex-col p-3 items-start text-left gap-2 cursor-pointer transition-shadow h-full w-full", activeTab === primaryAccount.id ? "shadow-lg border-primary bg-lime-100/50 dark:bg-lime-900/50" : "bg-card")}>
-                       <div className="w-full flex justify-between items-center">
-                            <h3 className="font-semibold text-lg">Primary ({primaryAccount.name}): {formatCurrency(primaryAllBalance)}</h3>
-                      </div>
-
-                      <div className="w-full grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-left pt-2">
-                          {/* Bank Balance Column */}
-                          <div className="space-y-1">
-                              <Label className="text-sm">Bank Balance</Label>
-                              <div className="font-mono text-lg">{formatCurrency(primaryAccount.balance)}</div>
-                              <Input
-                                  type="number"
-                                  placeholder="Actual"
-                                  className="hide-number-arrows h-8 mt-1 text-sm text-left"
-                                  defaultValue={primaryAccount.actualBalance ?? ''}
-                                  onChange={(e) => debouncedUpdateAccount(primaryAccount.id, { actualBalance: e.target.value === '' ? null : parseFloat(e.target.value) })}
-                                  onClick={(e) => e.stopPropagation()}
-                              />
-                              {getBalanceDifference(primaryAccount.balance, primaryAccount.actualBalance) !== null && (
-                                  <p className={cn("text-xs font-medium pt-1", Math.abs(getBalanceDifference(primaryAccount.balance, primaryAccount.actualBalance)!) < 0.01 ? "text-green-600" : "text-red-600")}>
-                                      Diff: {formatCurrency(getBalanceDifference(primaryAccount.balance, primaryAccount.actualBalance)!)}
-                                  </p>
-                              )}
-                          </div>
-
-                          {/* Digital Wallet Column */}
-                          <div className="space-y-1">
-                              <Label className="text-sm">Digital</Label>
-                              <div className="font-mono text-lg">{formatCurrency(digitalWalletBalance)}</div>
-                              <Input
-                                  type="number"
-                                  placeholder="Actual"
-                                  className="hide-number-arrows h-8 mt-1 text-sm text-left"
-                                  defaultValue={walletPreferences.digital?.balance ?? ''}
-                                  onChange={(e) => debouncedUpdateWallet('digital', { balance: e.target.value === '' ? null : parseFloat(e.target.value) })}
-                                  onClick={(e) => e.stopPropagation()}
-                              />
-                              {getBalanceDifference(digitalWalletBalance, walletPreferences.digital?.balance) !== null && (
-                                  <p className={cn("text-xs font-medium pt-1", Math.abs(getBalanceDifference(digitalWalletBalance, walletPreferences.digital?.balance)!) < 0.01 ? "text-green-600" : "text-red-600")}>
-                                      Diff: {formatCurrency(getBalanceDifference(digitalWalletBalance, walletPreferences.digital?.balance)!)}
-                                  </p>
-                              )}
-                          </div>
-
-                          {/* Cash Wallet Column */}
-                          <div className="space-y-1">
-                              <Label className="text-sm">Cash</Label>
-                              <div className="font-mono text-lg">{formatCurrency(cashWalletBalance)}</div>
-                              <Input
-                                  type="number"
-                                  placeholder="Actual"
-                                  className="hide-number-arrows h-8 mt-1 text-sm text-left"
-                                  defaultValue={walletPreferences.cash?.balance ?? ''}
-                                  onChange={(e) => debouncedUpdateWallet('cash', { balance: e.target.value === '' ? null : parseFloat(e.target.value) })}
-                                  onClick={(e) => e.stopPropagation()}
-                              />
-                              {getBalanceDifference(cashWalletBalance, walletPreferences.cash?.balance) !== null && (
-                                  <p className={cn("text-xs font-medium pt-1", Math.abs(getBalanceDifference(cashWalletBalance, walletPreferences.cash?.balance)!) < 0.01 ? "text-green-600" : "text-red-600")}>
-                                      Diff: {formatCurrency(getBalanceDifference(cashWalletBalance, walletPreferences.cash?.balance)!)}
-                                  </p>
-                              )}
-                          </div>
-
-                          {/* SBI Credit Card Column */}
-                          {primaryCreditCard && (
-                              <div className="space-y-1">
-                                  <Label className="text-sm">{primaryCreditCard.name}</Label>
-                                  <div className="font-mono text-lg">{formatCurrency(primaryCardAvailable)}</div>
-                                  <Input
-                                      type="number"
-                                      placeholder="Actual Due"
-                                      className="hide-number-arrows h-8 mt-1 text-sm text-left"
-                                      defaultValue={primaryCreditCard.actualBalance ?? ''}
-                                      onChange={(e) => debouncedUpdateAccount(primaryCreditCard.id, { actualBalance: e.target.value === '' ? null : parseFloat(e.target.value) })}
-                                      onClick={(e) => e.stopPropagation()}
-                                  />
-                                  {primaryCardBalanceDifference !== null && (
-                                      <p className={cn("text-xs font-medium pt-1", Math.abs(primaryCardBalanceDifference) < 0.01 ? "text-green-600" : "text-red-600")}>
-                                          Diff: {formatCurrency(primaryCardBalanceDifference)}
-                                      </p>
-                                  )}
-                              </div>
-                          )}
-                      </div>
-                  </div>
-              </TabsTrigger>
-            )}
-            <div className="lg:col-span-1 grid grid-cols-1 md:grid-cols-2 gap-4">
-              {sortedDisplayAccounts.map((account, index) => {
-                  const isCard = account.type === 'card';
-                  const calculatedAvailable = (account.limit || 0) - account.balance;
-                  const calculatedBalance = isCard ? calculatedAvailable : account.balance;
-                  
-                  let balanceDifference: number | null = null;
-                  if (isCard) {
-                      if (account.actualBalance !== undefined && account.actualBalance !== null) {
-                          balanceDifference = calculatedAvailable - account.actualBalance;
-                      }
-                  } else {
-                      balanceDifference = getBalanceDifference(account.balance, account.actualBalance);
-                  }
+       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {primaryAccount && (
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="lg:col-span-1">
+                <TabsList className="h-auto p-0 bg-transparent">
+                    <TabsTrigger value={primaryAccount.id} asChild>
+                        <div className={cn("rounded-lg border-2 flex flex-col p-3 items-start text-left gap-2 cursor-pointer transition-shadow h-full w-full", activeTab === primaryAccount.id ? "shadow-lg border-primary bg-lime-100/50 dark:bg-lime-900/50" : "bg-card")}>
+                            <div className="w-full flex justify-between items-center">
+                                  <h3 className="font-semibold text-lg">Primary ({primaryAccount.name}): {formatCurrency(primaryAllBalance)}</h3>
+                            </div>
+                            <div className="w-full grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-left pt-2">
+                                <div className="space-y-1">
+                                    <Label className="text-sm">Bank Balance</Label>
+                                    <div className="font-mono text-lg">{formatCurrency(primaryAccount.balance)}</div>
+                                    <Input
+                                        type="number"
+                                        placeholder="Actual"
+                                        className="hide-number-arrows h-8 mt-1 text-sm text-left"
+                                        defaultValue={primaryAccount.actualBalance ?? ''}
+                                        onChange={(e) => debouncedUpdateAccount(primaryAccount.id, { actualBalance: e.target.value === '' ? null : parseFloat(e.target.value) })}
+                                        onClick={(e) => e.stopPropagation()}
+                                    />
+                                    {getBalanceDifference(primaryAccount.balance, primaryAccount.actualBalance) !== null && (
+                                        <p className={cn("text-xs font-medium pt-1", Math.abs(getBalanceDifference(primaryAccount.balance, primaryAccount.actualBalance)!) < 0.01 ? "text-green-600" : "text-red-600")}>
+                                            Diff: {formatCurrency(getBalanceDifference(primaryAccount.balance, primaryAccount.actualBalance)!)}
+                                        </p>
+                                    )}
+                                </div>
+                                <div className="space-y-1">
+                                    <Label className="text-sm">Digital</Label>
+                                    <div className="font-mono text-lg">{formatCurrency(digitalWalletBalance)}</div>
+                                    <Input
+                                        type="number"
+                                        placeholder="Actual"
+                                        className="hide-number-arrows h-8 mt-1 text-sm text-left"
+                                        defaultValue={walletPreferences.digital?.balance ?? ''}
+                                        onChange={(e) => debouncedUpdateWallet('digital', { balance: e.target.value === '' ? null : parseFloat(e.target.value) })}
+                                        onClick={(e) => e.stopPropagation()}
+                                    />
+                                    {getBalanceDifference(digitalWalletBalance, walletPreferences.digital?.balance) !== null && (
+                                        <p className={cn("text-xs font-medium pt-1", Math.abs(getBalanceDifference(digitalWalletBalance, walletPreferences.digital?.balance)!) < 0.01 ? "text-green-600" : "text-red-600")}>
+                                            Diff: {formatCurrency(getBalanceDifference(digitalWalletBalance, walletPreferences.digital?.balance)!)}
+                                        </p>
+                                    )}
+                                </div>
+                                <div className="space-y-1">
+                                    <Label className="text-sm">Cash</Label>
+                                    <div className="font-mono text-lg">{formatCurrency(cashWalletBalance)}</div>
+                                    <Input
+                                        type="number"
+                                        placeholder="Actual"
+                                        className="hide-number-arrows h-8 mt-1 text-sm text-left"
+                                        defaultValue={walletPreferences.cash?.balance ?? ''}
+                                        onChange={(e) => debouncedUpdateWallet('cash', { balance: e.target.value === '' ? null : parseFloat(e.target.value) })}
+                                        onClick={(e) => e.stopPropagation()}
+                                    />
+                                    {getBalanceDifference(cashWalletBalance, walletPreferences.cash?.balance) !== null && (
+                                        <p className={cn("text-xs font-medium pt-1", Math.abs(getBalanceDifference(cashWalletBalance, walletPreferences.cash?.balance)!) < 0.01 ? "text-green-600" : "text-red-600")}>
+                                            Diff: {formatCurrency(getBalanceDifference(cashWalletBalance, walletPreferences.cash?.balance)!)}
+                                        </p>
+                                    )}
+                                </div>
+                                {primaryCreditCard && (
+                                    <div className="space-y-1">
+                                        <Label className="text-sm">{primaryCreditCard.name}</Label>
+                                        <div className="font-mono text-lg">{formatCurrency(primaryCardAvailable)}</div>
+                                        <Input
+                                            type="number"
+                                            placeholder="Actual Due"
+                                            className="hide-number-arrows h-8 mt-1 text-sm text-left"
+                                            defaultValue={primaryCreditCard.actualBalance ?? ''}
+                                            onChange={(e) => debouncedUpdateAccount(primaryCreditCard.id, { actualBalance: e.target.value === '' ? null : parseFloat(e.target.value) })}
+                                            onClick={(e) => e.stopPropagation()}
+                                        />
+                                        {primaryCardBalanceDifference !== null && (
+                                            <p className={cn("text-xs font-medium pt-1", Math.abs(primaryCardBalanceDifference) < 0.01 ? "text-green-600" : "text-red-600")}>
+                                                Diff: {formatCurrency(primaryCardBalanceDifference)}
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </TabsTrigger>
+                </TabsList>
+            </Tabs>
+        )}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="lg:col-span-1">
+            <TabsList className="grid grid-cols-2 gap-2 h-auto p-0 bg-transparent">
+                 {sortedDisplayAccounts.map((account, index) => {
+                    const isCard = account.type === 'card';
+                    const calculatedDue = account.balance;
+                    const availableBalance = (account.limit || 0) - calculatedDue;
+                    
+                    let balanceDifference: number | null = null;
+                    if (account.actualBalance !== undefined && account.actualBalance !== null) {
+                        balanceDifference = isCard ? (availableBalance - account.actualBalance) : (account.balance - account.actualBalance);
+                    }
 
                   return (
                       <TabsTrigger key={account.id} value={account.id} asChild>
@@ -780,15 +780,15 @@ export default function TransactionsPage() {
                           >
                               <div className="w-full flex justify-between items-start">
                                   <span className="font-semibold text-base">{account.name}</span>
-                                  <span onClick={(e) => { e.stopPropagation(); handleAccountClick(account as Account, account.name); }} className="font-bold text-lg cursor-pointer hover:underline">{formatCurrency(calculatedBalance)}</span>
+                                  <span onClick={(e) => { e.stopPropagation(); handleAccountClick(account as Account, account.name); }} className="font-bold text-lg cursor-pointer hover:underline">{formatCurrency(isCard ? availableBalance : account.balance)}</span>
                               </div>
                               <div className="w-full mt-auto space-y-1 pt-2">
                                   <div className="flex items-center justify-between gap-2">
-                                  <Label htmlFor={`actual-balance-${account.id}`} className="text-sm flex-shrink-0">{isCard ? 'Actual Due' : 'Actual'}</Label>
+                                  <Label htmlFor={`actual-balance-${account.id}`} className="text-sm flex-shrink-0">{isCard ? 'Actual' : 'Actual'}</Label>
                                   <Input
                                       id={`actual-balance-${account.id}`}
                                       type="number"
-                                      placeholder={isCard ? 'Actual Due' : 'Actual'}
+                                      placeholder={isCard ? 'Actual Available' : 'Actual'}
                                       className="hide-number-arrows h-8 text-sm w-24 text-right bg-background"
                                       defaultValue={account.actualBalance ?? ''}
                                       onChange={(e) => {
@@ -813,9 +813,10 @@ export default function TransactionsPage() {
                       </TabsTrigger>
                   )
               })}
-            </div>
-        </TabsList>
-      </Tabs>
+            </TabsList>
+        </Tabs>
+      </div>
+
       <div className="flex flex-wrap items-end gap-4 p-4 border-b print-hide">
         <div className="space-y-1">
             <Label htmlFor="reconciliation-date-input" className="text-xs flex items-center gap-2">
@@ -914,3 +915,5 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+    
