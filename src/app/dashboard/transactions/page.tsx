@@ -382,31 +382,30 @@ export default function TransactionsPage() {
 
   const getTransactionSortOrder = useCallback((t: Transaction) => {
     const loanInfo = getLoanDisplayInfo(t);
-    // 1. Income
-    if (loanInfo.type === 'income') return 1;
-    // 2. Return
-    if (loanInfo.type === 'return') return 2;
-    // 3. Transfer
-    if (loanInfo.type === 'transfer' && !loanInfo.isLoan) return 3;
+    // 1. Return
+    if (loanInfo.type === 'return') return 1;
+    // 2. Transfer
+    if (loanInfo.type === 'transfer' && !loanInfo.isLoan) return 2;
 
     if (loanInfo.isLoan) {
         const loan = loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId));
         if(loan) {
-            // 4. Repayment (Debit)
-            if (loanInfo.type === 'repayment' && loan.type === 'taken') return 4;
-            // 5. Loan Given
-            if (loanInfo.type === 'loan' && loan.type === 'given') return 5;
-            // 8. Repayment (Credit)
-            if (loanInfo.type === 'repayment' && loan.type === 'given') return 8;
-            // 9. Loan Taken
-            if (loanInfo.type === 'loan' && loan.type === 'taken') return 9;
+            // 3. Repayment (Debit)
+            if (loanInfo.type === 'repayment' && loan.type === 'taken') return 3;
+            // 4. Loan Given
+            if (loanInfo.type === 'loan' && loan.type === 'given') return 4;
+            // 7. Repayment (Credit)
+            if (loanInfo.type === 'repayment' && loan.type === 'given') return 7;
+            // 8. Loan Taken
+            if (loanInfo.type === 'loan' && loan.type === 'taken') return 8;
         }
     }
-
-    // 6. Expense
-    if (loanInfo.type === 'expense') return 6;
-    // 7. Issue
-    if (loanInfo.type === 'issue') return 7;
+    // 5. Expense
+    if (loanInfo.type === 'expense') return 5;
+    // 6. Issue
+    if (loanInfo.type === 'issue') return 6;
+    // 9. Income
+    if (loanInfo.type === 'income') return 9;
     
     return 99; // Fallback
   }, [getLoanDisplayInfo, loans]);
@@ -524,26 +523,28 @@ export default function TransactionsPage() {
       const fromCurrentView = isPrimaryView ? (t.fromAccountId === activeTab || fromAccountIsWallet || (t.fromAccountId && creditCardIds.includes(t.fromAccountId))) : t.fromAccountId === activeTab;
       const toCurrentView = isPrimaryView ? (t.toAccountId === activeTab || toAccountIsWallet || (t.toAccountId && creditCardIds.includes(t.toAccountId))) : t.toAccountId === activeTab;
       const accountInView = isPrimaryView ? (t.accountId === activeTab || t.paymentMethod === 'cash' || t.paymentMethod === 'digital' || (t.accountId && creditCardIds.includes(t.accountId))) : t.accountId === activeTab;
-
-      if (t.type === 'income') {
-          if (accountInView) effect = t.amount;
-      } else if (t.type === 'expense') {
-          if (accountInView) effect = -t.amount;
-      } else if (t.type === 'transfer') {
-            if (fromCurrentView && !toCurrentView) {
-              effect = -t.amount;
-            } else if (!fromCurrentView && toCurrentView) {
-              effect = t.amount;
-            }
-      }
       
       if (activeAccountInfo?.type === 'card' && !isPrimaryView) {
+        // Special logic for individual credit card view
         if (t.type === 'expense' && t.accountId === activeTab) {
-            effect = t.amount;
+            effect = t.amount; // Expense increases amount due
+        } else if (t.type === 'transfer' && t.fromAccountId === activeTab) {
+            effect = t.amount; // Cash advance increases amount due
         } else if (t.type === 'transfer' && t.toAccountId === activeTab) {
-            effect = -t.amount;
-        } else {
-            effect = 0;
+            effect = -t.amount; // Payment decreases amount due
+        }
+      } else {
+        // Standard logic for bank accounts and primary view
+        if (t.type === 'income') {
+            if (accountInView) effect = t.amount;
+        } else if (t.type === 'expense') {
+            if (accountInView) effect = -t.amount;
+        } else if (t.type === 'transfer') {
+              if (fromCurrentView && !toCurrentView) {
+                effect = -t.amount;
+              } else if (!fromCurrentView && toCurrentView) {
+                effect = t.amount;
+              }
         }
       }
       
@@ -664,7 +665,7 @@ export default function TransactionsPage() {
   
   let primaryCardBalanceDifference: number | null = null;
   if (primaryCreditCard?.actualBalance !== undefined && primaryCreditCard?.actualBalance !== null) {
-    primaryCardBalanceDifference = primaryCardAvailable - primaryCreditCard.actualBalance;
+      primaryCardBalanceDifference = primaryCardAvailable - primaryCreditCard.actualBalance;
   }
 
 
@@ -764,7 +765,7 @@ export default function TransactionsPage() {
                     const availableBalance = (account.limit || 0) - calculatedDue;
                     
                     let balanceDifference: number | null = null;
-                    if (account.actualBalance !== undefined && account.actualBalance !== null) {
+                     if (account.actualBalance !== undefined && account.actualBalance !== null) {
                         balanceDifference = isCard ? (availableBalance - account.actualBalance) : (account.balance - account.actualBalance);
                     }
 
@@ -784,11 +785,11 @@ export default function TransactionsPage() {
                               </div>
                               <div className="w-full mt-auto space-y-1 pt-2">
                                   <div className="flex items-center justify-between gap-2">
-                                  <Label htmlFor={`actual-balance-${account.id}`} className="text-sm flex-shrink-0">{isCard ? 'Actual' : 'Actual'}</Label>
+                                  <Label htmlFor={`actual-balance-${account.id}`} className="text-sm flex-shrink-0">{isCard ? 'Actual Due' : 'Actual'}</Label>
                                   <Input
                                       id={`actual-balance-${account.id}`}
                                       type="number"
-                                      placeholder={isCard ? 'Actual Available' : 'Actual'}
+                                      placeholder={isCard ? 'Actual Due' : 'Actual'}
                                       className="hide-number-arrows h-8 text-sm w-24 text-right bg-background"
                                       defaultValue={account.actualBalance ?? ''}
                                       onChange={(e) => {
@@ -915,5 +916,3 @@ export default function TransactionsPage() {
     </div>
   );
 }
-
-    
