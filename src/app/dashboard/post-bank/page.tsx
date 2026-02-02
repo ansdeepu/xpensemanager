@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { auth, db } from "@/lib/firebase";
+import { db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import type { Account, Category, Transaction } from "@/lib/data";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -9,10 +9,19 @@ import { useAuthState } from "@/hooks/use-auth-state";
 import { PostCategoryAccordion } from "@/components/dashboard/post-bank/post-category-accordion";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
+// The list of categories the user wants to see for Post Bank income.
+const POST_BANK_INCOME_CATEGORIES = [
+    "Diesel Collection", "Staff Club Accounts", "Ente Keralam Accounts", 
+    "Seminar Accounts", "Jayaram Treatment", "SLR Retirement - Jan 2026", 
+    "Arun Babu - Loan", "Parameshwaran, Aivelil - Loan", "Harikrishnan, CML - Loan", 
+    "Leelamma - Loan", "Sooraj, BT, CML - Loan", "Arun Chettan - Loan", 
+    "Bank Charges", "Deepa Car Accounts"
+];
+
 export default function PostBankPage() {
   const [user, userLoading] = useAuthState();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [allCategories, setAllCategories] = useState<Category[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
 
@@ -32,7 +41,7 @@ export default function PostBankPage() {
 
       const categoriesQuery = query(collection(db, "categories"), where("userId", "==", user.uid));
       const unsubscribeCategories = onSnapshot(categoriesQuery, (snapshot) => {
-        setCategories(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category)));
+        setAllCategories(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category)));
         setDataLoading(false);
       });
 
@@ -54,25 +63,16 @@ export default function PostBankPage() {
       return { postBankTransactions: [], postBankRelevantCategories: [], postBankAccountId: undefined };
     }
 
-    // 1. Filter ALL transactions related to Post Bank to be passed to the accordion for balance calculation
+    // 1. Filter ALL transactions related to the Post Bank account
     const allPostBankTransactions = transactions.filter(t => 
         (t.accountId === postBankAccount.id) ||
         (t.fromAccountId === postBankAccount.id) ||
         (t.toAccountId === postBankAccount.id)
     );
 
-    // 2. Filter transactions that represent an INFLOW to the Post Bank account
-    const inflowTransactions = transactions.filter(t => 
-        (t.type === 'income' && t.accountId === postBankAccount.id) ||
-        (t.type === 'transfer' && t.toAccountId === postBankAccount.id)
-    );
-    
-    // 3. Get unique category IDs from these inflow transactions
-    const inflowCategoryIds = new Set(inflowTransactions.map(t => t.categoryId));
-
-    // 4. Get the category documents for these IDs
-    const relevantCategories = categories.filter(cat => 
-      inflowCategoryIds.has(cat.id)
+    // 2. Get the category documents that match the user's specified list
+    const relevantCategories = allCategories.filter(cat => 
+      POST_BANK_INCOME_CATEGORIES.includes(cat.name)
     );
 
     return { 
@@ -80,7 +80,7 @@ export default function PostBankPage() {
         postBankRelevantCategories: relevantCategories,
         postBankAccountId: postBankAccount.id
     };
-  }, [accounts, transactions, categories]);
+  }, [accounts, transactions, allCategories]);
 
 
   if (userLoading || dataLoading) {
