@@ -136,9 +136,11 @@ function LoanAccordionItem({
     return (
         <AccordionItem value={loan.id}>
             <AccordionTrigger>
-                <div className="flex items-center gap-4">
-                    <span className="font-semibold text-lg">{loan.personName}</span>
-                    <Badge variant={loan.balance > 0 ? 'destructive' : 'default'} className="text-base">{formatCurrency(loan.balance)}</Badge>
+                <div className="grid grid-cols-3 w-full items-center">
+                    <span className="font-semibold text-base col-span-1">{loan.personName}</span>
+                    <div className="col-span-1 flex justify-center">
+                        <Badge variant={loan.balance > 0 ? 'destructive' : 'default'} className="text-sm">{formatCurrency(loan.balance)}</Badge>
+                    </div>
                 </div>
             </AccordionTrigger>
             <AccordionContent>
@@ -177,49 +179,49 @@ function LoanAccordionItem({
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Date</TableHead>
-                                    <TableHead>Type</TableHead>
-                                    <TableHead>Description</TableHead>
+                                    <TableHead className="px-2 py-1">Date</TableHead>
+                                    <TableHead className="px-2 py-1">Type</TableHead>
+                                    <TableHead className="px-2 py-1">Description</TableHead>
                                     {loanType === 'taken' ? (
                                       <>
-                                        <TableHead className="text-right">Loan taken</TableHead>
-                                        <TableHead className="text-right">Repayment</TableHead>
+                                        <TableHead className="text-right px-2 py-1">Repayment</TableHead>
+                                        <TableHead className="text-right px-2 py-1">Loan taken</TableHead>
                                       </>
                                     ) : (
                                       <>
-                                        <TableHead className="text-right">Repayment</TableHead>
-                                        <TableHead className="text-right">Loan Given</TableHead>
+                                        <TableHead className="text-right px-2 py-1">Repayment</TableHead>
+                                        <TableHead className="text-right px-2 py-1">Loan Given</TableHead>
                                       </>
                                     )}
-                                    <TableHead className="text-right">Balance</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
+                                    <TableHead className="text-right px-2 py-1">Balance</TableHead>
+                                    <TableHead className="text-right px-2 py-1">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {transactionsWithRunningBalance.map(t => (
                                     <TableRow key={t.id}>
-                                        <TableCell>{isValid(parseISO(t.date)) ? format(parseISO(t.date), "dd/MM/yyyy") : '-'}</TableCell>
-                                        <TableCell>
-                                            <Badge variant={t.type === 'loan' ? 'outline' : 'secondary'} className="capitalize">{t.type}</Badge>
+                                        <TableCell className="px-2 py-1">{isValid(parseISO(t.date)) ? format(parseISO(t.date), "dd/MM/yyyy") : '-'}</TableCell>
+                                        <TableCell className="px-2 py-1">
+                                            <Badge variant={t.type === 'loan' ? 'outline' : 'secondary'} className="capitalize text-xs">{t.type}</Badge>
                                         </TableCell>
-                                        <TableCell>{getLoanTransactionDescription(loan, t)}</TableCell>
-                                        <TableCell className="text-right font-mono text-green-600">
+                                        <TableCell className="px-2 py-1">{getLoanTransactionDescription(loan, t)}</TableCell>
+                                        <TableCell className="text-right font-mono text-green-600 px-2 py-1">
                                             {t.credit > 0 ? formatCurrency(t.credit) : null}
                                         </TableCell>
-                                        <TableCell className="text-right font-mono text-red-600">
+                                        <TableCell className="text-right font-mono text-red-600 px-2 py-1">
                                             {t.debit > 0 ? formatCurrency(t.debit) : null}
                                         </TableCell>
-                                        <TableCell className={cn("text-right font-mono", t.balance > 0 ? 'text-foreground' : '')}>
+                                        <TableCell className={cn("text-right font-mono px-2 py-1", t.balance > 0 ? 'text-foreground' : '')}>
                                             {formatCurrency(t.balance)}
                                         </TableCell>
-                                        <TableCell className="text-right">
-                                            <Button variant="ghost" size="icon" onClick={() => onEditTransaction(loan, t)} className="h-8 w-8">
-                                                <Pencil className="h-4 w-4" />
+                                        <TableCell className="text-right px-2 py-1">
+                                            <Button variant="ghost" size="icon" onClick={() => onEditTransaction(loan, t)} className="h-7 w-7">
+                                                <Pencil className="h-3 w-3" />
                                             </Button>
                                             <AlertDialog>
                                                 <AlertDialogTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
-                                                        <Trash2 className="h-4 w-4" />
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
+                                                        <Trash2 className="h-3 w-3" />
                                                     </Button>
                                                 </AlertDialogTrigger>
                                                 <AlertDialogContent>
