@@ -80,18 +80,10 @@ export default function PostBankPage() {
           <TabsTrigger value="bank_expense">Bank Expense Categories</TabsTrigger>
         </TabsList>
         <TabsContent value="income" className="mt-6">
-          <PostCategoryAccordion
-            categories={incomeCategories}
-            transactions={postBankTransactions}
-            isEditable={true}
-          />
+          
         </TabsContent>
         <TabsContent value="bank_expense" className="mt-6">
-          <PostCategoryAccordion
-            categories={combinedBankExpenseCategories}
-            transactions={postBankTransactions}
-            isEditable={false}
-          />
+          
         </TabsContent>
       </Tabs>
     </div>
