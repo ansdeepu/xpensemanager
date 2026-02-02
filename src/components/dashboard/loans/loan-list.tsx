@@ -78,12 +78,14 @@ const formatCurrency = (amount: number) => {
 
 function LoanAccordionItem({ 
     loan, 
+    loanType,
     onEditTransaction, 
     onDeleteLoan, 
     onDeleteTransaction,
     onEditLoanName,
 }: { 
     loan: Loan;
+    loanType: "taken" | "given";
     onEditTransaction: (loan: Loan, transaction: LoanTransaction) => void;
     onDeleteLoan: (loan: Loan) => void;
     onDeleteTransaction: (loan: Loan, transaction: LoanTransaction) => void;
@@ -178,8 +180,17 @@ function LoanAccordionItem({
                                     <TableHead>Date</TableHead>
                                     <TableHead>Type</TableHead>
                                     <TableHead>Description</TableHead>
-                                    <TableHead className="text-right">Credit</TableHead>
-                                    <TableHead className="text-right">Debit</TableHead>
+                                    {loanType === 'taken' ? (
+                                      <>
+                                        <TableHead className="text-right">Loan taken</TableHead>
+                                        <TableHead className="text-right">Repayment</TableHead>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <TableHead className="text-right">Repayment</TableHead>
+                                        <TableHead className="text-right">Loan Given</TableHead>
+                                      </>
+                                    )}
                                     <TableHead className="text-right">Balance</TableHead>
                                     <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
@@ -734,6 +745,7 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
                       <LoanAccordionItem 
                         key={loan.id}
                         loan={loan} 
+                        loanType={loanType}
                         onEditTransaction={openEditDialog}
                         onDeleteLoan={handleDeleteLoan}
                         onDeleteTransaction={handleDeleteLoanTransaction}
@@ -810,5 +822,3 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
     </>
   );
 }
-
-    
