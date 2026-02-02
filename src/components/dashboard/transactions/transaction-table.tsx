@@ -110,6 +110,7 @@ export function TransactionTable({
   const [user] = useAuthState();
   const [editDate, setEditDate] = useState<Date | undefined>(new Date());
   const [editCategory, setEditCategory] = useState<string | undefined>();
+  const [editSubCategory, setEditSubCategory] = useState<string | undefined>();
   const { toast } = useToast();
   
   const [editAmount, setEditAmount] = useState("");
@@ -311,10 +312,12 @@ export function TransactionTable({
       if (selectedTransaction.type === 'expense' || selectedTransaction.type === 'income') {
         const categoryDoc = categories.find(c => c.id === selectedTransaction.categoryId);
         setEditCategory(categoryDoc?.id);
+        setEditSubCategory(selectedTransaction.subcategory);
       }
     } else {
         setEditDate(undefined);
         setEditCategory(undefined);
+        setEditSubCategory(undefined);
         setEditAmount("");
     }
    }, [selectedTransaction, categories]);
@@ -620,7 +623,7 @@ export function TransactionTable({
                           <div className="grid grid-cols-2 gap-4">
                               <div className="space-y-2">
                                   <Label htmlFor="edit-category">Category</Label>
-                                  <Select name="category" onValueChange={setEditCategory} defaultValue={editCategory}>
+                                  <Select name="category" onValueChange={(value) => { setEditCategory(value); setEditSubCategory(undefined); }} value={editCategory}>
                                       <SelectTrigger id="edit-category">
                                           <SelectValue placeholder="Select category" />
                                       </SelectTrigger>
@@ -636,12 +639,12 @@ export function TransactionTable({
                               </div>
                               <div className="space-y-2">
                                   <Label htmlFor="edit-subcategory">Sub-category</Label>
-                                  <Select name="subcategory" defaultValue={selectedTransaction?.subcategory} disabled={!editCategory || editSubcategories.length === 0}>
+                                  <Select name="subcategory" value={editSubCategory} onValueChange={setEditSubCategory} disabled={!editCategory || editSubcategories.length === 0}>
                                       <SelectTrigger id="edit-subcategory">
                                           <SelectValue placeholder="Select sub-category" />
                                       </SelectTrigger>
                                           <SelectContent>
-                                              {editSubcategories.map(sub => <SelectItem key={sub.name} value={sub.name}>{sub.name}</SelectItem>)}
+                                              {editSubcategories.map(sub => <SelectItem key={sub.id} value={sub.name}>{sub.name}</SelectItem>)}
                                           </SelectContent>
                                   </Select>
                               </div>
@@ -721,5 +724,3 @@ export function TransactionTable({
     </>
   );
 }
-
-    
