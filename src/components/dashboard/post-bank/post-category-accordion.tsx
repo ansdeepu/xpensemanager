@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/accordion";
 import { format, parseISO, isValid } from "date-fns";
 import type { Category, Transaction } from "@/lib/data";
+import { cn } from "@/lib/utils";
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-IN", {
@@ -45,24 +46,50 @@ function CategoryAccordionItem({
         return transactions.filter(t => t.categoryId === category.id);
     }, [transactions, category.id]);
 
-    const { totalCredit, totalDebit } = useMemo(() => {
-        let credit = 0;
-        let debit = 0;
-        categoryTransactions.forEach(t => {
-            if (t.type === 'income') {
-                credit += t.amount;
-            } else if (t.type === 'expense') {
-                debit += t.amount;
-            } else if (t.type === 'transfer' && postBankAccountId) {
+    const { transactionsWithBalance, totalCredit, totalDebit } = useMemo(() => {
+        if (!postBankAccountId) return { transactionsWithBalance: [], totalCredit: 0, totalDebit: 0 };
+        
+        const chronologicalTxs = [...categoryTransactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        
+        let runningBalance = 0;
+        let creditTotal = 0;
+        let debitTotal = 0;
+
+        const transactionsWithDetails = chronologicalTxs.map(t => {
+            let credit = null;
+            let debit = null;
+            let effect = 0;
+
+            if (t.type === 'income' && t.accountId === postBankAccountId) {
+                credit = t.amount;
+                effect = t.amount;
+                creditTotal += t.amount;
+            } else if (t.type === 'expense' && t.accountId === postBankAccountId) {
+                debit = t.amount;
+                effect = -t.amount;
+                debitTotal += t.amount;
+            } else if (t.type === 'transfer') {
                 if (t.toAccountId === postBankAccountId) {
-                    credit += t.amount;
+                    credit = t.amount;
+                    effect = t.amount;
+                    creditTotal += t.amount;
                 }
                 if (t.fromAccountId === postBankAccountId) {
-                    debit += t.amount;
+                    debit = t.amount;
+                    effect = -t.amount;
+                    debitTotal += t.amount;
                 }
             }
+            
+            runningBalance += effect;
+            return { ...t, credit, debit, balance: runningBalance };
         });
-        return { totalCredit: credit, totalDebit: debit };
+
+        return {
+            transactionsWithBalance: transactionsWithDetails.reverse(), // Show newest first
+            totalCredit: creditTotal,
+            totalDebit: debitTotal,
+        };
     }, [categoryTransactions, postBankAccountId]);
 
     return (
@@ -92,42 +119,28 @@ function CategoryAccordionItem({
                                             <TableHead>Description</TableHead>
                                             <TableHead className="text-right">Credit</TableHead>
                                             <TableHead className="text-right">Debit</TableHead>
+                                            <TableHead className="text-right">Balance</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {categoryTransactions.length > 0 ? categoryTransactions.map(t => {
-                                            let credit = null;
-                                            let debit = null;
-
-                                            if (t.type === 'income') {
-                                                credit = t.amount;
-                                            } else if (t.type === 'expense') {
-                                                debit = t.amount;
-                                            } else if (t.type === 'transfer' && postBankAccountId) {
-                                                if (t.toAccountId === postBankAccountId) {
-                                                    credit = t.amount;
-                                                }
-                                                if (t.fromAccountId === postBankAccountId) {
-                                                    debit = t.amount;
-                                                }
-                                            }
-
-                                            return (
-                                                <TableRow key={t.id}>
-                                                    <TableCell>{isValid(parseISO(t.date)) ? format(parseISO(t.date), "dd/MM/yyyy") : '-'}</TableCell>
-                                                    <TableCell>{t.description}</TableCell>
-                                                    <TableCell className="text-right font-mono text-green-600">
-                                                        {credit !== null ? formatCurrency(credit) : null}
-                                                    </TableCell>
-                                                    <TableCell className="text-right font-mono text-red-600">
-                                                        {debit !== null ? formatCurrency(debit) : null}
-                                                    </TableCell>
-                                                </TableRow>
-                                            )
-                                        }) : (
+                                        {transactionsWithBalance.length > 0 ? transactionsWithBalance.map(t => (
+                                            <TableRow key={t.id}>
+                                                <TableCell>{isValid(parseISO(t.date)) ? format(parseISO(t.date), "dd/MM/yyyy") : '-'}</TableCell>
+                                                <TableCell>{t.description}</TableCell>
+                                                <TableCell className="text-right font-mono text-green-600">
+                                                    {t.credit !== null ? formatCurrency(t.credit) : null}
+                                                </TableCell>
+                                                <TableCell className="text-right font-mono text-red-600">
+                                                    {t.debit !== null ? formatCurrency(t.debit) : null}
+                                                </TableCell>
+                                                <TableCell className={cn("text-right font-mono", t.balance < 0 && "text-red-600")}>
+                                                    {formatCurrency(t.balance)}
+                                                </TableCell>
+                                            </TableRow>
+                                        )) : (
                                             <TableRow>
-                                                <TableCell colSpan={4} className="text-center h-24 text-muted-foreground">
-                                                    No transactions for this category.
+                                                <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
+                                                    No transactions for this category in Post Bank.
                                                 </TableCell>
                                             </TableRow>
                                         )}
@@ -142,13 +155,19 @@ function CategoryAccordionItem({
     )
 }
 
-export function PostCategoryAccordion({ categories, transactions, isEditable, postBankAccountId }: { categories: Category[], transactions: Transaction[], isEditable: boolean, postBankAccountId: string | undefined }) {
+export function PostCategoryAccordion({ categories, transactions, postBankAccountId }: { categories: Category[], transactions: Transaction[], postBankAccountId: string | undefined }) {
   if (categories.length === 0) {
     return (
         <Card>
+            <CardHeader>
+                <CardTitle>Post Bank Categories</CardTitle>
+                <CardDescription>
+                    Breakdown of Post Bank transactions by category.
+                </CardDescription>
+            </CardHeader>
             <CardContent className="pt-6">
                 <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-40">
-                    <p>No income categories found.</p>
+                    <p>No transactions found for the Post Bank account.</p>
                 </div>
             </CardContent>
         </Card>
@@ -158,9 +177,9 @@ export function PostCategoryAccordion({ categories, transactions, isEditable, po
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Income Categories for Post Bank</CardTitle>
+        <CardTitle>Post Bank Categories</CardTitle>
         <CardDescription>
-            Breakdown of Post Bank transactions by income category.
+            Breakdown of Post Bank transactions by category.
         </CardDescription>
       </CardHeader>
       <CardContent>

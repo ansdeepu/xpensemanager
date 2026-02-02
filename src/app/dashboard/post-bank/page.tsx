@@ -46,11 +46,11 @@ export default function PostBankPage() {
     }
   }, [user, userLoading]);
 
-  const { postBankTransactions, incomeCategories, postBankAccountId } = useMemo(() => {
+  const { postBankTransactions, postBankCategories, postBankAccountId } = useMemo(() => {
     const postBankAccount = accounts.find(acc => acc.name.toLowerCase().includes('post bank'));
     
     if (!postBankAccount) {
-      return { postBankTransactions: [], incomeCategories: [], postBankAccountId: undefined };
+      return { postBankTransactions: [], postBankCategories: [], postBankAccountId: undefined };
     }
 
     const filteredTransactions = transactions.filter(t => 
@@ -61,13 +61,13 @@ export default function PostBankPage() {
     
     const transactionCategoryIds = new Set(filteredTransactions.map(t => t.categoryId));
 
-    const filteredIncomeCategories = categories.filter(cat => 
-      cat.type === 'income' && transactionCategoryIds.has(cat.id)
+    const filteredCategories = categories.filter(cat => 
+      transactionCategoryIds.has(cat.id)
     );
 
     return { 
         postBankTransactions: filteredTransactions, 
-        incomeCategories: filteredIncomeCategories,
+        postBankCategories: filteredCategories,
         postBankAccountId: postBankAccount.id
     };
   }, [accounts, transactions, categories]);
@@ -87,12 +87,22 @@ export default function PostBankPage() {
     );
   }
 
+  if (!postBankAccountId) {
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Post Bank Not Found</CardTitle>
+                <CardDescription>Please add an account with "Post Bank" in its name to use this page.</CardDescription>
+            </CardHeader>
+        </Card>
+    )
+  }
+
   return (
     <div className="space-y-6">
        <PostCategoryAccordion
-            categories={incomeCategories}
+            categories={postBankCategories}
             transactions={postBankTransactions}
-            isEditable={false}
             postBankAccountId={postBankAccountId}
         />
     </div>
