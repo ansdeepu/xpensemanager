@@ -54,23 +54,29 @@ export default function PostBankPage() {
       return { postBankTransactions: [], postBankRelevantCategories: [], postBankAccountId: undefined };
     }
 
-    // Filter transactions related to Post Bank
-    const filteredTransactions = transactions.filter(t => 
+    // 1. Filter ALL transactions related to Post Bank to be passed to the accordion for balance calculation
+    const allPostBankTransactions = transactions.filter(t => 
         (t.accountId === postBankAccount.id) ||
         (t.fromAccountId === postBankAccount.id) ||
         (t.toAccountId === postBankAccount.id)
     );
-    
-    // Get unique category IDs from these transactions
-    const transactionCategoryIds = new Set(filteredTransactions.map(t => t.categoryId));
 
-    // Filter categories to include ALL categories that are present in the transactions
+    // 2. Filter transactions that represent an INFLOW to the Post Bank account
+    const inflowTransactions = transactions.filter(t => 
+        (t.type === 'income' && t.accountId === postBankAccount.id) ||
+        (t.type === 'transfer' && t.toAccountId === postBankAccount.id)
+    );
+    
+    // 3. Get unique category IDs from these inflow transactions
+    const inflowCategoryIds = new Set(inflowTransactions.map(t => t.categoryId));
+
+    // 4. Get the category documents for these IDs
     const relevantCategories = categories.filter(cat => 
-      transactionCategoryIds.has(cat.id)
+      inflowCategoryIds.has(cat.id)
     );
 
     return { 
-        postBankTransactions: filteredTransactions, 
+        postBankTransactions: allPostBankTransactions, 
         postBankRelevantCategories: relevantCategories,
         postBankAccountId: postBankAccount.id
     };
