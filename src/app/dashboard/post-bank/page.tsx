@@ -9,6 +9,23 @@ import { useAuthState } from "@/hooks/use-auth-state";
 import { PostCategoryAccordion } from "@/components/dashboard/post-bank/post-category-accordion";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
+const POST_BANK_CATEGORY_NAMES = new Set([
+  "Diesel Collection",
+  "Staff Club Accounts",
+  "Ente Keralam Accounts",
+  "Seminar Accounts",
+  "Jayaram Treatment",
+  "SLR Retirement - Jan 2026",
+  "Arun Babu - Loan",
+  "Parameshwaran, Aivelil - Loan",
+  "Harikrishnan, CML - Loan",
+  "Leelamma - Loan",
+  "Sooraj, BT, CML - Loan",
+  "Arun Chettan - Loan",
+  "Bank Charges",
+  "Deepa Car Accounts",
+]);
+
 export default function PostBankPage() {
   const [user, userLoading] = useAuthState();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -30,7 +47,7 @@ export default function PostBankPage() {
         setTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction)));
       });
 
-      const categoriesQuery = query(collection(db, "categories"), where("userId", "==", user.uid), where("type", "==", "income"));
+      const categoriesQuery = query(collection(db, "categories"), where("userId", "==", user.uid));
       const unsubscribeCategories = onSnapshot(categoriesQuery, (snapshot) => {
         setAllCategories(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category)));
         setDataLoading(false);
@@ -61,16 +78,14 @@ export default function PostBankPage() {
         (t.toAccountId === postBankAccount.id)
     );
 
-    // 2. Find all income transactions related to the Post Bank to identify relevant categories
-    const incomeTransactionsForPostBank = allPostBankTransactions.filter(t => 
-        (t.type === 'income' && t.accountId === postBankAccount.id) ||
-        (t.type === 'transfer' && t.toAccountId === postBankAccount.id)
+    // 2. Filter allCategories to get only the Category objects for the names the user specified.
+    const targetCategories = allCategories.filter(cat => 
+        POST_BANK_CATEGORY_NAMES.has(cat.name)
     );
     
-    const relevantCategoryIds = new Set(incomeTransactionsForPostBank.map(t => t.categoryId));
-
-    // 3. Filter the income categories based on whether they have transactions in the Post Bank account
-    const relevantCategories = allCategories.filter(cat => relevantCategoryIds.has(cat.id));
+    // 3. Of those specified categories, only include the ones that actually have transactions in the Post Bank account to avoid empty accordions.
+    const categoryIdsWithPostBankTransactions = new Set(allPostBankTransactions.map(t => t.categoryId));
+    const relevantCategories = targetCategories.filter(cat => categoryIdsWithPostBankTransactions.has(cat.id));
 
     return { 
         postBankTransactions: allPostBankTransactions, 
