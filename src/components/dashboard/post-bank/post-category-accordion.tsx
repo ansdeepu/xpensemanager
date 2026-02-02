@@ -43,37 +43,50 @@ function CategoryAccordionItem({
     transactions: (Transaction & { balance: number })[];
     accountId: string | undefined;
 }) {
-    const { categoryTransactions, totalCredit, totalDebit } = useMemo(() => {
-        // Filter transactions where the subcategory or category matches the virtual category name.
-        const filteredTxs = transactions.filter(t => t.subcategory === category.name || t.category === category.name);
+    const { categoryTransactionsWithRunningBalance, totalCredit, totalDebit } = useMemo(() => {
+        const filteredTxs = transactions
+            .filter(t => t.subcategory === category.name || t.category === category.name)
+            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()); // Chronological order
 
+        let runningBalance = 0;
         let creditTotal = 0;
         let debitTotal = 0;
 
-        const txsWithCreditDebit = filteredTxs.map(t => {
+        const txsWithDetails = filteredTxs.map(t => {
             let credit: number | null = null;
             let debit: number | null = null;
+            let effect = 0;
 
             if (t.type === 'income' && t.accountId === accountId) {
                 credit = t.amount;
-                creditTotal += t.amount;
+                effect = t.amount;
             } else if (t.type === 'expense' && t.accountId === accountId) {
                 debit = t.amount;
-                debitTotal += t.amount;
+                effect = -t.amount;
             } else if (t.type === 'transfer') {
                 if (t.toAccountId === accountId) {
                     credit = t.amount;
-                    creditTotal += t.amount;
+                    effect = t.amount;
                 }
                 if (t.fromAccountId === accountId) {
                     debit = t.amount;
-                    debitTotal += t.amount;
+                    effect = -t.amount;
                 }
             }
-            return { ...t, credit, debit };
+            
+            if (credit !== null) creditTotal += credit;
+            if (debit !== null) debitTotal += debit;
+            
+            runningBalance += effect;
+            
+            return { ...t, credit, debit, balance: runningBalance };
         });
 
-        return { categoryTransactions: txsWithCreditDebit, totalCredit: creditTotal, totalDebit: debitTotal };
+        return { 
+            categoryTransactionsWithRunningBalance: txsWithDetails.reverse(), // Reverse for display (newest first)
+            totalCredit: creditTotal, 
+            totalDebit: debitTotal 
+        };
     }, [transactions, category.name, accountId]);
 
     const categoryBalance = totalCredit - totalDebit;
@@ -112,7 +125,7 @@ function CategoryAccordionItem({
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {categoryTransactions.length > 0 ? categoryTransactions.map(t => (
+                                        {categoryTransactionsWithRunningBalance.length > 0 ? categoryTransactionsWithRunningBalance.map(t => (
                                             <TableRow key={t.id}>
                                                 <TableCell>{isValid(parseISO(t.date)) ? format(parseISO(t.date), "dd/MM/yyyy") : '-'}</TableCell>
                                                 <TableCell>{t.description}</TableCell>
