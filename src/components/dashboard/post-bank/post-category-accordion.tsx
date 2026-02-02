@@ -47,47 +47,40 @@ function CategoryAccordionItem({
         return transactions.filter(t => t.category === category.name);
     }, [transactions, category.name]);
 
-    const { transactionsWithBalance, totalCredit, totalDebit } = useMemo(() => {
-        if (!accountId) return { transactionsWithBalance: [], totalCredit: 0, totalDebit: 0 };
+    const { transactionsWithCreditDebit, totalCredit, totalDebit } = useMemo(() => {
+        if (!accountId) return { transactionsWithCreditDebit: [], totalCredit: 0, totalDebit: 0 };
         
         const chronologicalTxs = [...categoryTransactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
         
-        let runningBalance = 0;
         let creditTotal = 0;
         let debitTotal = 0;
 
         const transactionsWithDetails = chronologicalTxs.map(t => {
             let credit = null;
             let debit = null;
-            let effect = 0;
 
             if (t.type === 'income' && t.accountId === accountId) {
                 credit = t.amount;
-                effect = t.amount;
                 creditTotal += t.amount;
             } else if (t.type === 'expense' && t.accountId === accountId) {
                 debit = t.amount;
-                effect = -t.amount;
                 debitTotal += t.amount;
             } else if (t.type === 'transfer') {
                 if (t.toAccountId === accountId) {
                     credit = t.amount;
-                    effect = t.amount;
                     creditTotal += t.amount;
                 }
                 if (t.fromAccountId === accountId) {
                     debit = t.amount;
-                    effect = -t.amount;
                     debitTotal += t.amount;
                 }
             }
             
-            runningBalance += effect;
-            return { ...t, credit, debit, balance: runningBalance };
+            return { ...t, credit, debit };
         });
 
         return {
-            transactionsWithBalance: transactionsWithDetails.reverse(), // Show newest first
+            transactionsWithCreditDebit: transactionsWithDetails.reverse(), // Show newest first
             totalCredit: creditTotal,
             totalDebit: debitTotal,
         };
@@ -120,11 +113,10 @@ function CategoryAccordionItem({
                                             <TableHead>Description</TableHead>
                                             <TableHead className="text-right">Credit</TableHead>
                                             <TableHead className="text-right">Debit</TableHead>
-                                            <TableHead className="text-right">Balance</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {transactionsWithBalance.length > 0 ? transactionsWithBalance.map(t => (
+                                        {transactionsWithCreditDebit.length > 0 ? transactionsWithCreditDebit.map(t => (
                                             <TableRow key={t.id}>
                                                 <TableCell>{isValid(parseISO(t.date)) ? format(parseISO(t.date), "dd/MM/yyyy") : '-'}</TableCell>
                                                 <TableCell>{t.description}</TableCell>
@@ -134,13 +126,10 @@ function CategoryAccordionItem({
                                                 <TableCell className="text-right font-mono text-red-600">
                                                     {t.debit !== null ? formatCurrency(t.debit) : null}
                                                 </TableCell>
-                                                <TableCell className={cn("text-right font-mono", t.balance < 0 && "text-red-600")}>
-                                                    {formatCurrency(t.balance)}
-                                                </TableCell>
                                             </TableRow>
                                         )) : (
                                             <TableRow>
-                                                <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
+                                                <TableCell colSpan={4} className="text-center h-24 text-muted-foreground">
                                                     No transactions for this category in Post Bank account.
                                                 </TableCell>
                                             </TableRow>
