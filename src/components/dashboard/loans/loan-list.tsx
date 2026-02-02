@@ -137,9 +137,9 @@ function LoanAccordionItem({
         <AccordionItem value={loan.id}>
             <AccordionTrigger>
                 <div className="grid grid-cols-3 w-full items-center">
-                    <span className="font-semibold text-base col-span-1">{loan.personName}</span>
-                    <div className="col-span-1 flex justify-center">
-                        <Badge variant={loan.balance > 0 ? 'destructive' : 'default'} className="text-sm">{formatCurrency(loan.balance)}</Badge>
+                    <div className="col-span-1 flex items-center gap-4">
+                        <span className="font-semibold text-base">{loan.personName}</span>
+                         <Badge variant={loan.balance > 0 ? 'destructive' : 'default'} className="text-sm">{formatCurrency(loan.balance)}</Badge>
                     </div>
                 </div>
             </AccordionTrigger>
@@ -175,71 +175,73 @@ function LoanAccordionItem({
                             </AlertDialog>
                         </div>
                     </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="px-2 py-1">Date</TableHead>
-                                    <TableHead className="px-2 py-1">Type</TableHead>
-                                    <TableHead className="px-2 py-1">Description</TableHead>
-                                    {loanType === 'taken' ? (
-                                      <>
-                                        <TableHead className="text-right px-2 py-1">Repayment</TableHead>
-                                        <TableHead className="text-right px-2 py-1">Loan taken</TableHead>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <TableHead className="text-right px-2 py-1">Repayment</TableHead>
-                                        <TableHead className="text-right px-2 py-1">Loan Given</TableHead>
-                                      </>
-                                    )}
-                                    <TableHead className="text-right px-2 py-1">Balance</TableHead>
-                                    <TableHead className="text-right px-2 py-1">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {transactionsWithRunningBalance.map(t => (
-                                    <TableRow key={t.id}>
-                                        <TableCell className="px-2 py-1">{isValid(parseISO(t.date)) ? format(parseISO(t.date), "dd/MM/yyyy") : '-'}</TableCell>
-                                        <TableCell className="px-2 py-1">
-                                            <Badge variant={t.type === 'loan' ? 'outline' : 'secondary'} className="capitalize text-xs">{t.type}</Badge>
-                                        </TableCell>
-                                        <TableCell className="px-2 py-1">{getLoanTransactionDescription(loan, t)}</TableCell>
-                                        <TableCell className="text-right font-mono text-green-600 px-2 py-1">
-                                            {t.credit > 0 ? formatCurrency(t.credit) : null}
-                                        </TableCell>
-                                        <TableCell className="text-right font-mono text-red-600 px-2 py-1">
-                                            {t.debit > 0 ? formatCurrency(t.debit) : null}
-                                        </TableCell>
-                                        <TableCell className={cn("text-right font-mono px-2 py-1", t.balance > 0 ? 'text-foreground' : '')}>
-                                            {formatCurrency(t.balance)}
-                                        </TableCell>
-                                        <TableCell className="text-right px-2 py-1">
-                                            <Button variant="ghost" size="icon" onClick={() => onEditTransaction(loan, t)} className="h-7 w-7">
-                                                <Pencil className="h-3 w-3" />
-                                            </Button>
-                                            <AlertDialog>
-                                                <AlertDialogTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
-                                                        <Trash2 className="h-3 w-3" />
-                                                    </Button>
-                                                </AlertDialogTrigger>
-                                                <AlertDialogContent>
-                                                    <AlertDialogHeader>
-                                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                        <AlertDialogDescription>This will delete this transaction and cannot be undone.</AlertDialogDescription>
-                                                    </AlertDialogHeader>
-                                                    <AlertDialogFooter>
-                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={() => onDeleteTransaction(loan, t)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                                                    </AlertDialogFooter>
-                                                </AlertDialogContent>
-                                            </AlertDialog>
-                                        </TableCell>
+                    <CardContent className="p-0">
+                        <div className="w-full overflow-x-auto">
+                            <Table className="min-w-full">
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="px-2 py-1">Date</TableHead>
+                                        <TableHead className="px-2 py-1">Type</TableHead>
+                                        <TableHead className="px-2 py-1">Description</TableHead>
+                                        {loanType === 'taken' ? (
+                                        <>
+                                            <TableHead className="text-right px-2 py-1">Loan taken</TableHead>
+                                            <TableHead className="text-right px-2 py-1">Repayment</TableHead>
+                                        </>
+                                        ) : (
+                                        <>
+                                            <TableHead className="text-right px-2 py-1">Repayment</TableHead>
+                                            <TableHead className="text-right px-2 py-1">Loan Given</TableHead>
+                                        </>
+                                        )}
+                                        <TableHead className="text-right px-2 py-1">Balance</TableHead>
+                                        <TableHead className="text-right px-2 py-1">Actions</TableHead>
                                     </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
+                                </TableHeader>
+                                <TableBody>
+                                    {transactionsWithRunningBalance.map(t => (
+                                        <TableRow key={t.id}>
+                                            <TableCell className="px-2 py-1">{isValid(parseISO(t.date)) ? format(parseISO(t.date), "dd/MM/yyyy") : '-'}</TableCell>
+                                            <TableCell className="px-2 py-1">
+                                                <Badge variant={t.type === 'loan' ? 'outline' : 'secondary'} className="capitalize text-xs">{t.type}</Badge>
+                                            </TableCell>
+                                            <TableCell className="px-2 py-1">{getLoanTransactionDescription(loan, t)}</TableCell>
+                                            <TableCell className="text-right font-mono text-green-600 px-2 py-1">
+                                                {t.credit > 0 ? formatCurrency(t.credit) : null}
+                                            </TableCell>
+                                            <TableCell className="text-right font-mono text-red-600 px-2 py-1">
+                                                {t.debit > 0 ? formatCurrency(t.debit) : null}
+                                            </TableCell>
+                                            <TableCell className={cn("text-right font-mono px-2 py-1", t.balance > 0 ? 'text-foreground' : '')}>
+                                                {formatCurrency(t.balance)}
+                                            </TableCell>
+                                            <TableCell className="text-right px-2 py-1">
+                                                <Button variant="ghost" size="icon" onClick={() => onEditTransaction(loan, t)} className="h-7 w-7">
+                                                    <Pencil className="h-3 w-3" />
+                                                </Button>
+                                                <AlertDialog>
+                                                    <AlertDialogTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
+                                                            <Trash2 className="h-3 w-3" />
+                                                        </Button>
+                                                    </AlertDialogTrigger>
+                                                    <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                            <AlertDialogDescription>This will delete this transaction and cannot be undone.</AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <AlertDialogFooter>
+                                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                            <AlertDialogAction onClick={() => onDeleteTransaction(loan, t)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
                     </CardContent>
                 </Card>
             </AccordionContent>
@@ -824,5 +826,3 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
     </>
   );
 }
-
-    
