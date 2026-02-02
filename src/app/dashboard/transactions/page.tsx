@@ -840,6 +840,13 @@ export default function TransactionsPage() {
                 </Button>
             </AddTransactionDialog>
         </div>
+
+        {totalPages > 1 && (
+          <div className="pt-1">
+            <PaginationControls currentPage={currentPage} totalPages={totalPages} setCurrentPage={setCurrentPage as (page: number) => void} />
+          </div>
+        )}
+
         <div className="space-y-1">
             <Label htmlFor="reconciliation-date-input" className="text-xs flex items-center gap-2">
                 <CalendarIcon className="h-4 w-4 text-red-600" />
@@ -859,7 +866,7 @@ export default function TransactionsPage() {
                         handleReconciliationDateChange(undefined);
                     }
                 }}
-                className="w-full h-9"
+                className="w-40 h-9"
             />
         </div>
         <div className="space-y-1 flex-grow">
@@ -876,21 +883,21 @@ export default function TransactionsPage() {
                 />
             </div>
         </div>
-        <div className="space-y-1 flex-grow">
+        <div className="space-y-1">
               <Label className="text-xs">Filter by Date Range</Label>
               <div className="flex items-center gap-2">
                 <Input
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full h-9"
+                className="w-40 h-9"
                 />
                 <span className="text-muted-foreground text-xs">to</span>
                 <Input
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-full h-9"
+                className="w-40 h-9"
                 min={startDate}
                 />
             </div>
