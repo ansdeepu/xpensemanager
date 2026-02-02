@@ -46,12 +46,12 @@ export default function PostBankPage() {
     }
   }, [user, userLoading]);
 
-  const { postBankTransactions, postBankIncomeCategories, postBankAccountId } = useMemo(() => {
+  const { postBankTransactions, postBankRelevantCategories, postBankAccountId } = useMemo(() => {
     // Find the Post Bank account
     const postBankAccount = accounts.find(acc => acc.name.toLowerCase().includes('post bank'));
     
     if (!postBankAccount) {
-      return { postBankTransactions: [], postBankIncomeCategories: [], postBankAccountId: undefined };
+      return { postBankTransactions: [], postBankRelevantCategories: [], postBankAccountId: undefined };
     }
 
     // Filter transactions related to Post Bank
@@ -64,14 +64,14 @@ export default function PostBankPage() {
     // Get unique category IDs from these transactions
     const transactionCategoryIds = new Set(filteredTransactions.map(t => t.categoryId));
 
-    // Filter categories to only include INCOME categories that are present in the transactions
-    const filteredIncomeCategories = categories.filter(cat => 
-      cat.type === 'income' && transactionCategoryIds.has(cat.id)
+    // Filter categories to include ALL categories that are present in the transactions
+    const relevantCategories = categories.filter(cat => 
+      transactionCategoryIds.has(cat.id)
     );
 
     return { 
         postBankTransactions: filteredTransactions, 
-        postBankIncomeCategories: filteredIncomeCategories,
+        postBankRelevantCategories: relevantCategories,
         postBankAccountId: postBankAccount.id
     };
   }, [accounts, transactions, categories]);
@@ -105,7 +105,7 @@ export default function PostBankPage() {
   return (
     <div className="space-y-6">
        <PostCategoryAccordion
-            categories={postBankIncomeCategories}
+            categories={postBankRelevantCategories}
             transactions={postBankTransactions}
             postBankAccountId={postBankAccountId}
         />
