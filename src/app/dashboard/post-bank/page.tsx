@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -6,7 +7,6 @@ import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { useAuthState } from "@/hooks/use-auth-state";
 import type { Account, Category, Transaction } from "@/lib/data";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PostCategoryAccordion } from "@/components/dashboard/post-bank/post-category-accordion";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -74,18 +74,7 @@ export default function PostBankPage() {
 
   return (
     <div className="space-y-6">
-      <Tabs defaultValue="income" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="income">Income Categories</TabsTrigger>
-          <TabsTrigger value="bank_expense">Bank Expense Categories</TabsTrigger>
-        </TabsList>
-        <TabsContent value="income" className="mt-6">
-          
-        </TabsContent>
-        <TabsContent value="bank_expense" className="mt-6">
-          
-        </TabsContent>
-      </Tabs>
+      <PostCategoryAccordion categories={combinedBankExpenseCategories} transactions={postBankTransactions} isEditable={false} />
     </div>
   );
 }
