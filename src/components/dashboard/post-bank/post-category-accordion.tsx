@@ -36,18 +36,18 @@ const formatCurrency = (amount: number) => {
 function CategoryAccordionItem({
     category,
     transactions,
-    postBankAccountId,
+    accountId,
 }: {
     category: Category;
     transactions: Transaction[];
-    postBankAccountId: string | undefined;
+    accountId: string | undefined;
 }) {
     const categoryTransactions = useMemo(() => {
         return transactions.filter(t => t.categoryId === category.id);
     }, [transactions, category.id]);
 
     const { transactionsWithBalance, totalCredit, totalDebit } = useMemo(() => {
-        if (!postBankAccountId) return { transactionsWithBalance: [], totalCredit: 0, totalDebit: 0 };
+        if (!accountId) return { transactionsWithBalance: [], totalCredit: 0, totalDebit: 0 };
         
         const chronologicalTxs = [...categoryTransactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
         
@@ -60,21 +60,21 @@ function CategoryAccordionItem({
             let debit = null;
             let effect = 0;
 
-            if (t.type === 'income' && t.accountId === postBankAccountId) {
+            if (t.type === 'income' && t.accountId === accountId) {
                 credit = t.amount;
                 effect = t.amount;
                 creditTotal += t.amount;
-            } else if (t.type === 'expense' && t.accountId === postBankAccountId) {
+            } else if (t.type === 'expense' && t.accountId === accountId) {
                 debit = t.amount;
                 effect = -t.amount;
                 debitTotal += t.amount;
             } else if (t.type === 'transfer') {
-                if (t.toAccountId === postBankAccountId) {
+                if (t.toAccountId === accountId) {
                     credit = t.amount;
                     effect = t.amount;
                     creditTotal += t.amount;
                 }
-                if (t.fromAccountId === postBankAccountId) {
+                if (t.fromAccountId === accountId) {
                     debit = t.amount;
                     effect = -t.amount;
                     debitTotal += t.amount;
@@ -90,7 +90,7 @@ function CategoryAccordionItem({
             totalCredit: creditTotal,
             totalDebit: debitTotal,
         };
-    }, [categoryTransactions, postBankAccountId]);
+    }, [categoryTransactions, accountId]);
 
     return (
         <AccordionItem value={category.id}>
@@ -140,7 +140,7 @@ function CategoryAccordionItem({
                                         )) : (
                                             <TableRow>
                                                 <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
-                                                    No transactions for this category in Post Bank.
+                                                    No transactions for this category in Ente Keralam account.
                                                 </TableCell>
                                             </TableRow>
                                         )}
@@ -160,14 +160,14 @@ export function PostCategoryAccordion({ categories, transactions, postBankAccoun
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Post Bank Categories</CardTitle>
+                <CardTitle>Ente Keralam Accounts</CardTitle>
                 <CardDescription>
-                    Breakdown of Post Bank transactions by category.
+                    Breakdown of Ente Keralam account transactions by category.
                 </CardDescription>
             </CardHeader>
             <CardContent className="pt-6">
                 <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-40">
-                    <p>No transactions found for the Post Bank account.</p>
+                    <p>No transactions found for the Ente Keralam account.</p>
                 </div>
             </CardContent>
         </Card>
@@ -177,9 +177,9 @@ export function PostCategoryAccordion({ categories, transactions, postBankAccoun
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Post Bank Categories</CardTitle>
+        <CardTitle>Ente Keralam Accounts</CardTitle>
         <CardDescription>
-            Breakdown of Post Bank transactions by category.
+            Breakdown of Ente Keralam account transactions by category.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -189,7 +189,7 @@ export function PostCategoryAccordion({ categories, transactions, postBankAccoun
                     key={category.id}
                     category={category}
                     transactions={transactions}
-                    postBankAccountId={postBankAccountId}
+                    accountId={postBankAccountId}
                 />
             ))}
         </Accordion>

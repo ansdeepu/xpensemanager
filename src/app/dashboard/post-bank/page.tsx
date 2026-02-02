@@ -46,17 +46,17 @@ export default function PostBankPage() {
     }
   }, [user, userLoading]);
 
-  const { postBankTransactions, postBankCategories, postBankAccountId } = useMemo(() => {
-    const postBankAccount = accounts.find(acc => acc.name.toLowerCase().includes('post bank'));
+  const { enteKeralamTransactions, enteKeralamCategories, enteKeralamAccountId } = useMemo(() => {
+    const enteKeralamAccount = accounts.find(acc => acc.name.toLowerCase().includes('ente keralam'));
     
-    if (!postBankAccount) {
-      return { postBankTransactions: [], postBankCategories: [], postBankAccountId: undefined };
+    if (!enteKeralamAccount) {
+      return { enteKeralamTransactions: [], enteKeralamCategories: [], enteKeralamAccountId: undefined };
     }
 
     const filteredTransactions = transactions.filter(t => 
-        (t.accountId === postBankAccount.id) ||
-        (t.fromAccountId === postBankAccount.id) ||
-        (t.toAccountId === postBankAccount.id)
+        (t.accountId === enteKeralamAccount.id) ||
+        (t.fromAccountId === enteKeralamAccount.id) ||
+        (t.toAccountId === enteKeralamAccount.id)
     );
     
     const transactionCategoryIds = new Set(filteredTransactions.map(t => t.categoryId));
@@ -66,9 +66,9 @@ export default function PostBankPage() {
     );
 
     return { 
-        postBankTransactions: filteredTransactions, 
-        postBankCategories: filteredCategories,
-        postBankAccountId: postBankAccount.id
+        enteKeralamTransactions: filteredTransactions, 
+        enteKeralamCategories: filteredCategories,
+        enteKeralamAccountId: enteKeralamAccount.id
     };
   }, [accounts, transactions, categories]);
 
@@ -87,12 +87,12 @@ export default function PostBankPage() {
     );
   }
 
-  if (!postBankAccountId) {
+  if (!enteKeralamAccountId) {
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Post Bank Not Found</CardTitle>
-                <CardDescription>Please add an account with "Post Bank" in its name to use this page.</CardDescription>
+                <CardTitle>Ente Keralam Account Not Found</CardTitle>
+                <CardDescription>Please add an account with "Ente Keralam" in its name to use this page.</CardDescription>
             </CardHeader>
         </Card>
     )
@@ -101,9 +101,9 @@ export default function PostBankPage() {
   return (
     <div className="space-y-6">
        <PostCategoryAccordion
-            categories={postBankCategories}
-            transactions={postBankTransactions}
-            postBankAccountId={postBankAccountId}
+            categories={enteKeralamCategories}
+            transactions={enteKeralamTransactions}
+            postBankAccountId={enteKeralamAccountId}
         />
     </div>
   );
