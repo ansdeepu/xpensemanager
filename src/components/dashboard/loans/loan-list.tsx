@@ -136,7 +136,7 @@ function LoanAccordionItem({
     return (
         <AccordionItem value={loan.id}>
             <AccordionTrigger>
-                <div className="flex justify-between items-center w-full pr-4">
+                <div className="flex items-center gap-4">
                     <span className="font-semibold text-lg">{loan.personName}</span>
                     <Badge variant={loan.balance > 0 ? 'destructive' : 'default'} className="text-base">{formatCurrency(loan.balance)}</Badge>
                 </div>
@@ -822,3 +822,5 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
     </>
   );
 }
+
+    
