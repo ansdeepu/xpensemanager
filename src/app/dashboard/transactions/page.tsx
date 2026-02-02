@@ -695,7 +695,7 @@ export default function TransactionsPage() {
                             </div>
                             <div className="w-full grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-left pt-2">
                                 <div className="space-y-1">
-                                    <Label className="text-sm">Bank Balance</Label>
+                                    <Label className="text-sm block">Bank Balance</Label>
                                     <button type="button" className="font-mono text-lg hover:underline text-left" onClick={(e) => { e.stopPropagation(); handleAccountClick(primaryAccount); }}>{formatCurrency(primaryAccount.balance)}</button>
                                     <Input
                                         type="number"
@@ -712,7 +712,7 @@ export default function TransactionsPage() {
                                     )}
                                 </div>
                                 <div className="space-y-1">
-                                    <Label className="text-sm">Digital</Label>
+                                    <Label className="text-sm block">Digital</Label>
                                     <button type="button" className="font-mono text-lg hover:underline text-left" onClick={(e) => { e.stopPropagation(); handleAccountClick('digital-wallet', 'Digital Wallet'); }}>{formatCurrency(digitalWalletBalance)}</button>
                                     <Input
                                         type="number"
@@ -729,7 +729,7 @@ export default function TransactionsPage() {
                                     )}
                                 </div>
                                 <div className="space-y-1">
-                                    <Label className="text-sm">Cash</Label>
+                                    <Label className="text-sm block">Cash</Label>
                                     <button type="button" className="font-mono text-lg hover:underline text-left" onClick={(e) => { e.stopPropagation(); handleAccountClick('cash-wallet', 'Cash Wallet'); }}>{formatCurrency(cashWalletBalance)}</button>
                                     <Input
                                         type="number"
@@ -747,7 +747,7 @@ export default function TransactionsPage() {
                                 </div>
                                 {primaryCreditCard && (
                                     <div className="space-y-1">
-                                        <Label className="text-sm">{primaryCreditCard.name}</Label>
+                                        <Label className="text-sm block">{primaryCreditCard.name}</Label>
                                         <button type="button" className="font-mono text-lg hover:underline text-left" onClick={(e) => { e.stopPropagation(); handleAccountClick(primaryCreditCard); }}>{formatCurrency(primaryCardAvailable)}</button>
                                         <Input
                                             type="number"
