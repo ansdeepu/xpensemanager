@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useMemo } from "react";
@@ -75,11 +76,16 @@ function CategoryAccordionItem({
         return { categoryTransactions: txsWithCreditDebit, totalCredit: creditTotal, totalDebit: debitTotal };
     }, [transactions, category.name, accountId]);
 
+    const categoryBalance = totalCredit - totalDebit;
+
     return (
         <AccordionItem value={category.id}>
             <AccordionTrigger>
-                <div className="flex w-full items-center">
+                <div className="flex w-full items-center justify-between">
                     <span className="font-semibold text-base">{category.name}</span>
+                    <span className={cn("font-bold text-lg", categoryBalance >= 0 ? 'text-green-600' : 'text-red-600')}>
+                        {formatCurrency(categoryBalance)}
+                    </span>
                 </div>
             </AccordionTrigger>
             <AccordionContent>
