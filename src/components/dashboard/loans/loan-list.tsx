@@ -336,6 +336,7 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
     const description = formData.get("description") as string;
   
     let otherPartyName: string | undefined;
+    let otherPartyAccountIdForTransfer: string | undefined;
     
     const allLoanParties: (Loan | Omit<Account, "balance">)[] = [
       ...loans,
@@ -344,25 +345,26 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
 
     if (isNewPerson) {
       otherPartyName = personName;
+      otherPartyAccountIdForTransfer = `loan-virtual-account-${otherPartyName.replace(/\s+/g, '-')}`;
     } else if (selectedPersonId) {
         const existingParty = allLoanParties.find(l => l.id === selectedPersonId);
         if (existingParty) {
-            if ('personName' in existingParty) {
+            if ('personName' in existingParty && existingParty.personName) { // It's a Loan
                 otherPartyName = existingParty.personName;
-            } else {
+                otherPartyAccountIdForTransfer = `loan-virtual-account-${otherPartyName.replace(/\s+/g, '-')}`;
+            } else if ('name' in existingParty) { // It's an Account
                 otherPartyName = existingParty.name;
+                otherPartyAccountIdForTransfer = existingParty.id;
             }
         }
     }
+
 
     if (!otherPartyName) {
       toast({ variant: "destructive", title: "Person or account name is required" });
       return;
     }
     
-    // The other party's ID for the transfer transaction
-    const otherPartyAccountIdForTransfer = `loan-virtual-account-${otherPartyName.replace(/\s+/g, '-')}` 
-
     const newLoanTransaction: LoanTransaction = {
       id: new Date().getTime().toString() + Math.random().toString(36).substring(2, 9),
       date,
@@ -831,5 +833,3 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
     </>
   );
 }
-
-    
