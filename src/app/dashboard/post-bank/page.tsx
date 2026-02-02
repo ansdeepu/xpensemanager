@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { useAuthState } from "@/hooks/use-auth-state";
@@ -14,53 +14,47 @@ export default function PostBankPage() {
   const [user, userLoading] = useAuthState();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [incomeCategories, setIncomeCategories] = useState<Category[]>([]);
-  const [bankExpenseCategories, setBankExpenseCategories] = useState<Category[]>([]);
+  const [bankExpenseCategoriesList, setBankExpenseCategoriesList] = useState<Category[]>([]);
   const [postBankAccount, setPostBankAccount] = useState<Account | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (user) {
-      // Fetch accounts to find 'post bank'
-      const accountsQuery = query(collection(db, "accounts"), where("userId", "==", user.uid));
-      const unsubscribeAccounts = onSnapshot(accountsQuery, (snapshot) => {
+      const unsubscribes: (()=>void)[] = [];
+      unsubscribes.push(onSnapshot(query(collection(db, "accounts"), where("userId", "==", user.uid)), (snapshot) => {
         const userAccounts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Account));
         const postAccount = userAccounts.find(acc => acc.name.toLowerCase().includes("post bank"));
         setPostBankAccount(postAccount || null);
-      });
+      }));
 
-      // Fetch categories
-      const incomeCatQuery = query(collection(db, "categories"), where("userId", "==", user.uid), where("type", "==", "income"));
-      const unsubscribeIncomeCats = onSnapshot(incomeCatQuery, (snapshot) => {
+      unsubscribes.push(onSnapshot(query(collection(db, "categories"), where("userId", "==", user.uid), where("type", "==", "income")), (snapshot) => {
         setIncomeCategories(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category)));
-      });
+      }));
 
-      const bankExpenseCatQuery = query(collection(db, "categories"), where("userId", "==", user.uid), where("type", "==", "bank-expense"));
-      const unsubscribeBankExpenseCats = onSnapshot(bankExpenseCatQuery, (snapshot) => {
-        const combinedCategories = [...incomeCategories, ...snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category))];
-        const uniqueCategories = Array.from(new Map(combinedCategories.map(item => [item['name'], item])).values());
-        setBankExpenseCategories(uniqueCategories);
-      });
+      unsubscribes.push(onSnapshot(query(collection(db, "categories"), where("userId", "==", user.uid), where("type", "==", "bank-expense")), (snapshot) => {
+        setBankExpenseCategoriesList(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category)));
+      }));
       
-
-      // Fetch all transactions
-      const transQuery = query(collection(db, "transactions"), where("userId", "==", user.uid));
-      const unsubscribeTransactions = onSnapshot(transQuery, (snapshot) => {
+      unsubscribes.push(onSnapshot(query(collection(db, "transactions"), where("userId", "==", user.uid)), (snapshot) => {
           setTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction)));
           setLoading(false);
-      });
+      }));
 
-      return () => {
-        unsubscribeAccounts();
-        unsubscribeIncomeCats();
-        unsubscribeBankExpenseCats();
-        unsubscribeTransactions();
-      };
+      return () => unsubscribes.forEach(unsub => unsub());
     } else if (!userLoading) {
       setLoading(false);
     }
-  }, [user, userLoading, incomeCategories]);
+  }, [user, userLoading]);
 
-  const postBankTransactions = transactions.filter(t => t.accountId === postBankAccount?.id);
+  const postBankTransactions = useMemo(() => {
+      if (!postBankAccount) return [];
+      return transactions.filter(t => t.accountId === postBankAccount.id);
+  }, [transactions, postBankAccount]);
+
+  const combinedBankExpenseCategories = useMemo(() => {
+      const combined = [...incomeCategories, ...bankExpenseCategoriesList];
+      return Array.from(new Map(combined.map(item => [item.name, item])).values());
+  }, [incomeCategories, bankExpenseCategoriesList]);
 
   if (loading || userLoading) {
     return <Skeleton className="h-96 w-full" />;
@@ -94,7 +88,7 @@ export default function PostBankPage() {
         </TabsContent>
         <TabsContent value="bank_expense" className="mt-6">
           <PostCategoryAccordion
-            categories={bankExpenseCategories}
+            categories={combinedBankExpenseCategories}
             transactions={postBankTransactions}
             isEditable={false}
           />
