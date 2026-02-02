@@ -46,29 +46,33 @@ export default function PostBankPage() {
     }
   }, [user, userLoading]);
 
-  const { enteKeralamTransactions, enteKeralamCategories, enteKeralamAccountId } = useMemo(() => {
-    const enteKeralamAccount = accounts.find(acc => acc.name.toLowerCase().includes('ente keralam'));
+  const { postBankTransactions, postBankIncomeCategories, postBankAccountId } = useMemo(() => {
+    // Find the Post Bank account
+    const postBankAccount = accounts.find(acc => acc.name.toLowerCase().includes('post bank'));
     
-    if (!enteKeralamAccount) {
-      return { enteKeralamTransactions: [], enteKeralamCategories: [], enteKeralamAccountId: undefined };
+    if (!postBankAccount) {
+      return { postBankTransactions: [], postBankIncomeCategories: [], postBankAccountId: undefined };
     }
 
+    // Filter transactions related to Post Bank
     const filteredTransactions = transactions.filter(t => 
-        (t.accountId === enteKeralamAccount.id) ||
-        (t.fromAccountId === enteKeralamAccount.id) ||
-        (t.toAccountId === enteKeralamAccount.id)
+        (t.accountId === postBankAccount.id) ||
+        (t.fromAccountId === postBankAccount.id) ||
+        (t.toAccountId === postBankAccount.id)
     );
     
+    // Get unique category IDs from these transactions
     const transactionCategoryIds = new Set(filteredTransactions.map(t => t.categoryId));
 
-    const filteredCategories = categories.filter(cat => 
-      transactionCategoryIds.has(cat.id)
+    // Filter categories to only include INCOME categories that are present in the transactions
+    const filteredIncomeCategories = categories.filter(cat => 
+      cat.type === 'income' && transactionCategoryIds.has(cat.id)
     );
 
     return { 
-        enteKeralamTransactions: filteredTransactions, 
-        enteKeralamCategories: filteredCategories,
-        enteKeralamAccountId: enteKeralamAccount.id
+        postBankTransactions: filteredTransactions, 
+        postBankIncomeCategories: filteredIncomeCategories,
+        postBankAccountId: postBankAccount.id
     };
   }, [accounts, transactions, categories]);
 
@@ -87,12 +91,12 @@ export default function PostBankPage() {
     );
   }
 
-  if (!enteKeralamAccountId) {
+  if (!postBankAccountId) {
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Ente Keralam Account Not Found</CardTitle>
-                <CardDescription>Please add an account with "Ente Keralam" in its name to use this page.</CardDescription>
+                <CardTitle>Post Bank Account Not Found</CardTitle>
+                <CardDescription>Please add an account with "Post Bank" in its name to use this page.</CardDescription>
             </CardHeader>
         </Card>
     )
@@ -101,9 +105,9 @@ export default function PostBankPage() {
   return (
     <div className="space-y-6">
        <PostCategoryAccordion
-            categories={enteKeralamCategories}
-            transactions={enteKeralamTransactions}
-            postBankAccountId={enteKeralamAccountId}
+            categories={postBankIncomeCategories}
+            transactions={postBankTransactions}
+            postBankAccountId={postBankAccountId}
         />
     </div>
   );

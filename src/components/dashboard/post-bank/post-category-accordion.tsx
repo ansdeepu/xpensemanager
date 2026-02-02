@@ -140,7 +140,7 @@ function CategoryAccordionItem({
                                         )) : (
                                             <TableRow>
                                                 <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
-                                                    No transactions for this category in Ente Keralam account.
+                                                    No transactions for this category in Post Bank account.
                                                 </TableCell>
                                             </TableRow>
                                         )}
@@ -160,14 +160,14 @@ export function PostCategoryAccordion({ categories, transactions, postBankAccoun
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Ente Keralam Accounts</CardTitle>
+                <CardTitle>Post Bank Income Categories</CardTitle>
                 <CardDescription>
-                    Breakdown of Ente Keralam account transactions by category.
+                    Breakdown of Post Bank account transactions by income category.
                 </CardDescription>
             </CardHeader>
             <CardContent className="pt-6">
                 <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-40">
-                    <p>No transactions found for the Ente Keralam account.</p>
+                    <p>No income transactions found for the Post Bank account.</p>
                 </div>
             </CardContent>
         </Card>
@@ -177,9 +177,9 @@ export function PostCategoryAccordion({ categories, transactions, postBankAccoun
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Ente Keralam Accounts</CardTitle>
+        <CardTitle>Post Bank Income Categories</CardTitle>
         <CardDescription>
-            Breakdown of Ente Keralam account transactions by category.
+            Breakdown of Post Bank account transactions by income category.
         </CardDescription>
       </CardHeader>
       <CardContent>
