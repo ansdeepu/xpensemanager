@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -31,7 +30,7 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
-import type { Transaction, Category, SubCategory } from "@/lib/data";
+import type { Transaction, Category, Account } from "@/lib/data";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tag, ShoppingBasket, Car, Home, Heart, BookOpen, Banknote, Briefcase, Gift, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -71,6 +70,7 @@ export function CategoryExpenses() {
   const [user, loading] = useAuthState();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());
 
@@ -90,9 +90,16 @@ export function CategoryExpenses() {
         setTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction)));
       });
 
+      // Fetch accounts
+      const accountsQuery = query(collection(db, "accounts"), where("userId", "==", user.uid));
+      const unsubscribeAccounts = onSnapshot(accountsQuery, (snapshot) => {
+          setAccounts(snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}) as Account));
+      });
+
       return () => {
         unsubscribeCategories();
         unsubscribeTransactions();
+        unsubscribeAccounts(); // Cleanup
       };
     } else if (!user) {
         if(dataLoading) setDataLoading(false);
@@ -101,9 +108,27 @@ export function CategoryExpenses() {
 
   const monthInterval = useMemo(() => ({ start: startOfMonth(currentDate), end: endOfMonth(currentDate) }), [currentDate]);
   const currentMonthName = useMemo(() => months[currentDate.getMonth()], [currentDate]);
+  
+  const primaryAccount = useMemo(() => accounts.find(a => a.isPrimary), [accounts]);
+  const creditCardIds = useMemo(() => accounts.filter(acc => acc.type === 'card').map(acc => acc.id), [accounts]);
+
   const monthlyTransactions = useMemo(() => {
-    return transactions.filter(t => isWithinInterval(new Date(t.date), monthInterval));
-  }, [transactions, monthInterval]);
+    return transactions.filter(t => {
+      if (!isWithinInterval(new Date(t.date), monthInterval)) {
+        return false;
+      }
+      
+      if (!primaryAccount) {
+          return true; // Show all if no primary account is set yet
+      }
+
+      const isPrimaryAccountExpense = t.accountId === primaryAccount.id;
+      const isWalletExpense = t.paymentMethod === 'cash' || t.paymentMethod === 'digital';
+      const isCreditCardExpense = t.accountId ? creditCardIds.includes(t.accountId) : false;
+
+      return isPrimaryAccountExpense || isWalletExpense || isCreditCardExpense;
+    });
+  }, [transactions, monthInterval, primaryAccount, creditCardIds]);
 
 
   const categoryStats = useMemo(() => {
@@ -193,7 +218,7 @@ export function CategoryExpenses() {
     <CardHeader>
         <CardTitle>Category Expenses</CardTitle>
         <div className="flex justify-between items-center">
-            <CardDescription>Your spending breakdown for the month.</CardDescription>
+            <CardDescription>Your spending breakdown for the month from your primary account, wallets, and credit cards.</CardDescription>
             <div className="flex items-center gap-2">
                 <Button variant="outline" size="icon" className="h-7 w-7" onClick={goToPreviousMonth}>
                     <ChevronLeft className="h-4 w-4" />
