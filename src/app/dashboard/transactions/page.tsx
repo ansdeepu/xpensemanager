@@ -337,23 +337,24 @@ export default function TransactionsPage() {
         if (t.type === 'transfer') {
             if (t.loanTransactionId) {
                 const loan = loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId));
-        
                 if (loan) {
-                    const loanTx = loan.transactions.find(lt => lt.id === t.loanTransactionId)!;
-                    const otherPartyName = loan.personName;
-                    
-                    const isLoanTaken = loan.type === 'taken';
-                    const isRepayment = loanTx.type === 'repayment';
-                    let descriptionPrefix = '';
+                    const loanTx = loan.transactions.find(lt => lt.id === t.loanTransactionId);
+                    if (loanTx) {
+                        const otherPartyName = loan.personName;
+                        
+                        const isLoanTaken = loan.type === 'taken';
+                        const isRepayment = loanTx.type === 'repayment';
+                        let descriptionPrefix = '';
 
-                    if (isLoanTaken) {
-                        descriptionPrefix = isRepayment ? 'Repayment to' : 'Loan from';
-                    } else { // 'given'
-                        descriptionPrefix = isRepayment ? 'Repayment from' : 'Loan to';
+                        if (isLoanTaken) {
+                            descriptionPrefix = isRepayment ? 'Repayment to' : 'Loan from';
+                        } else { // 'given'
+                            descriptionPrefix = isRepayment ? 'Repayment from' : 'Loan to';
+                        }
+                        
+                        const description = `${descriptionPrefix} ${otherPartyName}`;
+                        return { isLoan: true, type: loanTx.type, category: 'Loan', description, descriptionClassName: 'text-orange-600 font-bold' };
                     }
-                    
-                    const description = `${descriptionPrefix} ${otherPartyName}`;
-                    return { isLoan: true, type: loanTx.type, category: 'Loan', description, descriptionClassName: 'text-orange-600 font-bold' };
                 }
             }
 
@@ -695,7 +696,7 @@ export default function TransactionsPage() {
                             <div className="w-full grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-left pt-2">
                                 <div className="space-y-1">
                                     <Label className="text-sm">Bank Balance</Label>
-                                    <div className="font-mono text-lg">{formatCurrency(primaryAccount.balance)}</div>
+                                    <button type="button" className="font-mono text-lg hover:underline text-left" onClick={(e) => { e.stopPropagation(); handleAccountClick(primaryAccount); }}>{formatCurrency(primaryAccount.balance)}</button>
                                     <Input
                                         type="number"
                                         placeholder="Actual"
@@ -712,7 +713,7 @@ export default function TransactionsPage() {
                                 </div>
                                 <div className="space-y-1">
                                     <Label className="text-sm">Digital</Label>
-                                    <div className="font-mono text-lg">{formatCurrency(digitalWalletBalance)}</div>
+                                    <button type="button" className="font-mono text-lg hover:underline text-left" onClick={(e) => { e.stopPropagation(); handleAccountClick('digital-wallet', 'Digital Wallet'); }}>{formatCurrency(digitalWalletBalance)}</button>
                                     <Input
                                         type="number"
                                         placeholder="Actual"
@@ -729,7 +730,7 @@ export default function TransactionsPage() {
                                 </div>
                                 <div className="space-y-1">
                                     <Label className="text-sm">Cash</Label>
-                                    <div className="font-mono text-lg">{formatCurrency(cashWalletBalance)}</div>
+                                    <button type="button" className="font-mono text-lg hover:underline text-left" onClick={(e) => { e.stopPropagation(); handleAccountClick('cash-wallet', 'Cash Wallet'); }}>{formatCurrency(cashWalletBalance)}</button>
                                     <Input
                                         type="number"
                                         placeholder="Actual"
@@ -747,7 +748,7 @@ export default function TransactionsPage() {
                                 {primaryCreditCard && (
                                     <div className="space-y-1">
                                         <Label className="text-sm">{primaryCreditCard.name}</Label>
-                                        <div className="font-mono text-lg">{formatCurrency(primaryCardAvailable)}</div>
+                                        <button type="button" className="font-mono text-lg hover:underline text-left" onClick={(e) => { e.stopPropagation(); handleAccountClick(primaryCreditCard); }}>{formatCurrency(primaryCardAvailable)}</button>
                                         <Input
                                             type="number"
                                             placeholder="Actual Due"
@@ -778,7 +779,7 @@ export default function TransactionsPage() {
                     
                     let balanceDifference: number | null = null;
                      if (account.actualBalance !== undefined && account.actualBalance !== null) {
-                        balanceDifference = isCard ? (account.limit || 0) - account.balance - account.actualBalance : (account.balance - account.actualBalance);
+                        balanceDifference = isCard ? availableBalance - account.actualBalance : (account.balance - account.actualBalance);
                     }
 
                   return (
