@@ -59,7 +59,11 @@ export default function PostBankPage() {
         (t.toAccountId === postBankAccount.id)
     );
     
-    const filteredIncomeCategories = categories.filter(cat => cat.type === 'income');
+    const transactionCategoryIds = new Set(filteredTransactions.map(t => t.categoryId));
+
+    const filteredIncomeCategories = categories.filter(cat => 
+      cat.type === 'income' && transactionCategoryIds.has(cat.id)
+    );
 
     return { 
         postBankTransactions: filteredTransactions, 
