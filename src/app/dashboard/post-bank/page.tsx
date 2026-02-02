@@ -14,7 +14,6 @@ export default function PostBankPage() {
   const [user, userLoading] = useAuthState();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [incomeCategories, setIncomeCategories] = useState<Category[]>([]);
-  const [bankExpenseCategoriesList, setBankExpenseCategoriesList] = useState<Category[]>([]);
   const [postBankAccount, setPostBankAccount] = useState<Account | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -29,10 +28,6 @@ export default function PostBankPage() {
 
       unsubscribes.push(onSnapshot(query(collection(db, "categories"), where("userId", "==", user.uid), where("type", "==", "income")), (snapshot) => {
         setIncomeCategories(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category)));
-      }));
-
-      unsubscribes.push(onSnapshot(query(collection(db, "categories"), where("userId", "==", user.uid), where("type", "==", "bank-expense")), (snapshot) => {
-        setBankExpenseCategoriesList(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category)));
       }));
       
       unsubscribes.push(onSnapshot(query(collection(db, "transactions"), where("userId", "==", user.uid)), (snapshot) => {
@@ -50,11 +45,6 @@ export default function PostBankPage() {
       if (!postBankAccount) return [];
       return transactions.filter(t => t.accountId === postBankAccount.id);
   }, [transactions, postBankAccount]);
-
-  const combinedBankExpenseCategories = useMemo(() => {
-      const combined = [...incomeCategories, ...bankExpenseCategoriesList];
-      return Array.from(new Map(combined.map(item => [item.name, item])).values());
-  }, [incomeCategories, bankExpenseCategoriesList]);
 
   if (loading || userLoading) {
     return <Skeleton className="h-96 w-full" />;
@@ -74,7 +64,7 @@ export default function PostBankPage() {
 
   return (
     <div className="space-y-6">
-      <PostCategoryAccordion categories={combinedBankExpenseCategories} transactions={postBankTransactions} isEditable={false} />
+      <PostCategoryAccordion categories={incomeCategories} transactions={postBankTransactions} isEditable={false} />
     </div>
   );
 }
