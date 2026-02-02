@@ -1,4 +1,3 @@
-
 "use client";
 
 import { CategoryList } from "@/components/dashboard/categories/category-list";
@@ -20,7 +19,7 @@ export default function CategoriesPage() {
            <CategoryList categoryType="income" />
         </TabsContent>
          <TabsContent value="bank-expense" className="mt-6">
-           <CategoryList categoryType="bank-expense" />
+           <CategoryList categoryType="bank-expense" isEditable={false} />
         </TabsContent>
       </Tabs>
     </div>

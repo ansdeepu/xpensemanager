@@ -133,12 +133,14 @@ function SortableSubCategoryItem({
   subCategory,
   serialNumber,
   onEditSubCategory,
-  onDeleteSubCategory
+  onDeleteSubCategory,
+  isEditable
 }: { 
   subCategory: SubCategory,
   serialNumber: number,
   onEditSubCategory: () => void,
-  onDeleteSubCategory: () => void
+  onDeleteSubCategory: () => void,
+  isEditable: boolean
 }) {
     const {
         attributes,
@@ -147,7 +149,7 @@ function SortableSubCategoryItem({
         transform,
         transition,
         isDragging,
-    } = useSortable({id: subCategory.id});
+    } = useSortable({id: subCategory.id, disabled: !isEditable});
 
     const style = {
         transform: CSS.Transform.toString(transform),
@@ -158,7 +160,7 @@ function SortableSubCategoryItem({
     return (
         <div ref={setNodeRef} style={style} className={cn(badgeVariants({variant: "secondary"}), "relative flex justify-between items-start h-auto py-1.5 px-2.5 touch-none w-full gap-2")}>
             <div className="flex items-start gap-2 flex-1 min-w-0">
-                <div {...attributes} {...listeners} className="cursor-grab text-muted-foreground flex-shrink-0 pt-0.5">
+                <div {...(isEditable ? { ...attributes, ...listeners } : {})} className={cn("text-muted-foreground flex-shrink-0 pt-0.5", isEditable && "cursor-grab")}>
                     <GripVertical className="h-4 w-4"/>
                 </div>
                 <div className="flex-grow min-w-0 flex items-start gap-1.5">
@@ -181,38 +183,42 @@ function SortableSubCategoryItem({
                   <span className="font-mono text-xs text-muted-foreground whitespace-nowrap">{formatCurrency(subCategory.amount)}</span>
                 )}
                 <div className="flex items-center">
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <button onClick={onEditSubCategory} className="p-0.5 hover:text-foreground rounded-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-                                <Pencil className="h-3.5 w-3.5"/>
-                            </button>
-                        </TooltipTrigger>
-                        <TooltipContent>Edit Sub-category</TooltipContent>
-                    </Tooltip>
-                    <AlertDialog>
+                    {isEditable && (
+                        <>
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <AlertDialogTrigger asChild>
-                                    <button className="p-0.5 hover:text-destructive rounded-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-                                        <Trash2 className="h-3.5 w-3.5"/>
-                                    </button>
-                                </AlertDialogTrigger>
+                                <button onClick={onEditSubCategory} className="p-0.5 hover:text-foreground rounded-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+                                    <Pencil className="h-3.5 w-3.5"/>
+                                </button>
                             </TooltipTrigger>
-                            <TooltipContent>Delete Sub-category</TooltipContent>
+                            <TooltipContent>Edit Sub-category</TooltipContent>
                         </Tooltip>
-                        <AlertDialogContent>
-                            <AlertDialogHeader>
-                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                    This will permanently delete the "{subCategory.name}" subcategory. This action cannot be undone.
-                                </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={onDeleteSubCategory} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                            </AlertDialogFooter>
-                        </AlertDialogContent>
-                    </AlertDialog>
+                        <AlertDialog>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <AlertDialogTrigger asChild>
+                                        <button className="p-0.5 hover:text-destructive rounded-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+                                            <Trash2 className="h-3.5 w-3.5"/>
+                                        </button>
+                                    </AlertDialogTrigger>
+                                </TooltipTrigger>
+                                <TooltipContent>Delete Sub-category</TooltipContent>
+                            </Tooltip>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        This will permanently delete the "{subCategory.name}" subcategory. This action cannot be undone.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={onDeleteSubCategory} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                        </>
+                    )}
                 </div>
             </div>
         </div>
@@ -223,6 +229,7 @@ function SortableSubCategoryItem({
 function SortableCategoryCard({ 
   category,
   categoryType,
+  isEditable,
   onAddSubCategory,
   onEditCategory,
   onDeleteCategory,
@@ -232,6 +239,7 @@ function SortableCategoryCard({
 }: { 
   category: Category, 
   categoryType: 'expense' | 'income' | 'bank-expense',
+  isEditable: boolean,
   onAddSubCategory: (category: Category) => void,
   onEditCategory: (category: Category) => void,
   onDeleteCategory: (categoryId: string) => void,
@@ -245,7 +253,7 @@ function SortableCategoryCard({
         setNodeRef,
         transform,
         transition,
-    } = useSortable({ id: category.id });
+    } = useSortable({ id: category.id, disabled: !isEditable });
 
     const style = {
         transform: CSS.Transform.toString(transform),
@@ -273,6 +281,7 @@ function SortableCategoryCard({
     const allSubcategoryIds = useMemo(() => category.subcategories.map(s => s.id), [category.subcategories]);
 
     const handleDragEnd = (event: DragEndEvent) => {
+        if (!isEditable) return;
         const { active, over } = event;
         if (active.id !== over?.id) {
             const oldIndex = allSubcategoryIds.indexOf(active.id as string);
@@ -315,39 +324,43 @@ function SortableCategoryCard({
                             <CardDescription>{formatCurrency(totalAmount)}</CardDescription>
                         )}
                         <div className="flex items-center gap-0.5 flex-shrink-0 border rounded-md p-0.5 ml-auto">
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEditCategory(category)}>
-                                    <Pencil className="h-4 w-4" />
-                                </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Edit Category</TooltipContent>
-                            </Tooltip>
-                            <AlertDialog>
+                            {isEditable && (
+                                <>
                                 <Tooltip>
                                     <TooltipTrigger asChild>
-                                    <AlertDialogTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-7 w-7">
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                    </AlertDialogTrigger>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEditCategory(category)}>
+                                        <Pencil className="h-4 w-4" />
+                                    </Button>
                                     </TooltipTrigger>
-                                    <TooltipContent>Delete Category</TooltipContent>
+                                    <TooltipContent>Edit Category</TooltipContent>
                                 </Tooltip>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        This will permanently delete the "{category.name}" category and all its subcategories. This action cannot be undone.
-                                    </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => onDeleteCategory(category.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                            <div {...attributes} {...listeners} className="touch-none p-1.5 cursor-grab text-muted-foreground hover:text-foreground">
+                                <AlertDialog>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                        <AlertDialogTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-7 w-7">
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </AlertDialogTrigger>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Delete Category</TooltipContent>
+                                    </Tooltip>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            This will permanently delete the "{category.name}" category and all its subcategories. This action cannot be undone.
+                                        </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => onDeleteCategory(category.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                                </>
+                            )}
+                            <div {...(isEditable ? { ...attributes, ...listeners } : {})} className={cn("touch-none p-1.5 ml-auto text-muted-foreground hover:text-foreground", isEditable ? "cursor-grab" : "cursor-default")}>
                                 <GripVertical className="h-5 w-5" />
                             </div>
                         </div>
@@ -375,6 +388,7 @@ function SortableCategoryCard({
                                                                 key={sub.id}
                                                                 subCategory={sub} 
                                                                 serialNumber={index + 1}
+                                                                isEditable={isEditable}
                                                                 onEditSubCategory={() => onEditSubCategory(category, sub)}
                                                                 onDeleteSubCategory={() => onDeleteSubCategory(category, sub)}
                                                             />
@@ -391,6 +405,7 @@ function SortableCategoryCard({
                                                                 key={sub.id}
                                                                 subCategory={sub} 
                                                                 serialNumber={monthlySubcategories.length + index + 1}
+                                                                isEditable={isEditable}
                                                                 onEditSubCategory={() => onEditSubCategory(category, sub)}
                                                                 onDeleteSubCategory={() => onDeleteSubCategory(category, sub)}
                                                             />
@@ -406,6 +421,7 @@ function SortableCategoryCard({
                                                     key={sub.id}
                                                     subCategory={sub} 
                                                     serialNumber={index + 1}
+                                                    isEditable={isEditable}
                                                     onEditSubCategory={() => onEditSubCategory(category, sub)}
                                                     onDeleteSubCategory={() => onDeleteSubCategory(category, sub)}
                                                 />
@@ -423,10 +439,12 @@ function SortableCategoryCard({
                   </div>
                 </CardContent>
                <CardFooter className="pt-4 border-t mt-auto">
-                    <Button variant="outline" className="w-full" onClick={() => onAddSubCategory(category)}>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Add Sub-category
-                  </Button>
+                    {isEditable && (
+                        <Button variant="outline" className="w-full" onClick={() => onAddSubCategory(category)}>
+                            <Plus className="mr-2 h-4 w-4" />
+                            Add Sub-category
+                        </Button>
+                    )}
                 </CardFooter>
             </Card>
         </div>
@@ -455,7 +473,7 @@ function MonthSelector({ selectedMonths, onMonthToggle }: { selectedMonths: stri
     );
 }
 
-export function CategoryList({ categoryType }: { categoryType: 'expense' | 'income' | 'bank-expense' }) {
+export function CategoryList({ categoryType, isEditable = true }: { categoryType: 'expense' | 'income' | 'bank-expense', isEditable?: boolean }) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
   const [isSubCategoryDialogOpen, setIsSubCategoryDialogOpen] = useState(false);
@@ -698,6 +716,7 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'inco
   }
 
   async function handleDragEnd(event: DragEndEvent) {
+    if (!isEditable) return;
     const { active, over } = event;
     if (active.id !== over?.id) {
         const oldIndex = categoryIds.indexOf(active.id as string);
@@ -809,59 +828,61 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'inco
 
   return (
     <TooltipProvider>
-      <div className="flex justify-end mb-6 gap-2">
-         <input 
-            type="file" 
-            ref={fileInputRef} 
-            onChange={handleFileUpload} 
-            accept=".xlsx, .xls"
-            className="hidden" 
-          />
-        <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
-            <Upload className="mr-2 h-4 w-4" />
-            Import from Excel
-        </Button>
-        <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Add {titleCase(categoryType)} Category
-            </Button>
-          </DialogTrigger>
-          <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-[425px]">
-            <form onSubmit={handleAddCategory}>
-              <DialogHeader>
-                <DialogTitle>Add New {titleCase(categoryType)} Category</DialogTitle>
-                <DialogDescription>
-                  Enter a name for your new {categoryType.replace('-', ' ')} category.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="name" className="text-right">
-                    Name
-                  </Label>
-                  <Input
-                    id="name"
-                    name="name"
-                    placeholder="e.g. Utilities"
-                    className="col-span-3"
-                    required
-                  />
+      {isEditable && (
+        <div className="flex justify-end mb-6 gap-2">
+          <input 
+              type="file" 
+              ref={fileInputRef} 
+              onChange={handleFileUpload} 
+              accept=".xlsx, .xls"
+              className="hidden" 
+            />
+          <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+              <Upload className="mr-2 h-4 w-4" />
+              Import from Excel
+          </Button>
+          <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Add {titleCase(categoryType)} Category
+              </Button>
+            </DialogTrigger>
+            <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-[425px]">
+              <form onSubmit={handleAddCategory}>
+                <DialogHeader>
+                  <DialogTitle>Add New {titleCase(categoryType)} Category</DialogTitle>
+                  <DialogDescription>
+                    Enter a name for your new {categoryType.replace('-', ' ')} category.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="name" className="text-right">
+                      Name
+                    </Label>
+                    <Input
+                      id="name"
+                      name="name"
+                      placeholder="e.g. Utilities"
+                      className="col-span-3"
+                      required
+                    />
+                  </div>
                 </div>
-              </div>
-              <DialogFooter>
-                <DialogClose asChild>
-                  <Button type="button" variant="secondary">
-                    Cancel
-                  </Button>
-                </DialogClose>
-                <Button type="submit">Add Category</Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </div>
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <Button type="button" variant="secondary">
+                      Cancel
+                    </Button>
+                  </DialogClose>
+                  <Button type="submit">Add Category</Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
+      )}
 
       <div className="pr-4">
         <DndContext
@@ -877,6 +898,7 @@ export function CategoryList({ categoryType }: { categoryType: 'expense' | 'inco
                           key={category.id} 
                           category={category} 
                           categoryType={categoryType}
+                          isEditable={isEditable}
                           onAddSubCategory={openSubCategoryDialog} 
                           onEditCategory={openEditCategoryDialog}
                           onDeleteCategory={handleDeleteCategory}
