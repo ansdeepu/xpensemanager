@@ -78,7 +78,7 @@ export default function LoansPage() {
 
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-5xl mx-auto">
       <Tabs defaultValue="taken" className="w-full">
         <TabsList className="grid w-full grid-cols-2 h-auto">
           <TabsTrigger value="taken" className="flex flex-col h-auto p-2 items-start text-left">
