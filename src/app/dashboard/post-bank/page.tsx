@@ -9,7 +9,8 @@ import { useAuthState } from "@/hooks/use-auth-state";
 import { PostCategoryAccordion } from "@/components/dashboard/post-bank/post-category-accordion";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
-const POST_BANK_CATEGORY_NAMES = new Set([
+// The list of categories the user wants to see.
+const POST_BANK_CATEGORY_NAMES = [
   "Diesel Collection",
   "Staff Club Accounts",
   "Ente Keralam Accounts",
@@ -24,12 +25,11 @@ const POST_BANK_CATEGORY_NAMES = new Set([
   "Arun Chettan - Loan",
   "Bank Charges",
   "Deepa Car Accounts",
-]);
+];
 
 export default function PostBankPage() {
   const [user, userLoading] = useAuthState();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [allCategories, setAllCategories] = useState<Category[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
 
@@ -45,54 +45,48 @@ export default function PostBankPage() {
       const transactionsQuery = query(collection(db, "transactions"), where("userId", "==", user.uid));
       const unsubscribeTransactions = onSnapshot(transactionsQuery, (snapshot) => {
         setTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction)));
+        setDataLoading(false); // Set loading to false after transactions are fetched
       });
-
-      const categoriesQuery = query(collection(db, "categories"), where("userId", "==", user.uid));
-      const unsubscribeCategories = onSnapshot(categoriesQuery, (snapshot) => {
-        setAllCategories(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category)));
-        setDataLoading(false);
-      });
-
+      
       return () => {
         unsubscribeAccounts();
         unsubscribeTransactions();
-        unsubscribeCategories();
       };
     } else if (!userLoading) {
       setDataLoading(false);
     }
   }, [user, userLoading]);
 
-  const { postBankTransactions, postBankRelevantCategories, postBankAccountId } = useMemo(() => {
-    // Find the Post Bank account
+  const { postBankTransactions, virtualCategories, postBankAccountId } = useMemo(() => {
     const postBankAccount = accounts.find(acc => acc.name.toLowerCase().includes('post bank'));
     
     if (!postBankAccount) {
-      return { postBankTransactions: [], postBankRelevantCategories: [], postBankAccountId: undefined };
+      return { postBankTransactions: [], virtualCategories: [], postBankAccountId: undefined };
     }
 
-    // 1. Filter ALL transactions related to the Post Bank account
     const allPostBankTransactions = transactions.filter(t => 
         (t.accountId === postBankAccount.id) ||
         (t.fromAccountId === postBankAccount.id) ||
         (t.toAccountId === postBankAccount.id)
     );
 
-    // 2. Filter allCategories to get only the Category objects for the names the user specified.
-    const targetCategories = allCategories.filter(cat => 
-        POST_BANK_CATEGORY_NAMES.has(cat.name)
-    );
-    
-    // 3. Of those specified categories, only include the ones that actually have transactions in the Post Bank account to avoid empty accordions.
-    const categoryIdsWithPostBankTransactions = new Set(allPostBankTransactions.map(t => t.categoryId));
-    const relevantCategories = targetCategories.filter(cat => categoryIdsWithPostBankTransactions.has(cat.id));
+    // Create "virtual" category objects from the user's list.
+    const virtualCategories = POST_BANK_CATEGORY_NAMES.map(name => ({
+        id: name, // Use name as ID for simplicity
+        name: name,
+        userId: user?.uid || '',
+        icon: 'Tag', // Default icon
+        subcategories: [],
+        order: 0,
+        type: 'income' // Type isn't strictly used in this component, but set for consistency
+    } as Category));
 
     return { 
         postBankTransactions: allPostBankTransactions, 
-        postBankRelevantCategories: relevantCategories,
+        virtualCategories: virtualCategories,
         postBankAccountId: postBankAccount.id
     };
-  }, [accounts, transactions, allCategories]);
+  }, [accounts, transactions, user]);
 
 
   if (userLoading || dataLoading) {
@@ -123,7 +117,7 @@ export default function PostBankPage() {
   return (
     <div className="space-y-6">
        <PostCategoryAccordion
-            categories={postBankRelevantCategories}
+            categories={virtualCategories}
             transactions={postBankTransactions}
             postBankAccountId={postBankAccountId}
         />

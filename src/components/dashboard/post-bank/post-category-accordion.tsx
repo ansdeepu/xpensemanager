@@ -43,8 +43,9 @@ function CategoryAccordionItem({
     accountId: string | undefined;
 }) {
     const categoryTransactions = useMemo(() => {
-        return transactions.filter(t => t.categoryId === category.id);
-    }, [transactions, category.id]);
+        // Filter transactions by the category name
+        return transactions.filter(t => t.category === category.name);
+    }, [transactions, category.name]);
 
     const { transactionsWithBalance, totalCredit, totalDebit } = useMemo(() => {
         if (!accountId) return { transactionsWithBalance: [], totalCredit: 0, totalDebit: 0 };
@@ -160,14 +161,14 @@ export function PostCategoryAccordion({ categories, transactions, postBankAccoun
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Post Bank Income Categories</CardTitle>
+                <CardTitle>Post Bank Categories</CardTitle>
                 <CardDescription>
-                    Breakdown of Post Bank account transactions by income category.
+                    Breakdown of Post Bank account transactions.
                 </CardDescription>
             </CardHeader>
             <CardContent className="pt-6">
                 <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-40">
-                    <p>No income transactions found for the Post Bank account.</p>
+                    <p>No categories specified.</p>
                 </div>
             </CardContent>
         </Card>
@@ -177,9 +178,9 @@ export function PostCategoryAccordion({ categories, transactions, postBankAccoun
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Post Bank Income Categories</CardTitle>
+        <CardTitle>Post Bank Categories</CardTitle>
         <CardDescription>
-            Breakdown of Post Bank account transactions by income category.
+            Breakdown of Post Bank account transactions by the specified categories.
         </CardDescription>
       </CardHeader>
       <CardContent>
