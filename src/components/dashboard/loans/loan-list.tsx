@@ -148,7 +148,7 @@ function LoanAccordionItem({
             </AccordionTrigger>
             <AccordionContent>
                 <div className="flex justify-center px-4 pb-4">
-                    <Card className="bg-muted/50 w-full lg:w-5/6">
+                    <Card className="bg-muted/50 w-full lg:w-2/3">
                         <CardHeader className="pb-2 flex-row justify-between items-center">
                             <div className="flex items-center gap-2">
                                 <CardDescription className="flex gap-4">
@@ -831,3 +831,5 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
     </>
   );
 }
+
+    
