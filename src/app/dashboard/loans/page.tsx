@@ -87,8 +87,8 @@ export default function LoansPage() {
                 <span className="font-bold text-lg text-red-600">{!loading && formatCurrency(balanceLoanTaken)}</span>
             </div>
             <div className="w-full text-xs text-muted-foreground mt-1 grid grid-cols-2 gap-2">
-                <span>Credit: {formatCurrency(totalLoanTaken)}</span>
-                <span>Debit: {formatCurrency(totalRepaymentForTaken)}</span>
+                <span>Loan taken: {formatCurrency(totalLoanTaken)}</span>
+                <span>Repayment: {formatCurrency(totalRepaymentForTaken)}</span>
             </div>
           </TabsTrigger>
           <TabsTrigger value="given" className="flex flex-col h-auto p-2 items-start text-left">
@@ -97,8 +97,8 @@ export default function LoansPage() {
                 <span className="font-bold text-lg text-green-600">{!loading && formatCurrency(balanceLoanGiven)}</span>
             </div>
              <div className="w-full text-xs text-muted-foreground mt-1 grid grid-cols-2 gap-2">
-                <span>Debit: {formatCurrency(totalLoanGiven)}</span>
-                <span>Credit: {formatCurrency(totalRepaymentForGiven)}</span>
+                <span>Loan Given: {formatCurrency(totalLoanGiven)}</span>
+                <span>Repayment: {formatCurrency(totalRepaymentForGiven)}</span>
             </div>
           </TabsTrigger>
         </TabsList>
