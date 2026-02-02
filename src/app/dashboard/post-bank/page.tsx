@@ -29,7 +29,7 @@ const POST_BANK_CATEGORY_NAMES = [
 
 export default function PostBankPage() {
   const [user, userLoading] = useAuthState();
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
 
@@ -44,8 +44,8 @@ export default function PostBankPage() {
 
       const transactionsQuery = query(collection(db, "transactions"), where("userId", "==", user.uid));
       const unsubscribeTransactions = onSnapshot(transactionsQuery, (snapshot) => {
-        setTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction)));
-        setDataLoading(false); // Set loading to false after transactions are fetched
+        setAllTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction)));
+        setDataLoading(false);
       });
       
       return () => {
@@ -57,36 +57,78 @@ export default function PostBankPage() {
     }
   }, [user, userLoading]);
 
-  const { postBankTransactions, virtualCategories, postBankAccountId } = useMemo(() => {
+  const { postBankTransactionsWithBalance, virtualCategories, postBankAccountId } = useMemo(() => {
     const postBankAccount = accounts.find(acc => acc.name.toLowerCase().includes('post bank'));
     
     if (!postBankAccount) {
-      return { postBankTransactions: [], virtualCategories: [], postBankAccountId: undefined };
+      return { postBankTransactionsWithBalance: [], virtualCategories: [], postBankAccountId: undefined };
     }
 
-    const allPostBankTransactions = transactions.filter(t => 
+    // 1. Calculate final balance of Post Bank account
+    let finalBalance = 0;
+    const chronologicalTransactions = [...allTransactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    
+    chronologicalTransactions.forEach(t => {
+      let effect = 0;
+      
+      if (t.type === 'income' && t.accountId === postBankAccount.id) {
+          effect = t.amount;
+      } else if (t.type === 'expense' && t.accountId === postBankAccount.id && t.paymentMethod === 'online') {
+          effect = -t.amount;
+      } else if (t.type === 'transfer') {
+          if (t.fromAccountId === postBankAccount.id) effect = -t.amount;
+          if (t.toAccountId === postBankAccount.id) effect = t.amount;
+      }
+      finalBalance += effect;
+    });
+
+    // 2. Filter for post bank transactions
+    const postBankTransactions = allTransactions.filter(t => 
         (t.accountId === postBankAccount.id) ||
         (t.fromAccountId === postBankAccount.id) ||
         (t.toAccountId === postBankAccount.id)
-    );
+    ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); // newest first
 
-    // Create "virtual" category objects from the user's list.
+    // 3. Calculate running balance for these transactions
+    const correctBalances = new Map<string, number>();
+    let correctRunningBalance = finalBalance;
+
+    for (const t of postBankTransactions) {
+      correctBalances.set(t.id, correctRunningBalance);
+      
+      let effect = 0;
+      if (t.type === 'income' && t.accountId === postBankAccount.id) {
+          effect = t.amount;
+      } else if (t.type === 'expense' && t.accountId === postBankAccount.id && t.paymentMethod === 'online') {
+          effect = -t.amount;
+      } else if (t.type === 'transfer') {
+          if (t.fromAccountId === postBankAccount.id) effect = -t.amount;
+          if (t.toAccountId === postBankAccount.id) effect = t.amount;
+      }
+      correctRunningBalance -= effect; // Correct way to go backwards
+    }
+
+    const transactionsWithBalance = postBankTransactions.map(t => ({
+        ...t,
+        balance: correctBalances.get(t.id) ?? 0,
+    }));
+    
     const virtualCategories = POST_BANK_CATEGORY_NAMES.map(name => ({
-        id: name, // Use name as ID for simplicity
+        id: name,
         name: name,
         userId: user?.uid || '',
-        icon: 'Tag', // Default icon
+        icon: 'Tag',
         subcategories: [],
         order: 0,
-        type: 'income' // Type isn't strictly used in this component, but set for consistency
+        type: 'income' // Placeholder type
     } as Category));
 
     return { 
-        postBankTransactions: allPostBankTransactions, 
+        postBankTransactionsWithBalance: transactionsWithBalance, 
         virtualCategories: virtualCategories,
         postBankAccountId: postBankAccount.id
     };
-  }, [accounts, transactions, user]);
+  }, [accounts, allTransactions, user]);
 
 
   if (userLoading || dataLoading) {
@@ -118,7 +160,7 @@ export default function PostBankPage() {
     <div className="space-y-6">
        <PostCategoryAccordion
             categories={virtualCategories}
-            transactions={postBankTransactions}
+            transactions={postBankTransactionsWithBalance}
             postBankAccountId={postBankAccountId}
         />
     </div>

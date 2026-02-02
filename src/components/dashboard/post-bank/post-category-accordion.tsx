@@ -39,76 +39,41 @@ function CategoryAccordionItem({
     accountId,
 }: {
     category: Category;
-    transactions: Transaction[];
+    transactions: (Transaction & { balance: number })[];
     accountId: string | undefined;
 }) {
-    const categoryTransactions = useMemo(() => {
-        // Filter transactions by the category name
-        return transactions.filter(t => t.category === category.name);
-    }, [transactions, category.name]);
+    const { categoryTransactions, totalCredit, totalDebit } = useMemo(() => {
+        // Filter transactions where the subcategory or category matches the virtual category name.
+        const filteredTxs = transactions.filter(t => t.subcategory === category.name || t.category === category.name);
 
-    const { transactionsWithRunningBalance, totalCredit, totalDebit } = useMemo(() => {
-        if (!accountId) return { transactionsWithRunningBalance: [], totalCredit: 0, totalDebit: 0 };
-        
-        const chronologicalTxs = [...categoryTransactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-        
-        let runningBalance = 0;
         let creditTotal = 0;
         let debitTotal = 0;
 
-        const transactionsWithDetails = chronologicalTxs.map(t => {
-            let credit = null;
-            let debit = null;
-            let effect = 0;
+        const txsWithCreditDebit = filteredTxs.map(t => {
+            let credit: number | null = null;
+            let debit: number | null = null;
 
             if (t.type === 'income' && t.accountId === accountId) {
                 credit = t.amount;
-                effect = t.amount;
                 creditTotal += t.amount;
             } else if (t.type === 'expense' && t.accountId === accountId) {
                 debit = t.amount;
-                effect = -t.amount;
                 debitTotal += t.amount;
             } else if (t.type === 'transfer') {
                 if (t.toAccountId === accountId) {
                     credit = t.amount;
-                    effect = t.amount;
                     creditTotal += t.amount;
                 }
                 if (t.fromAccountId === accountId) {
                     debit = t.amount;
-                    effect = -t.amount;
                     debitTotal += t.amount;
                 }
             }
-            
-            runningBalance += effect;
-            return { ...t, credit, debit, balance: runningBalance };
+            return { ...t, credit, debit };
         });
 
-        // To show the correct final running balance, we need to adjust it based on the reversed order
-        const finalBalance = runningBalance;
-        let currentBalance = finalBalance;
-        
-        const reversedWithFinalBalance = transactionsWithDetails.reverse().map(t => {
-            const txWithBalance = { ...t, balance: currentBalance };
-            let effect = 0;
-             if (t.credit) {
-                effect = -t.credit;
-            } else if (t.debit) {
-                effect = t.debit;
-            }
-            currentBalance += effect;
-            return txWithBalance;
-        });
-
-
-        return {
-            transactionsWithRunningBalance: reversedWithFinalBalance,
-            totalCredit: creditTotal,
-            totalDebit: debitTotal,
-        };
-    }, [categoryTransactions, accountId]);
+        return { categoryTransactions: txsWithCreditDebit, totalCredit: creditTotal, totalDebit: debitTotal };
+    }, [transactions, category.name, accountId]);
 
     return (
         <AccordionItem value={category.id}>
@@ -141,7 +106,7 @@ function CategoryAccordionItem({
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {transactionsWithRunningBalance.length > 0 ? transactionsWithRunningBalance.map(t => (
+                                        {categoryTransactions.length > 0 ? categoryTransactions.map(t => (
                                             <TableRow key={t.id}>
                                                 <TableCell>{isValid(parseISO(t.date)) ? format(parseISO(t.date), "dd/MM/yyyy") : '-'}</TableCell>
                                                 <TableCell>{t.description}</TableCell>
@@ -173,7 +138,7 @@ function CategoryAccordionItem({
     )
 }
 
-export function PostCategoryAccordion({ categories, transactions, postBankAccountId }: { categories: Category[], transactions: Transaction[], postBankAccountId: string | undefined }) {
+export function PostCategoryAccordion({ categories, transactions, postBankAccountId }: { categories: Category[], transactions: (Transaction & { balance: number })[], postBankAccountId: string | undefined }) {
   if (categories.length === 0) {
     return (
         <Card>
