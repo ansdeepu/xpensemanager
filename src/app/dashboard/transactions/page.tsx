@@ -683,9 +683,9 @@ export default function TransactionsPage() {
 
   return (
     <div className="space-y-6">
-       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {primaryAccount && (
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="lg:col-span-1">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="lg:col-span-2">
                 <TabsList className="h-auto p-0 bg-transparent">
                     <TabsTrigger value={primaryAccount.id} asChild>
                         <div className={cn("rounded-lg border-2 flex flex-col p-3 items-start text-left gap-2 cursor-pointer transition-shadow h-full w-full", activeTab === primaryAccount.id ? "shadow-lg border-primary bg-lime-100/50 dark:bg-lime-900/50" : "bg-card")}>
@@ -771,7 +771,7 @@ export default function TransactionsPage() {
             </Tabs>
         )}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="lg:col-span-1">
-            <TabsList className="grid grid-cols-2 gap-2 h-auto p-0 bg-transparent">
+            <TabsList className="grid grid-cols-1 gap-2 h-auto p-0 bg-transparent">
                  {sortedDisplayAccounts.map((account, index) => {
                     const isCard = account.type === 'card';
                     const calculatedDue = account.balance;
