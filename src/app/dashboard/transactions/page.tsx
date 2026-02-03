@@ -684,15 +684,15 @@ export default function TransactionsPage() {
   return (
     <div className="space-y-6">
        <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 h-auto p-0 bg-transparent">
+        <TabsList className="grid grid-cols-1 md:grid-cols-3 gap-4 h-auto p-0 bg-transparent">
             {primaryAccount && (
-                <TabsTrigger value={primaryAccount.id} asChild className="sm:col-span-2 lg:col-span-2 w-full h-full p-0 block data-[state=active]:shadow-none">
+                <TabsTrigger value={primaryAccount.id} asChild className="md:row-span-2 w-full h-full p-0 block data-[state=active]:shadow-none">
                     <div className={cn("rounded-lg border-2 flex flex-col p-3 items-start text-left gap-2 cursor-pointer transition-shadow h-full w-full", activeTab === primaryAccount.id ? "shadow-lg border-primary bg-lime-100/50 dark:bg-lime-900/50" : "bg-card")}>
                         <div className="w-full flex justify-between items-center">
                               <h3 className="font-semibold text-lg">Primary ({primaryAccount.name})</h3>
                               <span className="font-bold text-xl text-primary">{formatCurrency(primaryAllBalance)}</span>
                         </div>
-                        <div className="w-full grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-left pt-2">
+                        <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-4 text-left pt-2 mt-auto">
                             <div className="space-y-1">
                                 <Label className="text-sm block">Bank Balance</Label>
                                 <button type="button" className="font-mono text-lg hover:underline text-left" onClick={(e) => { e.stopPropagation(); handleAccountClick(primaryAccount); }}>{formatCurrency(primaryAccount.balance)}</button>
@@ -778,7 +778,7 @@ export default function TransactionsPage() {
                 }
 
               return (
-                  <TabsTrigger key={account.id} value={account.id} asChild className="lg:col-span-1 w-full h-full p-0 block data-[state=active]:shadow-none">
+                  <TabsTrigger key={account.id} value={account.id} asChild className="w-full h-full p-0 block data-[state=active]:shadow-none">
                       <div 
                           className={cn(
                               "rounded-lg border flex flex-col p-3 items-start text-left gap-1 cursor-pointer transition-shadow h-full", 
@@ -932,5 +932,3 @@ export default function TransactionsPage() {
     </div>
   );
 }
-
-    
