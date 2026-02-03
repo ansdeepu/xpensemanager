@@ -366,14 +366,12 @@ export default function TransactionsPage() {
 
             if (fromIsPrimaryBank && toIsWallet) {
                 const toWalletName = t.toAccountId === 'cash-wallet' ? 'Cash' : 'Digital';
-                const description = `Issue to ${toWalletName} Wallet`;
-                return { ...defaultInfo, type: 'issue' as const, description };
+                return { ...defaultInfo, type: 'issue' as const, description: `Issue to ${toWalletName} Wallet` };
             }
 
             if (fromIsWallet && toIsPrimaryBank) {
                 const fromWalletName = t.fromAccountId === 'cash-wallet' ? 'Cash' : 'Digital';
-                const description = `Return from ${fromWalletName} Wallet`;
-                return { ...defaultInfo, type: 'return' as const, description };
+                return { ...defaultInfo, type: 'return' as const, description: `Return from ${fromWalletName} Wallet` };
             }
         }
         
@@ -676,17 +674,20 @@ export default function TransactionsPage() {
   }
   
   let primaryCardBalanceDifference: number | null = null;
-  if (primaryCreditCard?.actualBalance !== undefined && primaryCreditCard?.actualBalance !== null) {
-      primaryCardBalanceDifference = (primaryCreditCard.limit || 0) - primaryCreditCard.balance - primaryCreditCard.actualBalance;
+  if (primaryCreditCard) {
+    const calculatedAvailable = (primaryCreditCard.limit || 0) - primaryCreditCard.balance;
+    if (primaryCreditCard.actualBalance !== undefined && primaryCreditCard.actualBalance !== null) {
+      primaryCardBalanceDifference = getBalanceDifference(calculatedAvailable, primaryCreditCard.actualBalance);
+    }
   }
 
 
   return (
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {primaryAccount && (
-                <div className="md:col-span-1">
+                <div className="lg:col-span-1">
                     <TabsList className="h-full p-0 bg-transparent">
                         <TabsTrigger value={primaryAccount.id} asChild>
                             <div className={cn("rounded-lg border-2 flex flex-col p-3 items-start text-left gap-2 cursor-pointer transition-shadow h-full w-full", activeTab === primaryAccount.id ? "shadow-lg border-primary bg-lime-100/50 dark:bg-lime-900/50" : "bg-card")}>
@@ -771,7 +772,7 @@ export default function TransactionsPage() {
                     </TabsList>
                 </div>
             )}
-            <div className="md:col-span-1">
+            <div className="lg:col-span-1">
                 <TabsList className="grid grid-cols-2 gap-2 h-auto p-0 bg-transparent">
                     {sortedDisplayAccounts.map((account, index) => {
                         const isCard = account.type === 'card';
@@ -780,7 +781,9 @@ export default function TransactionsPage() {
                         
                         let balanceDifference: number | null = null;
                         if (account.actualBalance !== undefined && account.actualBalance !== null) {
-                            balanceDifference = isCard ? availableBalance - account.actualBalance : (account.balance - account.actualBalance);
+                            balanceDifference = isCard 
+                                ? getBalanceDifference(availableBalance, account.actualBalance) 
+                                : getBalanceDifference(account.balance, account.actualBalance);
                         }
 
                         return (
@@ -934,6 +937,3 @@ export default function TransactionsPage() {
     </div>
   );
 }
-
-    
-    
