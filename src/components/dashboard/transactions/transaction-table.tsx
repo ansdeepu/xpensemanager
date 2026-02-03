@@ -161,7 +161,6 @@ export function TransactionTable({
       };
 
     const primaryAccountFromProps = useMemo(() => accounts.find(a => a.isPrimary), [accounts]);
-    const postBankAccount = useMemo(() => accounts.find(a => a.name.toLowerCase().includes('post bank')), [accounts]);
     
     const getLoanDisplayInfo = useMemo(() => {
         return (t: Transaction) => {
@@ -317,13 +316,11 @@ export function TransactionTable({
     }
 
     if (selectedTransaction.type === 'expense') {
-        // Corrected logic: No special case for POST Bank during edit.
         return categories.filter(c => c.type === 'expense' || c.type === 'bank-expense');
     }
 
     return [];
   }, [categories, selectedTransaction]);
-
   
   const handleEditTransaction = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -459,7 +456,7 @@ export function TransactionTable({
             categoryDoc = categories.find(c => c.id === transaction.categoryId);
         } else if (transaction.category) {
             // Fallback to finding by name if ID is missing
-            categoryDoc = categories.find(c => c.name === transaction.category && c.type === transaction.type);
+            categoryDoc = categories.find(c => c.name === transaction.category && (c.type === transaction.type || (transaction.type === 'expense' && c.type === 'bank-expense')));
         }
         setEditCategory(categoryDoc?.id);
         setEditSubCategory(transaction.subcategory);
@@ -501,9 +498,6 @@ export function TransactionTable({
     }
     return 'text-blue-600'; // Default for transfers
   };
-
-  const isPrimaryView = primaryAccount?.id === accountId;
-  const isPostBankView = accountId === postBankAccount?.id;
 
   return (
     <>
