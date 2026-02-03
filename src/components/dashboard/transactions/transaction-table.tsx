@@ -309,24 +309,20 @@ export function TransactionTable({
 
   const editCategoriesForDropdown = useMemo(() => {
     if (!selectedTransaction) {
-      return [];
+        return [];
     }
-    
+
     if (selectedTransaction.type === 'income') {
-      return categories.filter(c => c.type === 'income');
+        return categories.filter(c => c.type === 'income');
     }
-    
+
     if (selectedTransaction.type === 'expense') {
-      const isEditingPostBank = editSelectedAccountId === postBankAccount?.id;
-      if (isEditingPostBank) {
-        return categories.filter(c => c.type === 'income' || c.type === 'expense' || c.type === 'bank-expense');
-      } else {
+        // Corrected logic: No special case for POST Bank during edit.
         return categories.filter(c => c.type === 'expense' || c.type === 'bank-expense');
-      }
     }
-    
+
     return [];
-  }, [categories, selectedTransaction, editSelectedAccountId, postBankAccount]);
+  }, [categories, selectedTransaction]);
 
   
   const handleEditTransaction = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -463,7 +459,7 @@ export function TransactionTable({
             categoryDoc = categories.find(c => c.id === transaction.categoryId);
         } else if (transaction.category) {
             // Fallback to finding by name if ID is missing
-            categoryDoc = categories.find(c => c.name === transaction.category);
+            categoryDoc = categories.find(c => c.name === transaction.category && c.type === transaction.type);
         }
         setEditCategory(categoryDoc?.id);
         setEditSubCategory(transaction.subcategory);
@@ -757,5 +753,3 @@ export function TransactionTable({
     </>
   );
 }
-
-    
