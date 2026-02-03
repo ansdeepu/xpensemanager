@@ -476,6 +476,9 @@ export function TransactionTable({
 
   const isPrimaryView = primaryAccount?.id === accountId;
 
+  const postBankAccount = useMemo(() => accounts.find(a => a.name.toLowerCase().includes('post bank')), [accounts]);
+  const isPostBankView = accountId === postBankAccount?.id;
+
   return (
     <>
       <div className="relative h-[calc(100vh_-_25rem)] w-full overflow-auto">
@@ -629,6 +632,9 @@ export function TransactionTable({
                                       </SelectTrigger>
                                           <SelectContent>
                                               {categories.filter(c => {
+                                                  if (isPostBankView && (selectedTransaction?.type === 'expense' || selectedTransaction?.type === 'income')) {
+                                                    return c.type === 'income' || c.type === 'expense' || c.type === 'bank-expense';
+                                                  }
                                                   if (selectedTransaction?.type === 'expense') {
                                                       return c.type === 'expense' || c.type === 'bank-expense';
                                                   }
