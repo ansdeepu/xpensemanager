@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
@@ -685,17 +686,17 @@ export default function TransactionsPage() {
   return (
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-2">
             {primaryAccount && (
-                <div className="lg:col-span-1">
-                    <TabsList className="h-full p-0 bg-transparent">
+                <div className="lg:col-span-2">
+                    <TabsList className="h-full w-full p-0 bg-transparent">
                         <TabsTrigger value={primaryAccount.id} asChild>
                             <div className={cn("rounded-lg border-2 flex flex-col p-3 items-start text-left gap-2 cursor-pointer transition-shadow h-full w-full", activeTab === primaryAccount.id ? "shadow-lg border-primary bg-lime-100/50 dark:bg-lime-900/50" : "bg-card")}>
                                 <div className="w-full flex justify-between items-center">
                                     <h3 className="font-semibold text-lg">Primary ({primaryAccount.name})</h3>
                                     <span className="font-bold text-xl text-primary">{formatCurrency(primaryAllBalance)}</span>
                                 </div>
-                                <div className="w-full grid grid-cols-2 gap-4 text-left pt-2">
+                                <div className="w-full grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-left pt-2">
                                     <div className="space-y-1">
                                         <Label className="text-sm">Bank Balance</Label>
                                         <div className="font-mono text-lg cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); handleAccountClick(primaryAccount); }}>{formatCurrency(primaryAccount.balance)}</div>
@@ -772,7 +773,7 @@ export default function TransactionsPage() {
                     </TabsList>
                 </div>
             )}
-            <div className="lg:col-span-1">
+            <div className="lg:col-span-2">
                 <TabsList className="grid grid-cols-2 gap-2 h-auto p-0 bg-transparent">
                     {sortedDisplayAccounts.map((account, index) => {
                         const isCard = account.type === 'card';
