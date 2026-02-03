@@ -308,17 +308,24 @@ export function TransactionTable({
 
   useEffect(() => {
     if (selectedTransaction) {
-      setEditDate(new Date(selectedTransaction.date));
-      setEditAmount(String(selectedTransaction.amount));
-       const accountId = selectedTransaction.paymentMethod === 'cash' ? 'cash-wallet' 
-                        : selectedTransaction.paymentMethod === 'digital' ? 'digital-wallet' 
-                        : selectedTransaction.accountId;
-      setEditSelectedAccountId(accountId);
-      if (selectedTransaction.type === 'expense' || selectedTransaction.type === 'income') {
-        const categoryDoc = categories.find(c => c.id === selectedTransaction.categoryId);
-        setEditCategory(categoryDoc?.id);
-        setEditSubCategory(selectedTransaction.subcategory);
-      }
+        setEditDate(new Date(selectedTransaction.date));
+        setEditAmount(String(selectedTransaction.amount));
+        const accountId = selectedTransaction.paymentMethod === 'cash' ? 'cash-wallet'
+            : selectedTransaction.paymentMethod === 'digital' ? 'digital-wallet'
+            : selectedTransaction.accountId;
+        setEditSelectedAccountId(accountId);
+
+        if (selectedTransaction.type === 'expense' || selectedTransaction.type === 'income') {
+            let categoryDoc;
+            if (selectedTransaction.categoryId) {
+                categoryDoc = categories.find(c => c.id === selectedTransaction.categoryId);
+            } else if (selectedTransaction.category) {
+                // Fallback to finding by name if ID is missing for older data
+                categoryDoc = categories.find(c => c.name === selectedTransaction.category);
+            }
+            setEditCategory(categoryDoc?.id);
+            setEditSubCategory(selectedTransaction.subcategory);
+        }
     } else {
         setEditDate(undefined);
         setEditCategory(undefined);
@@ -326,7 +333,7 @@ export function TransactionTable({
         setEditAmount("");
         setEditSelectedAccountId(undefined);
     }
-   }, [selectedTransaction, categories]);
+  }, [selectedTransaction, categories]);
   
   const handleEditTransaction = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -737,5 +744,3 @@ export function TransactionTable({
     </>
   );
 }
-
-    
