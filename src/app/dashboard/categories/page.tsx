@@ -19,7 +19,7 @@ export default function CategoriesPage() {
            <CategoryList categoryType="income" />
         </TabsContent>
          <TabsContent value="bank-expense" className="mt-6">
-           <CategoryList categoryType="bank-expense" isEditable={false} />
+           <CategoryList categoryType="bank-expense" isEditable={true} />
         </TabsContent>
       </Tabs>
     </div>
