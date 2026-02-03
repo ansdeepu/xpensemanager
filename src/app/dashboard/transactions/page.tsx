@@ -683,153 +683,147 @@ export default function TransactionsPage() {
 
   return (
     <div className="space-y-6">
-       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {primaryAccount && (
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="lg:col-span-2">
-                <TabsList className="h-auto p-0 bg-transparent">
-                    <TabsTrigger value={primaryAccount.id} asChild>
-                        <div className={cn("rounded-lg border-2 flex flex-col p-3 items-start text-left gap-2 cursor-pointer transition-shadow h-full w-full", activeTab === primaryAccount.id ? "shadow-lg border-primary bg-lime-100/50 dark:bg-lime-900/50" : "bg-card")}>
-                            <div className="w-full flex justify-between items-center">
-                                  <h3 className="font-semibold text-lg">Primary ({primaryAccount.name})</h3>
-                                  <span className="font-bold text-xl text-primary">{formatCurrency(primaryAllBalance)}</span>
-                            </div>
-                            <div className="w-full grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-left pt-2">
-                                <div className="space-y-1">
-                                    <Label className="text-sm block">Bank Balance</Label>
-                                    <button type="button" className="font-mono text-lg hover:underline text-left" onClick={(e) => { e.stopPropagation(); handleAccountClick(primaryAccount); }}>{formatCurrency(primaryAccount.balance)}</button>
-                                    <Input
-                                        type="number"
-                                        placeholder="Actual"
-                                        className="hide-number-arrows h-8 mt-1 text-sm text-left"
-                                        defaultValue={primaryAccount.actualBalance ?? ''}
-                                        onChange={(e) => debouncedUpdateAccount(primaryAccount.id, { actualBalance: e.target.value === '' ? null : parseFloat(e.target.value) })}
-                                        onClick={(e) => e.stopPropagation()}
-                                    />
-                                    {getBalanceDifference(primaryAccount.balance, primaryAccount.actualBalance) !== null && (
-                                        <p className={cn("text-xs font-medium pt-1", Math.abs(getBalanceDifference(primaryAccount.balance, primaryAccount.actualBalance)!) < 0.01 ? "text-green-600" : "text-red-600")}>
-                                            Diff: {formatCurrency(getBalanceDifference(primaryAccount.balance, primaryAccount.actualBalance)!)}
-                                        </p>
-                                    )}
-                                </div>
-                                <div className="space-y-1">
-                                    <Label className="text-sm block">Digital</Label>
-                                    <button type="button" className="font-mono text-lg hover:underline text-left" onClick={(e) => { e.stopPropagation(); handleAccountClick('digital-wallet', 'Digital Wallet'); }}>{formatCurrency(digitalWalletBalance)}</button>
-                                    <Input
-                                        type="number"
-                                        placeholder="Actual"
-                                        className="hide-number-arrows h-8 mt-1 text-sm text-left"
-                                        defaultValue={walletPreferences.digital?.balance ?? ''}
-                                        onChange={(e) => debouncedUpdateWallet('digital', { balance: e.target.value === '' ? null : parseFloat(e.target.value) })}
-                                        onClick={(e) => e.stopPropagation()}
-                                    />
-                                    {getBalanceDifference(digitalWalletBalance, walletPreferences.digital?.balance) !== null && (
-                                        <p className={cn("text-xs font-medium pt-1", Math.abs(getBalanceDifference(digitalWalletBalance, walletPreferences.digital?.balance)!) < 0.01 ? "text-green-600" : "text-red-600")}>
-                                            Diff: {formatCurrency(getBalanceDifference(digitalWalletBalance, walletPreferences.digital?.balance)!)}
-                                        </p>
-                                    )}
-                                </div>
-                                <div className="space-y-1">
-                                    <Label className="text-sm block">Cash</Label>
-                                    <button type="button" className="font-mono text-lg hover:underline text-left" onClick={(e) => { e.stopPropagation(); handleAccountClick('cash-wallet', 'Cash Wallet'); }}>{formatCurrency(cashWalletBalance)}</button>
-                                    <Input
-                                        type="number"
-                                        placeholder="Actual"
-                                        className="hide-number-arrows h-8 mt-1 text-sm text-left"
-                                        defaultValue={walletPreferences.cash?.balance ?? ''}
-                                        onChange={(e) => debouncedUpdateWallet('cash', { balance: e.target.value === '' ? null : parseFloat(e.target.value) })}
-                                        onClick={(e) => e.stopPropagation()}
-                                    />
-                                    {getBalanceDifference(cashWalletBalance, walletPreferences.cash?.balance) !== null && (
-                                        <p className={cn("text-xs font-medium pt-1", Math.abs(getBalanceDifference(cashWalletBalance, walletPreferences.cash?.balance)!) < 0.01 ? "text-green-600" : "text-red-600")}>
-                                            Diff: {formatCurrency(getBalanceDifference(cashWalletBalance, walletPreferences.cash?.balance)!)}
-                                        </p>
-                                    )}
-                                </div>
-                                {primaryCreditCard && (
-                                    <div className="space-y-1">
-                                        <Label className="text-sm block">{primaryCreditCard.name}</Label>
-                                        <button type="button" className="font-mono text-lg hover:underline text-left" onClick={(e) => { e.stopPropagation(); handleAccountClick(primaryCreditCard); }}>{formatCurrency(primaryCardAvailable)}</button>
-                                        <Input
-                                            type="number"
-                                            placeholder="Actual Due"
-                                            className="hide-number-arrows h-8 mt-1 text-sm text-left"
-                                            defaultValue={primaryCreditCard.actualBalance ?? ''}
-                                            onChange={(e) => debouncedUpdateAccount(primaryCreditCard.id, { actualBalance: e.target.value === '' ? null : parseFloat(e.target.value) })}
-                                            onClick={(e) => e.stopPropagation()}
-                                        />
-                                        {primaryCardBalanceDifference !== null && (
-                                            <p className={cn("text-xs font-medium pt-1", Math.abs(primaryCardBalanceDifference) < 0.01 ? "text-green-600" : "text-red-600")}>
-                                                Diff: {formatCurrency(primaryCardBalanceDifference)}
-                                            </p>
-                                        )}
-                                    </div>
+       <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 h-auto p-0 bg-transparent">
+            {primaryAccount && (
+                <TabsTrigger value={primaryAccount.id} asChild className="sm:col-span-2 lg:col-span-2 w-full h-full p-0 block data-[state=active]:shadow-none">
+                    <div className={cn("rounded-lg border-2 flex flex-col p-3 items-start text-left gap-2 cursor-pointer transition-shadow h-full w-full", activeTab === primaryAccount.id ? "shadow-lg border-primary bg-lime-100/50 dark:bg-lime-900/50" : "bg-card")}>
+                        <div className="w-full flex justify-between items-center">
+                              <h3 className="font-semibold text-lg">Primary ({primaryAccount.name})</h3>
+                              <span className="font-bold text-xl text-primary">{formatCurrency(primaryAllBalance)}</span>
+                        </div>
+                        <div className="w-full grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-left pt-2">
+                            <div className="space-y-1">
+                                <Label className="text-sm block">Bank Balance</Label>
+                                <button type="button" className="font-mono text-lg hover:underline text-left" onClick={(e) => { e.stopPropagation(); handleAccountClick(primaryAccount); }}>{formatCurrency(primaryAccount.balance)}</button>
+                                <Input
+                                    type="number"
+                                    placeholder="Actual"
+                                    className="hide-number-arrows h-8 mt-1 text-sm text-left"
+                                    defaultValue={primaryAccount.actualBalance ?? ''}
+                                    onChange={(e) => debouncedUpdateAccount(primaryAccount.id, { actualBalance: e.target.value === '' ? null : parseFloat(e.target.value) })}
+                                    onClick={(e) => e.stopPropagation()}
+                                />
+                                {getBalanceDifference(primaryAccount.balance, primaryAccount.actualBalance) !== null && (
+                                    <p className={cn("text-xs font-medium pt-1", Math.abs(getBalanceDifference(primaryAccount.balance, primaryAccount.actualBalance)!) < 0.01 ? "text-green-600" : "text-red-600")}>
+                                        Diff: {formatCurrency(getBalanceDifference(primaryAccount.balance, primaryAccount.actualBalance)!)}
+                                    </p>
                                 )}
                             </div>
+                            <div className="space-y-1">
+                                <Label className="text-sm block">Digital</Label>
+                                <button type="button" className="font-mono text-lg hover:underline text-left" onClick={(e) => { e.stopPropagation(); handleAccountClick('digital-wallet', 'Digital Wallet'); }}>{formatCurrency(digitalWalletBalance)}</button>
+                                <Input
+                                    type="number"
+                                    placeholder="Actual"
+                                    className="hide-number-arrows h-8 mt-1 text-sm text-left"
+                                    defaultValue={walletPreferences.digital?.balance ?? ''}
+                                    onChange={(e) => debouncedUpdateWallet('digital', { balance: e.target.value === '' ? null : parseFloat(e.target.value) })}
+                                    onClick={(e) => e.stopPropagation()}
+                                />
+                                {getBalanceDifference(digitalWalletBalance, walletPreferences.digital?.balance) !== null && (
+                                    <p className={cn("text-xs font-medium pt-1", Math.abs(getBalanceDifference(digitalWalletBalance, walletPreferences.digital?.balance)!) < 0.01 ? "text-green-600" : "text-red-600")}>
+                                        Diff: {formatCurrency(getBalanceDifference(digitalWalletBalance, walletPreferences.digital?.balance)!)}
+                                    </p>
+                                )}
+                            </div>
+                            <div className="space-y-1">
+                                <Label className="text-sm block">Cash</Label>
+                                <button type="button" className="font-mono text-lg hover:underline text-left" onClick={(e) => { e.stopPropagation(); handleAccountClick('cash-wallet', 'Cash Wallet'); }}>{formatCurrency(cashWalletBalance)}</button>
+                                <Input
+                                    type="number"
+                                    placeholder="Actual"
+                                    className="hide-number-arrows h-8 mt-1 text-sm text-left"
+                                    defaultValue={walletPreferences.cash?.balance ?? ''}
+                                    onChange={(e) => debouncedUpdateWallet('cash', { balance: e.target.value === '' ? null : parseFloat(e.target.value) })}
+                                    onClick={(e) => e.stopPropagation()}
+                                />
+                                {getBalanceDifference(cashWalletBalance, walletPreferences.cash?.balance) !== null && (
+                                    <p className={cn("text-xs font-medium pt-1", Math.abs(getBalanceDifference(cashWalletBalance, walletPreferences.cash?.balance)!) < 0.01 ? "text-green-600" : "text-red-600")}>
+                                        Diff: {formatCurrency(getBalanceDifference(cashWalletBalance, walletPreferences.cash?.balance)!)}
+                                    </p>
+                                )}
+                            </div>
+                            {primaryCreditCard && (
+                                <div className="space-y-1">
+                                    <Label className="text-sm block">{primaryCreditCard.name}</Label>
+                                    <button type="button" className="font-mono text-lg hover:underline text-left" onClick={(e) => { e.stopPropagation(); handleAccountClick(primaryCreditCard); }}>{formatCurrency(primaryCardAvailable)}</button>
+                                    <Input
+                                        type="number"
+                                        placeholder="Actual Due"
+                                        className="hide-number-arrows h-8 mt-1 text-sm text-left"
+                                        defaultValue={primaryCreditCard.actualBalance ?? ''}
+                                        onChange={(e) => debouncedUpdateAccount(primaryCreditCard.id, { actualBalance: e.target.value === '' ? null : parseFloat(e.target.value) })}
+                                        onClick={(e) => e.stopPropagation()}
+                                    />
+                                    {primaryCardBalanceDifference !== null && (
+                                        <p className={cn("text-xs font-medium pt-1", Math.abs(primaryCardBalanceDifference) < 0.01 ? "text-green-600" : "text-red-600")}>
+                                            Diff: {formatCurrency(primaryCardBalanceDifference)}
+                                        </p>
+                                    )}
+                                </div>
+                            )}
                         </div>
-                    </TabsTrigger>
-                </TabsList>
-            </Tabs>
-        )}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="lg:col-span-1">
-            <TabsList className="grid grid-cols-1 gap-2 h-auto p-0 bg-transparent">
-                 {sortedDisplayAccounts.map((account, index) => {
-                    const isCard = account.type === 'card';
-                    const calculatedDue = account.balance;
-                    const availableBalance = (account.limit || 0) - calculatedDue;
-                    
-                    let balanceDifference: number | null = null;
-                     if (account.actualBalance !== undefined && account.actualBalance !== null) {
-                        balanceDifference = isCard ? availableBalance - account.actualBalance : (account.balance - account.actualBalance);
-                    }
+                    </div>
+                </TabsTrigger>
+            )}
+             {sortedDisplayAccounts.map((account, index) => {
+                const isCard = account.type === 'card';
+                const calculatedDue = account.balance;
+                const availableBalance = (account.limit || 0) - calculatedDue;
+                
+                let balanceDifference: number | null = null;
+                 if (account.actualBalance !== undefined && account.actualBalance !== null) {
+                    balanceDifference = isCard ? availableBalance - account.actualBalance : (account.balance - account.actualBalance);
+                }
 
-                  return (
-                      <TabsTrigger key={account.id} value={account.id} asChild>
-                          <div 
-                              className={cn(
-                                  "rounded-lg border flex flex-col p-3 items-start text-left gap-1 cursor-pointer transition-shadow h-full", 
-                                  activeTab === account.id ? "shadow-lg ring-2 ring-primary" : "bg-card",
-                                  tabColors[index % tabColors.length],
-                                  textColors[index % textColors.length]
-                              )}
-                          >
-                              <div className="w-full flex justify-between items-start">
-                                  <span className="font-semibold text-base">{account.name}</span>
-                                  <span onClick={(e) => { e.stopPropagation(); handleAccountClick(account as Account, account.name); }} className="font-bold text-lg cursor-pointer hover:underline">{formatCurrency(isCard ? availableBalance : account.balance)}</span>
-                              </div>
-                              <div className="w-full mt-auto space-y-1 pt-2">
-                                  <div className="flex items-center justify-between gap-2">
-                                  <Label htmlFor={`actual-balance-${account.id}`} className="text-sm flex-shrink-0">{isCard ? 'Actual Due' : 'Actual'}</Label>
-                                  <Input
-                                      id={`actual-balance-${account.id}`}
-                                      type="number"
-                                      placeholder={isCard ? 'Actual Due' : 'Actual'}
-                                      className="hide-number-arrows h-8 text-sm w-24 text-right bg-background"
-                                      defaultValue={account.actualBalance ?? ''}
-                                      onChange={(e) => {
-                                          const value = e.target.value === '' ? null : parseFloat(e.target.value);
-                                          debouncedUpdateAccount(account.id, { actualBalance: value });
-                                      }}
-                                      onClick={(e) => e.stopPropagation()}
-                                  />
-                                  </div>
-                                  {balanceDifference !== null && (
-                                      <div className="w-full text-right mt-1">
-                                          <p className={cn(
-                                              "text-xs font-medium",
-                                              Math.abs(balanceDifference) < 0.01 ? "text-green-600" : "text-red-600"
-                                          )}>
-                                              Diff: {formatCurrency(balanceDifference)}
-                                          </p>
-                                      </div>
-                                  )}
-                              </div>
+              return (
+                  <TabsTrigger key={account.id} value={account.id} asChild className="lg:col-span-1 w-full h-full p-0 block data-[state=active]:shadow-none">
+                      <div 
+                          className={cn(
+                              "rounded-lg border flex flex-col p-3 items-start text-left gap-1 cursor-pointer transition-shadow h-full", 
+                              activeTab === account.id ? "shadow-lg ring-2 ring-primary" : "bg-card",
+                              tabColors[index % tabColors.length],
+                              textColors[index % textColors.length]
+                          )}
+                      >
+                          <div className="w-full flex justify-between items-start">
+                              <span className="font-semibold text-base">{account.name}</span>
+                              <span onClick={(e) => { e.stopPropagation(); handleAccountClick(account as Account, account.name); }} className="font-bold text-lg cursor-pointer hover:underline">{formatCurrency(isCard ? availableBalance : account.balance)}</span>
                           </div>
-                      </TabsTrigger>
-                  )
-              })}
-            </TabsList>
-        </Tabs>
-      </div>
+                          <div className="w-full mt-auto space-y-1 pt-2">
+                              <div className="flex items-center justify-between gap-2">
+                              <Label htmlFor={`actual-balance-${account.id}`} className="text-sm flex-shrink-0">{isCard ? 'Actual Due' : 'Actual'}</Label>
+                              <Input
+                                  id={`actual-balance-${account.id}`}
+                                  type="number"
+                                  placeholder={isCard ? 'Actual Due' : 'Actual'}
+                                  className="hide-number-arrows h-8 text-sm w-24 text-right bg-background"
+                                  defaultValue={account.actualBalance ?? ''}
+                                  onChange={(e) => {
+                                      const value = e.target.value === '' ? null : parseFloat(e.target.value);
+                                      debouncedUpdateAccount(account.id, { actualBalance: value });
+                                  }}
+                                  onClick={(e) => e.stopPropagation()}
+                              />
+                              </div>
+                              {balanceDifference !== null && (
+                                  <div className="w-full text-right mt-1">
+                                      <p className={cn(
+                                          "text-xs font-medium",
+                                          Math.abs(balanceDifference) < 0.01 ? "text-green-600" : "text-red-600"
+                                      )}>
+                                          Diff: {formatCurrency(balanceDifference)}
+                                      </p>
+                                  </div>
+                              )}
+                          </div>
+                      </div>
+                  </TabsTrigger>
+              )
+          })}
+        </TabsList>
+      </Tabs>
 
       <div className="flex flex-wrap items-end gap-4 p-4 border-b print-hide">
         <div className="pt-1">
@@ -938,3 +932,5 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+    
