@@ -161,6 +161,7 @@ export function TransactionTable({
       };
 
     const primaryAccountFromProps = useMemo(() => accounts.find(a => a.isPrimary), [accounts]);
+    const postBankAccount = useMemo(() => accounts.find(a => a.name.toLowerCase().includes('post bank')), [accounts]);
     
     const getLoanDisplayInfo = useMemo(() => {
         return (t: Transaction) => {
@@ -306,34 +307,29 @@ export function TransactionTable({
     }
   }, [user, db]);
 
-  useEffect(() => {
-    if (selectedTransaction) {
-        setEditDate(new Date(selectedTransaction.date));
-        setEditAmount(String(selectedTransaction.amount));
-        const accountId = selectedTransaction.paymentMethod === 'cash' ? 'cash-wallet'
-            : selectedTransaction.paymentMethod === 'digital' ? 'digital-wallet'
-            : selectedTransaction.accountId;
-        setEditSelectedAccountId(accountId);
+  const editCategoriesForDropdown = useMemo(() => {
+    if (!selectedTransaction) return [];
+    
+    const isPostBankTx = editSelectedAccountId === postBankAccount?.id;
 
-        if (selectedTransaction.type === 'expense' || selectedTransaction.type === 'income') {
-            let categoryDoc;
-            if (selectedTransaction.categoryId) {
-                categoryDoc = categories.find(c => c.id === selectedTransaction.categoryId);
-            } else if (selectedTransaction.category) {
-                // Fallback to finding by name if ID is missing for older data
-                categoryDoc = categories.find(c => c.name === selectedTransaction.category);
-            }
-            setEditCategory(categoryDoc?.id);
-            setEditSubCategory(selectedTransaction.subcategory);
+    if (selectedTransaction.type === 'expense') {
+        if (isPostBankTx) {
+            return categories.filter(c => c.type === 'income' || c.type === 'expense' || c.type === 'bank-expense');
+        } else {
+            return categories.filter(c => c.type === 'expense' || c.type === 'bank-expense');
         }
-    } else {
-        setEditDate(undefined);
-        setEditCategory(undefined);
-        setEditSubCategory(undefined);
-        setEditAmount("");
-        setEditSelectedAccountId(undefined);
     }
-  }, [selectedTransaction, categories]);
+    
+    if (selectedTransaction.type === 'income') {
+        if (isPostBankTx) {
+            return categories.filter(c => c.type === 'income' || c.type === 'expense' || c.type === 'bank-expense');
+        }
+        return categories.filter(c => c.type === 'income');
+    }
+    
+    return [];
+  }, [categories, selectedTransaction, editSelectedAccountId, postBankAccount]);
+
   
   const handleEditTransaction = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -361,10 +357,10 @@ export function TransactionTable({
            if (selectedTransaction.type === 'expense') {
               if (newAccountId === 'cash-wallet') {
                 updatedData.paymentMethod = 'cash';
-                delete updatedData.accountId;
+                updatedData.accountId = undefined;
               } else if (newAccountId === 'digital-wallet') {
                 updatedData.paymentMethod = 'digital';
-                delete updatedData.accountId;
+                updatedData.accountId = undefined;
               } else {
                 updatedData.paymentMethod = 'online';
                 updatedData.accountId = newAccountId;
@@ -453,6 +449,31 @@ export function TransactionTable({
 
   const openEditDialog = (transaction: Transaction) => {
     setSelectedTransaction(transaction);
+    
+    // Set initial state for the dialog form fields
+    setEditDate(new Date(transaction.date));
+    setEditAmount(String(transaction.amount));
+    
+    const accountId = transaction.paymentMethod === 'cash' ? 'cash-wallet'
+        : transaction.paymentMethod === 'digital' ? 'digital-wallet'
+        : transaction.accountId;
+    setEditSelectedAccountId(accountId);
+
+    if (transaction.type === 'expense' || transaction.type === 'income') {
+        let categoryDoc;
+        if (transaction.categoryId) {
+            categoryDoc = categories.find(c => c.id === transaction.categoryId);
+        } else if (transaction.category) {
+            // Fallback to finding by name if ID is missing
+            categoryDoc = categories.find(c => c.name === transaction.category);
+        }
+        setEditCategory(categoryDoc?.id);
+        setEditSubCategory(transaction.subcategory);
+    } else {
+        setEditCategory(undefined);
+        setEditSubCategory(undefined);
+    }
+
     setIsEditDialogOpen(true);
   };
   
@@ -488,8 +509,6 @@ export function TransactionTable({
   };
 
   const isPrimaryView = primaryAccount?.id === accountId;
-
-  const postBankAccount = useMemo(() => accounts.find(a => a.name.toLowerCase().includes('post bank')), [accounts]);
   const isPostBankView = accountId === postBankAccount?.id;
 
   return (
@@ -613,7 +632,12 @@ export function TransactionTable({
       </div>
 
       {/* Edit Transaction Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+      <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
+          if (!open) {
+              setSelectedTransaction(null);
+          }
+          setIsEditDialogOpen(open);
+      }}>
           <DialogContent className="sm:max-w-md">
               <form onSubmit={handleEditTransaction}>
                   <DialogHeader>
@@ -643,18 +667,9 @@ export function TransactionTable({
                                       <SelectTrigger id="edit-category">
                                           <SelectValue placeholder="Select category" />
                                       </SelectTrigger>
-                                          <SelectContent>
-                                              {categories.filter(c => {
-                                                  const isEditingPostBankTx = editSelectedAccountId === postBankAccount?.id;
-                                                  if (isEditingPostBankTx && (selectedTransaction?.type === 'expense' || selectedTransaction?.type === 'income')) {
-                                                    return c.type === 'income' || c.type === 'expense' || c.type === 'bank-expense';
-                                                  }
-                                                  if (selectedTransaction?.type === 'expense') {
-                                                      return c.type === 'expense' || c.type === 'bank-expense';
-                                                  }
-                                                  return c.type === selectedTransaction?.type;
-                                              }).map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
-                                          </SelectContent>
+                                      <SelectContent>
+                                          {editCategoriesForDropdown.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
+                                      </SelectContent>
                                   </Select>
                               </div>
                               <div className="space-y-2">
@@ -735,7 +750,7 @@ export function TransactionTable({
                       </div>
                   </div>
                   <DialogFooter>
-                      <DialogClose asChild><Button type="button" variant="secondary" onClick={() => setSelectedTransaction(null)}>Cancel</Button></DialogClose>
+                      <DialogClose asChild><Button type="button" variant="secondary">Cancel</Button></DialogClose>
                       <Button type="submit">Save Changes</Button>
                   </DialogFooter>
               </form>
