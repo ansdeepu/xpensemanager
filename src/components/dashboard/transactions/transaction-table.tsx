@@ -111,6 +111,7 @@ export function TransactionTable({
   const [editDate, setEditDate] = useState<Date | undefined>(new Date());
   const [editCategory, setEditCategory] = useState<string | undefined>();
   const [editSubCategory, setEditSubCategory] = useState<string | undefined>();
+  const [editSelectedAccountId, setEditSelectedAccountId] = useState<string | undefined>();
   const { toast } = useToast();
   
   const [editAmount, setEditAmount] = useState("");
@@ -309,6 +310,10 @@ export function TransactionTable({
     if (selectedTransaction) {
       setEditDate(new Date(selectedTransaction.date));
       setEditAmount(String(selectedTransaction.amount));
+       const accountId = selectedTransaction.paymentMethod === 'cash' ? 'cash-wallet' 
+                        : selectedTransaction.paymentMethod === 'digital' ? 'digital-wallet' 
+                        : selectedTransaction.accountId;
+      setEditSelectedAccountId(accountId);
       if (selectedTransaction.type === 'expense' || selectedTransaction.type === 'income') {
         const categoryDoc = categories.find(c => c.id === selectedTransaction.categoryId);
         setEditCategory(categoryDoc?.id);
@@ -319,6 +324,7 @@ export function TransactionTable({
         setEditCategory(undefined);
         setEditSubCategory(undefined);
         setEditAmount("");
+        setEditSelectedAccountId(undefined);
     }
    }, [selectedTransaction, categories]);
   
@@ -632,7 +638,8 @@ export function TransactionTable({
                                       </SelectTrigger>
                                           <SelectContent>
                                               {categories.filter(c => {
-                                                  if (isPostBankView && (selectedTransaction?.type === 'expense' || selectedTransaction?.type === 'income')) {
+                                                  const isEditingPostBankTx = editSelectedAccountId === postBankAccount?.id;
+                                                  if (isEditingPostBankTx && (selectedTransaction?.type === 'expense' || selectedTransaction?.type === 'income')) {
                                                     return c.type === 'income' || c.type === 'expense' || c.type === 'bank-expense';
                                                   }
                                                   if (selectedTransaction?.type === 'expense') {
@@ -662,7 +669,7 @@ export function TransactionTable({
                               <Label htmlFor="edit-account">
                                   {selectedTransaction?.type === 'expense' ? 'Payment Method' : 'Bank Account'}
                               </Label>
-                              <Select name="account" required defaultValue={selectedTransaction?.paymentMethod === 'cash' ? 'cash-wallet' : selectedTransaction?.paymentMethod === 'digital' ? 'digital-wallet' : selectedTransaction?.accountId}>
+                              <Select name="account" required value={editSelectedAccountId} onValueChange={setEditSelectedAccountId}>
                                   <SelectTrigger id="edit-account">
                                       <SelectValue placeholder="Select account" />
                                   </SelectTrigger>
@@ -730,3 +737,5 @@ export function TransactionTable({
     </>
   );
 }
+
+    
