@@ -683,45 +683,45 @@ export default function TransactionsPage() {
 
   return (
     <div className="space-y-6">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 h-auto p-0 bg-transparent">
+       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {primaryAccount && (
-              <div className="md:col-span-2">
-                <TabsList className="h-full p-0 bg-transparent">
-                  <TabsTrigger value={primaryAccount.id} asChild className="w-full h-full p-0 block data-[state=active]:shadow-none">
-                    <div className={cn("rounded-lg border-2 flex flex-col p-3 items-start text-left gap-2 cursor-pointer transition-shadow h-full w-full", activeTab === primaryAccount.id ? "shadow-lg border-primary bg-lime-100/50 dark:bg-lime-900/50" : "bg-card")}>
-                      <div className="w-full flex justify-between items-center">
-                        <h3 className="font-semibold text-lg">Primary ({primaryAccount.name})</h3>
-                        <span className="font-bold text-xl text-primary">{formatCurrency(primaryAllBalance)}</span>
-                      </div>
-                      <div className="w-full grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-left pt-2">
-                          <div className="space-y-1">
-                              <Label className="text-sm">Bank Balance</Label>
-                              <div className="font-mono text-lg cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); handleAccountClick(primaryAccount); }}>{formatCurrency(primaryAccount.balance)}</div>
-                          </div>
-                          <div className="space-y-1">
-                              <Label className="text-sm">Digital</Label>
-                              <div className="font-mono text-lg cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); handleAccountClick('digital-wallet', 'Digital Wallet'); }}>{formatCurrency(digitalWalletBalance)}</div>
-                          </div>
-                          <div className="space-y-1">
-                              <Label className="text-sm">Cash</Label>
-                              <div className="font-mono text-lg cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); handleAccountClick('cash-wallet', 'Cash Wallet'); }}>{formatCurrency(cashWalletBalance)}</div>
-                          </div>
-                          {primaryCreditCard && (
-                              <div className="space-y-1">
-                                  <Label className="text-sm">{primaryCreditCard.name}</Label>
-                                  <div className="font-mono text-lg cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); handleAccountClick(primaryCreditCard); }}>{formatCurrency(primaryCardAvailable)}</div>
-                              </div>
-                          )}
-                      </div>
+            <div className="lg:col-span-2">
+              <TabsList className="h-full p-0 bg-transparent">
+                <TabsTrigger value={primaryAccount.id} asChild className="w-full h-full p-0 block data-[state=active]:shadow-none">
+                  <div className={cn("rounded-lg border-2 flex flex-col p-3 items-start text-left gap-2 cursor-pointer transition-shadow h-full w-full", activeTab === primaryAccount.id ? "shadow-lg border-primary bg-lime-100/50 dark:bg-lime-900/50" : "bg-card")}>
+                    <div className="w-full flex justify-between items-center">
+                      <h3 className="font-semibold text-lg">Primary ({primaryAccount.name})</h3>
+                      <span className="font-bold text-xl text-primary">{formatCurrency(primaryAllBalance)}</span>
                     </div>
-                  </TabsTrigger>
-                </TabsList>
-              </div>
+                    <div className="w-full grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-left pt-2">
+                        <div className="space-y-1">
+                            <Label className="text-sm">Bank Balance</Label>
+                            <div className="font-mono text-lg cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); handleAccountClick(primaryAccount); }}>{formatCurrency(primaryAccount.balance)}</div>
+                        </div>
+                        <div className="space-y-1">
+                            <Label className="text-sm">Digital</Label>
+                            <div className="font-mono text-lg cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); handleAccountClick('digital-wallet', 'Digital Wallet'); }}>{formatCurrency(digitalWalletBalance)}</div>
+                        </div>
+                        <div className="space-y-1">
+                            <Label className="text-sm">Cash</Label>
+                            <div className="font-mono text-lg cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); handleAccountClick('cash-wallet', 'Cash Wallet'); }}>{formatCurrency(cashWalletBalance)}</div>
+                        </div>
+                        {primaryCreditCard && (
+                            <div className="space-y-1">
+                                <Label className="text-sm">{primaryCreditCard.name}</Label>
+                                <div className="font-mono text-lg cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); handleAccountClick(primaryCreditCard); }}>{formatCurrency(primaryCardAvailable)}</div>
+                            </div>
+                        )}
+                    </div>
+                  </div>
+                </TabsTrigger>
+              </TabsList>
+            </div>
           )}
 
-          <div className="md:col-span-2">
-             <TabsList className="grid grid-cols-2 gap-4 h-auto p-0 bg-transparent">
+          <div className="lg:col-span-2">
+            <TabsList className="grid grid-cols-2 gap-4 h-auto p-0 bg-transparent">
               {sortedDisplayAccounts.map((account, index) => {
                 const isCard = account.type === 'card';
                 const calculatedDue = account.balance;
@@ -733,7 +733,7 @@ export default function TransactionsPage() {
                 }
 
                 return (
-                  <TabsTrigger key={account.id} value={account.id} asChild className="w-full h-full p-0 block data-[state=active]:shadow-none">
+                  <TabsTrigger key={account.id} value={account.id} asChild className="w-full h-full p-0 block data-[state=active]:shadow-none lg:col-span-1">
                     <div 
                       className={cn(
                           "rounded-lg border flex flex-col p-3 items-start text-left gap-1 cursor-pointer transition-shadow h-full", 
@@ -745,6 +745,33 @@ export default function TransactionsPage() {
                       <div className="w-full flex justify-between items-start">
                         <span className="font-semibold text-base">{account.name}</span>
                         <span onClick={(e) => { e.stopPropagation(); handleAccountClick(account as Account, account.name); }} className="font-bold text-lg cursor-pointer hover:underline">{formatCurrency(isCard ? availableBalance : account.balance)}</span>
+                      </div>
+                      <div className="w-full mt-auto space-y-1 pt-2">
+                          <div className="flex items-center justify-between gap-2">
+                          <Label htmlFor={`actual-balance-${account.id}`} className="text-sm flex-shrink-0">{isCard ? 'Actual Due' : 'Actual'}</Label>
+                          <Input
+                              id={`actual-balance-${account.id}`}
+                              type="number"
+                              placeholder={isCard ? 'Actual Due' : 'Actual'}
+                              className="hide-number-arrows h-8 text-sm w-24 text-right bg-background"
+                              defaultValue={account.actualBalance ?? ''}
+                              onChange={(e) => {
+                                  const value = e.target.value === '' ? null : parseFloat(e.target.value);
+                                  debouncedUpdateAccount(account.id, { actualBalance: value });
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                          />
+                          </div>
+                          {balanceDifference !== null && (
+                              <div className="w-full text-right mt-1">
+                                  <p className={cn(
+                                      "text-xs font-medium",
+                                      Math.abs(balanceDifference) < 0.01 ? "text-green-600" : "text-red-600"
+                                  )}>
+                                      Diff: {formatCurrency(balanceDifference)}
+                                  </p>
+                              </div>
+                          )}
                       </div>
                     </div>
                   </TabsTrigger>
@@ -856,3 +883,5 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
+    
