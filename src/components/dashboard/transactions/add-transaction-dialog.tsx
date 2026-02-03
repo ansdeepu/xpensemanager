@@ -69,6 +69,9 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
   const { toast } = useToast();
 
   const primaryAccount = accountData.find(acc => 'isPrimary' in acc && (acc as Account).isPrimary);
+  const postBankAccount = useMemo(() => accountData.find(acc => 'name' in acc && acc.name.toLowerCase().includes('post bank')), [accountData]);
+  const [selectedExpenseAccount, setSelectedExpenseAccount] = useState<string | undefined>(primaryAccount?.id);
+
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setAmount(e.target.value);
@@ -88,15 +91,29 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
     return category?.subcategories || [];
   }, [selectedCategory, categories]);
 
-  const expenseDropdownCategories = useMemo(() => {
+  const expenseCategoriesForDropdown = useMemo(() => {
     const expenseCats = categories.filter(c => c.type === 'expense');
     const bankExpenseCats = categories.filter(c => c.type === 'bank-expense');
     
     const sortedExpense = expenseCats.sort((a,b) => (a.order || 0) - (b.order || 0));
     const sortedBankExpense = bankExpenseCats.sort((a,b) => (a.order || 0) - (b.order || 0));
     
-    return [...sortedExpense, ...sortedBankExpense];
-  }, [categories]);
+    const baseExpenseCategories = [...sortedExpense, ...sortedBankExpense];
+
+    const isPostBankSelected = selectedExpenseAccount === postBankAccount?.id;
+
+    if (isPostBankSelected) {
+        const incomeCats = categories
+            .filter(c => c.type === 'income')
+            .sort((a, b) => (a.order || 0) - (b.order || 0));
+        // Use a Set to prevent duplicates if a category somehow has multiple types
+        const combined = [...incomeCats, ...baseExpenseCategories];
+        const uniqueCategories = Array.from(new Map(combined.map(item => [item.id, item])).values());
+        return uniqueCategories.sort((a,b) => (a.order || 0) - (b.order || 0));
+    }
+    
+    return baseExpenseCategories;
+  }, [categories, selectedExpenseAccount, postBankAccount]);
 
   const incomeDropdownCategories = useMemo(() => {
     return categories
@@ -242,7 +259,7 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
                                 <Select name="category" onValueChange={setSelectedCategory}>
                                     <SelectTrigger id="category-expense"><SelectValue placeholder="Select category" /></SelectTrigger>
                                     <SelectContent>
-                                        {expenseDropdownCategories.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
+                                        {expenseCategoriesForDropdown.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -258,7 +275,7 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
                         </div>
                          <div className="space-y-2">
                             <Label htmlFor="account-expense">Payment Method</Label>
-                            <Select name="account" required defaultValue={primaryAccount?.id}>
+                            <Select name="account" required value={selectedExpenseAccount} onValueChange={setSelectedExpenseAccount}>
                                 <SelectTrigger id="account-expense"><SelectValue placeholder="Select method" /></SelectTrigger>
                                 <SelectContent>
                                     {accountData.map(acc => (
