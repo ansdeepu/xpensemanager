@@ -18,10 +18,8 @@ const postBankCategories: Category[] = [
   { id: 'pb_cat_4', name: 'Seminar Accounts', icon: 'presentation', subcategories: [], order: 3, type: 'bank-expense', userId: '' },
   { id: 'pb_cat_5', name: 'Jayaram Treatment', icon: 'heart', subcategories: [], order: 4, type: 'bank-expense', userId: '' },
   { id: 'pb_cat_6', name: 'SLR Retirement - Jan 2026', icon: 'calendar', subcategories: [], order: 5, type: 'bank-expense', userId: '' },
-  { id: 'pb_cat_8', name: 'Parameshwaran', icon: 'user', subcategories: [], order: 6, type: 'bank-expense', userId: '' },
-  { id: 'pb_cat_10', name: 'Harikrishnan', icon: 'user', subcategories: [], order: 7, type: 'bank-expense', userId: '' },
-  { id: 'pb_cat_15', name: 'Bank Charges', icon: 'landmark', subcategories: [], order: 8, type: 'bank-expense', userId: '' },
-  { id: 'pb_cat_16', name: 'Deepa Car Accounts', icon: 'car', subcategories: [], order: 9, type: 'bank-expense', userId: '' },
+  { id: 'pb_cat_15', name: 'Bank Charges', icon: 'landmark', subcategories: [], order: 6, type: 'bank-expense', userId: '' },
+  { id: 'pb_cat_16', name: 'Deepa Car Accounts', icon: 'car', subcategories: [], order: 7, type: 'bank-expense', userId: '' },
 ];
 
 
