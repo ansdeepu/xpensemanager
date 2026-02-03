@@ -18,16 +18,10 @@ const postBankCategories: Category[] = [
   { id: 'pb_cat_4', name: 'Seminar Accounts', icon: 'presentation', subcategories: [], order: 3, type: 'bank-expense', userId: '' },
   { id: 'pb_cat_5', name: 'Jayaram Treatment', icon: 'heart', subcategories: [], order: 4, type: 'bank-expense', userId: '' },
   { id: 'pb_cat_6', name: 'SLR Retirement - Jan 2026', icon: 'calendar', subcategories: [], order: 5, type: 'bank-expense', userId: '' },
-  { id: 'pb_cat_7', name: 'Arun Babu - Loan', icon: 'hand-coins', subcategories: [], order: 6, type: 'bank-expense', userId: '' },
-  { id: 'pb_cat_8', name: 'Parameshwaran', icon: 'user', subcategories: [], order: 7, type: 'bank-expense', userId: '' },
-  { id: 'pb_cat_9', name: 'Aivelil - Loan', icon: 'hand-coins', subcategories: [], order: 8, type: 'bank-expense', userId: '' },
-  { id: 'pb_cat_10', name: 'Harikrishnan', icon: 'user', subcategories: [], order: 9, type: 'bank-expense', userId: '' },
-  { id: 'pb_cat_11', name: 'CML - Loan', icon: 'hand-coins', subcategories: [], order: 10, type: 'bank-expense', userId: '' },
-  { id: 'pb_cat_12', name: 'Leelamma - Loan', icon: 'hand-coins', subcategories: [], order: 11, type: 'bank-expense', userId: '' },
-  { id: 'pb_cat_13', name: 'Sooraj, BT, CML - Loan', icon: 'hand-coins', subcategories: [], order: 12, type: 'bank-expense', userId: '' },
-  { id: 'pb_cat_14', name: 'Arun Chettan - Loan', icon: 'hand-coins', subcategories: [], order: 13, type: 'bank-expense', userId: '' },
-  { id: 'pb_cat_15', name: 'Bank Charges', icon: 'landmark', subcategories: [], order: 14, type: 'bank-expense', userId: '' },
-  { id: 'pb_cat_16', name: 'Deepa Car Accounts', icon: 'car', subcategories: [], order: 15, type: 'bank-expense', userId: '' },
+  { id: 'pb_cat_8', name: 'Parameshwaran', icon: 'user', subcategories: [], order: 6, type: 'bank-expense', userId: '' },
+  { id: 'pb_cat_10', name: 'Harikrishnan', icon: 'user', subcategories: [], order: 7, type: 'bank-expense', userId: '' },
+  { id: 'pb_cat_15', name: 'Bank Charges', icon: 'landmark', subcategories: [], order: 8, type: 'bank-expense', userId: '' },
+  { id: 'pb_cat_16', name: 'Deepa Car Accounts', icon: 'car', subcategories: [], order: 9, type: 'bank-expense', userId: '' },
 ];
 
 
