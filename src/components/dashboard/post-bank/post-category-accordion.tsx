@@ -45,7 +45,11 @@ function CategoryAccordionItem({
 }) {
     const { categoryTransactionsWithRunningBalance, totalCredit, totalDebit } = useMemo(() => {
         const filteredTxs = transactions
-            .filter(t => t.subcategory === category.name || t.category === category.name)
+            .filter(t => 
+                t.subcategory === category.name || 
+                t.category === category.name ||
+                (t.description && t.description.toLowerCase().includes(category.name.toLowerCase()))
+            )
             .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()); // Chronological order
 
         let runningBalance = 0;
