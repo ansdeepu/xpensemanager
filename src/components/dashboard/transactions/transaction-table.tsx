@@ -182,7 +182,7 @@ export function TransactionTable({
                             descriptionPrefix = isRepayment ? 'Repayment from' : 'Loan to';
                         }
                         
-                        const description = `\${descriptionPrefix} \${otherPartyName}`;
+                        const description = `${descriptionPrefix} ${otherPartyName}`;
                         return { isLoan: true, type: loanTx.type, category: 'Loan', description, descriptionClassName: 'text-orange-600 font-bold' };
                     }
                 }
@@ -194,12 +194,12 @@ export function TransactionTable({
 
                 if (fromIsPrimaryBank && toIsWallet) {
                     const toWalletName = t.toAccountId === 'cash-wallet' ? 'Cash' : 'Digital';
-                    return { ...defaultInfo, type: 'issue' as const, description: `Issue to \${toWalletName} Wallet` };
+                    return { ...defaultInfo, type: 'issue' as const, description: `Issue to ${toWalletName} Wallet` };
                 }
 
                 if (fromIsWallet && toIsPrimaryBank) {
                     const fromWalletName = t.fromAccountId === 'cash-wallet' ? 'Cash' : 'Digital';
-                    return { ...defaultInfo, type: 'return' as const, description: `Return from \${fromWalletName} Wallet` };
+                    return { ...defaultInfo, type: 'return' as const, description: `Return from ${fromWalletName} Wallet` };
                 }
             }
             
@@ -394,7 +394,7 @@ export function TransactionTable({
   
           const fromAccountName = getAccountName(updatedData.fromAccountId);
           const toAccountName = getAccountName(updatedData.toAccountId);
-          updatedData.description = formData.get("description") as string || `Transfer from \${fromAccountName} to \${toAccountName}`;
+          updatedData.description = formData.get("description") as string || `Transfer from ${fromAccountName} to ${toAccountName}`;
         }
   
         t.update(transactionRef, updatedData);
@@ -552,7 +552,7 @@ export function TransactionTable({
                             {loanInfo.type}
                         </Badge>
                       </TableCell>
-                      <TableCell className="break-words">{t.type === 'transfer' ? `\${getAccountName(t.fromAccountId)} -> \${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod)}</TableCell>
+                      <TableCell className="break-words">{t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} -> ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod)}</TableCell>
                       <TableCell className="break-words">
                           <div>{loanInfo.category}</div>
                           {t.subcategory && <div className="text-sm text-muted-foreground">{t.subcategory}</div>}
@@ -622,8 +622,8 @@ export function TransactionTable({
                             <TableCell>{format(new Date(t.date), 'dd/MM/yyyy')}</TableCell>
                             <TableCell>{t.description}</TableCell>
                             <TableCell>{t.type}</TableCell>
-                            <TableCell>{t.type === 'transfer' ? `\${getAccountName(t.fromAccountId)} -> \${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod)}</TableCell>
-                            <TableCell>{t.category}{t.subcategory ? ` / \${t.subcategory}` : ''}</TableCell>
+                            <TableCell>{t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} -> ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod)}</TableCell>
+                            <TableCell>{t.category}{t.subcategory ? ` / ${t.subcategory}` : ''}</TableCell>
                             <TableCell className={cn("text-right", t.type === 'income' ? 'text-green-600' : 'text-red-600')}>
                                 {t.type !== 'transfer' ? formatCurrency(t.amount) : '-'}
                             </TableCell>
