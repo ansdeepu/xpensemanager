@@ -308,23 +308,21 @@ export function TransactionTable({
   }, [user, db]);
 
   const editCategoriesForDropdown = useMemo(() => {
-    if (!selectedTransaction) return [];
-    
-    const isPostBankTx = editSelectedAccountId === postBankAccount?.id;
-
-    if (selectedTransaction.type === 'expense') {
-        if (isPostBankTx) {
-            return categories.filter(c => c.type === 'income' || c.type === 'expense' || c.type === 'bank-expense');
-        } else {
-            return categories.filter(c => c.type === 'expense' || c.type === 'bank-expense');
-        }
+    if (!selectedTransaction) {
+      return [];
     }
     
     if (selectedTransaction.type === 'income') {
-        if (isPostBankTx) {
-            return categories.filter(c => c.type === 'income' || c.type === 'expense' || c.type === 'bank-expense');
-        }
-        return categories.filter(c => c.type === 'income');
+      return categories.filter(c => c.type === 'income');
+    }
+    
+    if (selectedTransaction.type === 'expense') {
+      const isEditingPostBank = editSelectedAccountId === postBankAccount?.id;
+      if (isEditingPostBank) {
+        return categories.filter(c => c.type === 'income' || c.type === 'expense' || c.type === 'bank-expense');
+      } else {
+        return categories.filter(c => c.type === 'expense' || c.type === 'bank-expense');
+      }
     }
     
     return [];
