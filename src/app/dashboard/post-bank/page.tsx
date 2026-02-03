@@ -10,11 +10,31 @@ import { useAuthState } from "@/hooks/use-auth-state";
 import { PostCategoryAccordion } from "@/components/dashboard/post-bank/post-category-accordion";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
+// The user-provided list of categories for the Post Bank page.
+const postBankCategories: Category[] = [
+  { id: 'pb_cat_1', name: 'Diesel Collection', icon: 'fuel', subcategories: [], order: 0, type: 'bank-expense', userId: '' },
+  { id: 'pb_cat_2', name: 'Staff Club Accounts', icon: 'users', subcategories: [], order: 1, type: 'bank-expense', userId: '' },
+  { id: 'pb_cat_3', name: 'Ente Keralam Accounts', icon: 'map', subcategories: [], order: 2, type: 'bank-expense', userId: '' },
+  { id: 'pb_cat_4', name: 'Seminar Accounts', icon: 'presentation', subcategories: [], order: 3, type: 'bank-expense', userId: '' },
+  { id: 'pb_cat_5', name: 'Jayaram Treatment', icon: 'heart', subcategories: [], order: 4, type: 'bank-expense', userId: '' },
+  { id: 'pb_cat_6', name: 'SLR Retirement - Jan 2026', icon: 'calendar', subcategories: [], order: 5, type: 'bank-expense', userId: '' },
+  { id: 'pb_cat_7', name: 'Arun Babu - Loan', icon: 'hand-coins', subcategories: [], order: 6, type: 'bank-expense', userId: '' },
+  { id: 'pb_cat_8', name: 'Parameshwaran', icon: 'user', subcategories: [], order: 7, type: 'bank-expense', userId: '' },
+  { id: 'pb_cat_9', name: 'Aivelil - Loan', icon: 'hand-coins', subcategories: [], order: 8, type: 'bank-expense', userId: '' },
+  { id: 'pb_cat_10', name: 'Harikrishnan', icon: 'user', subcategories: [], order: 9, type: 'bank-expense', userId: '' },
+  { id: 'pb_cat_11', name: 'CML - Loan', icon: 'hand-coins', subcategories: [], order: 10, type: 'bank-expense', userId: '' },
+  { id: 'pb_cat_12', name: 'Leelamma - Loan', icon: 'hand-coins', subcategories: [], order: 11, type: 'bank-expense', userId: '' },
+  { id: 'pb_cat_13', name: 'Sooraj, BT, CML - Loan', icon: 'hand-coins', subcategories: [], order: 12, type: 'bank-expense', userId: '' },
+  { id: 'pb_cat_14', name: 'Arun Chettan - Loan', icon: 'hand-coins', subcategories: [], order: 13, type: 'bank-expense', userId: '' },
+  { id: 'pb_cat_15', name: 'Bank Charges', icon: 'landmark', subcategories: [], order: 14, type: 'bank-expense', userId: '' },
+  { id: 'pb_cat_16', name: 'Deepa Car Accounts', icon: 'car', subcategories: [], order: 15, type: 'bank-expense', userId: '' },
+];
+
+
 export default function PostBankPage() {
   const [user, userLoading] = useAuthState();
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [bankExpenseCategories, setBankExpenseCategories] = useState<Category[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
 
   useEffect(() => {
@@ -29,22 +49,12 @@ export default function PostBankPage() {
       const transactionsQuery = query(collection(db, "transactions"), where("userId", "==", user.uid));
       const unsubscribeTransactions = onSnapshot(transactionsQuery, (snapshot) => {
         setAllTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction)));
-      });
-      
-      const categoriesQuery = query(
-        collection(db, "categories"),
-        where("userId", "==", user.uid),
-        where("type", "==", "bank-expense")
-      );
-      const unsubscribeCategories = onSnapshot(categoriesQuery, (snapshot) => {
-        setBankExpenseCategories(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category)));
-        setDataLoading(false);
+        setDataLoading(false); // We have static categories, so we can stop loading once transactions are here.
       });
       
       return () => {
         unsubscribeAccounts();
         unsubscribeTransactions();
-        unsubscribeCategories();
       };
     } else if (!userLoading) {
       setDataLoading(false);
@@ -142,7 +152,7 @@ export default function PostBankPage() {
   return (
     <div className="space-y-6">
        <PostCategoryAccordion
-            categories={bankExpenseCategories}
+            categories={postBankCategories}
             transactions={postBankTransactionsWithBalance}
             postBankAccountId={postBankAccountId}
         />
