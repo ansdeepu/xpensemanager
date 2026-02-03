@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -9,28 +10,11 @@ import { useAuthState } from "@/hooks/use-auth-state";
 import { PostCategoryAccordion } from "@/components/dashboard/post-bank/post-category-accordion";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
-// The list of categories the user wants to see.
-const POST_BANK_CATEGORY_NAMES = [
-  "Diesel Collection",
-  "Staff Club Accounts",
-  "Ente Keralam Accounts",
-  "Seminar Accounts",
-  "Jayaram Treatment",
-  "SLR Retirement - Jan 2026",
-  "Arun Babu - Loan",
-  "Parameshwaran, Aivelil - Loan",
-  "Harikrishnan, CML - Loan",
-  "Leelamma - Loan",
-  "Sooraj, BT, CML - Loan",
-  "Arun Chettan - Loan",
-  "Bank Charges",
-  "Deepa Car Accounts",
-];
-
 export default function PostBankPage() {
   const [user, userLoading] = useAuthState();
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [bankExpenseCategories, setBankExpenseCategories] = useState<Category[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
 
   useEffect(() => {
@@ -45,23 +29,33 @@ export default function PostBankPage() {
       const transactionsQuery = query(collection(db, "transactions"), where("userId", "==", user.uid));
       const unsubscribeTransactions = onSnapshot(transactionsQuery, (snapshot) => {
         setAllTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction)));
+      });
+      
+      const categoriesQuery = query(
+        collection(db, "categories"),
+        where("userId", "==", user.uid),
+        where("type", "==", "bank-expense")
+      );
+      const unsubscribeCategories = onSnapshot(categoriesQuery, (snapshot) => {
+        setBankExpenseCategories(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category)));
         setDataLoading(false);
       });
       
       return () => {
         unsubscribeAccounts();
         unsubscribeTransactions();
+        unsubscribeCategories();
       };
     } else if (!userLoading) {
       setDataLoading(false);
     }
   }, [user, userLoading]);
 
-  const { postBankTransactionsWithBalance, virtualCategories, postBankAccountId } = useMemo(() => {
+  const { postBankTransactionsWithBalance, postBankAccountId } = useMemo(() => {
     const postBankAccount = accounts.find(acc => acc.name.toLowerCase().includes('post bank'));
     
     if (!postBankAccount) {
-      return { postBankTransactionsWithBalance: [], virtualCategories: [], postBankAccountId: undefined };
+      return { postBankTransactionsWithBalance: [], postBankAccountId: undefined };
     }
 
     // 1. Calculate final balance of Post Bank account
@@ -113,22 +107,11 @@ export default function PostBankPage() {
         balance: correctBalances.get(t.id) ?? 0,
     }));
     
-    const virtualCategories = POST_BANK_CATEGORY_NAMES.map(name => ({
-        id: name,
-        name: name,
-        userId: user?.uid || '',
-        icon: 'Tag',
-        subcategories: [],
-        order: 0,
-        type: 'income' // Placeholder type
-    } as Category));
-
     return { 
         postBankTransactionsWithBalance: transactionsWithBalance, 
-        virtualCategories: virtualCategories,
         postBankAccountId: postBankAccount.id
     };
-  }, [accounts, allTransactions, user]);
+  }, [accounts, allTransactions]);
 
 
   if (userLoading || dataLoading) {
@@ -159,7 +142,7 @@ export default function PostBankPage() {
   return (
     <div className="space-y-6">
        <PostCategoryAccordion
-            categories={virtualCategories}
+            categories={bankExpenseCategories}
             transactions={postBankTransactionsWithBalance}
             postBankAccountId={postBankAccountId}
         />
