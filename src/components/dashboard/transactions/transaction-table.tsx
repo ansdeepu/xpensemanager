@@ -546,7 +546,7 @@ export function TransactionTable({
                             <TableRow className="bg-muted/40 font-bold hover:bg-muted/50">
                                 <TableCell className="font-medium">{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
                                 <TableCell>{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
-                                <TableCell className="font-medium break-words">{t.description}</TableCell>
+                                <TableCell className="font-medium break-words">Multiple Expenses</TableCell>
                                 <TableCell>
                                     <Badge variant={getBadgeVariant(t.type)}>{t.type}</Badge>
                                 </TableCell>
