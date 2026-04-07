@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -51,7 +50,7 @@ import { Label } from "@/components/ui/label";
 import { PlusCircle, HandCoins, Info, Trash2, Pencil } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
 import { collection, addDoc, query, where, onSnapshot, doc, updateDoc, writeBatch, getDocs, deleteDoc } from "firebase/firestore";
-import { format, parseISO, isValid } from "date-fns";
+import { format, parseISO, isValid, isWithinInterval } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Loan, LoanTransaction, Account, Transaction } from "@/lib/data";
@@ -85,6 +84,8 @@ function LoanAccordionItem({
     onDeleteLoan, 
     onDeleteTransaction,
     onEditLoanName,
+    startDate,
+    endDate,
 }: { 
     loan: Loan;
     loanType: "taken" | "given";
@@ -92,38 +93,40 @@ function LoanAccordionItem({
     onDeleteLoan: (loan: Loan) => void;
     onDeleteTransaction: (loan: Loan, transaction: LoanTransaction) => void;
     onEditLoanName: (loan: Loan) => void;
+    startDate?: string;
+    endDate?: string;
 }) {
-    const transactionsWithRunningBalance = useMemo(() => {
-        const chronologicalTransactions = [...loan.transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    
-        let runningBalance = 0;
-        const transactionsWithDetails = chronologicalTransactions.map(transaction => {
+    const { transactionsForPeriod, periodTotals } = useMemo(() => {
+        let transactionsToProcess = loan.transactions || [];
+        if (startDate && endDate) {
+            const interval = { start: new Date(startDate), end: new Date(endDate) };
+            transactionsToProcess = transactionsToProcess.filter(t => {
+                const transactionDate = parseISO(t.date);
+                return isValid(transactionDate) && isWithinInterval(transactionDate, interval);
+            });
+        }
+
+        let totalLoan = 0;
+        let totalRepayment = 0;
+
+        const transactionsWithDetails = transactionsToProcess.map(transaction => {
             let credit = 0;
             let debit = 0;
-            
             if (loan.type === 'taken') {
-                if (transaction.type === 'loan') {
-                    credit = transaction.amount;
-                    runningBalance += transaction.amount;
-                } else { // repayment
-                    debit = transaction.amount;
-                    runningBalance -= transaction.amount;
-                }
+                if (transaction.type === 'loan') { credit = transaction.amount; totalLoan += transaction.amount; }
+                else { debit = transaction.amount; totalRepayment += transaction.amount; }
             } else { // 'given'
-                if (transaction.type === 'loan') {
-                    debit = transaction.amount;
-                    runningBalance += transaction.amount;
-                } else { // repayment
-                    credit = transaction.amount;
-                    runningBalance -= transaction.amount;
-                }
+                if (transaction.type === 'loan') { debit = transaction.amount; totalLoan += transaction.amount; }
+                else { credit = transaction.amount; totalRepayment += transaction.amount; }
             }
-    
-            return { ...transaction, credit, debit, balance: runningBalance };
-        });
-    
-        return transactionsWithDetails.reverse();
-    }, [loan]);
+            return { ...transaction, credit, debit };
+        }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+        return {
+            transactionsForPeriod: transactionsWithDetails,
+            periodTotals: { totalLoan, totalRepayment }
+        };
+    }, [loan, startDate, endDate]);
 
     const getLoanTransactionDescription = (loan: Loan, transaction: LoanTransaction) => {
         if (transaction.description != null) return transaction.description;
@@ -154,8 +157,8 @@ function LoanAccordionItem({
                         <CardHeader className="pb-2 flex-row justify-between items-center">
                             <div className="flex items-center gap-2">
                                 <CardDescription className="flex gap-4">
-                                    <span>Total Loan: <span className="font-semibold text-foreground">{formatCurrency(loan.totalLoan)}</span></span>
-                                    <span>Total Repayment: <span className="font-semibold text-foreground">{formatCurrency(loan.totalRepayment)}</span></span>
+                                    <span>Total Loan (Period): <span className="font-semibold text-foreground">{formatCurrency(periodTotals.totalLoan)}</span></span>
+                                    <span>Total Repayment (Period): <span className="font-semibold text-foreground">{formatCurrency(periodTotals.totalRepayment)}</span></span>
                                 </CardDescription>
                                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); onEditLoanName(loan); }}>
                                     <Pencil className="h-4 w-4" />
@@ -200,12 +203,11 @@ function LoanAccordionItem({
                                                 <TableHead className="text-right px-2 py-1">Loan Given</TableHead>
                                             </>
                                             )}
-                                            <TableHead className="text-right px-2 py-1">Balance</TableHead>
                                             <TableHead className="text-right px-2 py-1">Actions</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {transactionsWithRunningBalance.map(t => (
+                                        {transactionsForPeriod.map(t => (
                                             <TableRow key={t.id}>
                                                 <TableCell className="px-2 py-1">{isValid(parseISO(t.date)) ? format(parseISO(t.date), "dd/MM/yyyy") : '-'}</TableCell>
                                                 <TableCell className="px-2 py-1">
@@ -217,9 +219,6 @@ function LoanAccordionItem({
                                                 </TableCell>
                                                 <TableCell className="text-right font-mono text-red-600 px-2 py-1">
                                                     {t.debit > 0 ? formatCurrency(t.debit) : null}
-                                                </TableCell>
-                                                <TableCell className={cn("text-right font-mono px-2 py-1", t.balance > 0 ? 'text-foreground' : '')}>
-                                                    {formatCurrency(t.balance)}
                                                 </TableCell>
                                                 <TableCell className="text-right px-2 py-1">
                                                     <Button variant="ghost" size="icon" onClick={() => onEditTransaction(loan, t)} className="h-7 w-7">
@@ -259,46 +258,56 @@ function LoanAccordionItem({
 function CardAccordionItem({
     card,
     transactions,
+    startDate,
+    endDate,
 }: {
     card: Account;
     transactions: Transaction[];
+    startDate?: string;
+    endDate?: string;
 }) {
-    const transactionsWithRunningBalance = useMemo(() => {
-        if (!transactions) return [];
-
-        const relevantTransactions = transactions
+    const { transactionsForPeriod, periodTotals } = useMemo(() => {
+        let relevantTransactions = (transactions || [])
             .filter(t =>
                 (t.type === 'expense' && t.accountId === card.id) ||
                 (t.type === 'transfer' && (t.toAccountId === card.id || t.fromAccountId === card.id))
-            )
-            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()); // Chronological first
+            );
 
-        let runningDue = card.balance;
+        if (startDate && endDate) {
+            const interval = { start: new Date(startDate), end: new Date(endDate) };
+            relevantTransactions = relevantTransactions.filter(t => {
+                const transactionDate = parseISO(t.date);
+                return isValid(transactionDate) && isWithinInterval(transactionDate, interval);
+            });
+        }
         
-        return relevantTransactions.map(t => {
-            const balanceForThisTx = runningDue;
+        let totalCharges = 0;
+        let totalPayments = 0;
+        
+        const transactionsWithDetails = relevantTransactions.map(t => {
             let charge = 0;
             let payment = 0;
-            let effect = 0;
 
             if (t.type === 'expense' && t.accountId === card.id) {
                 charge = t.amount;
-                effect = t.amount;
+                totalCharges += t.amount;
             } else if (t.type === 'transfer') {
                 if (t.toAccountId === card.id) {
                     payment = t.amount;
-                    effect = -t.amount; // payment reduces due
+                    totalPayments += t.amount;
                 } else if (t.fromAccountId === card.id) { // cash advance or special charges
                     charge = t.amount;
-                    effect = t.amount; // advance increases due
+                    totalCharges += t.amount;
                 }
             }
-            
-            runningDue -= effect; // go backwards in time
-            
-            return { ...t, charge, payment, balance: balanceForThisTx };
-        }).reverse(); // display newest first
-    }, [transactions, card]);
+            return { ...t, charge, payment };
+        }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+        return {
+            transactionsForPeriod: transactionsWithDetails,
+            periodTotals: { totalCharges, totalPayments }
+        };
+    }, [transactions, card, startDate, endDate]);
 
     return (
         <AccordionItem value={card.id}>
@@ -319,9 +328,10 @@ function CardAccordionItem({
                 <div className="flex justify-center px-4 pb-4">
                     <Card className="bg-muted/50 w-full lg:w-2/3">
                         <CardHeader className="pb-2 flex-row justify-between items-center">
-                             <CardDescription>
-                                Limit: {card.limit ? formatCurrency(card.limit) : 'N/A'}
-                             </CardDescription>
+                             <CardDescription className="flex gap-4">
+                                <span>Charges (Period): <span className="font-semibold text-red-600">{formatCurrency(periodTotals.totalCharges)}</span></span>
+                                <span>Payments (Period): <span className="font-semibold text-green-600">{formatCurrency(periodTotals.totalPayments)}</span></span>
+                            </CardDescription>
                         </CardHeader>
                         <CardContent className="p-0">
                             <div className="w-full overflow-x-auto">
@@ -332,11 +342,10 @@ function CardAccordionItem({
                                             <TableHead>Description</TableHead>
                                             <TableHead className="text-right">Charges</TableHead>
                                             <TableHead className="text-right">Payments</TableHead>
-                                            <TableHead className="text-right">Due</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {transactionsWithRunningBalance.length > 0 ? transactionsWithRunningBalance.map(t => (
+                                        {transactionsForPeriod.length > 0 ? transactionsForPeriod.map(t => (
                                             <TableRow key={t.id}>
                                                 <TableCell>{isValid(parseISO(t.date)) ? format(parseISO(t.date), "dd/MM/yyyy") : '-'}</TableCell>
                                                 <TableCell>{t.description}</TableCell>
@@ -346,14 +355,11 @@ function CardAccordionItem({
                                                 <TableCell className="text-right font-mono text-green-600">
                                                     {t.payment > 0 ? formatCurrency(t.payment) : null}
                                                 </TableCell>
-                                                <TableCell className="text-right font-mono">
-                                                    {formatCurrency(t.balance)}
-                                                </TableCell>
                                             </TableRow>
                                         )) : (
                                             <TableRow>
-                                                <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
-                                                    No transactions found for this card.
+                                                <TableCell colSpan={4} className="text-center h-24 text-muted-foreground">
+                                                    No transactions found for this card in the selected period.
                                                 </TableCell>
                                             </TableRow>
                                         )}
@@ -368,7 +374,7 @@ function CardAccordionItem({
     );
 }
 
-export function LoanList({ loanType, creditCards, transactions }: { loanType: "taken" | "given", creditCards?: Account[], transactions?: Transaction[] }) {
+export function LoanList({ loanType, loans: allLoans, creditCards, transactions: allTransactions, startDate, endDate }: { loanType: "taken" | "given", loans: Loan[], creditCards?: Account[], transactions?: Transaction[], startDate?: string, endDate?: string }) {
   const [loans, setLoans] = useState<Loan[]>([]);
   const [accounts, setAccounts] = useState<Omit<Account, 'balance'>[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -391,46 +397,23 @@ export function LoanList({ loanType, creditCards, transactions }: { loanType: "t
 
   useEffect(() => {
     setClientLoaded(true);
-  }, []);
+    if(allLoans) {
+        setLoans(allLoans.sort((a, b) => b.balance - a.balance));
+    }
+  }, [allLoans]);
 
   useEffect(() => {
     if (user && db) {
-      const q = query(
-        collection(db, "loans"),
-        where("userId", "==", user.uid),
-        where("type", "==", loanType)
-      );
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-          const userLoans = snapshot.docs.map(doc => {
-            const data = doc.data();
-            const transactions: LoanTransaction[] = (data.transactions || []).sort((a: LoanTransaction, b: LoanTransaction) => new Date(b.date).getTime() - new Date(a.date).getTime());
-            
-            const totalLoan = transactions.filter((t: LoanTransaction) => t.type === 'loan').reduce((sum: number, t: LoanTransaction) => sum + t.amount, 0);
-            const totalRepayment = transactions.filter((t: LoanTransaction) => t.type === 'repayment').reduce((sum: number, t: LoanTransaction) => sum + t.amount, 0);
-            
-            return {
-              id: doc.id,
-              ...data,
-              transactions,
-              totalLoan,
-              totalRepayment,
-              balance: totalLoan - totalRepayment,
-            } as Loan;
-          });
-          setLoans(userLoans.sort((a, b) => b.balance - a.balance));
-        });
-
       const accountsQuery = query(collection(db, "accounts"), where("userId", "==", user.uid));
       const unsubscribeAccounts = onSnapshot(accountsQuery, (snapshot) => {
           setAccounts(snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}) as Omit<Account, 'balance'>));
       });
 
       return () => {
-        unsubscribe();
         unsubscribeAccounts();
       };
     }
-  }, [user, loanType]);
+  }, [user]);
 
   const resetAddDialog = () => {
     setIsNewPerson(false);
@@ -783,7 +766,7 @@ export function LoanList({ loanType, creditCards, transactions }: { loanType: "t
       setIsEditLoanNameDialogOpen(true);
   }
 
-  const otherAccounts = useMemo(() => accounts.filter(a => !a.isPrimary), [accounts]);
+  const otherAccounts = useMemo(() => accounts.filter(a => !a.isPrimary && a.type !== 'card'), [accounts]);
 
   const sbiCard = useMemo(() => creditCards?.find(c => c.name.toLowerCase().includes('sbi')), [creditCards]);
   const otherCards = useMemo(() => creditCards?.filter(c => c.name.toLowerCase().includes('sbi') === false), [creditCards]);
@@ -792,11 +775,6 @@ export function LoanList({ loanType, creditCards, transactions }: { loanType: "t
     return <Skeleton className="h-96 w-full" />;
   }
   
-  // This is a check to ensure we don't try to render before accounts are loaded.
-  if (user && accounts.length === 0 && loans.length > 0) {
-      return <Skeleton className="h-96 w-full" />;
-  }
-
   const title = loanType === "taken" ? "Loan Taken" : "Loans Given";
   const description =
     loanType === "taken"
@@ -817,164 +795,162 @@ export function LoanList({ loanType, creditCards, transactions }: { loanType: "t
             <CardTitle>{title}</CardTitle>
             <CardDescription>{description}</CardDescription>
           </div>
-          {loanType === 'taken' && (
-            <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
-              if (!open) resetAddDialog();
-              setIsAddDialogOpen(open);
-            }}>
-              <DialogTrigger asChild>
-                <Button>
-                  <PlusCircle className="mr-2 h-4 w-4" />
-                  Add Record
-                </Button>
-              </DialogTrigger>
-              <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-3xl">
-                <Tabs value={activeAddTab} onValueChange={setActiveAddTab}>
-                    <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="loan">Loan / Repayment</TabsTrigger>
-                        <TabsTrigger value="adjustment">Card Adjustment</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="loan" className="mt-0">
-                        <form onSubmit={handleAddLoanTransaction}>
-                        <DialogHeader className="pt-4">
-                            <DialogTitle>Add Loan / Repayment</DialogTitle>
-                        </DialogHeader>
-                        <div className="space-y-4 py-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label>Select Person / Account</Label>
-                                <Select onValueChange={value => {
-                                    if (value === 'new') {
-                                        setIsNewPerson(true);
-                                        setSelectedPersonId(null);
-                                        setPersonName("");
-                                    } else {
-                                        setIsNewPerson(false);
-                                        setSelectedPersonId(value);
-                                    }
-                                }}>
-                                    <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectGroup>
-                                        <SelectLabel>People</SelectLabel>
-                                        {loans.map(l => <SelectItem key={l.id} value={l.id}>{l.personName}</SelectItem>)}
-                                        </SelectGroup>
-                                        
-                                        <SelectGroup>
-                                            <SelectLabel>Your Other Accounts</SelectLabel>
-                                            {otherAccounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
-                                        </SelectGroup>
-                                        
-                                        <SelectGroup>
-                                        <SelectItem value="new">Add a new person</SelectItem>
-                                        </SelectGroup>
-                                    </SelectContent>
-                                </Select>
-                                </div>
-                            {isNewPerson && (
-                                <div className="space-y-2">
-                                    <Label htmlFor="personName">New Person's Name</Label>
-                                    <Input id="personName" name="personName" value={personName} onChange={e => setPersonName(e.target.value)} required />
-                                </div>
-                            )}
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div className="space-y-2">
-                                <Label>Transaction Type</Label>
-                                <Select name="transactionType" value={transactionType} onValueChange={(v) => setTransactionType(v as 'loan' | 'repayment')}>
-                                    <SelectTrigger><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="loan">{loanType === 'taken' ? 'I took a loan' : 'I gave a loan'}</SelectItem>
-                                        <SelectItem value="repayment">{loanType === 'taken' ? 'I repaid' : 'I received repayment'}</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="amount">Amount</Label>
-                                <Input id="amount" name="amount" type="number" step="0.01" required />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="date">Date</Label>
-                                <Input id="date" name="date" type="date" defaultValue={format(new Date(), 'yyyy-MM-dd')} required />
-                            </div>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="myAccountId">My Account</Label>
-                                <Select name="myAccountId" required>
-                                    <SelectTrigger><SelectValue placeholder="Select account..."/></SelectTrigger>
-                                    <SelectContent>
-                                        {allAccountsForTx.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="description">Description</Label>
-                                <Textarea id="description" name="description" placeholder="Optional notes" />
-                            </div>
-                            </div>
-                        </div>
-                        <DialogFooter>
-                            <DialogClose asChild><Button type="button" variant="secondary">Cancel</Button></DialogClose>
-                            <Button type="submit">Add Record</Button>
-                        </DialogFooter>
-                        </form>
-                    </TabsContent>
-                    <TabsContent value="adjustment" className="mt-0">
-                        <form onSubmit={handleCardAdjustment}>
-                            <DialogHeader className="pt-4">
-                                <DialogTitle>Add Card Adjustment</DialogTitle>
-                                <DialogDescription>
-                                    Add a cash back or other charge to a credit card.
-                                </DialogDescription>
-                            </DialogHeader>
-                            <div className="space-y-4 py-4">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="cardAccountId">Credit Card</Label>
-                                        <Select name="cardAccountId" required>
-                                            <SelectTrigger id="cardAccountId"><SelectValue placeholder="Select card..."/></SelectTrigger>
-                                            <SelectContent>
-                                                {creditCards?.map(card => <SelectItem key={card.id} value={card.id}>{card.name}</SelectItem>)}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>Adjustment Type</Label>
-                                        <Select name="adjustmentType" defaultValue="cashback" required>
-                                            <SelectTrigger><SelectValue /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="cashback">Cash Back (Credit)</SelectItem>
-                                                <SelectItem value="charge">Other Charge (Debit)</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="amount-adj">Amount</Label>
-                                        <Input id="amount-adj" name="amount" type="number" step="0.01" required />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="date-adj">Date</Label>
-                                        <Input id="date-adj" name="date" type="date" defaultValue={format(new Date(), 'yyyy-MM-dd')} required />
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="description-adj">Description</Label>
-                                    <Textarea id="description-adj" name="description" placeholder="e.g. Cashback for recent purchase" />
-                                </div>
-                            </div>
-                            <DialogFooter>
-                                <DialogClose asChild><Button type="button" variant="secondary">Cancel</Button></DialogClose>
-                                <Button type="submit">Add Adjustment</Button>
-                            </DialogFooter>
-                        </form>
-                    </TabsContent>
-                </Tabs>
-              </DialogContent>
-            </Dialog>
-          )}
+          <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+            if (!open) resetAddDialog();
+            setIsAddDialogOpen(open);
+          }}>
+            <DialogTrigger asChild>
+              <Button>
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Add Record
+              </Button>
+            </DialogTrigger>
+            <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-3xl">
+              <Tabs value={activeAddTab} onValueChange={setActiveAddTab}>
+                  <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="loan">Loan / Repayment</TabsTrigger>
+                      <TabsTrigger value="adjustment">Card Adjustment</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="loan" className="mt-0">
+                      <form onSubmit={handleAddLoanTransaction}>
+                      <DialogHeader className="pt-4">
+                          <DialogTitle>Add Loan / Repayment</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                              <Label>Select Person / Account</Label>
+                              <Select onValueChange={value => {
+                                  if (value === 'new') {
+                                      setIsNewPerson(true);
+                                      setSelectedPersonId(null);
+                                      setPersonName("");
+                                  } else {
+                                      setIsNewPerson(false);
+                                      setSelectedPersonId(value);
+                                  }
+                              }}>
+                                  <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                                  <SelectContent>
+                                      <SelectGroup>
+                                      <SelectLabel>People (Loans)</SelectLabel>
+                                      {loans.map(l => <SelectItem key={l.id} value={l.id}>{l.personName}</SelectItem>)}
+                                      </SelectGroup>
+                                      
+                                      <SelectGroup>
+                                          <SelectLabel>Your Other Accounts</SelectLabel>
+                                          {otherAccounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
+                                      </SelectGroup>
+                                      
+                                      <SelectGroup>
+                                      <SelectItem value="new">Add a new person</SelectItem>
+                                      </SelectGroup>
+                                  </SelectContent>
+                              </Select>
+                              </div>
+                          {isNewPerson && (
+                              <div className="space-y-2">
+                                  <Label htmlFor="personName">New Person's Name</Label>
+                                  <Input id="personName" name="personName" value={personName} onChange={e => setPersonName(e.target.value)} required />
+                              </div>
+                          )}
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div className="space-y-2">
+                              <Label>Transaction Type</Label>
+                              <Select name="transactionType" value={transactionType} onValueChange={(v) => setTransactionType(v as 'loan' | 'repayment')}>
+                                  <SelectTrigger><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                      <SelectItem value="loan">{loanType === 'taken' ? 'I took a loan' : 'I gave a loan'}</SelectItem>
+                                      <SelectItem value="repayment">{loanType === 'taken' ? 'I repaid' : 'I received repayment'}</SelectItem>
+                                  </SelectContent>
+                              </Select>
+                          </div>
+                          <div className="space-y-2">
+                              <Label htmlFor="amount">Amount</Label>
+                              <Input id="amount" name="amount" type="number" step="0.01" required />
+                          </div>
+                          <div className="space-y-2">
+                              <Label htmlFor="date">Date</Label>
+                              <Input id="date" name="date" type="date" defaultValue={format(new Date(), 'yyyy-MM-dd')} required />
+                          </div>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                              <Label htmlFor="myAccountId">My Account</Label>
+                              <Select name="myAccountId" required>
+                                  <SelectTrigger><SelectValue placeholder="Select account..."/></SelectTrigger>
+                                  <SelectContent>
+                                      {allAccountsForTx.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
+                                  </SelectContent>
+                              </Select>
+                          </div>
+                          <div className="space-y-2">
+                              <Label htmlFor="description">Description</Label>
+                              <Textarea id="description" name="description" placeholder="Optional notes" />
+                          </div>
+                          </div>
+                      </div>
+                      <DialogFooter>
+                          <DialogClose asChild><Button type="button" variant="secondary">Cancel</Button></DialogClose>
+                          <Button type="submit">Add Record</Button>
+                      </DialogFooter>
+                      </form>
+                  </TabsContent>
+                  <TabsContent value="adjustment" className="mt-0">
+                      <form onSubmit={handleCardAdjustment}>
+                          <DialogHeader className="pt-4">
+                              <DialogTitle>Add Card Adjustment</DialogTitle>
+                              <DialogDescription>
+                                  Add a cash back or other charge to a credit card.
+                              </DialogDescription>
+                          </DialogHeader>
+                          <div className="space-y-4 py-4">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  <div className="space-y-2">
+                                      <Label htmlFor="cardAccountId">Credit Card</Label>
+                                      <Select name="cardAccountId" required>
+                                          <SelectTrigger id="cardAccountId"><SelectValue placeholder="Select card..."/></SelectTrigger>
+                                          <SelectContent>
+                                              {creditCards?.map(card => <SelectItem key={card.id} value={card.id}>{card.name}</SelectItem>)}
+                                          </SelectContent>
+                                      </Select>
+                                  </div>
+                                  <div className="space-y-2">
+                                      <Label>Adjustment Type</Label>
+                                      <Select name="adjustmentType" defaultValue="cashback" required>
+                                          <SelectTrigger><SelectValue /></SelectTrigger>
+                                          <SelectContent>
+                                              <SelectItem value="cashback">Cash Back (Credit)</SelectItem>
+                                              <SelectItem value="charge">Other Charge (Debit)</SelectItem>
+                                          </SelectContent>
+                                      </Select>
+                                  </div>
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  <div className="space-y-2">
+                                      <Label htmlFor="amount-adj">Amount</Label>
+                                      <Input id="amount-adj" name="amount" type="number" step="0.01" required />
+                                  </div>
+                                  <div className="space-y-2">
+                                      <Label htmlFor="date-adj">Date</Label>
+                                      <Input id="date-adj" name="date" type="date" defaultValue={format(new Date(), 'yyyy-MM-dd')} required />
+                                  </div>
+                              </div>
+                              <div className="space-y-2">
+                                  <Label htmlFor="description-adj">Description</Label>
+                                  <Textarea id="description-adj" name="description" placeholder="e.g. Cashback for recent purchase" />
+                              </div>
+                          </div>
+                          <DialogFooter>
+                              <DialogClose asChild><Button type="button" variant="secondary">Cancel</Button></DialogClose>
+                              <Button type="submit">Add Adjustment</Button>
+                          </DialogFooter>
+                      </form>
+                  </TabsContent>
+              </Tabs>
+            </DialogContent>
+          </Dialog>
         </CardHeader>
         <CardContent>
             {(loans.length === 0 && (!creditCards || creditCards.length === 0)) ? (
@@ -984,11 +960,13 @@ export function LoanList({ loanType, creditCards, transactions }: { loanType: "t
                 </div>
             ) : (
                 <Accordion type="single" collapsible className="w-full">
-                    {sbiCard && transactions && loanType === 'taken' && (
+                    {sbiCard && allTransactions && loanType === 'taken' && (
                         <CardAccordionItem
                             key={sbiCard.id}
                             card={sbiCard}
-                            transactions={transactions}
+                            transactions={allTransactions}
+                            startDate={startDate}
+                            endDate={endDate}
                         />
                     )}
                     {loans.map(loan => (
@@ -1000,13 +978,17 @@ export function LoanList({ loanType, creditCards, transactions }: { loanType: "t
                         onDeleteLoan={handleDeleteLoan}
                         onDeleteTransaction={handleDeleteLoanTransaction}
                         onEditLoanName={openEditLoanNameDialog}
+                        startDate={startDate}
+                        endDate={endDate}
                       />
                     ))}
-                    {otherCards && transactions && loanType === 'taken' && otherCards.map(card => (
+                    {otherCards && allTransactions && loanType === 'taken' && otherCards.map(card => (
                        <CardAccordionItem
                             key={card.id}
                             card={card}
-                            transactions={transactions}
+                            transactions={allTransactions}
+                            startDate={startDate}
+                            endDate={endDate}
                         />
                     ))}
                 </Accordion>
