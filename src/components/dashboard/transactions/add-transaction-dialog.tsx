@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useMemo, Fragment } from "react";
@@ -280,7 +279,7 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
             }
         
             if (validItems.length > 1) {
-                newTransaction.description = `Multiple expenses (${validItems.length} items)`;
+                newTransaction.description = firstItem.description; // Keep first item's desc for main entry
                 newTransaction.items = validItems.map(item => {
                     const catDoc = categories.find(c => c.id === item.categoryId);
                     return {
@@ -294,7 +293,7 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
             }
         
             await addDoc(collection(db, "transactions"), newTransaction);
-            toast({ title: `Added ${validItems.length > 1 ? `${validItems.length} expenses as one transaction` : 'expense'}.` });
+            toast({ title: `Added expense transaction.` });
 
         } else if (transactionType === 'income') {
             const categoryDoc = categories.find(c => c.id === incomeCategory);
@@ -384,16 +383,16 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
                             <div className="grid grid-cols-12 gap-x-3 gap-y-2 items-end">
                                 <div className="col-span-12 sm:col-span-4 md:col-span-3 space-y-1">
                                     <Label htmlFor={`description-expense-${index}`} className="text-xs font-medium">Description</Label>
-                                    <Textarea rows={1} id={`description-expense-${index}`} value={item.description} onChange={(e) => handleExpenseItemChange(index, 'description', e.target.value)} placeholder="e.g. Milk" required className="text-sm bg-transparent"/>
+                                    <Textarea rows={1} id={`description-expense-${index}`} value={item.description} onChange={(e) => handleExpenseItemChange(index, 'description', e.target.value)} placeholder="e.g. Milk" required className="text-sm bg-transparent border"/>
                                 </div>
                                 <div className="col-span-6 sm:col-span-3 md:col-span-2 space-y-1">
                                     <Label htmlFor={`amount-expense-${index}`} className="text-xs font-medium">Amount</Label>
-                                    <Input id={`amount-expense-${index}`} value={item.amount} onChange={(e) => handleExpenseItemChange(index, 'amount', e.target.value)} onBlur={() => handleExpenseAmountBlur(index)} placeholder="e.g. 50" required className="hide-number-arrows text-sm bg-transparent"/>
+                                    <Input id={`amount-expense-${index}`} value={item.amount} onChange={(e) => handleExpenseItemChange(index, 'amount', e.target.value)} onBlur={() => handleExpenseAmountBlur(index)} placeholder="e.g. 50" required className="hide-number-arrows text-sm bg-transparent border"/>
                                 </div>
                                 <div className="col-span-6 sm:col-span-5 md:col-span-3 space-y-1">
                                     <Label htmlFor={`category-expense-${index}`} className="text-xs font-medium">Category</Label>
                                     <Select value={item.categoryId} onValueChange={(value) => handleExpenseItemChange(index, 'categoryId', value)}>
-                                        <SelectTrigger id={`category-expense-${index}`} className="text-sm bg-transparent"><SelectValue placeholder="Select" /></SelectTrigger>
+                                        <SelectTrigger id={`category-expense-${index}`} className="text-sm bg-transparent border"><SelectValue placeholder="Select" /></SelectTrigger>
                                         <SelectContent>
                                             {expenseCategoriesForDropdown.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
                                         </SelectContent>
@@ -402,7 +401,7 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
                                 <div className="col-span-10 sm:col-span-11 md:col-span-3 space-y-1">
                                     <Label htmlFor={`subcategory-expense-${index}`} className="text-xs font-medium">Sub-category</Label>
                                     <Select value={item.subcategory} onValueChange={(value) => handleExpenseItemChange(index, 'subcategory', value)} disabled={!item.categoryId || expenseSubcategories(item.categoryId).length === 0}>
-                                        <SelectTrigger id={`subcategory-expense-${index}`} className="text-sm bg-transparent"><SelectValue placeholder="Select" /></SelectTrigger>
+                                        <SelectTrigger id={`subcategory-expense-${index}`} className="text-sm bg-transparent border"><SelectValue placeholder="Select" /></SelectTrigger>
                                         <SelectContent>
                                             {expenseSubcategories(item.categoryId).map(sub => <SelectItem key={sub.id} value={sub.name}>{sub.name}</SelectItem>)}
                                         </SelectContent>
@@ -446,10 +445,16 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
                           </Select>
                       </div>
                     </div>
-                  <div className="space-y-2">
-                      <Label htmlFor="description-income">Description</Label>
-                      <Textarea id="description-income" value={incomeDescription} onChange={(e) => setIncomeDescription(e.target.value)} placeholder="e.g. Monthly Salary" required />
-                  </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="description-income">Description</Label>
+                            <Textarea id="description-income" value={incomeDescription} onChange={(e) => setIncomeDescription(e.target.value)} placeholder="e.g. Monthly Salary" required />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="amount-income">Amount</Label>
+                            <Input id="amount-income" value={incomeAmount} onChange={(e) => setIncomeAmount(e.target.value)} onBlur={handleIncomeAmountBlur} placeholder="e.g. 50000" required className="hide-number-arrows"/>
+                        </div>
+                    </div>
                   <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                           <Label htmlFor="category-income">Category</Label>
@@ -470,25 +475,23 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
                           </Select>
                       </div>
                   </div>
-                   <div className="space-y-2">
-                      <Label htmlFor="amount-income">Amount</Label>
-                      <Input id="amount-income" value={incomeAmount} onChange={(e) => setIncomeAmount(e.target.value)} onBlur={handleIncomeAmountBlur} placeholder="e.g. 50000" required className="hide-number-arrows"/>
-                  </div>
               </TabsContent>
 
               <TabsContent value="transfer" className="mt-0 space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="date-transfer">Date</Label>
-                    <Input id="date-transfer" name="date-transfer" type="date" value={date} onChange={e => setDate(e.target.value)} required />
-                  </div>
-                  <div className="space-y-2">
-                      <Label htmlFor="amount-transfer">Amount</Label>
-                      <Input id="amount-transfer" value={transferAmount} onChange={(e) => setTransferAmount(e.target.value)} onBlur={handleTransferAmountBlur} placeholder="e.g. 1000" required className="hide-number-arrows"/>
-                  </div>
-                  <div className="space-y-2">
-                      <Label htmlFor="description-transfer">Description</Label>
-                      <Textarea id="description-transfer" value={transferDescription} onChange={(e) => setTransferDescription(e.target.value)} placeholder="e.g. Move to savings" />
-                  </div>
+                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="date-transfer">Date</Label>
+                            <Input id="date-transfer" name="date-transfer" type="date" value={date} onChange={e => setDate(e.target.value)} required />
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="description-transfer">Description</Label>
+                            <Textarea id="description-transfer" value={transferDescription} onChange={(e) => setTransferDescription(e.target.value)} placeholder="e.g. Move to savings" />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="amount-transfer">Amount</Label>
+                            <Input id="amount-transfer" value={transferAmount} onChange={(e) => setTransferAmount(e.target.value)} onBlur={handleTransferAmountBlur} placeholder="e.g. 1000" required className="hide-number-arrows"/>
+                        </div>
+                   </div>
                   <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                           <Label htmlFor="fromAccount-transfer">From</Label>
