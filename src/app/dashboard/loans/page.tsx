@@ -11,7 +11,7 @@ import type { Loan, Account, Transaction } from "@/lib/data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { startOfMonth, endOfMonth, format, isWithinInterval, parseISO, isValid } from "date-fns";
+import { startOfMonth, endOfMonth, format, isWithinInterval, parseISO, isValid, startOfDay, endOfDay } from "date-fns";
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-IN", {
@@ -123,7 +123,7 @@ export default function LoansPage() {
   
   const dateFilteredTransactions = useMemo(() => {
       if (!startDate || !endDate) return allTransactions;
-      const interval = { start: new Date(startDate), end: new Date(endDate) };
+      const interval = { start: startOfDay(new Date(startDate)), end: endOfDay(new Date(endDate)) };
       return allTransactions.filter(t => {
         const transactionDate = parseISO(t.date);
         return isValid(transactionDate) && isWithinInterval(transactionDate, interval);
@@ -139,7 +139,7 @@ export default function LoansPage() {
     balanceLoanGiven,
     totalCreditCardDebt
   } = useMemo(() => {
-    const interval = startDate && endDate ? { start: new Date(startDate), end: new Date(endDate) } : null;
+    const interval = startDate && endDate ? { start: startOfDay(new Date(startDate)), end: endOfDay(new Date(endDate)) } : null;
 
     let totalLoanTakenForPeriod = 0;
     let totalRepaymentForTakenForPeriod = 0;
