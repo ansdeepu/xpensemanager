@@ -1,4 +1,3 @@
-
 "use client";
 
 import { LoanList } from "@/components/dashboard/loans/loan-list";
@@ -7,7 +6,8 @@ import { useState, useEffect, useMemo } from "react";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuthState } from "@/hooks/use-auth-state";
-import type { Loan } from "@/lib/data";
+import type { Loan, Account, Transaction } from "@/lib/data";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-IN", {
@@ -20,6 +20,8 @@ export default function LoansPage() {
   const [user] = useAuthState();
   const [loans, setLoans] = useState<Loan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [rawAccounts, setRawAccounts] = useState<Omit<Account, 'balance'>[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
 
   useEffect(() => {
     if (user) {
@@ -42,11 +44,77 @@ export default function LoansPage() {
         setLoans(userLoans);
         setLoading(false);
       });
-      return () => unsubscribe();
+      
+      const accountsQuery = query(collection(db, 'accounts'), where('userId', '==', user.uid));
+      const unsubscribeAccounts = onSnapshot(accountsQuery, (snapshot) => {
+          setRawAccounts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Omit<Account, 'balance'>)));
+      });
+
+      const transactionsQuery = query(collection(db, 'transactions'), where('userId', '==', user.uid));
+      const unsubscribeTransactions = onSnapshot(transactionsQuery, (snapshot) => {
+          setTransactions(snapshot.docs.map(doc => doc.data() as Transaction));
+      });
+
+      return () => {
+          unsubscribe();
+          unsubscribeAccounts();
+          unsubscribeTransactions();
+      };
     } else {
         setLoading(false);
     }
   }, [user]);
+
+  const accountsWithBalance = useMemo(() => {
+    const balances: { [key: string]: number } = {};
+    rawAccounts.forEach(acc => {
+        balances[acc.id] = 0;
+    });
+    
+    const accountMap = new Map(rawAccounts.map(acc => [acc.id, acc]));
+
+    transactions.forEach(t => {
+        if (t.type === 'income' && t.accountId && balances[t.accountId] !== undefined) {
+            const account = accountMap.get(t.accountId);
+            if(account?.type !== 'card') {
+                balances[t.accountId] += t.amount;
+            }
+        } else if (t.type === 'expense' && t.accountId && t.paymentMethod === 'online' && balances[t.accountId] !== undefined) {
+            const account = accountMap.get(t.accountId);
+            if (account?.type === 'card') {
+                balances[t.accountId] += t.amount;
+            } else {
+                balances[t.accountId] -= t.amount;
+            }
+        } else if (t.type === 'transfer') {
+            if (t.fromAccountId && balances[t.fromAccountId] !== undefined) {
+                const fromAccount = accountMap.get(t.fromAccountId);
+                if (fromAccount?.type === 'card') {
+                    balances[t.fromAccountId] += t.amount;
+                } else {
+                    balances[t.fromAccountId] -= t.amount;
+                }
+            }
+            if (t.toAccountId && balances[t.toAccountId] !== undefined) {
+                const toAccount = accountMap.get(t.toAccountId);
+                if (toAccount?.type === 'card') {
+                    balances[t.toAccountId] -= t.amount;
+                } else {
+                    balances[t.toAccountId] += t.amount;
+                }
+            }
+        }
+    });
+
+    return rawAccounts.map(acc => ({
+        ...acc,
+        balance: balances[acc.id] ?? 0,
+    }));
+  }, [rawAccounts, transactions]);
+
+  const creditCards = useMemo(() => accountsWithBalance.filter(acc => acc.type === 'card'), [accountsWithBalance]);
+  const totalCreditCardDebt = useMemo(() => creditCards.reduce((sum, card) => sum + card.balance, 0), [creditCards]);
+
 
   const {
     totalLoanTaken,
@@ -83,12 +151,17 @@ export default function LoansPage() {
         <TabsList className="grid w-full grid-cols-2 h-auto">
           <TabsTrigger value="taken" className="flex flex-col h-auto p-2 items-start text-left">
             <div className="w-full flex justify-between items-center">
-                <span className="font-semibold text-base">Loan Taken</span>
-                <span className="font-bold text-lg text-red-600">{!loading && formatCurrency(balanceLoanTaken)}</span>
+                <span className="font-semibold text-base">Debts</span>
+                <span className="font-bold text-lg text-red-600">{!loading && formatCurrency(balanceLoanTaken + totalCreditCardDebt)}</span>
             </div>
-            <div className="w-full text-xs text-muted-foreground mt-1 grid grid-cols-2 gap-2">
-                <span>Loan taken: {formatCurrency(totalLoanTaken)}</span>
-                <span>Repayment: {formatCurrency(totalRepaymentForTaken)}</span>
+            <div className="w-full text-xs text-muted-foreground mt-1 space-y-1">
+                <div className="grid grid-cols-2 gap-2">
+                  <span>Loan taken: {formatCurrency(totalLoanTaken)}</span>
+                  <span>Repayment: {formatCurrency(totalRepaymentForTaken)}</span>
+                </div>
+                <div>
+                  <span>Credit Card Due: {formatCurrency(totalCreditCardDebt)}</span>
+                </div>
             </div>
           </TabsTrigger>
           <TabsTrigger value="given" className="flex flex-col h-auto p-2 items-start text-left">
@@ -103,7 +176,29 @@ export default function LoansPage() {
           </TabsTrigger>
         </TabsList>
         <TabsContent value="taken" className="mt-6">
-          <LoanList loanType="taken" />
+          <div className="space-y-6">
+            <LoanList loanType="taken" />
+            <Card>
+              <CardHeader>
+                <CardTitle>Credit Card Dues</CardTitle>
+                <CardDescription>Total amount due on your credit cards.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-red-600 mb-4">{formatCurrency(totalCreditCardDebt)}</div>
+                <div className="space-y-2">
+                  {creditCards.map(card => (
+                    <div key={card.id} className="flex justify-between items-center p-2 rounded-md bg-muted/50">
+                      <span className="font-medium">{card.name}</span>
+                      <span className="font-mono">{formatCurrency(card.balance)}</span>
+                    </div>
+                  ))}
+                  {creditCards.length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-4">No credit cards found.</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
         <TabsContent value="given" className="mt-6">
           <LoanList loanType="given" />
