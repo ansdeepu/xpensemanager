@@ -9,19 +9,9 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  TableFooter,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogClose,
-} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,20 +23,11 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import type { Transaction, Account, Category, Bill, Loan } from "@/lib/data";
+import type { Transaction, Account, Category, Loan } from "@/lib/data";
 import { Pencil, Trash2 } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
-import { collection, query, where, onSnapshot, doc, runTransaction, orderBy, getDocs, writeBatch, deleteField } from "firebase/firestore";
-import { format, isAfter, isSameDay, parseISO } from "date-fns";
+import { collection, query, where, onSnapshot, doc, writeBatch, getDocs } from "firebase/firestore";
+import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useAuthState } from "@/hooks/use-auth-state";
@@ -70,74 +51,26 @@ const formatCurrency = (amount: number) => {
     }).format(amount);
 };
 
-
-// Function to safely evaluate math expressions
-const evaluateMath = (expression: string): number | null => {
-  try {
-    // Basic validation: only allow numbers, operators, and parentheses
-    if (/[^0-9+\-*/.() ]/.test(expression)) {
-      return null;
-    }
-    // eslint-disable-next-line no-eval
-    const result = eval(expression);
-    if (typeof result === 'number' && isFinite(result)) {
-      return result;
-    }
-    return null;
-  } catch (error) {
-    return null;
-  }
-};
-
-
 export function TransactionTable({
   transactions,
   accountId,
   primaryAccount,
   currentPage,
   itemsPerPage,
+  onEditTransaction
 }: {
   transactions: (Transaction & { balance: number })[];
   accountId: string;
   primaryAccount: Account | undefined;
   currentPage: number;
   itemsPerPage: number;
+  onEditTransaction: (transaction: Transaction) => void;
 }) {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loans, setLoans] = useState<Loan[]>([]);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
-
   const [user] = useAuthState();
-  const [editDate, setEditDate] = useState<Date | undefined>(new Date());
-  const [editCategory, setEditCategory] = useState<string | undefined>();
-  const [editSubCategory, setEditSubCategory] = useState<string | undefined>();
-  const [editSelectedAccountId, setEditSelectedAccountId] = useState<string | undefined>();
   const { toast } = useToast();
-  
-  const [editAmount, setEditAmount] = useState("");
-
-  const handleAmountChange = (setter: React.Dispatch<React.SetStateAction<string>>) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    setter(e.target.value);
-  };
-  
-  const handleAmountBlur = (
-    value: string,
-    setter: React.Dispatch<React.SetStateAction<string>>
-  ) => {
-    if (value.trim() === "") return;
-    const result = evaluateMath(value);
-    if (result !== null) {
-      setter(String(result));
-    }
-  };
-
-   const editSubcategories = useMemo(() => {
-    if (!editCategory) return [];
-    const category = categories.find(c => c.id === editCategory);
-    return category?.subcategories || [];
-    }, [editCategory, categories]);
 
     const getAccountName = (accountId?: string, paymentMethod?: Transaction['paymentMethod']) => {
         if (accountId === 'cash-wallet' || paymentMethod === 'cash') return "Cash Wallet";
@@ -161,8 +94,6 @@ export function TransactionTable({
         
         return account.name;
       };
-
-    const primaryAccountFromProps = useMemo(() => accounts.find(a => a.isPrimary), [accounts]);
     
     const getLoanDisplayInfo = useMemo(() => {
         return (t: Transaction) => {
@@ -185,7 +116,7 @@ export function TransactionTable({
                             descriptionPrefix = isRepayment ? 'Repayment from' : 'Loan to';
                         }
                         
-                        const description = `${'descriptionPrefix'} ${otherPartyName}`;
+                        const description = `${descriptionPrefix} ${otherPartyName}`;
                         return { isLoan: true, type: loanTx.type, category: 'Loan', description, descriptionClassName: 'text-orange-600 font-bold' };
                     }
                 }
@@ -269,13 +200,13 @@ export function TransactionTable({
 
    useEffect(() => {
     if (user && db) {
-      const accountsQuery = query(collection(db, "accounts"), where("userId", "==", user.uid), orderBy("order", "asc"));
+      const accountsQuery = query(collection(db, "accounts"), where("userId", "==", user.uid));
       const unsubscribeAccounts = onSnapshot(accountsQuery, (snapshot) => {
         const userAccounts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Account));
         setAccounts(userAccounts);
       });
       
-      const categoriesQuery = query(collection(db, "categories"), where("userId", "==", user.uid), orderBy("order", "asc"));
+      const categoriesQuery = query(collection(db, "categories"), where("userId", "==", user.uid));
       const unsubscribeCategories = onSnapshot(categoriesQuery, (snapshot) => {
         const userCategories = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
         setCategories(userCategories);
@@ -307,113 +238,6 @@ export function TransactionTable({
       };
     }
   }, [user, db]);
-
-  const editCategoriesForDropdown = useMemo(() => {
-    if (!selectedTransaction) {
-        return [];
-    }
-
-    if (selectedTransaction.type === 'income') {
-        return categories.filter(c => c.type === 'income');
-    }
-
-    if (selectedTransaction.type === 'expense') {
-        const expenseCats = categories.filter(c => c.type === 'expense');
-        const bankExpenseCats = categories.filter(c => c.type === 'bank-expense');
-        
-        const postBankAccount = accounts.find(acc => acc.name.toLowerCase().includes('post bank'));
-        
-        let isPostBankExpense = false;
-        if (selectedTransaction.paymentMethod === 'online' && selectedTransaction.accountId === postBankAccount?.id) {
-            isPostBankExpense = true;
-        }
-
-        if (isPostBankExpense) {
-            // Order is: Expense Categories first, then Bank Expense Categories.
-            return [...expenseCats, ...bankExpenseCats];
-        }
-        
-        // For all other expenses, just show both types, preserving original order from Firestore.
-        return categories.filter(c => c.type === 'expense' || c.type === 'bank-expense');
-    }
-
-    return [];
-  }, [categories, selectedTransaction, accounts]);
-  
-  const handleEditTransaction = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!user || !selectedTransaction) return;
-  
-    const formData = new FormData(event.currentTarget);
-    const dateString = formData.get("date") as string;
-    const transactionDate = dateString ? new Date(dateString) : new Date();
-
-    const updatedData: Partial<Transaction> = {
-      description: formData.get("description") as string,
-      amount: parseFloat(editAmount),
-      date: transactionDate.toISOString(),
-    };
-  
-    try {
-      await runTransaction(db, async (t) => {
-        const transactionRef = doc(db, "transactions", selectedTransaction.id);
-        const oldTransactionDoc = await t.get(transactionRef);
-        if (!oldTransactionDoc.exists()) throw "Transaction not found";
-        
-        if (selectedTransaction.type === 'income' || selectedTransaction.type === 'expense') {
-          const newAccountId = formData.get("account") as string;
-          
-           if (selectedTransaction.type === 'expense') {
-              if (newAccountId === 'cash-wallet') {
-                updatedData.paymentMethod = 'cash';
-                (updatedData as any).accountId = deleteField();
-              } else if (newAccountId === 'digital-wallet') {
-                updatedData.paymentMethod = 'digital';
-                (updatedData as any).accountId = deleteField();
-              } else {
-                updatedData.paymentMethod = 'online';
-                updatedData.accountId = newAccountId;
-              }
-            } else { // Income
-              updatedData.paymentMethod = 'online';
-              updatedData.accountId = newAccountId;
-            }
-  
-          if (selectedTransaction.type === 'expense' || selectedTransaction.type === 'income') {
-            const categoryId = formData.get('category') as string;
-            const subcategory = formData.get('subcategory') as string;
-            const categoryDoc = categories.find(c => c.id === categoryId);
-            updatedData.category = categoryDoc?.name || 'Uncategorized';
-            updatedData.categoryId = categoryId;
-            updatedData.subcategory = subcategory || "";
-          }
-        } else if (selectedTransaction.type === 'transfer') {
-          updatedData.fromAccountId = formData.get("fromAccount") as string;
-          updatedData.toAccountId = formData.get("toAccount") as string;
-  
-          if (updatedData.fromAccountId === updatedData.toAccountId) {
-            throw new Error("From and To accounts cannot be the same.");
-          }
-  
-          const fromAccountName = getAccountName(updatedData.fromAccountId);
-          const toAccountName = getAccountName(updatedData.toAccountId);
-          updatedData.description = formData.get("description") as string || `Transfer from ${fromAccountName} to ${toAccountName}`;
-        }
-  
-        t.update(transactionRef, updatedData);
-      });
-  
-      setIsEditDialogOpen(false);
-      setSelectedTransaction(null);
-    } catch (error: any) {
-        toast({
-            variant: "destructive",
-            title: "Update Failed",
-            description: error.message || "An unexpected error occurred."
-        })
-    }
-  };
-
 
   const handleDeleteTransaction = async (transactionToDelete: Transaction) => {
     if (!user) return;
@@ -455,36 +279,6 @@ export function TransactionTable({
         });
     }
   };
-
-  const openEditDialog = (transaction: Transaction) => {
-    setSelectedTransaction(transaction);
-    
-    // Set initial state for the dialog form fields
-    setEditDate(new Date(transaction.date));
-    setEditAmount(String(transaction.amount));
-    
-    const accountId = transaction.paymentMethod === 'cash' ? 'cash-wallet'
-        : transaction.paymentMethod === 'digital' ? 'digital-wallet'
-        : transaction.accountId;
-    setEditSelectedAccountId(accountId);
-
-    if (transaction.type === 'expense' || transaction.type === 'income') {
-        let categoryDoc;
-        if (transaction.categoryId) {
-            categoryDoc = categories.find(c => c.id === transaction.categoryId);
-        } else if (transaction.category) {
-            // Fallback to finding by name if ID is missing
-            categoryDoc = categories.find(c => c.name === transaction.category && (c.type === transaction.type || (transaction.type === 'expense' && c.type === 'bank-expense')));
-        }
-        setEditCategory(categoryDoc?.id);
-        setEditSubCategory(transaction.subcategory);
-    } else {
-        setEditCategory(undefined);
-        setEditSubCategory(undefined);
-    }
-
-    setIsEditDialogOpen(true);
-  };
   
   const getBadgeVariant = (type: Transaction['type'] | 'loan' | 'repayment' | 'withdraw' | 'movement' | 'issue' | 'return') => {
     switch (type) {
@@ -503,19 +297,6 @@ export function TransactionTable({
         return 'secondary';
     }
   }
-
-  const getLoanAmountColor = (loanInfo: { type: string }) => {
-    if (loanInfo.type.includes('Repayment')) {
-      return 'text-blue-600';
-    }
-    if (loanInfo.type.includes('Loan Given')) {
-      return 'text-red-600';
-    }
-    if (loanInfo.type.includes('Loan from') || loanInfo.type.includes('Loan Taken')) {
-      return 'text-green-600';
-    }
-    return 'text-blue-600'; // Default for transfers
-  };
 
   return (
     <>
@@ -541,13 +322,12 @@ export function TransactionTable({
                 const loanInfo = getLoanDisplayInfo(t);
                 
                 if (t.items && t.items.length > 0) {
+                    const rows = [];
                     const firstItem = t.items[0];
                     const categoryDoc = categories.find(c => c.id === firstItem.categoryId || c.name === firstItem.category);
-                    const rows = [];
-
-                    // First item row
+                    
                     rows.push(
-                         <TableRow key={t.id} className="bg-muted/40 hover:bg-muted/50">
+                        <TableRow key={t.id}>
                             <TableCell className="font-medium">{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
                             <TableCell>{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
                             <TableCell className="font-medium break-words">
@@ -557,7 +337,7 @@ export function TransactionTable({
                                 <Badge variant={getBadgeVariant(t.type)}>{t.type}</Badge>
                             </TableCell>
                             <TableCell className="break-words">{getAccountName(t.accountId, t.paymentMethod)}</TableCell>
-                             <TableCell className="break-words">
+                            <TableCell className="break-words">
                                 <div>{categoryDoc?.name || firstItem.category}</div>
                                 {firstItem.subcategory && <div className="text-sm text-muted-foreground">{firstItem.subcategory}</div>}
                             </TableCell>
@@ -569,7 +349,7 @@ export function TransactionTable({
                             <TableCell />
                             <TableCell className="text-right print-hide">
                                 <div className="flex items-center justify-end gap-2">
-                                    <Button variant="ghost" size="icon" className="h-8 w-8" disabled>
+                                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEditTransaction(t)}>
                                         <Pencil className="h-4 w-4" />
                                     </Button>
                                     <AlertDialog>
@@ -594,7 +374,6 @@ export function TransactionTable({
                         </TableRow>
                     );
 
-                    // Sub-item rows
                     t.items.slice(1).forEach((item, itemIndex) => {
                         const subItemCategoryDoc = categories.find(c => c.id === item.categoryId || c.name === item.category);
                         rows.push(
@@ -617,7 +396,6 @@ export function TransactionTable({
                         );
                     });
                     
-                    // Total row
                     rows.push(
                         <TableRow key={`${t.id}-total`} className="bg-muted/40 font-bold hover:bg-muted/50 border-b">
                             <TableCell colSpan={6} className="text-right py-2">Total</TableCell>
@@ -670,7 +448,7 @@ export function TransactionTable({
                       </TableCell>
                       <TableCell className="text-right print-hide">
                           <div className="flex items-center justify-end gap-2">
-                              <Button variant="ghost" size="icon" onClick={() => openEditDialog(t)} className="h-8 w-8">
+                              <Button variant="ghost" size="icon" onClick={() => onEditTransaction(t)} className="h-8 w-8">
                                   <Pencil className="h-4 w-4" />
                               </Button>
                               <AlertDialog>
@@ -730,132 +508,6 @@ export function TransactionTable({
             </Table>
         </div>
       </div>
-
-      {/* Edit Transaction Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
-          if (!open) {
-              setSelectedTransaction(null);
-          }
-          setIsEditDialogOpen(open);
-      }}>
-          <DialogContent className="sm:max-w-md">
-              <form onSubmit={handleEditTransaction}>
-                  <DialogHeader>
-                      <DialogTitle>Edit Transaction</DialogTitle>
-                      <DialogDescription>
-                          Update the details for your transaction. The transaction type cannot be changed.
-                      </DialogDescription>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4">
-                      <div className="space-y-2">
-                          <Label htmlFor="edit-date">Date</Label>
-                          <Input id="edit-date" name="date" type="date" defaultValue={selectedTransaction ? format(new Date(selectedTransaction.date), 'yyyy-MM-dd') : ''} required />
-                      </div>
-
-                      
-                          <div className="space-y-2">
-                              <Label htmlFor="edit-description">Description</Label>
-                              <Input id="edit-description" name="description" defaultValue={selectedTransaction?.description} />
-                          </div>
-                      
-
-                      {(selectedTransaction?.type === 'expense' || selectedTransaction?.type === 'income') && (
-                          <div className="grid grid-cols-2 gap-4">
-                              <div className="space-y-2">
-                                  <Label htmlFor="edit-category">Category</Label>
-                                  <Select name="category" onValueChange={(value) => { setEditCategory(value); setEditSubCategory(undefined); }} value={editCategory}>
-                                      <SelectTrigger id="edit-category">
-                                          <SelectValue placeholder="Select category" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                          {editCategoriesForDropdown.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
-                                      </SelectContent>
-                                  </Select>
-                              </div>
-                              <div className="space-y-2">
-                                  <Label htmlFor="edit-subcategory">Sub-category</Label>
-                                  <Select name="subcategory" value={editSubCategory} onValueChange={setEditSubCategory} disabled={!editCategory || editSubcategories.length === 0}>
-                                      <SelectTrigger id="edit-subcategory">
-                                          <SelectValue placeholder="Select sub-category" />
-                                      </SelectTrigger>
-                                          <SelectContent>
-                                              {editSubcategories.map(sub => <SelectItem key={sub.id} value={sub.name}>{sub.name}</SelectItem>)}
-                                          </SelectContent>
-                                  </Select>
-                              </div>
-                          </div>
-                      )}
-                      
-                      {(selectedTransaction?.type === 'income' || selectedTransaction?.type === 'expense') && (
-                           <div className="space-y-2">
-                              <Label htmlFor="edit-account">
-                                  {selectedTransaction?.type === 'expense' ? 'Payment Method' : 'Bank Account'}
-                              </Label>
-                              <Select name="account" required value={editSelectedAccountId} onValueChange={setEditSelectedAccountId}>
-                                  <SelectTrigger id="edit-account">
-                                      <SelectValue placeholder="Select account" />
-                                  </SelectTrigger>
-                                      <SelectContent>
-                                          {selectedTransaction?.type === 'expense' && (
-                                          <>
-                                              <SelectItem value="cash-wallet">Cash Wallet</SelectItem>
-                                              <SelectItem value="digital-wallet">Digital Wallet</SelectItem>
-                                          </>
-                                          )}
-                                          {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
-                                      </SelectContent>
-                              </Select>
-                          </div>
-                      )}
-
-                      {selectedTransaction?.type === 'transfer' && (
-                          <div className="grid grid-cols-2 gap-4">
-                              <div className="space-y-2">
-                                  <Label htmlFor="edit-from-account">From Account</Label>
-                                  <Select name="fromAccount" required defaultValue={selectedTransaction.fromAccountId}>
-                                      <SelectTrigger id="edit-from-account"><SelectValue /></SelectTrigger>
-                                          <SelectContent>
-                                          <SelectItem value="cash-wallet">Cash Wallet</SelectItem>
-                                          <SelectItem value="digital-wallet">Digital Wallet</SelectItem>
-                                          {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
-                                          </SelectContent>
-                                  </Select>
-                              </div>
-                               <div className="space-y-2">
-                                  <Label htmlFor="edit-to-account">To Account</Label>
-                                  <Select name="toAccount" required defaultValue={selectedTransaction.toAccountId}>
-                                      <SelectTrigger id="edit-to-account"><SelectValue /></SelectTrigger>
-                                          <SelectContent>
-                                          <SelectItem value="cash-wallet">Cash Wallet</SelectItem>
-                                          <SelectItem value="digital-wallet">Digital Wallet</SelectItem>
-                                          {accounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
-                                          </SelectContent>
-                                  </Select>
-                              </div>
-                          </div>
-                      )}
-
-                      <div className="space-y-2">
-                          <Label htmlFor="edit-amount">Amount</Label>
-                          <Input
-                              id="edit-amount"
-                              name="amount"
-                              placeholder="e.g. 100/2"
-                              required
-                              className="hide-number-arrows"
-                              value={editAmount}
-                              onChange={handleAmountChange(setEditAmount)}
-                              onBlur={() => handleAmountBlur(editAmount, setEditAmount)}
-                          />
-                      </div>
-                  </div>
-                  <DialogFooter>
-                      <DialogClose asChild><Button type="button" variant="secondary">Cancel</Button></DialogClose>
-                      <Button type="submit">Save Changes</Button>
-                  </DialogFooter>
-              </form>
-          </DialogContent>
-      </Dialog>
     </>
   );
 }

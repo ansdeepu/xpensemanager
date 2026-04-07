@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/select";
 import type { Account, Category, Transaction } from "@/lib/data";
 import { auth, db } from "@/lib/firebase";
-import { collection, addDoc, query, where, onSnapshot, orderBy, writeBatch, doc } from "firebase/firestore";
+import { collection, addDoc, query, where, onSnapshot, orderBy, writeBatch, doc, updateDoc, deleteField } from "firebase/firestore";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useAuthState } from "@/hooks/use-auth-state";
@@ -68,12 +68,22 @@ interface ExpenseItem {
     subcategory: string;
 }
 
-export function AddTransactionDialog({ children, accounts: accountData }: { children: React.ReactNode, accounts: (Account | {id: string, name: string, balance: number})[] }) {
-  const [isOpen, setIsOpen] = useState(false);
+export function AddTransactionDialog({ 
+    isOpen, 
+    onOpenChange, 
+    accounts: accountData, 
+    transactionToEdit 
+}: { 
+    isOpen: boolean;
+    onOpenChange: (open: boolean) => void;
+    accounts: (Account | {id: string, name: string, balance: number})[];
+    transactionToEdit?: Transaction | null 
+}) {
   const [user] = useAuthState();
   const [categories, setCategories] = useState<Category[]>([]);
   const [transactionType, setTransactionType] = useState<Transaction["type"]>("expense");
   const { toast } = useToast();
+  const isEditMode = !!transactionToEdit;
 
   // Common state
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -133,12 +143,48 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
       setToAccountId(undefined);
   }
 
-  const handleOpenChange = (open: boolean) => {
-    if (!open) {
-      resetForms();
+  useEffect(() => {
+    if (isOpen) {
+        if (transactionToEdit) {
+            setTransactionType(transactionToEdit.type);
+            setDate(format(new Date(transactionToEdit.date), 'yyyy-MM-dd'));
+            if (transactionToEdit.type === 'expense') {
+                const items = transactionToEdit.items && transactionToEdit.items.length > 0
+                    ? transactionToEdit.items.map((item, index) => ({
+                        id: Date.now() + index,
+                        description: item.description,
+                        amount: String(item.amount),
+                        categoryId: item.categoryId || categories.find(c => c.name === item.category && (c.type === 'expense' || c.type === 'bank-expense'))?.id || '',
+                        subcategory: item.subcategory || ''
+                    }))
+                    : [{ 
+                        id: Date.now(), 
+                        description: transactionToEdit.description, 
+                        amount: String(transactionToEdit.amount), 
+                        categoryId: transactionToEdit.categoryId || '', 
+                        subcategory: transactionToEdit.subcategory || ''
+                    }];
+                setExpenseItems(items);
+                const paymentAccountId = transactionToEdit.paymentMethod === 'cash' ? 'cash-wallet' : transactionToEdit.paymentMethod === 'digital' ? 'digital-wallet' : transactionToEdit.accountId;
+                setExpensePaymentMethod(paymentAccountId);
+            } else if (transactionToEdit.type === 'income') {
+                setIncomeAmount(String(transactionToEdit.amount));
+                setIncomeDescription(transactionToEdit.description);
+                setIncomeCategory(transactionToEdit.categoryId);
+                setIncomeSubcategory(transactionToEdit.subcategory);
+                setIncomeAccountId(transactionToEdit.accountId);
+            } else if (transactionToEdit.type === 'transfer') {
+                setTransferAmount(String(transactionToEdit.amount));
+                setTransferDescription(transactionToEdit.description);
+                setFromAccountId(transactionToEdit.fromAccountId);
+                setToAccountId(transactionToEdit.toAccountId);
+            }
+        } else {
+            resetForms();
+        }
     }
-    setIsOpen(open);
-  }
+  }, [isOpen, transactionToEdit, categories]);
+
 
   // --- Expense Form Handlers ---
   const handleExpenseItemChange = (index: number, field: keyof ExpenseItem, value: string) => {
@@ -248,18 +294,13 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
     try {
         if (transactionType === 'expense') {
             const validItems = expenseItems.filter(item => item.description && parseFloat(item.amount) > 0);
+            if (validItems.length === 0) throw new Error("No valid expense items to save.");
             
-            if (validItems.length === 0) {
-                toast({ variant: "destructive", title: "No valid expense items to save." });
-                setIsSubmitting(false);
-                return;
-            }
-        
             const totalAmount = validItems.reduce((sum, item) => sum + parseFloat(item.amount), 0);
             const firstItem = validItems[0];
             const categoryDoc = categories.find(c => c.id === firstItem.categoryId);
         
-            const newTransaction: Partial<Transaction> = {
+            const transactionData: Partial<Transaction> = {
                 userId: user.uid,
                 date: adjustedDate.toISOString(),
                 amount: totalAmount,
@@ -271,17 +312,18 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
             };
         
             if (expensePaymentMethod === 'cash-wallet') {
-                newTransaction.paymentMethod = 'cash';
+                transactionData.paymentMethod = 'cash';
+                transactionData.accountId = undefined;
             } else if (expensePaymentMethod === 'digital-wallet') {
-                newTransaction.paymentMethod = 'digital';
+                transactionData.paymentMethod = 'digital';
+                transactionData.accountId = undefined;
             } else {
-                newTransaction.paymentMethod = 'online';
-                newTransaction.accountId = expensePaymentMethod;
+                transactionData.paymentMethod = 'online';
+                transactionData.accountId = expensePaymentMethod;
             }
         
             if (validItems.length > 1) {
-                newTransaction.description = firstItem.description; // Keep first item's desc for main entry
-                newTransaction.items = validItems.map(item => {
+                transactionData.items = validItems.map(item => {
                     const catDoc = categories.find(c => c.id === item.categoryId);
                     return {
                         description: item.description,
@@ -291,14 +333,22 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
                         subcategory: item.subcategory,
                     };
                 });
+            } else {
+                transactionData.items = deleteField() as any;
             }
-        
-            await addDoc(collection(db, "transactions"), newTransaction);
-            toast({ title: `Added expense transaction.` });
+
+            if(isEditMode) {
+                const txRef = doc(db, "transactions", transactionToEdit.id);
+                await updateDoc(txRef, transactionData);
+                toast({ title: `Expense updated.` });
+            } else {
+                await addDoc(collection(db, "transactions"), transactionData);
+                toast({ title: `Expense added.` });
+            }
 
         } else if (transactionType === 'income') {
             const categoryDoc = categories.find(c => c.id === incomeCategory);
-            const newTransaction: Partial<Transaction> = {
+            const transactionData: Partial<Transaction> = {
                 userId: user.uid,
                 date: adjustedDate.toISOString(),
                 description: incomeDescription,
@@ -310,15 +360,20 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
                 paymentMethod: 'online',
                 accountId: incomeAccountId,
             };
-            await addDoc(collection(db, "transactions"), newTransaction);
-            toast({ title: "Income added successfully." });
+            if(isEditMode) {
+                const txRef = doc(db, "transactions", transactionToEdit.id);
+                await updateDoc(txRef, transactionData);
+                toast({ title: `Income updated.` });
+            } else {
+                await addDoc(collection(db, "transactions"), transactionData);
+                toast({ title: "Income added successfully." });
+            }
 
         } else if (transactionType === 'transfer') {
              if (fromAccountId === toAccountId) {
-                toast({ variant: "destructive", title: "From and To accounts cannot be the same." });
-                return;
+                throw new Error("From and To accounts cannot be the same.");
             }
-            const newTransaction: Partial<Transaction> = {
+            const transactionData: Partial<Transaction> = {
                 userId: user.uid,
                 date: adjustedDate.toISOString(),
                 description: transferDescription,
@@ -327,11 +382,17 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
                 fromAccountId: fromAccountId,
                 toAccountId: toAccountId,
             };
-            await addDoc(collection(db, "transactions"), newTransaction);
-            toast({ title: "Transfer recorded successfully." });
+            if(isEditMode) {
+                const txRef = doc(db, "transactions", transactionToEdit.id);
+                await updateDoc(txRef, transactionData);
+                toast({ title: `Transfer updated.` });
+            } else {
+                await addDoc(collection(db, "transactions"), transactionData);
+                toast({ title: "Transfer recorded successfully." });
+            }
         }
 
-        handleOpenChange(false); // Close and reset dialog on success
+        onOpenChange(false);
 
     } catch (error: any) {
         toast({ variant: "destructive", title: "Submission Failed", description: error.message });
@@ -343,16 +404,15 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
   const bankAccounts = accountData.filter(acc => acc.id !== 'cash-wallet' && acc.id !== 'digital-wallet');
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>{children}</DialogTrigger>
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-4xl">
         <DialogHeader>
-          <DialogTitle>Add New Transaction</DialogTitle>
+          <DialogTitle>{isEditMode ? 'Edit' : 'Add New'} Transaction</DialogTitle>
           <DialogDescription>Record a new income, expense, or transfer.</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <Tabs value={transactionType} onValueChange={(value) => setTransactionType(value as Transaction['type'])}>
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className={cn("grid w-full grid-cols-3", isEditMode && "hidden")}>
               <TabsTrigger value="expense">Expense</TabsTrigger>
               <TabsTrigger value="income">Income</TabsTrigger>
               <TabsTrigger value="transfer">Transfer</TabsTrigger>
@@ -522,7 +582,7 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
           </Tabs>
           <DialogFooter>
             <DialogClose asChild><Button type="button" variant="secondary" disabled={isSubmitting}>Cancel</Button></DialogClose>
-            <Button type="submit" disabled={isSubmitting}>Add Transaction</Button>
+            <Button type="submit" disabled={isSubmitting}>{isEditMode ? 'Save Changes' : 'Add Transaction'}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

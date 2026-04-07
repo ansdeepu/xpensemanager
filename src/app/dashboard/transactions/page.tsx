@@ -130,6 +130,9 @@ export default function TransactionsPage() {
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [selectedAccountForDetails, setSelectedAccountForDetails] = useState<AccountForDetails | null>(null);
 
+  const [isAddOrEditDialogOpen, setIsAddOrEditDialogOpen] = useState(false);
+  const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null);
+
   const useDebounce = (callback: Function, delay: number) => {
     const timeoutRef = useRef<any | null>(null);
     return (...args: any) => {
@@ -598,6 +601,15 @@ export default function TransactionsPage() {
     window.print();
   }
 
+  const handleAddClick = () => {
+    setTransactionToEdit(null);
+    setIsAddOrEditDialogOpen(true);
+  };
+
+  const handleEditClick = (transaction: Transaction) => {
+    setTransactionToEdit(transaction);
+    setIsAddOrEditDialogOpen(true);
+  };
 
   if (userLoading || dataLoading) {
     return (
@@ -833,12 +845,10 @@ export default function TransactionsPage() {
       </div>
 
       <div className="flex flex-wrap items-end gap-4 p-4 border-b print-hide">
-        <AddTransactionDialog accounts={accountDataForDialog}>
-            <Button className="h-9 w-24">
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Add
-            </Button>
-        </AddTransactionDialog>
+        <Button onClick={handleAddClick} className="h-9 w-24">
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Add
+        </Button>
         <div className="space-y-1">
             <Label htmlFor="reconciliation-date-input" className="text-xs flex items-center gap-2">
                 <CalendarIcon className="h-4 w-4 text-red-600" />
@@ -912,6 +922,7 @@ export default function TransactionsPage() {
               primaryAccount={primaryAccount}
               currentPage={currentPage}
               itemsPerPage={itemsPerPage}
+              onEditTransaction={handleEditClick}
           />
         </div>
           {totalPages > 1 && (
@@ -927,6 +938,13 @@ export default function TransactionsPage() {
         isOpen={isDetailsDialogOpen}
         onOpenChange={setIsDetailsDialogOpen}
       />
+      <AddTransactionDialog 
+        isOpen={isAddOrEditDialogOpen}
+        onOpenChange={setIsAddOrEditDialogOpen}
+        accounts={accountDataForDialog}
+        transactionToEdit={transactionToEdit}
+      />
     </div>
   );
 }
+
