@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, Fragment } from "react";
 import {
   Dialog,
   DialogContent,
@@ -31,6 +31,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuthState } from "@/hooks/use-auth-state";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 // Function to safely evaluate math expressions
 const evaluateMath = (expression: string): number | null => {
@@ -185,12 +186,30 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
     const bankExpenseCats = categories.filter(c => c.type === 'bank-expense');
     const isPostBankSelected = expensePaymentMethod === postBankAccount?.id;
 
+    let allCats;
     if (isPostBankSelected) {
         const incomeCats = categories.filter(c => c.type === 'income');
         const combined = [...incomeCats, ...expenseCats, ...bankExpenseCats];
-        return Array.from(new Map(combined.map(item => [item.id, item])).values()).sort((a,b) => (a.order || 0) - (b.order || 0));
+        allCats = Array.from(new Map(combined.map(item => [item.id, item])).values());
+    } else {
+        allCats = [...expenseCats, ...bankExpenseCats];
     }
-    return [...expenseCats, ...bankExpenseCats].sort((a,b) => (a.order || 0) - (b.order || 0));
+    
+    return allCats.sort((a, b) => {
+        const aName = a.name.toLowerCase();
+        const bName = b.name.toLowerCase();
+        const aIsSpecial = aName.includes('hdfc bank') || aName.includes('post bank');
+        const bIsSpecial = bName.includes('hdfc bank') || bName.includes('post bank');
+
+        if (aIsSpecial && !bIsSpecial) {
+            return 1; // a goes after b
+        }
+        if (!aIsSpecial && bIsSpecial) {
+            return -1; // a goes before b
+        }
+        // If both are special or both are not, sort by original order
+        return (a.order || 0) - (b.order || 0);
+    });
   }, [categories, expensePaymentMethod, postBankAccount]);
 
   // --- Income Form Handlers ---
@@ -261,6 +280,7 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
             }
         
             if (validItems.length > 1) {
+                newTransaction.description = `Multiple expenses (${validItems.length} items)`;
                 newTransaction.items = validItems.map(item => {
                     const catDoc = categories.find(c => c.id === item.categoryId);
                     return {
