@@ -261,10 +261,6 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
             }
         
             if (validItems.length > 1) {
-                newTransaction.description = `${validItems.length} expenses`;
-                newTransaction.category = 'Multiple';
-                newTransaction.categoryId = '';
-                newTransaction.subcategory = '';
                 newTransaction.items = validItems.map(item => {
                     const catDoc = categories.find(c => c.id === item.categoryId);
                     return {
@@ -278,7 +274,7 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
             }
         
             await addDoc(collection(db, "transactions"), newTransaction);
-            toast({ title: `Added ${validItems.length > 1 ? 'combined expense' : 'expense'}.` });
+            toast({ title: `Added ${validItems.length > 1 ? `${validItems.length} expenses as one transaction` : 'expense'}.` });
 
         } else if (transactionType === 'income') {
             const categoryDoc = categories.find(c => c.id === incomeCategory);

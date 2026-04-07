@@ -548,7 +548,6 @@ export function TransactionTable({
                             <TableCell>{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
                             <TableCell className="break-words">
                             {t.description}
-                            <Badge variant="outline" className="ml-2">{t.items.length} items</Badge>
                             </TableCell>
                             <TableCell><Badge variant={getBadgeVariant(t.type)}>{t.type}</Badge></TableCell>
                             <TableCell className="break-words">{getAccountName(t.accountId, t.paymentMethod)}</TableCell>
