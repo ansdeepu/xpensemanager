@@ -318,7 +318,7 @@ export function TransactionTable({
               <TableHead className="text-right print-hide whitespace-nowrap">Actions</TableHead>
             </TableRow>
           </TableHeader>
-          <TableBody>
+          <>
               {transactionsWithColumns.map((t, index) => {
                 const loanInfo = getLoanDisplayInfo(t);
                 
@@ -326,7 +326,7 @@ export function TransactionTable({
                     const concatenatedDescription = t.items.map(item => item.description).join('; ');
                     return (
                         <Collapsible asChild key={t.id}>
-                            <>
+                            <TableBody>
                                 <TableRow className="border-b-0 data-[state=open]:border-b">
                                     <TableCell className="font-medium w-16">
                                         <div className="flex items-center">
@@ -416,7 +416,7 @@ export function TransactionTable({
                                         </TableCell>
                                     </TableRow>
                                 </CollapsibleContent>
-                            </>
+                            </TableBody>
                         </Collapsible>
                     )
                 }
@@ -424,69 +424,71 @@ export function TransactionTable({
                 const {debit, credit, transfer} = t;
 
                 return (
-                  <TableRow key={t.id}>
-                      <TableCell className="font-medium">{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
-                      <TableCell>{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
-                      <TableCell className={cn("font-medium break-words", loanInfo.descriptionClassName)}>
-                        {loanInfo.description}
-                      </TableCell>
-                      <TableCell>
-                        <Badge 
-                            variant={getBadgeVariant(loanInfo.type)}
-                            className="capitalize"
-                            >
-                            {loanInfo.type}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="break-words">{t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} -> ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod)}</TableCell>
-                      <TableCell className="break-words">
-                          <div>{loanInfo.category}</div>
-                          {t.subcategory && <div className="text-sm text-muted-foreground">{t.subcategory}</div>}
-                      </TableCell>
-                      
-                      <TableCell className="text-right font-mono text-red-600">
-                        {debit !== null ? formatCurrency(debit) : null}
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-blue-600">
-                        {transfer !== null ? formatCurrency(transfer) : null}
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-green-600">
-                        {credit !== null ? formatCurrency(credit) : null}
-                      </TableCell>
-                      
-                      <TableCell className={cn("text-right font-mono", t.balance < 0 ? 'text-red-600' : '')}>
-                        {formatCurrency(t.balance)}
-                      </TableCell>
-                      <TableCell className="text-right print-hide">
-                          <div className="flex items-center justify-end gap-2">
-                              <Button variant="ghost" size="icon" onClick={() => onEditTransaction(t)} className="h-8 w-8">
-                                  <Pencil className="h-4 w-4" />
-                              </Button>
-                              <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-8 w-8">
-                                          <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                      <AlertDialogHeader>
-                                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                          <AlertDialogDescription>
-                                              This will permanently delete the transaction. This action cannot be undone and will update account balances.
-                                          </AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                          <AlertDialogAction onClick={() => handleDeleteTransaction(t)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                                      </AlertDialogFooter>
-                                  </AlertDialogContent>
-                              </AlertDialog>
-                          </div>
-                      </TableCell>
-                  </TableRow>
+                  <TableBody key={t.id}>
+                    <TableRow>
+                        <TableCell className="font-medium">{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
+                        <TableCell>{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
+                        <TableCell className={cn("font-medium break-words", loanInfo.descriptionClassName)}>
+                          {loanInfo.description}
+                        </TableCell>
+                        <TableCell>
+                          <Badge 
+                              variant={getBadgeVariant(loanInfo.type)}
+                              className="capitalize"
+                              >
+                              {loanInfo.type}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="break-words">{t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} -> ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod)}</TableCell>
+                        <TableCell className="break-words">
+                            <div>{loanInfo.category}</div>
+                            {t.subcategory && <div className="text-sm text-muted-foreground">{t.subcategory}</div>}
+                        </TableCell>
+                        
+                        <TableCell className="text-right font-mono text-red-600">
+                          {debit !== null ? formatCurrency(debit) : null}
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-blue-600">
+                          {transfer !== null ? formatCurrency(transfer) : null}
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-green-600">
+                          {credit !== null ? formatCurrency(credit) : null}
+                        </TableCell>
+                        
+                        <TableCell className={cn("text-right font-mono", t.balance < 0 ? 'text-red-600' : '')}>
+                          {formatCurrency(t.balance)}
+                        </TableCell>
+                        <TableCell className="text-right print-hide">
+                            <div className="flex items-center justify-end gap-2">
+                                <Button variant="ghost" size="icon" onClick={() => onEditTransaction(t)} className="h-8 w-8">
+                                    <Pencil className="h-4 w-4" />
+                                </Button>
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-8 w-8">
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                This will permanently delete the transaction. This action cannot be undone and will update account balances.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => handleDeleteTransaction(t)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </div>
+                        </TableCell>
+                    </TableRow>
+                  </TableBody>
                 );
               })}
-          </TableBody>
+            </>
         </Table>
       </div>
       <div className="hidden print-block">
