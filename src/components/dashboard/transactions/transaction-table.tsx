@@ -544,91 +544,87 @@ export function TransactionTable({
                     const firstItem = t.items[0];
                     const categoryDoc = categories.find(c => c.id === firstItem.categoryId || c.name === firstItem.category);
                     
-                    const rows = [
-                        <TableRow key={t.id} className="bg-muted/40 font-bold hover:bg-muted/50">
-                            <TableCell className="font-medium">{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
-                            <TableCell>{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
-                            <TableCell className="font-medium break-words">
-                                <span>{firstItem.description}</span>
-                                <span className="font-normal text-muted-foreground ml-2">
-                                    ({getAccountName(t.accountId, t.paymentMethod)})
-                                </span>
-                            </TableCell>
-                            <TableCell>
-                                <Badge variant={getBadgeVariant(t.type)}>{t.type}</Badge>
-                            </TableCell>
-                            <TableCell className="break-words">{getAccountName(t.accountId, t.paymentMethod)}</TableCell>
-                            <TableCell className="break-words">
-                                <div>{categoryDoc?.name || firstItem.category}</div>
-                                {firstItem.subcategory && <div className="text-sm text-muted-foreground">{firstItem.subcategory}</div>}
-                            </TableCell>
-                            <TableCell className="text-right font-mono text-red-600">
-                                {formatCurrency(firstItem.amount)}
-                            </TableCell>
-                            <TableCell />
-                            <TableCell />
-                            <TableCell />
-                            <TableCell className="text-right print-hide">
-                                <div className="flex items-center justify-end gap-2">
-                                    <Button variant="ghost" size="icon" className="h-8 w-8" disabled>
-                                        <Pencil className="h-4 w-4" />
-                                    </Button>
-                                    <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-8 w-8">
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                            <AlertDialogDescription>This will permanently delete this combined transaction and all its items. This action cannot be undone.</AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => handleDeleteTransaction(t)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                                        </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                    </AlertDialog>
-                                </div>
-                            </TableCell>
-                        </TableRow>
-                    ];
-
-                    t.items.slice(1).forEach((item, itemIndex) => {
-                        const subItemCategoryDoc = categories.find(c => c.id === item.categoryId || c.name === item.category);
-                        rows.push(
-                            <TableRow key={`${t.id}-${itemIndex}`} className="bg-muted/20 hover:bg-muted/40">
-                                <TableCell />
-                                <TableCell />
-                                <TableCell className="font-medium break-words pl-6">{item.description}</TableCell>
-                                <TableCell />
-                                <TableCell />
-                                <TableCell className="break-words">
-                                    <div>{subItemCategoryDoc?.name || item.category}</div>
-                                    {item.subcategory && <div className="text-sm text-muted-foreground">{item.subcategory}</div>}
+                    return (
+                        <Fragment key={t.id}>
+                            <TableRow className="bg-muted/40 font-bold hover:bg-muted/50">
+                                <TableCell className="font-medium">{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
+                                <TableCell>{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
+                                <TableCell className="font-medium break-words">
+                                    <span>{firstItem.description}</span>
+                                    <span className="font-normal text-muted-foreground ml-2">
+                                        ({getAccountName(t.accountId, t.paymentMethod)})
+                                    </span>
                                 </TableCell>
-                                <TableCell className="text-right font-mono text-red-600">{formatCurrency(item.amount)}</TableCell>
+                                <TableCell>
+                                    <Badge variant={getBadgeVariant(t.type)}>{t.type}</Badge>
+                                </TableCell>
+                                <TableCell className="break-words">{getAccountName(t.accountId, t.paymentMethod)}</TableCell>
+                                <TableCell className="break-words">
+                                    <div>{categoryDoc?.name || firstItem.category}</div>
+                                    {firstItem.subcategory && <div className="text-sm text-muted-foreground">{firstItem.subcategory}</div>}
+                                </TableCell>
+                                <TableCell className="text-right font-mono text-red-600">
+                                    {formatCurrency(firstItem.amount)}
+                                </TableCell>
                                 <TableCell />
                                 <TableCell />
                                 <TableCell />
-                                <TableCell />
+                                <TableCell className="text-right print-hide">
+                                    <div className="flex items-center justify-end gap-2">
+                                        <Button variant="ghost" size="icon" className="h-8 w-8" disabled>
+                                            <Pencil className="h-4 w-4" />
+                                        </Button>
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-8 w-8">
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                <AlertDialogDescription>This will permanently delete this combined transaction and all its items. This action cannot be undone.</AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => handleDeleteTransaction(t)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                            </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
+                                    </div>
+                                </TableCell>
                             </TableRow>
-                        );
-                    });
-
-                    rows.push(
-                        <TableRow key={`${t.id}-total`} className="bg-muted/40 font-bold hover:bg-muted/50 border-b">
-                            <TableCell colSpan={6} className="text-right py-2">Total</TableCell>
-                            <TableCell className="text-right font-mono text-red-600 py-2">{formatCurrency(t.amount)}</TableCell>
-                            <TableCell />
-                            <TableCell />
-                            <TableCell className={cn("text-right font-mono py-2", t.balance < 0 ? "text-red-600" : "")}>{formatCurrency(t.balance)}</TableCell>
-                            <TableCell className="py-2" />
-                        </TableRow>
+                            {t.items.slice(1).map((item, itemIndex) => {
+                                const subItemCategoryDoc = categories.find(c => c.id === item.categoryId || c.name === item.category);
+                                return (
+                                    <TableRow key={`${t.id}-${itemIndex}`} className="bg-muted/20 hover:bg-muted/40">
+                                        <TableCell />
+                                        <TableCell />
+                                        <TableCell className="font-medium break-words pl-6">{item.description}</TableCell>
+                                        <TableCell />
+                                        <TableCell />
+                                        <TableCell className="break-words">
+                                            <div>{subItemCategoryDoc?.name || item.category}</div>
+                                            {item.subcategory && <div className="text-sm text-muted-foreground">{item.subcategory}</div>}
+                                        </TableCell>
+                                        <TableCell className="text-right font-mono text-red-600">{formatCurrency(item.amount)}</TableCell>
+                                        <TableCell />
+                                        <TableCell />
+                                        <TableCell />
+                                        <TableCell />
+                                    </TableRow>
+                                );
+                            })}
+                            <TableRow className="bg-muted/40 font-bold hover:bg-muted/50 border-b">
+                                <TableCell colSpan={6} className="text-right py-2">Total</TableCell>
+                                <TableCell className="text-right font-mono text-red-600 py-2">{formatCurrency(t.amount)}</TableCell>
+                                <TableCell />
+                                <TableCell />
+                                <TableCell className={cn("text-right font-mono py-2", t.balance < 0 ? "text-red-600" : "")}>{formatCurrency(t.balance)}</TableCell>
+                                <TableCell className="py-2" />
+                            </TableRow>
+                        </Fragment>
                     );
-
-                    return rows;
                 }
 
                 const {debit, credit, transfer} = t;
