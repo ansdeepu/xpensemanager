@@ -833,6 +833,12 @@ export default function TransactionsPage() {
       </div>
 
       <div className="flex flex-wrap items-end gap-4 p-4 border-b print-hide">
+        <AddTransactionDialog accounts={accountDataForDialog}>
+            <Button className="h-9 w-24">
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Add
+            </Button>
+        </AddTransactionDialog>
         <div className="space-y-1">
             <Label htmlFor="reconciliation-date-input" className="text-xs flex items-center gap-2">
                 <CalendarIcon className="h-4 w-4 text-red-600" />
@@ -895,17 +901,11 @@ export default function TransactionsPage() {
               <Button onClick={handlePrint} variant="outline" size="icon" className="h-9 w-9">
                 <Printer className="h-4 w-4" />
             </Button>
-            <AddTransactionDialog accounts={accountDataForDialog}>
-                <Button className="w-24">
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Add
-                </Button>
-            </AddTransactionDialog>
         </div>
       </div>
       
       <Card>
-        <div className="relative">
+        <div className="relative h-full overflow-auto">
           <TransactionTable 
               transactions={pagedTransactions} 
               accountId={activeTab || ''}
@@ -930,5 +930,3 @@ export default function TransactionsPage() {
     </div>
   );
 }
-
-    
