@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -254,8 +253,119 @@ function LoanAccordionItem({
     )
 }
 
+function CardAccordionItem({
+    card,
+    transactions,
+}: {
+    card: Account;
+    transactions: Transaction[];
+}) {
+    const transactionsWithRunningBalance = useMemo(() => {
+        if (!transactions) return [];
 
-export function LoanList({ loanType, creditCards }: { loanType: "taken" | "given", creditCards?: Account[] }) {
+        const relevantTransactions = transactions
+            .filter(t =>
+                (t.type === 'expense' && t.accountId === card.id && t.paymentMethod === 'online') ||
+                (t.type === 'transfer' && (t.toAccountId === card.id || t.fromAccountId === card.id))
+            )
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); // Newest first
+
+        let runningDue = card.balance;
+        
+        return relevantTransactions.map(t => {
+            const balanceForThisTx = runningDue;
+            let charge = 0;
+            let payment = 0;
+            let effect = 0;
+
+            if (t.type === 'expense' && t.accountId === card.id) {
+                charge = t.amount;
+                effect = t.amount;
+            } else if (t.type === 'transfer') {
+                if (t.toAccountId === card.id) {
+                    payment = t.amount;
+                    effect = -t.amount; // payment reduces due
+                } else if (t.fromAccountId === card.id) { // cash advance
+                    charge = t.amount;
+                    effect = t.amount; // advance increases due
+                }
+            }
+            
+            runningDue -= effect; // go backwards in time
+            
+            return { ...t, charge, payment, balance: balanceForThisTx };
+        });
+    }, [transactions, card]);
+
+    return (
+        <AccordionItem value={card.id}>
+            <AccordionTrigger>
+                <div className="grid grid-cols-3 w-full items-center">
+                    <div className="flex items-center gap-4">
+                        <span className="font-semibold text-base">{card.name}</span>
+                    </div>
+                    <div className="text-center">
+                        <Badge variant={'destructive'} className="text-sm">{formatCurrency(card.balance)}</Badge>
+                    </div>
+                    <div className="text-right">
+                      <Badge variant="secondary">Credit Card</Badge>
+                    </div>
+                 </div>
+            </AccordionTrigger>
+            <AccordionContent>
+                <div className="flex justify-center px-4 pb-4">
+                    <Card className="bg-muted/50 w-full lg:w-2/3">
+                        <CardHeader className="pb-2 flex-row justify-between items-center">
+                             <CardDescription>
+                                Limit: {card.limit ? formatCurrency(card.limit) : 'N/A'}
+                             </CardDescription>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            <div className="w-full overflow-x-auto">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Date</TableHead>
+                                            <TableHead>Description</TableHead>
+                                            <TableHead className="text-right">Charges</TableHead>
+                                            <TableHead className="text-right">Payments</TableHead>
+                                            <TableHead className="text-right">Due</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {transactionsWithRunningBalance.length > 0 ? transactionsWithRunningBalance.map(t => (
+                                            <TableRow key={t.id}>
+                                                <TableCell>{isValid(parseISO(t.date)) ? format(parseISO(t.date), "dd/MM/yyyy") : '-'}</TableCell>
+                                                <TableCell>{t.description}</TableCell>
+                                                <TableCell className="text-right font-mono text-red-600">
+                                                    {t.charge > 0 ? formatCurrency(t.charge) : null}
+                                                </TableCell>
+                                                <TableCell className="text-right font-mono text-green-600">
+                                                    {t.payment > 0 ? formatCurrency(t.payment) : null}
+                                                </TableCell>
+                                                <TableCell className="text-right font-mono">
+                                                    {formatCurrency(t.balance)}
+                                                </TableCell>
+                                            </TableRow>
+                                        )) : (
+                                            <TableRow>
+                                                <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
+                                                    No transactions found for this card.
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            </AccordionContent>
+        </AccordionItem>
+    );
+}
+
+export function LoanList({ loanType, creditCards, transactions }: { loanType: "taken" | "given", creditCards?: Account[], transactions?: Transaction[] }) {
   const [loans, setLoans] = useState<Loan[]>([]);
   const [accounts, setAccounts] = useState<Omit<Account, 'balance'>[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -616,6 +726,8 @@ export function LoanList({ loanType, creditCards }: { loanType: "taken" | "given
 
   const otherAccounts = useMemo(() => accounts.filter(a => !a.isPrimary), [accounts]);
 
+  const sbiCard = useMemo(() => creditCards?.find(c => c.name.toLowerCase().includes('sbi')), [creditCards]);
+  const otherCards = useMemo(() => creditCards?.filter(c => !c.name.toLowerCase().includes('sbi')), [creditCards]);
 
   if (loading || !clientLoaded) {
     return <Skeleton className="h-96 w-full" />;
@@ -754,6 +866,13 @@ export function LoanList({ loanType, creditCards }: { loanType: "taken" | "given
                 </div>
             ) : (
                 <Accordion type="single" collapsible className="w-full">
+                    {sbiCard && transactions && loanType === 'taken' && (
+                        <CardAccordionItem
+                            key={sbiCard.id}
+                            card={sbiCard}
+                            transactions={transactions}
+                        />
+                    )}
                     {loans.map(loan => (
                       <LoanAccordionItem 
                         key={loan.id}
@@ -765,25 +884,12 @@ export function LoanList({ loanType, creditCards }: { loanType: "taken" | "given
                         onEditLoanName={openEditLoanNameDialog}
                       />
                     ))}
-                    {creditCards && creditCards.map(card => (
-                       <AccordionItem value={card.id} key={card.id}>
-                          <AccordionTrigger>
-                             <div className="grid grid-cols-3 w-full items-center">
-                                <div className="flex items-center gap-4">
-                                    <span className="font-semibold text-base">{card.name}</span>
-                                </div>
-                                <div className="text-center">
-                                    <Badge variant={'destructive'} className="text-sm">{formatCurrency(card.balance)}</Badge>
-                                </div>
-                                <div className="text-right">
-                                  <Badge variant="secondary">Credit Card</Badge>
-                                </div>
-                             </div>
-                          </AccordionTrigger>
-                          <AccordionContent>
-                              <p className="text-sm text-muted-foreground px-4 text-center">Manage transactions on the Transactions page.</p>
-                          </AccordionContent>
-                      </AccordionItem>
+                    {otherCards && transactions && loanType === 'taken' && otherCards.map(card => (
+                       <CardAccordionItem
+                            key={card.id}
+                            card={card}
+                            transactions={transactions}
+                        />
                     ))}
                 </Accordion>
             )}

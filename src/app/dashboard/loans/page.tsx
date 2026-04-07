@@ -151,7 +151,7 @@ export default function LoansPage() {
         <TabsList className="grid w-full grid-cols-2 h-auto">
           <TabsTrigger value="taken" className="flex flex-col h-auto p-2 items-start text-left">
             <div className="w-full flex justify-between items-center">
-                <span className="font-semibold text-base">Debts</span>
+                <span className="font-semibold text-base">Loan Taken</span>
                 <span className="font-bold text-lg text-red-600">{!loading && formatCurrency(balanceLoanTaken + totalCreditCardDebt)}</span>
             </div>
             <div className="w-full text-xs text-muted-foreground mt-1 space-y-1">
@@ -176,10 +176,10 @@ export default function LoansPage() {
           </TabsTrigger>
         </TabsList>
         <TabsContent value="taken" className="mt-6">
-          <LoanList loanType="taken" creditCards={creditCards} />
+          <LoanList loanType="taken" creditCards={creditCards} transactions={transactions} />
         </TabsContent>
         <TabsContent value="given" className="mt-6">
-          <LoanList loanType="given" />
+          <LoanList loanType="given" transactions={transactions} />
         </TabsContent>
       </Tabs>
     </div>
