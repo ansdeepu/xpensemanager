@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -67,6 +68,8 @@ import { Badge } from "@/components/ui/badge";
 import { useAuthState } from "@/hooks/use-auth-state";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-IN", {
@@ -265,10 +268,10 @@ function CardAccordionItem({
 
         const relevantTransactions = transactions
             .filter(t =>
-                (t.type === 'expense' && t.accountId === card.id && t.paymentMethod === 'online') ||
+                (t.type === 'expense' && t.accountId === card.id) ||
                 (t.type === 'transfer' && (t.toAccountId === card.id || t.fromAccountId === card.id))
             )
-            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); // Newest first
+            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()); // Chronological first
 
         let runningDue = card.balance;
         
@@ -285,7 +288,7 @@ function CardAccordionItem({
                 if (t.toAccountId === card.id) {
                     payment = t.amount;
                     effect = -t.amount; // payment reduces due
-                } else if (t.fromAccountId === card.id) { // cash advance
+                } else if (t.fromAccountId === card.id) { // cash advance or special charges
                     charge = t.amount;
                     effect = t.amount; // advance increases due
                 }
@@ -294,7 +297,7 @@ function CardAccordionItem({
             runningDue -= effect; // go backwards in time
             
             return { ...t, charge, payment, balance: balanceForThisTx };
-        });
+        }).reverse(); // display newest first
     }, [transactions, card]);
 
     return (
@@ -383,6 +386,7 @@ export function LoanList({ loanType, creditCards, transactions }: { loanType: "t
   const [isNewPerson, setIsNewPerson] = useState(false);
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
   const [transactionType, setTransactionType] = useState<'loan' | 'repayment'>('loan');
+  const [activeAddTab, setActiveAddTab] = useState("loan");
 
 
   useEffect(() => {
@@ -433,7 +437,62 @@ export function LoanList({ loanType, creditCards, transactions }: { loanType: "t
     setPersonName("");
     setSelectedPersonId(null);
     setTransactionType('loan');
+    setActiveAddTab("loan");
   }
+
+  const handleCardAdjustment = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!user) return;
+
+    const formData = new FormData(event.currentTarget);
+    const amount = parseFloat(formData.get("amount") as string);
+    const cardAccountId = formData.get("cardAccountId") as string;
+    const date = formData.get("date") as string;
+    const description = formData.get("description") as string;
+    const adjustmentType = formData.get("adjustmentType") as 'cashback' | 'charge';
+
+    if (!cardAccountId) {
+      toast({ variant: "destructive", title: "Please select a credit card." });
+      return;
+    }
+
+    let transaction: Partial<Transaction>;
+
+    if (adjustmentType === 'cashback') {
+      transaction = {
+        userId: user.uid,
+        date,
+        description: description || 'Cash back',
+        amount,
+        type: 'transfer',
+        fromAccountId: 'cashback-source', // Virtual account
+        toAccountId: cardAccountId,
+        category: 'Cashback',
+        paymentMethod: 'online',
+      };
+    } else { // charge
+      transaction = {
+        userId: user.uid,
+        date,
+        description: description || 'Card Charge/Fee',
+        amount,
+        type: 'expense',
+        paymentMethod: 'online',
+        accountId: cardAccountId,
+        category: 'Bank Charges',
+        subcategory: 'Service Charge',
+      };
+    }
+
+    try {
+      await addDoc(collection(db, "transactions"), transaction as Transaction);
+      setIsAddDialogOpen(false);
+      resetAddDialog();
+      toast({ title: "Card adjustment added successfully" });
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Failed to add adjustment", description: error.message });
+    }
+  };
 
  const handleAddLoanTransaction = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -727,7 +786,7 @@ export function LoanList({ loanType, creditCards, transactions }: { loanType: "t
   const otherAccounts = useMemo(() => accounts.filter(a => !a.isPrimary), [accounts]);
 
   const sbiCard = useMemo(() => creditCards?.find(c => c.name.toLowerCase().includes('sbi')), [creditCards]);
-  const otherCards = useMemo(() => creditCards?.filter(c => !c.name.toLowerCase().includes('sbi')), [creditCards]);
+  const otherCards = useMemo(() => creditCards?.filter(c => c.name.toLowerCase().includes('sbi') === false), [creditCards]);
 
   if (loading || !clientLoaded) {
     return <Skeleton className="h-96 w-full" />;
@@ -738,7 +797,7 @@ export function LoanList({ loanType, creditCards, transactions }: { loanType: "t
       return <Skeleton className="h-96 w-full" />;
   }
 
-  const title = loanType === "taken" ? "Debts" : "Loans Given";
+  const title = loanType === "taken" ? "Loan Taken" : "Loans Given";
   const description =
     loanType === "taken"
       ? "Consolidated view of money you have borrowed and credit card dues."
@@ -770,90 +829,149 @@ export function LoanList({ loanType, creditCards, transactions }: { loanType: "t
                 </Button>
               </DialogTrigger>
               <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-3xl">
-                <form onSubmit={handleAddLoanTransaction}>
-                  <DialogHeader>
-                    <DialogTitle>Add Loan / Repayment</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                       <div className="space-y-2">
-                          <Label>Select Person / Account</Label>
-                          <Select onValueChange={value => {
-                              if (value === 'new') {
-                                  setIsNewPerson(true);
-                                  setSelectedPersonId(null);
-                                  setPersonName("");
-                              } else {
-                                  setIsNewPerson(false);
-                                  setSelectedPersonId(value);
-                              }
-                          }}>
-                              <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
-                              <SelectContent>
-                                <SelectGroup>
-                                  <SelectLabel>People</SelectLabel>
-                                  {loans.map(l => <SelectItem key={l.id} value={l.id}>{l.personName}</SelectItem>)}
-                                </SelectGroup>
-                                
-                                  <SelectGroup>
-                                      <SelectLabel>Your Other Accounts</SelectLabel>
-                                      {otherAccounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
-                                  </SelectGroup>
-                                
-                                <SelectGroup>
-                                  <SelectItem value="new">Add a new person</SelectItem>
-                                </SelectGroup>
-                              </SelectContent>
-                          </Select>
+                <Tabs value={activeAddTab} onValueChange={setActiveAddTab}>
+                    <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="loan">Loan / Repayment</TabsTrigger>
+                        <TabsTrigger value="adjustment">Card Adjustment</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="loan" className="mt-0">
+                        <form onSubmit={handleAddLoanTransaction}>
+                        <DialogHeader className="pt-4">
+                            <DialogTitle>Add Loan / Repayment</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>Select Person / Account</Label>
+                                <Select onValueChange={value => {
+                                    if (value === 'new') {
+                                        setIsNewPerson(true);
+                                        setSelectedPersonId(null);
+                                        setPersonName("");
+                                    } else {
+                                        setIsNewPerson(false);
+                                        setSelectedPersonId(value);
+                                    }
+                                }}>
+                                    <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectGroup>
+                                        <SelectLabel>People</SelectLabel>
+                                        {loans.map(l => <SelectItem key={l.id} value={l.id}>{l.personName}</SelectItem>)}
+                                        </SelectGroup>
+                                        
+                                        <SelectGroup>
+                                            <SelectLabel>Your Other Accounts</SelectLabel>
+                                            {otherAccounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
+                                        </SelectGroup>
+                                        
+                                        <SelectGroup>
+                                        <SelectItem value="new">Add a new person</SelectItem>
+                                        </SelectGroup>
+                                    </SelectContent>
+                                </Select>
+                                </div>
+                            {isNewPerson && (
+                                <div className="space-y-2">
+                                    <Label htmlFor="personName">New Person's Name</Label>
+                                    <Input id="personName" name="personName" value={personName} onChange={e => setPersonName(e.target.value)} required />
+                                </div>
+                            )}
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="space-y-2">
+                                <Label>Transaction Type</Label>
+                                <Select name="transactionType" value={transactionType} onValueChange={(v) => setTransactionType(v as 'loan' | 'repayment')}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="loan">{loanType === 'taken' ? 'I took a loan' : 'I gave a loan'}</SelectItem>
+                                        <SelectItem value="repayment">{loanType === 'taken' ? 'I repaid' : 'I received repayment'}</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="amount">Amount</Label>
+                                <Input id="amount" name="amount" type="number" step="0.01" required />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="date">Date</Label>
+                                <Input id="date" name="date" type="date" defaultValue={format(new Date(), 'yyyy-MM-dd')} required />
+                            </div>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="myAccountId">My Account</Label>
+                                <Select name="myAccountId" required>
+                                    <SelectTrigger><SelectValue placeholder="Select account..."/></SelectTrigger>
+                                    <SelectContent>
+                                        {allAccountsForTx.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="description">Description</Label>
+                                <Textarea id="description" name="description" placeholder="Optional notes" />
+                            </div>
+                            </div>
                         </div>
-                      {isNewPerson && (
-                        <div className="space-y-2">
-                            <Label htmlFor="personName">New Person's Name</Label>
-                            <Input id="personName" name="personName" value={personName} onChange={e => setPersonName(e.target.value)} required />
-                        </div>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="space-y-2">
-                        <Label>Transaction Type</Label>
-                        <Select name="transactionType" value={transactionType} onValueChange={(v) => setTransactionType(v as 'loan' | 'repayment')}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="loan">{loanType === 'taken' ? 'I took a loan' : 'I gave a loan'}</SelectItem>
-                                <SelectItem value="repayment">{loanType === 'taken' ? 'I repaid' : 'I received repayment'}</SelectItem>
-                            </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="amount">Amount</Label>
-                        <Input id="amount" name="amount" type="number" step="0.01" required />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="date">Date</Label>
-                        <Input id="date" name="date" type="date" defaultValue={format(new Date(), 'yyyy-MM-dd')} required />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="myAccountId">My Account</Label>
-                        <Select name="myAccountId" required>
-                            <SelectTrigger><SelectValue placeholder="Select account..."/></SelectTrigger>
-                            <SelectContent>
-                                {allAccountsForTx.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="description">Description</Label>
-                        <Textarea id="description" name="description" placeholder="Optional notes" />
-                      </div>
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <DialogClose asChild><Button type="button" variant="secondary">Cancel</Button></DialogClose>
-                    <Button type="submit">Add Record</Button>
-                  </DialogFooter>
-                </form>
+                        <DialogFooter>
+                            <DialogClose asChild><Button type="button" variant="secondary">Cancel</Button></DialogClose>
+                            <Button type="submit">Add Record</Button>
+                        </DialogFooter>
+                        </form>
+                    </TabsContent>
+                    <TabsContent value="adjustment" className="mt-0">
+                        <form onSubmit={handleCardAdjustment}>
+                            <DialogHeader className="pt-4">
+                                <DialogTitle>Add Card Adjustment</DialogTitle>
+                                <DialogDescription>
+                                    Add a cash back or other charge to a credit card.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-4 py-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="cardAccountId">Credit Card</Label>
+                                        <Select name="cardAccountId" required>
+                                            <SelectTrigger id="cardAccountId"><SelectValue placeholder="Select card..."/></SelectTrigger>
+                                            <SelectContent>
+                                                {creditCards?.map(card => <SelectItem key={card.id} value={card.id}>{card.name}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Adjustment Type</Label>
+                                        <Select name="adjustmentType" defaultValue="cashback" required>
+                                            <SelectTrigger><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="cashback">Cash Back (Credit)</SelectItem>
+                                                <SelectItem value="charge">Other Charge (Debit)</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="amount-adj">Amount</Label>
+                                        <Input id="amount-adj" name="amount" type="number" step="0.01" required />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="date-adj">Date</Label>
+                                        <Input id="date-adj" name="date" type="date" defaultValue={format(new Date(), 'yyyy-MM-dd')} required />
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="description-adj">Description</Label>
+                                    <Textarea id="description-adj" name="description" placeholder="e.g. Cashback for recent purchase" />
+                                </div>
+                            </div>
+                            <DialogFooter>
+                                <DialogClose asChild><Button type="button" variant="secondary">Cancel</Button></DialogClose>
+                                <Button type="submit">Add Adjustment</Button>
+                            </DialogFooter>
+                        </form>
+                    </TabsContent>
+                </Tabs>
               </DialogContent>
             </Dialog>
           )}
