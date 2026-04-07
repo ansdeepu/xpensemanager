@@ -380,20 +380,20 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
 
                   <div className="max-h-[20rem] overflow-y-auto pr-2 space-y-3 -mr-2">
                     {expenseItems.map((item, index) => (
-                        <div key={item.id} className="p-3 border rounded-md relative">
+                        <div key={item.id} className="relative">
                             <div className="grid grid-cols-12 gap-x-3 gap-y-2 items-end">
                                 <div className="col-span-12 sm:col-span-4 md:col-span-3 space-y-1">
                                     <Label htmlFor={`description-expense-${index}`} className="text-xs font-medium">Description</Label>
-                                    <Textarea rows={1} id={`description-expense-${index}`} value={item.description} onChange={(e) => handleExpenseItemChange(index, 'description', e.target.value)} placeholder="e.g. Milk" required className="text-sm"/>
+                                    <Textarea rows={1} id={`description-expense-${index}`} value={item.description} onChange={(e) => handleExpenseItemChange(index, 'description', e.target.value)} placeholder="e.g. Milk" required className="text-sm bg-transparent"/>
                                 </div>
                                 <div className="col-span-6 sm:col-span-3 md:col-span-2 space-y-1">
                                     <Label htmlFor={`amount-expense-${index}`} className="text-xs font-medium">Amount</Label>
-                                    <Input id={`amount-expense-${index}`} value={item.amount} onChange={(e) => handleExpenseItemChange(index, 'amount', e.target.value)} onBlur={() => handleExpenseAmountBlur(index)} placeholder="e.g. 50" required className="hide-number-arrows text-sm"/>
+                                    <Input id={`amount-expense-${index}`} value={item.amount} onChange={(e) => handleExpenseItemChange(index, 'amount', e.target.value)} onBlur={() => handleExpenseAmountBlur(index)} placeholder="e.g. 50" required className="hide-number-arrows text-sm bg-transparent"/>
                                 </div>
                                 <div className="col-span-6 sm:col-span-5 md:col-span-3 space-y-1">
                                     <Label htmlFor={`category-expense-${index}`} className="text-xs font-medium">Category</Label>
                                     <Select value={item.categoryId} onValueChange={(value) => handleExpenseItemChange(index, 'categoryId', value)}>
-                                        <SelectTrigger id={`category-expense-${index}`} className="text-sm"><SelectValue placeholder="Select" /></SelectTrigger>
+                                        <SelectTrigger id={`category-expense-${index}`} className="text-sm bg-transparent"><SelectValue placeholder="Select" /></SelectTrigger>
                                         <SelectContent>
                                             {expenseCategoriesForDropdown.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
                                         </SelectContent>
@@ -402,7 +402,7 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
                                 <div className="col-span-10 sm:col-span-11 md:col-span-3 space-y-1">
                                     <Label htmlFor={`subcategory-expense-${index}`} className="text-xs font-medium">Sub-category</Label>
                                     <Select value={item.subcategory} onValueChange={(value) => handleExpenseItemChange(index, 'subcategory', value)} disabled={!item.categoryId || expenseSubcategories(item.categoryId).length === 0}>
-                                        <SelectTrigger id={`subcategory-expense-${index}`} className="text-sm"><SelectValue placeholder="Select" /></SelectTrigger>
+                                        <SelectTrigger id={`subcategory-expense-${index}`} className="text-sm bg-transparent"><SelectValue placeholder="Select" /></SelectTrigger>
                                         <SelectContent>
                                             {expenseSubcategories(item.categoryId).map(sub => <SelectItem key={sub.id} value={sub.name}>{sub.name}</SelectItem>)}
                                         </SelectContent>
