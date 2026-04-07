@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -43,7 +44,7 @@ import {
 import type { Transaction, Account, Category, Bill, Loan } from "@/lib/data";
 import { Pencil, Trash2 } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
-import { collection, query, where, onSnapshot, doc, runTransaction, orderBy, getDocs, writeBatch } from "firebase/firestore";
+import { collection, query, where, onSnapshot, doc, runTransaction, orderBy, getDocs, writeBatch, deleteField } from "firebase/firestore";
 import { format, isAfter, isSameDay, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -363,10 +364,10 @@ export function TransactionTable({
            if (selectedTransaction.type === 'expense') {
               if (newAccountId === 'cash-wallet') {
                 updatedData.paymentMethod = 'cash';
-                updatedData.accountId = undefined;
+                (updatedData as any).accountId = deleteField();
               } else if (newAccountId === 'digital-wallet') {
                 updatedData.paymentMethod = 'digital';
-                updatedData.accountId = undefined;
+                (updatedData as any).accountId = deleteField();
               } else {
                 updatedData.paymentMethod = 'online';
                 updatedData.accountId = newAccountId;
