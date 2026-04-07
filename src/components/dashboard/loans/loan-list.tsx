@@ -51,7 +51,7 @@ import { Label } from "@/components/ui/label";
 import { PlusCircle, HandCoins, Info, Trash2, Pencil } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
 import { collection, addDoc, query, where, onSnapshot, doc, updateDoc, writeBatch, getDocs, deleteDoc, orderBy } from "firebase/firestore";
-import { format, parseISO, isValid, isWithinInterval } from "date-fns";
+import { format, parseISO, isValid, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Loan, LoanTransaction, Account, Transaction, Category } from "@/lib/data";
@@ -118,7 +118,7 @@ function LoanAccordionItem({
     const { transactionsForPeriod, periodTotals } = useMemo(() => {
         let transactionsToProcess = loan.transactions || [];
         if (startDate && endDate) {
-            const interval = { start: new Date(startDate), end: new Date(endDate) };
+            const interval = { start: startOfDay(new Date(startDate)), end: endOfDay(new Date(endDate)) };
             transactionsToProcess = transactionsToProcess.filter(t => {
                 const transactionDate = parseISO(t.date);
                 return isValid(transactionDate) && isWithinInterval(transactionDate, interval);
@@ -297,7 +297,7 @@ function CardAccordionItem({
             );
 
         if (startDate && endDate) {
-            const interval = { start: new Date(startDate), end: new Date(endDate) };
+            const interval = { start: startOfDay(new Date(startDate)), end: endOfDay(new Date(endDate)) };
             relevantTransactions = relevantTransactions.filter(t => {
                 const transactionDate = parseISO(t.date);
                 return isValid(transactionDate) && isWithinInterval(transactionDate, interval);
@@ -310,6 +310,7 @@ function CardAccordionItem({
         const transactionsWithDetails = relevantTransactions.map(t => {
             let charge = 0;
             let payment = 0;
+            let runningBalance = 0; // This will be tricky without all transactions
 
             if (t.type === 'expense' && t.accountId === card.id) {
                 charge = t.amount;
