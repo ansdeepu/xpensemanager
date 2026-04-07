@@ -380,6 +380,7 @@ function CardAccordionItem({
                                                     {t.payment > 0 ? formatCurrency(t.payment) : null}
                                                 </TableCell>
                                                 <TableCell className="text-right">
+                                                  <div className="flex items-center justify-end">
                                                     <Button variant="ghost" size="icon" onClick={() => onEditTransaction(t)} className="h-7 w-7">
                                                         <Pencil className="h-3 w-3" />
                                                     </Button>
@@ -400,6 +401,7 @@ function CardAccordionItem({
                                                             </AlertDialogFooter>
                                                         </AlertDialogContent>
                                                     </AlertDialog>
+                                                  </div>
                                                 </TableCell>
                                             </TableRow>
                                         )) : (
@@ -1284,4 +1286,3 @@ export function LoanList({ loanType, loans: allLoans, creditCards, transactions:
     </>
   );
 }
-
