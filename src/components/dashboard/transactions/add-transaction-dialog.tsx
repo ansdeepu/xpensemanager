@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useMemo } from "react";
@@ -312,7 +313,7 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-xl">
+      <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>Add New Transaction</DialogTitle>
           <DialogDescription>Record a new income, expense, or transfer.</DialogDescription>
@@ -326,72 +327,80 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
             </TabsList>
             
             <div className="py-4">
-              <div className="space-y-2 mb-4">
-                  <Label htmlFor="date">Date</Label>
-                  <Input id="date" name="date" type="date" value={date} onChange={e => setDate(e.target.value)} required />
-              </div>
-
               <TabsContent value="expense" className="mt-0 space-y-4">
-                  <div className="max-h-64 overflow-y-auto pr-2 space-y-4">
-                  {expenseItems.map((item, index) => (
-                      <div key={item.id} className="p-4 border rounded-md relative space-y-4">
-                          {expenseItems.length > 1 && (
-                              <Button type="button" variant="ghost" size="icon" className="absolute top-1 right-1 h-6 w-6" onClick={() => removeExpenseItem(index)}>
-                                  <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                          )}
-                          <div className="space-y-2">
-                              <Label htmlFor={`description-expense-${index}`}>Description</Label>
-                              <Textarea id={`description-expense-${index}`} value={item.description} onChange={(e) => handleExpenseItemChange(index, 'description', e.target.value)} placeholder="e.g. Milk" required />
-                          </div>
-                          <div className="grid grid-cols-2 gap-4">
-                              <div className="space-y-2">
-                                  <Label htmlFor={`amount-expense-${index}`}>Amount</Label>
-                                  <Input id={`amount-expense-${index}`} value={item.amount} onChange={(e) => handleExpenseItemChange(index, 'amount', e.target.value)} onBlur={() => handleExpenseAmountBlur(index)} placeholder="e.g. 50" required className="hide-number-arrows"/>
-                              </div>
-                              <div className="space-y-2">
-                                  <Label htmlFor={`category-expense-${index}`}>Category</Label>
-                                  <Select value={item.categoryId} onValueChange={(value) => handleExpenseItemChange(index, 'categoryId', value)}>
-                                      <SelectTrigger id={`category-expense-${index}`}><SelectValue placeholder="Select category" /></SelectTrigger>
-                                      <SelectContent>
-                                          {expenseCategoriesForDropdown.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
-                                      </SelectContent>
-                                  </Select>
-                              </div>
-                          </div>
-                           <div className="space-y-2">
-                              <Label htmlFor={`subcategory-expense-${index}`}>Sub-category</Label>
-                              <Select value={item.subcategory} onValueChange={(value) => handleExpenseItemChange(index, 'subcategory', value)} disabled={!item.categoryId || expenseSubcategories(item.categoryId).length === 0}>
-                                  <SelectTrigger id={`subcategory-expense-${index}`}><SelectValue placeholder="Select sub-category" /></SelectTrigger>
-                                  <SelectContent>
-                                      {expenseSubcategories(item.categoryId).map(sub => <SelectItem key={sub.id} value={sub.name}>{sub.name}</SelectItem>)}
-                                  </SelectContent>
-                              </Select>
-                          </div>
-                      </div>
-                  ))}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                     <div className="space-y-2">
+                        <Label htmlFor="date-expense">Date</Label>
+                        <Input id="date-expense" name="date" type="date" value={date} onChange={e => setDate(e.target.value)} required />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="account-expense">Payment Method</Label>
+                        <Select name="account" required value={expensePaymentMethod} onValueChange={setExpensePaymentMethod}>
+                            <SelectTrigger id="account-expense"><SelectValue placeholder="Select method" /></SelectTrigger>
+                            <SelectContent>
+                                {accountData.map(acc => (
+                                    <SelectItem key={acc.id} value={acc.id}>{acc.name} ({formatCurrency(acc.balance)})</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
                   </div>
+
+                  <div className="max-h-[20rem] overflow-y-auto pr-2 space-y-3 -mr-2">
+                    {expenseItems.map((item, index) => (
+                        <div key={item.id} className="p-3 border rounded-md relative">
+                            <div className="grid grid-cols-12 gap-x-3 gap-y-2 items-end">
+                                <div className="col-span-12 sm:col-span-4 md:col-span-3 space-y-1">
+                                    <Label htmlFor={`description-expense-${index}`} className="text-xs font-medium">Description</Label>
+                                    <Textarea rows={1} id={`description-expense-${index}`} value={item.description} onChange={(e) => handleExpenseItemChange(index, 'description', e.target.value)} placeholder="e.g. Milk" required className="text-sm"/>
+                                </div>
+                                <div className="col-span-6 sm:col-span-3 md:col-span-2 space-y-1">
+                                    <Label htmlFor={`amount-expense-${index}`} className="text-xs font-medium">Amount</Label>
+                                    <Input id={`amount-expense-${index}`} value={item.amount} onChange={(e) => handleExpenseItemChange(index, 'amount', e.target.value)} onBlur={() => handleExpenseAmountBlur(index)} placeholder="e.g. 50" required className="hide-number-arrows text-sm"/>
+                                </div>
+                                <div className="col-span-6 sm:col-span-5 md:col-span-3 space-y-1">
+                                    <Label htmlFor={`category-expense-${index}`} className="text-xs font-medium">Category</Label>
+                                    <Select value={item.categoryId} onValueChange={(value) => handleExpenseItemChange(index, 'categoryId', value)}>
+                                        <SelectTrigger id={`category-expense-${index}`} className="text-sm"><SelectValue placeholder="Select" /></SelectTrigger>
+                                        <SelectContent>
+                                            {expenseCategoriesForDropdown.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="col-span-10 sm:col-span-11 md:col-span-3 space-y-1">
+                                    <Label htmlFor={`subcategory-expense-${index}`} className="text-xs font-medium">Sub-category</Label>
+                                    <Select value={item.subcategory} onValueChange={(value) => handleExpenseItemChange(index, 'subcategory', value)} disabled={!item.categoryId || expenseSubcategories(item.categoryId).length === 0}>
+                                        <SelectTrigger id={`subcategory-expense-${index}`} className="text-sm"><SelectValue placeholder="Select" /></SelectTrigger>
+                                        <SelectContent>
+                                            {expenseSubcategories(item.categoryId).map(sub => <SelectItem key={sub.id} value={sub.name}>{sub.name}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="col-span-2 sm:col-span-1 flex items-center justify-end">
+                                    {expenseItems.length > 1 && (
+                                        <Button type="button" variant="ghost" size="icon" className="h-9 w-9" onClick={() => removeExpenseItem(index)}>
+                                            <Trash2 className="h-4 w-4 text-destructive" />
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                  </div>
+
                   <Button type="button" variant="outline" className="w-full" onClick={addExpenseItem}>
                       <Plus className="mr-2 h-4 w-4" /> Add Item
                   </Button>
-
-                  <div className="space-y-2">
-                      <Label htmlFor="account-expense">Payment Method</Label>
-                      <Select name="account" required value={expensePaymentMethod} onValueChange={setExpensePaymentMethod}>
-                          <SelectTrigger id="account-expense"><SelectValue placeholder="Select method" /></SelectTrigger>
-                          <SelectContent>
-                              {accountData.map(acc => (
-                                  <SelectItem key={acc.id} value={acc.id}>{acc.name} ({formatCurrency(acc.balance)})</SelectItem>
-                              ))}
-                          </SelectContent>
-                      </Select>
-                  </div>
                   <div className="font-bold text-lg text-right mt-4">
                       Total: {formatCurrency(totalExpenseAmount)}
                   </div>
               </TabsContent>
 
               <TabsContent value="income" className="mt-0 space-y-4">
+                  <div className="space-y-2">
+                      <Label htmlFor="date-income">Date</Label>
+                      <Input id="date-income" name="date-income" type="date" value={date} onChange={e => setDate(e.target.value)} required />
+                  </div>
                   <div className="space-y-2">
                       <Label htmlFor="amount-income">Amount</Label>
                       <Input id="amount-income" value={incomeAmount} onChange={(e) => setIncomeAmount(e.target.value)} onBlur={handleIncomeAmountBlur} placeholder="e.g. 50000" required className="hide-number-arrows"/>
@@ -434,6 +443,10 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
               </TabsContent>
 
               <TabsContent value="transfer" className="mt-0 space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="date-transfer">Date</Label>
+                    <Input id="date-transfer" name="date-transfer" type="date" value={date} onChange={e => setDate(e.target.value)} required />
+                  </div>
                   <div className="space-y-2">
                       <Label htmlFor="amount-transfer">Amount</Label>
                       <Input id="amount-transfer" value={transferAmount} onChange={(e) => setTransferAmount(e.target.value)} onBlur={handleTransferAmountBlur} placeholder="e.g. 1000" required className="hide-number-arrows"/>
