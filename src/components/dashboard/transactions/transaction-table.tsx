@@ -24,13 +24,14 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import type { Transaction, Account, Category, Loan } from "@/lib/data";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, ChevronRight } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, doc, writeBatch, getDocs } from "firebase/firestore";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useAuthState } from "@/hooks/use-auth-state";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 
 const formatCurrency = (amount: number) => {
@@ -322,92 +323,102 @@ export function TransactionTable({
                 const loanInfo = getLoanDisplayInfo(t);
                 
                 if (t.items && t.items.length > 0) {
-                    const rows = [];
-                    const firstItem = t.items[0];
-                    const categoryDoc = categories.find(c => c.id === firstItem.categoryId || c.name === firstItem.category);
-                    
-                    rows.push(
-                        <TableRow key={t.id}>
-                            <TableCell className="font-medium">{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
-                            <TableCell>{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
-                            <TableCell className="font-medium break-words">
-                                <span>{firstItem.description}</span>
-                            </TableCell>
-                            <TableCell>
-                                <Badge variant={getBadgeVariant(t.type)}>{t.type}</Badge>
-                            </TableCell>
-                            <TableCell className="break-words">{getAccountName(t.accountId, t.paymentMethod)}</TableCell>
-                            <TableCell className="break-words">
-                                <div>{categoryDoc?.name || firstItem.category}</div>
-                                {firstItem.subcategory && <div className="text-sm text-muted-foreground">{firstItem.subcategory}</div>}
-                            </TableCell>
-                            <TableCell className="text-right font-mono text-red-600">
-                                {formatCurrency(firstItem.amount)}
-                            </TableCell>
-                            <TableCell />
-                            <TableCell />
-                            <TableCell />
-                            <TableCell className="text-right print-hide">
-                                <div className="flex items-center justify-end gap-2">
-                                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEditTransaction(t)}>
-                                        <Pencil className="h-4 w-4" />
-                                    </Button>
-                                    <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-8 w-8">
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                            <AlertDialogDescription>This will permanently delete this combined transaction and all its items. This action cannot be undone.</AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => handleDeleteTransaction(t)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                                        </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                    </AlertDialog>
-                                </div>
-                            </TableCell>
-                        </TableRow>
-                    );
-
-                    t.items.slice(1).forEach((item, itemIndex) => {
-                        const subItemCategoryDoc = categories.find(c => c.id === item.categoryId || c.name === item.category);
-                        rows.push(
-                            <TableRow key={`${t.id}-${itemIndex}`} className="bg-muted/20 hover:bg-muted/40">
-                                <TableCell />
-                                <TableCell />
-                                <TableCell className="font-medium break-words pl-6">{item.description}</TableCell>
-                                <TableCell />
-                                <TableCell />
-                                <TableCell className="break-words">
-                                    <div>{subItemCategoryDoc?.name || item.category}</div>
-                                    {item.subcategory && <div className="text-sm text-muted-foreground">{item.subcategory}</div>}
-                                </TableCell>
-                                <TableCell className="text-right font-mono text-red-600">{formatCurrency(item.amount)}</TableCell>
-                                <TableCell />
-                                <TableCell />
-                                <TableCell />
-                                <TableCell />
-                            </TableRow>
-                        );
-                    });
-                    
-                    rows.push(
-                        <TableRow key={`${t.id}-total`} className="bg-muted/40 font-bold hover:bg-muted/50 border-b">
-                            <TableCell colSpan={6} className="text-right py-2">Total</TableCell>
-                            <TableCell className="text-right font-mono text-red-600 py-2">{formatCurrency(t.amount)}</TableCell>
-                            <TableCell />
-                            <TableCell />
-                            <TableCell className={cn("text-right font-mono py-2", t.balance < 0 ? "text-red-600" : "")}>{formatCurrency(t.balance)}</TableCell>
-                            <TableCell className="py-2" />
-                        </TableRow>
-                    );
-
-                    return <Fragment key={t.id}>{rows}</Fragment>;
+                    const concatenatedDescription = t.items.map(item => item.description).join('; ');
+                    return (
+                        <Collapsible asChild key={t.id}>
+                            <>
+                                <TableRow className="border-b-0 data-[state=open]:border-b">
+                                    <TableCell className="font-medium w-16">
+                                        <div className="flex items-center">
+                                            <CollapsibleTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                    <ChevronRight className="h-4 w-4 transition-transform [&[data-state=open]]:rotate-90" />
+                                                </Button>
+                                            </CollapsibleTrigger>
+                                            <span>{(currentPage - 1) * itemsPerPage + index + 1}</span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
+                                    <TableCell className="font-medium break-words">
+                                        {concatenatedDescription}
+                                    </TableCell>
+                                    <TableCell>
+                                        <Badge variant={getBadgeVariant(t.type)}>{t.type}</Badge>
+                                    </TableCell>
+                                    <TableCell className="break-words">{getAccountName(t.accountId, t.paymentMethod)}</TableCell>
+                                    <TableCell className="break-words">
+                                        <Badge variant="outline">Multiple</Badge>
+                                    </TableCell>
+                                    
+                                    <TableCell className="text-right font-mono text-red-600">
+                                        {formatCurrency(t.amount)}
+                                    </TableCell>
+                                    <TableCell />
+                                    <TableCell />
+                                    
+                                    <TableCell className={cn("text-right font-mono", t.balance < 0 ? 'text-red-600' : '')}>
+                                        {formatCurrency(t.balance)}
+                                    </TableCell>
+                                    <TableCell className="text-right print-hide">
+                                        <div className="flex items-center justify-end gap-2">
+                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEditTransaction(t)}>
+                                                <Pencil className="h-4 w-4" />
+                                            </Button>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-8 w-8">
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                    <AlertDialogDescription>This will permanently delete this combined transaction and all its items. This action cannot be undone.</AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                    <AlertDialogAction onClick={() => handleDeleteTransaction(t)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                                </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                                <CollapsibleContent asChild>
+                                    <TableRow>
+                                        <TableCell colSpan={11} className="p-0">
+                                            <div className="p-4 bg-muted/30">
+                                                <Table>
+                                                    <TableHeader>
+                                                        <TableRow>
+                                                            <TableHead>Item Description</TableHead>
+                                                            <TableHead>Category</TableHead>
+                                                            <TableHead className="text-right">Amount</TableHead>
+                                                        </TableRow>
+                                                    </TableHeader>
+                                                    <TableBody>
+                                                        {t.items.map((item, itemIndex) => {
+                                                            const categoryDoc = categories.find(c => c.id === item.categoryId || c.name === item.category);
+                                                            return (
+                                                                <TableRow key={itemIndex}>
+                                                                    <TableCell>{item.description}</TableCell>
+                                                                    <TableCell>
+                                                                        {categoryDoc?.name || item.category}
+                                                                        {item.subcategory && ` / ${item.subcategory}`}
+                                                                    </TableCell>
+                                                                    <TableCell className="text-right font-mono">{formatCurrency(item.amount)}</TableCell>
+                                                                </TableRow>
+                                                            )
+                                                        })}
+                                                    </TableBody>
+                                                </Table>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                </CollapsibleContent>
+                            </>
+                        </Collapsible>
+                    )
                 }
 
                 const {debit, credit, transfer} = t;
