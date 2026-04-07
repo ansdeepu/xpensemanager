@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef, Fragment } from "react";
 import { TransactionTable } from "@/components/dashboard/transactions/transaction-table";
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, orderBy, doc, setDoc, updateDoc } from "firebase/firestore";
@@ -705,7 +705,7 @@ export default function TransactionsPage() {
                               <h3 className="font-semibold text-lg">Primary ({primaryAccount.name})</h3>
                               <span className="font-bold text-xl text-primary">{formatCurrency(primaryAllBalance)}</span>
                         </div>
-                        <div className="w-full grid grid-cols-2 gap-x-4 gap-y-2 text-left pt-2">
+                        <div className="w-full grid grid-cols-4 gap-x-4 text-left pt-2">
                             <div className="space-y-1">
                                 <Label className="text-sm">Bank Balance</Label>
                                 <div className="font-mono text-lg cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); handleAccountClick(primaryAccount); }}>{formatCurrency(primaryAccount.balance)}</div>
