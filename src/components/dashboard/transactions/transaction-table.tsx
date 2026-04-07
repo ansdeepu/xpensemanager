@@ -545,35 +545,32 @@ export function TransactionTable({
                         <Fragment key={t.id}>
                             {t.items.map((item, itemIndex) => {
                                 const isFirst = itemIndex === 0;
-                                const isLast = itemIndex === t.items.length - 1;
                                 const categoryDoc = categories.find(c => c.id === item.categoryId || c.name === item.category);
                 
                                 return (
-                                    <TableRow key={`${t.id}-${itemIndex}`} className="bg-muted/20">
-                                        <TableCell className="font-medium">
+                                    <TableRow key={`${t.id}-${itemIndex}`} className="bg-muted/20 hover:bg-muted/40">
+                                        <TableCell className="font-medium align-top">
                                             {isFirst ? `${(currentPage - 1) * itemsPerPage + index + 1}` : ''}
                                         </TableCell>
-                                        <TableCell>{isFirst ? format(new Date(t.date), 'dd/MM/yy') : ''}</TableCell>
-                                        <TableCell className="font-medium break-words">{item.description}</TableCell>
-                                        <TableCell>
+                                        <TableCell className="align-top">{isFirst ? format(new Date(t.date), 'dd/MM/yy') : ''}</TableCell>
+                                        <TableCell className="font-medium break-words align-top">{item.description}</TableCell>
+                                        <TableCell className="align-top">
                                             {isFirst && <Badge variant={getBadgeVariant(t.type)}>{t.type}</Badge>}
                                         </TableCell>
-                                        <TableCell className="break-words">
+                                        <TableCell className="break-words align-top">
                                             {isFirst ? getAccountName(t.accountId, t.paymentMethod) : ''}
                                         </TableCell>
-                                        <TableCell className="break-words">
+                                        <TableCell className="break-words align-top">
                                             <div>{categoryDoc?.name || item.category}</div>
                                             {item.subcategory && <div className="text-sm text-muted-foreground">{item.subcategory}</div>}
                                         </TableCell>
                                         
-                                        <TableCell className="text-right font-mono text-red-600">{formatCurrency(item.amount)}</TableCell>
-                                        <TableCell />
-                                        <TableCell />
-                
-                                        <TableCell className={cn("text-right font-mono", isLast && t.balance < 0 ? 'text-red-600' : '')}>
-                                            {isLast ? formatCurrency(t.balance) : null}
-                                        </TableCell>
-                                        <TableCell className="text-right print-hide">
+                                        <TableCell className="text-right font-mono text-red-600 align-top">{formatCurrency(item.amount)}</TableCell>
+                                        <TableCell className="align-top" />
+                                        <TableCell className="align-top" />
+
+                                        <TableCell className="align-top" />
+                                        <TableCell className="text-right print-hide align-top">
                                             {isFirst && (
                                                 <div className="flex items-center justify-end gap-2">
                                                     <Button variant="ghost" size="icon" className="h-8 w-8" disabled>
@@ -602,6 +599,14 @@ export function TransactionTable({
                                     </TableRow>
                                 );
                             })}
+                            <TableRow className="bg-muted/40 font-bold hover:bg-muted/50 border-b">
+                                <TableCell colSpan={6} className="text-right py-2">Total</TableCell>
+                                <TableCell className="text-right font-mono text-red-600 py-2">{formatCurrency(t.amount)}</TableCell>
+                                <TableCell className="py-2" />
+                                <TableCell className="py-2" />
+                                <TableCell className={cn("text-right font-mono py-2", t.balance < 0 ? "text-red-600" : "")}>{formatCurrency(t.balance)}</TableCell>
+                                <TableCell className="py-2" />
+                            </TableRow>
                         </Fragment>
                     );
                 }
