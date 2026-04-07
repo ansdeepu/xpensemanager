@@ -321,27 +321,38 @@ export function AddTransactionDialog({
                 transactionData.paymentMethod = 'online';
                 transactionData.accountId = expensePaymentMethod;
             }
-        
-            if (validItems.length > 1) {
-                transactionData.items = validItems.map(item => {
-                    const catDoc = categories.find(c => c.id === item.categoryId);
-                    return {
-                        description: item.description,
-                        amount: parseFloat(item.amount),
-                        categoryId: item.categoryId,
-                        category: catDoc?.name || 'Uncategorized',
-                        subcategory: item.subcategory,
-                    };
-                });
-            } else {
-                transactionData.items = deleteField() as any;
-            }
 
             if(isEditMode) {
                 const txRef = doc(db, "transactions", transactionToEdit.id);
+                if (validItems.length > 1) {
+                    transactionData.items = validItems.map(item => {
+                        const catDoc = categories.find(c => c.id === item.categoryId);
+                        return {
+                            description: item.description,
+                            amount: parseFloat(item.amount),
+                            categoryId: item.categoryId,
+                            category: catDoc?.name || 'Uncategorized',
+                            subcategory: item.subcategory,
+                        };
+                    });
+                } else {
+                    transactionData.items = deleteField() as any;
+                }
                 await updateDoc(txRef, transactionData);
                 toast({ title: `Expense updated.` });
             } else {
+                if (validItems.length > 1) {
+                    transactionData.items = validItems.map(item => {
+                        const catDoc = categories.find(c => c.id === item.categoryId);
+                        return {
+                            description: item.description,
+                            amount: parseFloat(item.amount),
+                            categoryId: item.categoryId,
+                            category: catDoc?.name || 'Uncategorized',
+                            subcategory: item.subcategory,
+                        };
+                    });
+                }
                 await addDoc(collection(db, "transactions"), transactionData);
                 toast({ title: `Expense added.` });
             }
