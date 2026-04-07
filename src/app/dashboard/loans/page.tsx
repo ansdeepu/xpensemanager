@@ -1,3 +1,4 @@
+
 "use client";
 
 import { LoanList } from "@/components/dashboard/loans/loan-list";
@@ -10,7 +11,7 @@ import type { Loan, Account, Transaction } from "@/lib/data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { startOfMonth, endOfMonth, format, isWithinInterval, parseISO } from "date-fns";
+import { startOfMonth, endOfMonth, format, isWithinInterval, parseISO, isValid } from "date-fns";
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-IN", {
