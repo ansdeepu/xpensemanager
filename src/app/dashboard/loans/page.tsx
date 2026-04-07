@@ -176,29 +176,7 @@ export default function LoansPage() {
           </TabsTrigger>
         </TabsList>
         <TabsContent value="taken" className="mt-6">
-          <div className="space-y-6">
-            <LoanList loanType="taken" />
-            <Card>
-              <CardHeader>
-                <CardTitle>Credit Card Dues</CardTitle>
-                <CardDescription>Total amount due on your credit cards.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-red-600 mb-4">{formatCurrency(totalCreditCardDebt)}</div>
-                <div className="space-y-2">
-                  {creditCards.map(card => (
-                    <div key={card.id} className="flex justify-between items-center p-2 rounded-md bg-muted/50">
-                      <span className="font-medium">{card.name}</span>
-                      <span className="font-mono">{formatCurrency(card.balance)}</span>
-                    </div>
-                  ))}
-                  {creditCards.length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-4">No credit cards found.</p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          <LoanList loanType="taken" creditCards={creditCards} />
         </TabsContent>
         <TabsContent value="given" className="mt-6">
           <LoanList loanType="given" />

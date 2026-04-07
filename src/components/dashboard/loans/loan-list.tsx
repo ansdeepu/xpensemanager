@@ -255,7 +255,7 @@ function LoanAccordionItem({
 }
 
 
-export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
+export function LoanList({ loanType, creditCards }: { loanType: "taken" | "given", creditCards?: Account[] }) {
   const [loans, setLoans] = useState<Loan[]>([]);
   const [accounts, setAccounts] = useState<Omit<Account, 'balance'>[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -626,10 +626,10 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
       return <Skeleton className="h-96 w-full" />;
   }
 
-  const title = loanType === "taken" ? "Loans Taken" : "Loans Given";
+  const title = loanType === "taken" ? "Debts" : "Loans Given";
   const description =
     loanType === "taken"
-      ? "Consolidated view of money you have borrowed."
+      ? "Consolidated view of money you have borrowed and credit card dues."
       : "Consolidated view of money you have lent.";
   
   const allAccountsForTx = [
@@ -646,109 +646,111 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
             <CardTitle>{title}</CardTitle>
             <CardDescription>{description}</CardDescription>
           </div>
-          <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
-            setIsAddDialogOpen(open);
-            if (!open) resetAddDialog();
-          }}>
-            <DialogTrigger asChild>
-              <Button>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Add Record
-              </Button>
-            </DialogTrigger>
-            <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-3xl">
-              <form onSubmit={handleAddLoanTransaction}>
-                <DialogHeader>
-                  <DialogTitle>Add Loan / Repayment</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                     <div className="space-y-2">
-                        <Label>Select Person / Account</Label>
-                        <Select onValueChange={value => {
-                            if (value === 'new') {
-                                setIsNewPerson(true);
-                                setSelectedPersonId(null);
-                                setPersonName("");
-                            } else {
-                                setIsNewPerson(false);
-                                setSelectedPersonId(value);
-                            }
-                        }}>
-                            <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
-                            <SelectContent>
-                              <SelectGroup>
-                                <SelectLabel>People</SelectLabel>
-                                {loans.map(l => <SelectItem key={l.id} value={l.id}>{l.personName}</SelectItem>)}
-                              </SelectGroup>
-                              
+          {loanType === 'taken' && (
+            <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+              if (!open) resetAddDialog();
+              setIsAddDialogOpen(open);
+            }}>
+              <DialogTrigger asChild>
+                <Button>
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Add Record
+                </Button>
+              </DialogTrigger>
+              <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-3xl">
+                <form onSubmit={handleAddLoanTransaction}>
+                  <DialogHeader>
+                    <DialogTitle>Add Loan / Repayment</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                       <div className="space-y-2">
+                          <Label>Select Person / Account</Label>
+                          <Select onValueChange={value => {
+                              if (value === 'new') {
+                                  setIsNewPerson(true);
+                                  setSelectedPersonId(null);
+                                  setPersonName("");
+                              } else {
+                                  setIsNewPerson(false);
+                                  setSelectedPersonId(value);
+                              }
+                          }}>
+                              <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                              <SelectContent>
                                 <SelectGroup>
-                                    <SelectLabel>Your Other Accounts</SelectLabel>
-                                    {otherAccounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
+                                  <SelectLabel>People</SelectLabel>
+                                  {loans.map(l => <SelectItem key={l.id} value={l.id}>{l.personName}</SelectItem>)}
                                 </SelectGroup>
-                              
-                              <SelectGroup>
-                                <SelectItem value="new">Add a new person</SelectItem>
-                              </SelectGroup>
+                                
+                                  <SelectGroup>
+                                      <SelectLabel>Your Other Accounts</SelectLabel>
+                                      {otherAccounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
+                                  </SelectGroup>
+                                
+                                <SelectGroup>
+                                  <SelectItem value="new">Add a new person</SelectItem>
+                                </SelectGroup>
+                              </SelectContent>
+                          </Select>
+                        </div>
+                      {isNewPerson && (
+                        <div className="space-y-2">
+                            <Label htmlFor="personName">New Person's Name</Label>
+                            <Input id="personName" name="personName" value={personName} onChange={e => setPersonName(e.target.value)} required />
+                        </div>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label>Transaction Type</Label>
+                        <Select name="transactionType" value={transactionType} onValueChange={(v) => setTransactionType(v as 'loan' | 'repayment')}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="loan">{loanType === 'taken' ? 'I took a loan' : 'I gave a loan'}</SelectItem>
+                                <SelectItem value="repayment">{loanType === 'taken' ? 'I repaid' : 'I received repayment'}</SelectItem>
                             </SelectContent>
                         </Select>
                       </div>
-                    {isNewPerson && (
                       <div className="space-y-2">
-                          <Label htmlFor="personName">New Person's Name</Label>
-                          <Input id="personName" name="personName" value={personName} onChange={e => setPersonName(e.target.value)} required />
+                        <Label htmlFor="amount">Amount</Label>
+                        <Input id="amount" name="amount" type="number" step="0.01" required />
                       </div>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label>Transaction Type</Label>
-                      <Select name="transactionType" value={transactionType} onValueChange={(v) => setTransactionType(v as 'loan' | 'repayment')}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                              <SelectItem value="loan">{loanType === 'taken' ? 'I took a loan' : 'I gave a loan'}</SelectItem>
-                              <SelectItem value="repayment">{loanType === 'taken' ? 'I repaid' : 'I received repayment'}</SelectItem>
-                          </SelectContent>
-                      </Select>
+                      <div className="space-y-2">
+                        <Label htmlFor="date">Date</Label>
+                        <Input id="date" name="date" type="date" defaultValue={format(new Date(), 'yyyy-MM-dd')} required />
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="amount">Amount</Label>
-                      <Input id="amount" name="amount" type="number" step="0.01" required />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="date">Date</Label>
-                      <Input id="date" name="date" type="date" defaultValue={format(new Date(), 'yyyy-MM-dd')} required />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="myAccountId">My Account</Label>
-                      <Select name="myAccountId" required>
-                          <SelectTrigger><SelectValue placeholder="Select account..."/></SelectTrigger>
-                          <SelectContent>
-                              {allAccountsForTx.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
-                          </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="description">Description</Label>
-                      <Textarea id="description" name="description" placeholder="Optional notes" />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="myAccountId">My Account</Label>
+                        <Select name="myAccountId" required>
+                            <SelectTrigger><SelectValue placeholder="Select account..."/></SelectTrigger>
+                            <SelectContent>
+                                {allAccountsForTx.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="description">Description</Label>
+                        <Textarea id="description" name="description" placeholder="Optional notes" />
+                      </div>
                     </div>
                   </div>
-                </div>
-                <DialogFooter>
-                  <DialogClose asChild><Button type="button" variant="secondary">Cancel</Button></DialogClose>
-                  <Button type="submit">Add Record</Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
+                  <DialogFooter>
+                    <DialogClose asChild><Button type="button" variant="secondary">Cancel</Button></DialogClose>
+                    <Button type="submit">Add Record</Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+          )}
         </CardHeader>
         <CardContent>
-            {loans.length === 0 ? (
+            {(loans.length === 0 && (!creditCards || creditCards.length === 0)) ? (
                 <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-40">
                     <HandCoins className="h-10 w-10 mb-2" />
-                    <p>No loans recorded yet. Click "Add Record" to get started.</p>
+                    <p>No debts recorded yet. Click "Add Record" to get started.</p>
                 </div>
             ) : (
                 <Accordion type="single" collapsible className="w-full">
@@ -762,6 +764,26 @@ export function LoanList({ loanType }: { loanType: "taken" | "given" }) {
                         onDeleteTransaction={handleDeleteLoanTransaction}
                         onEditLoanName={openEditLoanNameDialog}
                       />
+                    ))}
+                    {creditCards && creditCards.map(card => (
+                       <AccordionItem value={card.id} key={card.id}>
+                          <AccordionTrigger>
+                             <div className="grid grid-cols-3 w-full items-center">
+                                <div className="flex items-center gap-4">
+                                    <span className="font-semibold text-base">{card.name}</span>
+                                </div>
+                                <div className="text-center">
+                                    <Badge variant={'destructive'} className="text-sm">{formatCurrency(card.balance)}</Badge>
+                                </div>
+                                <div className="text-right">
+                                  <Badge variant="secondary">Credit Card</Badge>
+                                </div>
+                             </div>
+                          </AccordionTrigger>
+                          <AccordionContent>
+                              <p className="text-sm text-muted-foreground px-4 text-center">Manage transactions on the Transactions page.</p>
+                          </AccordionContent>
+                      </AccordionItem>
                     ))}
                 </Accordion>
             )}
