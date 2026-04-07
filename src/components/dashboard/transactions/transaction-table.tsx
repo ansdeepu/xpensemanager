@@ -546,11 +546,11 @@ export function TransactionTable({
                             <TableRow className="bg-muted/40 font-bold hover:bg-muted/50">
                                 <TableCell className="font-medium">{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
                                 <TableCell>{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
-                                <TableCell className="font-medium break-words">{loanInfo.description}</TableCell>
+                                <TableCell className="font-medium break-words">{t.items[0].description}</TableCell>
                                 <TableCell>
                                     <Badge variant={getBadgeVariant(t.type)}>{t.type}</Badge>
                                 </TableCell>
-                                <TableCell className="break-words">{getAccountName(t.accountId, t.paymentMethod)}</TableCell>
+                                <TableCell className="break-words font-normal">{getAccountName(t.accountId, t.paymentMethod)}</TableCell>
                                 <TableCell colSpan={5}></TableCell>
                                 <TableCell className="text-right print-hide">
                                     <div className="flex items-center justify-end gap-2">
