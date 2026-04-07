@@ -541,17 +541,30 @@ export function TransactionTable({
                 const loanInfo = getLoanDisplayInfo(t);
                 
                 if (t.items && t.items.length > 0) {
+                    const firstItem = t.items[0];
+                    const categoryDoc = categories.find(c => c.id === firstItem.categoryId || c.name === firstItem.category);
                     return (
                         <Fragment key={t.id}>
                             <TableRow className="bg-muted/40 font-bold hover:bg-muted/50">
                                 <TableCell className="font-medium">{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
                                 <TableCell>{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
-                                <TableCell className="font-medium break-words">{t.items[0].description}</TableCell>
+                                <TableCell className="font-medium break-words">
+                                    <span>{firstItem.description}</span>
+                                </TableCell>
                                 <TableCell>
                                     <Badge variant={getBadgeVariant(t.type)}>{t.type}</Badge>
                                 </TableCell>
-                                <TableCell className="break-words font-normal">{getAccountName(t.accountId, t.paymentMethod)}</TableCell>
-                                <TableCell colSpan={5}></TableCell>
+                                <TableCell className="break-words">{getAccountName(t.accountId, t.paymentMethod)}</TableCell>
+                                <TableCell className="break-words">
+                                    <div>{categoryDoc?.name || firstItem.category}</div>
+                                    {firstItem.subcategory && <div className="text-sm text-muted-foreground">{firstItem.subcategory}</div>}
+                                </TableCell>
+                                <TableCell className="text-right font-mono text-red-600">
+                                    {formatCurrency(firstItem.amount)}
+                                </TableCell>
+                                <TableCell /> {/* Transfer */}
+                                <TableCell /> {/* Credit */}
+                                <TableCell /> {/* Balance */}
                                 <TableCell className="text-right print-hide">
                                     <div className="flex items-center justify-end gap-2">
                                         <Button variant="ghost" size="icon" className="h-8 w-8" disabled>
@@ -579,7 +592,7 @@ export function TransactionTable({
                             </TableRow>
 
                             {t.items.slice(1).map((item, itemIndex) => {
-                                const categoryDoc = categories.find(c => c.id === item.categoryId || c.name === item.category);
+                                const subItemCategoryDoc = categories.find(c => c.id === item.categoryId || c.name === item.category);
                                 return (
                                     <TableRow key={`${t.id}-${itemIndex}`} className="bg-muted/20 hover:bg-muted/40">
                                         <TableCell></TableCell>
@@ -588,11 +601,10 @@ export function TransactionTable({
                                         <TableCell></TableCell>
                                         <TableCell></TableCell>
                                         <TableCell className="break-words">
-                                            <div>{categoryDoc?.name || item.category}</div>
+                                            <div>{subItemCategoryDoc?.name || item.category}</div>
                                             {item.subcategory && <div className="text-sm text-muted-foreground">{item.subcategory}</div>}
                                         </TableCell>
                                         <TableCell className="text-right font-mono text-red-600">{formatCurrency(item.amount)}</TableCell>
-                                        <TableCell />
                                         <TableCell />
                                         <TableCell />
                                         <TableCell />
@@ -838,3 +850,5 @@ export function TransactionTable({
     </>
   );
 }
+
+    
