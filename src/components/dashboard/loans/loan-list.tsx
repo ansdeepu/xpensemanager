@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -49,11 +50,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PlusCircle, HandCoins, Info, Trash2, Pencil } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
-import { collection, addDoc, query, where, onSnapshot, doc, updateDoc, writeBatch, getDocs, deleteDoc } from "firebase/firestore";
+import { collection, addDoc, query, where, onSnapshot, doc, updateDoc, writeBatch, getDocs, deleteDoc, orderBy } from "firebase/firestore";
 import { format, parseISO, isValid, isWithinInterval } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { Loan, LoanTransaction, Account, Transaction } from "@/lib/data";
+import type { Loan, LoanTransaction, Account, Transaction, Category } from "@/lib/data";
 import {
   Select,
   SelectContent,
@@ -75,6 +76,24 @@ const formatCurrency = (amount: number) => {
     style: "currency",
     currency: "INR",
   }).format(amount);
+};
+
+// Function to safely evaluate math expressions
+const evaluateMath = (expression: string): number | null => {
+  try {
+    // Basic validation: only allow numbers, operators, and parentheses
+    if (/[^0-9+\-*/.() ]/.test(expression)) {
+      return null;
+    }
+    // eslint-disable-next-line no-eval
+    const result = eval(expression);
+    if (typeof result === 'number' && isFinite(result)) {
+      return result;
+    }
+    return null;
+  } catch (error) {
+    return null;
+  }
 };
 
 function LoanAccordionItem({ 
@@ -260,11 +279,15 @@ function CardAccordionItem({
     transactions,
     startDate,
     endDate,
+    onEditTransaction,
+    onDeleteTransaction,
 }: {
     card: Account;
     transactions: Transaction[];
     startDate?: string;
     endDate?: string;
+    onEditTransaction: (transaction: Transaction) => void;
+    onDeleteTransaction: (transaction: Transaction) => void;
 }) {
     const { transactionsForPeriod, periodTotals } = useMemo(() => {
         let relevantTransactions = (transactions || [])
@@ -342,6 +365,7 @@ function CardAccordionItem({
                                             <TableHead>Description</TableHead>
                                             <TableHead className="text-right">Charges</TableHead>
                                             <TableHead className="text-right">Payments</TableHead>
+                                            <TableHead className="text-right">Actions</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -355,10 +379,32 @@ function CardAccordionItem({
                                                 <TableCell className="text-right font-mono text-green-600">
                                                     {t.payment > 0 ? formatCurrency(t.payment) : null}
                                                 </TableCell>
+                                                <TableCell className="text-right">
+                                                    <Button variant="ghost" size="icon" onClick={() => onEditTransaction(t)} className="h-7 w-7">
+                                                        <Pencil className="h-3 w-3" />
+                                                    </Button>
+                                                    <AlertDialog>
+                                                        <AlertDialogTrigger asChild>
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
+                                                                <Trash2 className="h-3 w-3" />
+                                                            </Button>
+                                                        </AlertDialogTrigger>
+                                                        <AlertDialogContent>
+                                                            <AlertDialogHeader>
+                                                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                                <AlertDialogDescription>This will delete this transaction and cannot be undone.</AlertDialogDescription>
+                                                            </AlertDialogHeader>
+                                                            <AlertDialogFooter>
+                                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                                <AlertDialogAction onClick={() => onDeleteTransaction(t)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                                            </AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
+                                                </TableCell>
                                             </TableRow>
                                         )) : (
                                             <TableRow>
-                                                <TableCell colSpan={4} className="text-center h-24 text-muted-foreground">
+                                                <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
                                                     No transactions found for this card in the selected period.
                                                 </TableCell>
                                             </TableRow>
@@ -377,15 +423,24 @@ function CardAccordionItem({
 export function LoanList({ loanType, loans: allLoans, creditCards, transactions: allTransactions, startDate, endDate }: { loanType: "taken" | "given", loans: Loan[], creditCards?: Account[], transactions?: Transaction[], startDate?: string, endDate?: string }) {
   const [loans, setLoans] = useState<Loan[]>([]);
   const [accounts, setAccounts] = useState<Omit<Account, 'balance'>[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isEditLoanNameDialogOpen, setIsEditLoanNameDialogOpen] = useState(false);
+  const [isEditCardTxDialogOpen, setIsEditCardTxDialogOpen] = useState(false);
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
   const [selectedTransaction, setSelectedTransaction] = useState<LoanTransaction | null>(null);
+  const [selectedCardTransaction, setSelectedCardTransaction] = useState<Transaction | null>(null);
   const [user, loading] = useAuthState();
   const [clientLoaded, setClientLoaded] = useState(false);
   const { toast } = useToast();
 
+  // Edit card transaction form state
+  const [editAmount, setEditAmount] = useState("");
+  const [editDate, setEditDate] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editCategory, setEditCategory] = useState<string | undefined>();
+  const [editSubCategory, setEditSubCategory] = useState<string | undefined>();
 
   // States for the add dialog
   const [personName, setPersonName] = useState("");
@@ -393,7 +448,6 @@ export function LoanList({ loanType, loans: allLoans, creditCards, transactions:
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
   const [transactionType, setTransactionType] = useState<'loan' | 'repayment'>('loan');
   const [activeAddTab, setActiveAddTab] = useState("loan");
-
 
   useEffect(() => {
     setClientLoaded(true);
@@ -408,12 +462,43 @@ export function LoanList({ loanType, loans: allLoans, creditCards, transactions:
       const unsubscribeAccounts = onSnapshot(accountsQuery, (snapshot) => {
           setAccounts(snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}) as Omit<Account, 'balance'>));
       });
+      
+      const categoriesQuery = query(collection(db, "categories"), where("userId", "==", user.uid), orderBy("order", "asc"));
+      const unsubscribeCategories = onSnapshot(categoriesQuery, (snapshot) => {
+        setCategories(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category)));
+      });
 
       return () => {
         unsubscribeAccounts();
+        unsubscribeCategories();
       };
     }
   }, [user]);
+
+  const editSubcategories = useMemo(() => {
+    if (!editCategory) return [];
+    const category = categories.find(c => c.id === editCategory);
+    return category?.subcategories || [];
+  }, [editCategory, categories]);
+
+  const editCategoriesForDropdown = useMemo(() => {
+    if (!selectedCardTransaction || selectedCardTransaction.type !== 'expense') {
+        return [];
+    }
+    return categories.filter(c => c.type === 'expense' || c.type === 'bank-expense');
+  }, [categories, selectedCardTransaction]);
+
+  const handleAmountChange = (setter: React.Dispatch<React.SetStateAction<string>>) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    setter(e.target.value);
+  };
+  
+  const handleAmountBlur = (value: string, setter: React.Dispatch<React.SetStateAction<string>>) => {
+    if (value.trim() === "") return;
+    const result = evaluateMath(value);
+    if (result !== null) {
+      setter(String(result));
+    }
+  };
 
   const resetAddDialog = () => {
     setIsNewPerson(false);
@@ -676,6 +761,40 @@ export function LoanList({ loanType, loans: allLoans, creditCards, transactions:
     }
   };
 
+  const handleEditCardTransaction = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!user || !selectedCardTransaction) return;
+
+    const formData = new FormData(event.currentTarget);
+    const dateString = formData.get("date") as string;
+    const transactionDate = dateString ? new Date(dateString) : new Date();
+
+    const updatedData: Partial<Transaction> = {
+      description: formData.get("description") as string,
+      amount: parseFloat(editAmount),
+      date: transactionDate.toISOString(),
+    };
+
+    if (selectedCardTransaction.type === 'expense') {
+        const categoryId = formData.get('category') as string;
+        const subcategory = formData.get('subcategory') as string;
+        const categoryDoc = categories.find(c => c.id === categoryId);
+        updatedData.category = categoryDoc?.name || 'Uncategorized';
+        updatedData.categoryId = categoryId;
+        updatedData.subcategory = subcategory || "";
+    }
+    
+    try {
+        await updateDoc(doc(db, "transactions", selectedCardTransaction.id), updatedData);
+        setIsEditCardTxDialogOpen(false);
+        setSelectedCardTransaction(null);
+        toast({ title: "Transaction updated" });
+    } catch (error: any) {
+        toast({ variant: "destructive", title: "Update failed", description: error.message });
+    }
+  };
+
+
   const handleDeleteLoanTransaction = async (loan: Loan, transactionToDelete: LoanTransaction) => {
     if (!user) return;
 
@@ -703,6 +822,20 @@ export function LoanList({ loanType, loans: allLoans, creditCards, transactions:
         toast({ title: "Transaction deleted successfully" });
     } catch(error: any) {
         toast({ variant: "destructive", title: "Failed to delete transaction", description: error.message });
+    }
+  };
+
+   const handleDeleteCardTransaction = async (transactionToDelete: Transaction) => {
+    if (!user) return;
+    try {
+        await deleteDoc(doc(db, "transactions", transactionToDelete.id));
+        toast({ title: "Transaction deleted successfully." });
+    } catch (error: any) {
+        toast({
+            variant: "destructive",
+            title: "Deletion failed",
+            description: error.message || "An unexpected error occurred."
+        });
     }
   };
   
@@ -765,6 +898,25 @@ export function LoanList({ loanType, loans: allLoans, creditCards, transactions:
       setSelectedLoan(loan);
       setIsEditLoanNameDialogOpen(true);
   }
+
+  const openEditCardTxDialog = (tx: Transaction) => {
+    setSelectedCardTransaction(tx);
+    setEditDate(format(new Date(tx.date), 'yyyy-MM-dd'));
+    setEditAmount(String(tx.amount));
+    setEditDescription(tx.description);
+    
+    let categoryDoc;
+    if (tx.categoryId) {
+        categoryDoc = categories.find(c => c.id === tx.categoryId);
+    } else if (tx.category) {
+        categoryDoc = categories.find(c => c.name === tx.category && (c.type === 'expense' || c.type === 'bank-expense'));
+    }
+    setEditCategory(categoryDoc?.id);
+    setEditSubCategory(tx.subcategory);
+
+    setIsEditCardTxDialogOpen(true);
+  };
+
 
   const otherAccounts = useMemo(() => accounts.filter(a => !a.isPrimary && a.type !== 'card'), [accounts]);
 
@@ -967,6 +1119,8 @@ export function LoanList({ loanType, loans: allLoans, creditCards, transactions:
                             transactions={allTransactions}
                             startDate={startDate}
                             endDate={endDate}
+                            onEditTransaction={openEditCardTxDialog}
+                            onDeleteTransaction={handleDeleteCardTransaction}
                         />
                     )}
                     {loans.map(loan => (
@@ -989,6 +1143,8 @@ export function LoanList({ loanType, loans: allLoans, creditCards, transactions:
                             transactions={allTransactions}
                             startDate={startDate}
                             endDate={endDate}
+                            onEditTransaction={openEditCardTxDialog}
+                            onDeleteTransaction={handleDeleteCardTransaction}
                         />
                     ))}
                 </Accordion>
@@ -996,7 +1152,7 @@ export function LoanList({ loanType, loans: allLoans, creditCards, transactions:
         </CardContent>
       </Card>
       
-      {/* Edit Transaction Dialog */}
+      {/* Edit Loan Transaction Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent onInteractOutside={(e) => e.preventDefault()}>
             <form onSubmit={handleEditLoanTransaction}>
@@ -1058,6 +1214,74 @@ export function LoanList({ loanType, loans: allLoans, creditCards, transactions:
                 </form>
             </DialogContent>
         </Dialog>
+        
+        {/* Edit Card Transaction Dialog */}
+        <Dialog open={isEditCardTxDialogOpen} onOpenChange={(open) => {
+          if (!open) setSelectedCardTransaction(null);
+          setIsEditCardTxDialogOpen(open);
+        }}>
+          <DialogContent className="sm:max-w-md">
+              <form onSubmit={handleEditCardTransaction}>
+                  <DialogHeader>
+                      <DialogTitle>Edit Card Transaction</DialogTitle>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                      <div className="space-y-2">
+                          <Label htmlFor="edit-card-date">Date</Label>
+                          <Input id="edit-card-date" name="date" type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} required />
+                      </div>
+                      <div className="space-y-2">
+                          <Label htmlFor="edit-card-description">Description</Label>
+                          <Textarea id="edit-card-description" name="description" value={editDescription} onChange={(e) => setEditDescription(e.target.value)} />
+                      </div>
+                      {selectedCardTransaction?.type === 'expense' && (
+                          <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                  <Label htmlFor="edit-card-category">Category</Label>
+                                  <Select name="category" onValueChange={(value) => { setEditCategory(value); setEditSubCategory(undefined); }} value={editCategory}>
+                                      <SelectTrigger id="edit-card-category">
+                                          <SelectValue placeholder="Select category" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                          {editCategoriesForDropdown.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
+                                      </SelectContent>
+                                  </Select>
+                              </div>
+                              <div className="space-y-2">
+                                  <Label htmlFor="edit-card-subcategory">Sub-category</Label>
+                                  <Select name="subcategory" value={editSubCategory} onValueChange={setEditSubCategory} disabled={!editCategory || editSubcategories.length === 0}>
+                                      <SelectTrigger id="edit-card-subcategory">
+                                          <SelectValue placeholder="Select sub-category" />
+                                      </SelectTrigger>
+                                          <SelectContent>
+                                              {editSubcategories.map(sub => <SelectItem key={sub.id} value={sub.name}>{sub.name}</SelectItem>)}
+                                          </SelectContent>
+                                  </Select>
+                              </div>
+                          </div>
+                      )}
+                      <div className="space-y-2">
+                          <Label htmlFor="edit-card-amount">Amount</Label>
+                          <Input
+                              id="edit-card-amount"
+                              name="amount"
+                              placeholder="e.g. 100/2"
+                              required
+                              className="hide-number-arrows"
+                              value={editAmount}
+                              onChange={handleAmountChange(setEditAmount)}
+                              onBlur={() => handleAmountBlur(editAmount, setEditAmount)}
+                          />
+                      </div>
+                  </div>
+                  <DialogFooter>
+                      <DialogClose asChild><Button type="button" variant="secondary">Cancel</Button></DialogClose>
+                      <Button type="submit">Save Changes</Button>
+                  </DialogFooter>
+              </form>
+          </DialogContent>
+      </Dialog>
     </>
   );
 }
+
