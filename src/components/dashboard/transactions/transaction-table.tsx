@@ -529,7 +529,9 @@ export function TransactionTable({
               <TableHead>Type</TableHead>
               <TableHead>Account</TableHead>
               <TableHead>Category</TableHead>
-              <TableHead className="text-right whitespace-nowrap">Amount</TableHead>
+              <TableHead className="text-right whitespace-nowrap">Debit</TableHead>
+              <TableHead className="text-right whitespace-nowrap">Transfer</TableHead>
+              <TableHead className="text-right whitespace-nowrap">Credit</TableHead>
               <TableHead className="text-right whitespace-nowrap">Balance</TableHead>
               <TableHead className="text-right print-hide whitespace-nowrap">Actions</TableHead>
             </TableRow>
@@ -549,7 +551,7 @@ export function TransactionTable({
                                     <Badge variant={getBadgeVariant(t.type)}>{t.type}</Badge>
                                 </TableCell>
                                 <TableCell className="break-words">{getAccountName(t.accountId, t.paymentMethod)}</TableCell>
-                                <TableCell colSpan={3}></TableCell>
+                                <TableCell colSpan={5}></TableCell>
                                 <TableCell className="text-right print-hide">
                                     <div className="flex items-center justify-end gap-2">
                                         <Button variant="ghost" size="icon" className="h-8 w-8" disabled>
@@ -592,12 +594,16 @@ export function TransactionTable({
                                         <TableCell className="text-right font-mono text-red-600">{formatCurrency(item.amount)}</TableCell>
                                         <TableCell />
                                         <TableCell />
+                                        <TableCell />
+                                        <TableCell />
                                     </TableRow>
                                 );
                             })}
                              <TableRow className="bg-muted/40 font-bold hover:bg-muted/50 border-b">
                                 <TableCell colSpan={6} className="text-right py-2">Total</TableCell>
                                 <TableCell className="text-right font-mono text-red-600 py-2">{formatCurrency(t.amount)}</TableCell>
+                                <TableCell />
+                                <TableCell />
                                 <TableCell className={cn("text-right font-mono py-2", t.balance < 0 ? "text-red-600" : "")}>{formatCurrency(t.balance)}</TableCell>
                                 <TableCell className="py-2" />
                             </TableRow>
@@ -628,10 +634,14 @@ export function TransactionTable({
                           {t.subcategory && <div className="text-sm text-muted-foreground">{t.subcategory}</div>}
                       </TableCell>
                       
-                      <TableCell className="text-right font-mono">
-                        {debit !== null && <span className="text-red-600">{formatCurrency(debit)}</span>}
-                        {transfer !== null && <span className="text-blue-600">{formatCurrency(transfer)}</span>}
-                        {credit !== null && <span className="text-green-600">{formatCurrency(credit)}</span>}
+                      <TableCell className="text-right font-mono text-red-600">
+                        {debit !== null ? formatCurrency(debit) : null}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-blue-600">
+                        {transfer !== null ? formatCurrency(transfer) : null}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-green-600">
+                        {credit !== null ? formatCurrency(credit) : null}
                       </TableCell>
                       
                       <TableCell className={cn("text-right font-mono", t.balance < 0 ? 'text-red-600' : '')}>
