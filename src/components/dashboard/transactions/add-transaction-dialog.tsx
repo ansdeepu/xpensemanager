@@ -228,41 +228,57 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
 
     try {
         if (transactionType === 'expense') {
-            const batch = writeBatch(db);
             const validItems = expenseItems.filter(item => item.description && parseFloat(item.amount) > 0);
             
             if (validItems.length === 0) {
-              toast({ variant: "destructive", title: "No valid expense items to save." });
-              return;
+                toast({ variant: "destructive", title: "No valid expense items to save." });
+                setIsSubmitting(false);
+                return;
             }
-
-            validItems.forEach(item => {
-                const transactionRef = doc(collection(db, "transactions"));
-                const categoryDoc = categories.find(c => c.id === item.categoryId);
-                
-                const newTransaction: Partial<Transaction> = {
-                  userId: user.uid,
-                  date: adjustedDate.toISOString(),
-                  description: item.description,
-                  amount: parseFloat(item.amount),
-                  type: 'expense',
-                  category: categoryDoc?.name || 'Uncategorized',
-                  categoryId: item.categoryId || "",
-                  subcategory: item.subcategory || "",
-                };
-
-                if (expensePaymentMethod === 'cash-wallet') {
-                    newTransaction.paymentMethod = 'cash';
-                } else if (expensePaymentMethod === 'digital-wallet') {
-                    newTransaction.paymentMethod = 'digital';
-                } else {
-                    newTransaction.paymentMethod = 'online';
-                    newTransaction.accountId = expensePaymentMethod;
-                }
-                batch.set(transactionRef, newTransaction);
-            });
-            await batch.commit();
-            toast({ title: `Added ${validItems.length} expense(s).` });
+        
+            const totalAmount = validItems.reduce((sum, item) => sum + parseFloat(item.amount), 0);
+            const firstItem = validItems[0];
+            const categoryDoc = categories.find(c => c.id === firstItem.categoryId);
+        
+            const newTransaction: Partial<Transaction> = {
+                userId: user.uid,
+                date: adjustedDate.toISOString(),
+                amount: totalAmount,
+                type: 'expense',
+                description: firstItem.description,
+                category: categoryDoc?.name || 'Uncategorized',
+                categoryId: firstItem.categoryId || "",
+                subcategory: firstItem.subcategory || "",
+            };
+        
+            if (expensePaymentMethod === 'cash-wallet') {
+                newTransaction.paymentMethod = 'cash';
+            } else if (expensePaymentMethod === 'digital-wallet') {
+                newTransaction.paymentMethod = 'digital';
+            } else {
+                newTransaction.paymentMethod = 'online';
+                newTransaction.accountId = expensePaymentMethod;
+            }
+        
+            if (validItems.length > 1) {
+                newTransaction.description = `${validItems.length} expenses`;
+                newTransaction.category = 'Multiple';
+                newTransaction.categoryId = '';
+                newTransaction.subcategory = '';
+                newTransaction.items = validItems.map(item => {
+                    const catDoc = categories.find(c => c.id === item.categoryId);
+                    return {
+                        description: item.description,
+                        amount: parseFloat(item.amount),
+                        categoryId: item.categoryId,
+                        category: catDoc?.name || 'Uncategorized',
+                        subcategory: item.subcategory,
+                    };
+                });
+            }
+        
+            await addDoc(collection(db, "transactions"), newTransaction);
+            toast({ title: `Added ${validItems.length > 1 ? 'combined expense' : 'expense'}.` });
 
         } else if (transactionType === 'income') {
             const categoryDoc = categories.find(c => c.id === incomeCategory);
@@ -397,14 +413,23 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
               </TabsContent>
 
               <TabsContent value="income" className="mt-0 space-y-4">
-                  <div className="space-y-2">
-                      <Label htmlFor="date-income">Date</Label>
-                      <Input id="date-income" name="date-income" type="date" value={date} onChange={e => setDate(e.target.value)} required />
-                  </div>
-                  <div className="space-y-2">
-                      <Label htmlFor="amount-income">Amount</Label>
-                      <Input id="amount-income" value={incomeAmount} onChange={(e) => setIncomeAmount(e.target.value)} onBlur={handleIncomeAmountBlur} placeholder="e.g. 50000" required className="hide-number-arrows"/>
-                  </div>
+                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="date-income">Date</Label>
+                            <Input id="date-income" name="date-income" type="date" value={date} onChange={e => setDate(e.target.value)} required />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="account-income">Bank Account</Label>
+                          <Select value={incomeAccountId} onValueChange={setIncomeAccountId} required>
+                              <SelectTrigger id="account-income"><SelectValue placeholder="Select account" /></SelectTrigger>
+                              <SelectContent>
+                                  {bankAccounts.map(acc => (
+                                      <SelectItem key={acc.id} value={acc.id}>{acc.name} ({formatCurrency(acc.balance)})</SelectItem>
+                                  ))}
+                              </SelectContent>
+                          </Select>
+                      </div>
+                    </div>
                   <div className="space-y-2">
                       <Label htmlFor="description-income">Description</Label>
                       <Textarea id="description-income" value={incomeDescription} onChange={(e) => setIncomeDescription(e.target.value)} placeholder="e.g. Monthly Salary" required />
@@ -429,16 +454,9 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
                           </Select>
                       </div>
                   </div>
-                  <div className="space-y-2">
-                      <Label htmlFor="account-income">Bank Account</Label>
-                      <Select value={incomeAccountId} onValueChange={setIncomeAccountId} required>
-                          <SelectTrigger id="account-income"><SelectValue placeholder="Select account" /></SelectTrigger>
-                          <SelectContent>
-                              {bankAccounts.map(acc => (
-                                  <SelectItem key={acc.id} value={acc.id}>{acc.name} ({formatCurrency(acc.balance)})</SelectItem>
-                              ))}
-                          </SelectContent>
-                      </Select>
+                   <div className="space-y-2">
+                      <Label htmlFor="amount-income">Amount</Label>
+                      <Input id="amount-income" value={incomeAmount} onChange={(e) => setIncomeAmount(e.target.value)} onBlur={handleIncomeAmountBlur} placeholder="e.g. 50000" required className="hide-number-arrows"/>
                   </div>
               </TabsContent>
 

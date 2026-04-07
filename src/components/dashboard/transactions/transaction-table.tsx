@@ -9,6 +9,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableFooter,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -107,6 +108,9 @@ export function TransactionTable({
   const [loans, setLoans] = useState<Loan[]>([]);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+  const [isBreakdownDialogOpen, setIsBreakdownDialogOpen] = useState(false);
+  const [selectedTransactionForBreakdown, setSelectedTransactionForBreakdown] = useState<Transaction | null>(null);
+
   const [user] = useAuthState();
   const [editDate, setEditDate] = useState<Date | undefined>(new Date());
   const [editCategory, setEditCategory] = useState<string | undefined>();
@@ -484,6 +488,11 @@ export function TransactionTable({
     setIsEditDialogOpen(true);
   };
   
+  const openBreakdownDialog = (transaction: Transaction) => {
+    setSelectedTransactionForBreakdown(transaction);
+    setIsBreakdownDialogOpen(true);
+  };
+
   const getBadgeVariant = (type: Transaction['type'] | 'loan' | 'repayment' | 'withdraw' | 'movement' | 'issue' | 'return') => {
     switch (type) {
       case 'income':
@@ -541,10 +550,19 @@ export function TransactionTable({
                 const {debit, credit, transfer} = t;
 
                 return (
-                  <TableRow key={t.id}>
+                  <TableRow 
+                    key={t.id}
+                    onClick={() => t.items && t.items.length > 0 && openBreakdownDialog(t)}
+                    className={cn(t.items && t.items.length > 0 && "cursor-pointer")}
+                  >
                       <TableCell className="font-medium">{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
                       <TableCell>{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
-                      <TableCell className={cn("font-medium break-words", loanInfo.descriptionClassName)}>{loanInfo.description}</TableCell>
+                      <TableCell className={cn("font-medium break-words", loanInfo.descriptionClassName)}>
+                        {loanInfo.description}
+                        {t.items && t.items.length > 0 && (
+                          <Badge variant="outline" className="ml-2">{t.items.length} items</Badge>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <Badge 
                             variant={getBadgeVariant(loanInfo.type)}
@@ -574,7 +592,7 @@ export function TransactionTable({
                       </TableCell>
                       <TableCell className="text-right print-hide">
                           <div className="flex items-center justify-end gap-2">
-                              <Button variant="ghost" size="icon" onClick={() => openEditDialog(t)} className="h-8 w-8">
+                              <Button variant="ghost" size="icon" onClick={() => openEditDialog(t)} className="h-8 w-8" disabled={!!t.items?.length}>
                                   <Pencil className="h-4 w-4" />
                               </Button>
                               <AlertDialog>
@@ -760,6 +778,49 @@ export function TransactionTable({
               </form>
           </DialogContent>
       </Dialog>
+      <Dialog open={isBreakdownDialogOpen} onOpenChange={setIsBreakdownDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+                <DialogTitle>Expense Breakdown</DialogTitle>
+                {selectedTransactionForBreakdown && (
+                    <DialogDescription>
+                        Total: {formatCurrency(selectedTransactionForBreakdown.amount)} on {format(new Date(selectedTransactionForBreakdown.date), 'PPP')}
+                    </DialogDescription>
+                )}
+            </DialogHeader>
+            <div className="max-h-96 overflow-y-auto">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Description</TableHead>
+                            <TableHead>Category</TableHead>
+                            <TableHead className="text-right">Amount</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {selectedTransactionForBreakdown?.items?.map((item, index) => (
+                            <TableRow key={index}>
+                                <TableCell>{item.description}</TableCell>
+                                <TableCell>{item.category}{item.subcategory ? ` / ${item.subcategory}` : ''}</TableCell>
+                                <TableCell className="text-right">{formatCurrency(item.amount)}</TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                    <TableFooter>
+                      <TableRow>
+                          <TableCell colSpan={2} className="text-right font-bold">Total</TableCell>
+                          <TableCell className="text-right font-bold">{formatCurrency(selectedTransactionForBreakdown?.amount || 0)}</TableCell>
+                      </TableRow>
+                  </TableFooter>
+                </Table>
+            </div>
+            <DialogFooter>
+                <DialogClose asChild>
+                    <Button type="button" variant="secondary">Close</Button>
+                </DialogClose>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
     </>
   );
 }

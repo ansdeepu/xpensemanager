@@ -1,6 +1,14 @@
 
 import type { LucideIcon } from 'lucide-react';
 
+export type TransactionItem = {
+  description: string;
+  amount: number;
+  categoryId?: string;
+  category?: string;
+  subcategory?: string;
+}
+
 export type Account = {
   id: string;
   userId: string;
@@ -43,6 +51,7 @@ export type Transaction = {
   categoryId?: string;
   subcategory?: string;
   loanTransactionId?: string; // Link to the specific transaction in a loan document
+  items?: TransactionItem[];
 };
 
 export type SubCategory = {
