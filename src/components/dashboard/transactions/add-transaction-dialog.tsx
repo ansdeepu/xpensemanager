@@ -367,7 +367,7 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
                     <div className="space-y-2">
                         <Label htmlFor="account-expense">Payment Method</Label>
                         <Select name="account" required value={expensePaymentMethod} onValueChange={setExpensePaymentMethod}>
-                            <SelectTrigger id="account-expense"><SelectValue placeholder="Select method" /></SelectTrigger>
+                            <SelectTrigger id="account-expense" className="bg-card"><SelectValue placeholder="Select method" /></SelectTrigger>
                             <SelectContent>
                                 {accountData.map(acc => (
                                     <SelectItem key={acc.id} value={acc.id}>{acc.name} ({formatCurrency(acc.balance)})</SelectItem>
@@ -383,16 +383,16 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
                             <div className="grid grid-cols-12 gap-x-3 gap-y-2 items-end">
                                 <div className="col-span-12 sm:col-span-4 md:col-span-3 space-y-1">
                                     <Label htmlFor={`description-expense-${index}`} className="text-xs font-medium">Description</Label>
-                                    <Textarea rows={1} id={`description-expense-${index}`} value={item.description} onChange={(e) => handleExpenseItemChange(index, 'description', e.target.value)} placeholder="e.g. Milk" required className="text-sm bg-transparent border"/>
+                                    <Textarea rows={1} id={`description-expense-${index}`} value={item.description} onChange={(e) => handleExpenseItemChange(index, 'description', e.target.value)} placeholder="e.g. Milk" required className="text-sm bg-card"/>
                                 </div>
                                 <div className="col-span-6 sm:col-span-3 md:col-span-2 space-y-1">
                                     <Label htmlFor={`amount-expense-${index}`} className="text-xs font-medium">Amount</Label>
-                                    <Input id={`amount-expense-${index}`} value={item.amount} onChange={(e) => handleExpenseItemChange(index, 'amount', e.target.value)} onBlur={() => handleExpenseAmountBlur(index)} placeholder="e.g. 50" required className="hide-number-arrows text-sm bg-transparent border"/>
+                                    <Input id={`amount-expense-${index}`} value={item.amount} onChange={(e) => handleExpenseItemChange(index, 'amount', e.target.value)} onBlur={() => handleExpenseAmountBlur(index)} placeholder="e.g. 50" required className="hide-number-arrows text-sm bg-card"/>
                                 </div>
                                 <div className="col-span-6 sm:col-span-5 md:col-span-3 space-y-1">
                                     <Label htmlFor={`category-expense-${index}`} className="text-xs font-medium">Category</Label>
                                     <Select value={item.categoryId} onValueChange={(value) => handleExpenseItemChange(index, 'categoryId', value)}>
-                                        <SelectTrigger id={`category-expense-${index}`} className="text-sm bg-transparent border"><SelectValue placeholder="Select" /></SelectTrigger>
+                                        <SelectTrigger id={`category-expense-${index}`} className="text-sm bg-card"><SelectValue placeholder="Select" /></SelectTrigger>
                                         <SelectContent>
                                             {expenseCategoriesForDropdown.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
                                         </SelectContent>
@@ -401,7 +401,7 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
                                 <div className="col-span-10 sm:col-span-11 md:col-span-3 space-y-1">
                                     <Label htmlFor={`subcategory-expense-${index}`} className="text-xs font-medium">Sub-category</Label>
                                     <Select value={item.subcategory} onValueChange={(value) => handleExpenseItemChange(index, 'subcategory', value)} disabled={!item.categoryId || expenseSubcategories(item.categoryId).length === 0}>
-                                        <SelectTrigger id={`subcategory-expense-${index}`} className="text-sm bg-transparent border"><SelectValue placeholder="Select" /></SelectTrigger>
+                                        <SelectTrigger id={`subcategory-expense-${index}`} className="text-sm bg-card"><SelectValue placeholder="Select" /></SelectTrigger>
                                         <SelectContent>
                                             {expenseSubcategories(item.categoryId).map(sub => <SelectItem key={sub.id} value={sub.name}>{sub.name}</SelectItem>)}
                                         </SelectContent>
@@ -436,7 +436,7 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
                         <div className="space-y-2">
                           <Label htmlFor="account-income">Bank Account</Label>
                           <Select value={incomeAccountId} onValueChange={setIncomeAccountId} required>
-                              <SelectTrigger id="account-income"><SelectValue placeholder="Select account" /></SelectTrigger>
+                              <SelectTrigger id="account-income" className="bg-card"><SelectValue placeholder="Select account" /></SelectTrigger>
                               <SelectContent>
                                   {bankAccounts.map(acc => (
                                       <SelectItem key={acc.id} value={acc.id}>{acc.name} ({formatCurrency(acc.balance)})</SelectItem>
@@ -448,7 +448,7 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="description-income">Description</Label>
-                            <Textarea id="description-income" value={incomeDescription} onChange={(e) => setIncomeDescription(e.target.value)} placeholder="e.g. Monthly Salary" required />
+                            <Textarea id="description-income" value={incomeDescription} onChange={(e) => setIncomeDescription(e.target.value)} placeholder="e.g. Monthly Salary" required className="bg-card" />
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="amount-income">Amount</Label>
@@ -459,7 +459,7 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
                       <div className="space-y-2">
                           <Label htmlFor="category-income">Category</Label>
                           <Select value={incomeCategory} onValueChange={setIncomeCategory}>
-                              <SelectTrigger id="category-income"><SelectValue placeholder="Select category" /></SelectTrigger>
+                              <SelectTrigger id="category-income" className="bg-card"><SelectValue placeholder="Select category" /></SelectTrigger>
                               <SelectContent>
                                   {incomeDropdownCategories.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
                               </SelectContent>
@@ -468,7 +468,7 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
                       <div className="space-y-2">
                           <Label htmlFor="subcategory-income">Sub-category</Label>
                           <Select value={incomeSubcategory} onValueChange={setIncomeSubcategory} disabled={!incomeCategory || incomeSubcategories.length === 0}>
-                              <SelectTrigger id="subcategory-income"><SelectValue placeholder="Select sub-category" /></SelectTrigger>
+                              <SelectTrigger id="subcategory-income" className="bg-card"><SelectValue placeholder="Select sub-category" /></SelectTrigger>
                               <SelectContent>
                                   {incomeSubcategories.map(sub => <SelectItem key={sub.id} value={sub.name}>{sub.name}</SelectItem>)}
                               </SelectContent>
@@ -485,7 +485,7 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
                         </div>
                          <div className="space-y-2">
                             <Label htmlFor="description-transfer">Description</Label>
-                            <Textarea id="description-transfer" value={transferDescription} onChange={(e) => setTransferDescription(e.target.value)} placeholder="e.g. Move to savings" />
+                            <Textarea id="description-transfer" value={transferDescription} onChange={(e) => setTransferDescription(e.target.value)} placeholder="e.g. Move to savings" className="bg-card" />
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="amount-transfer">Amount</Label>
@@ -496,7 +496,7 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
                       <div className="space-y-2">
                           <Label htmlFor="fromAccount-transfer">From</Label>
                           <Select value={fromAccountId} onValueChange={setFromAccountId} required>
-                              <SelectTrigger id="fromAccount-transfer"><SelectValue placeholder="From..." /></SelectTrigger>
+                              <SelectTrigger id="fromAccount-transfer" className="bg-card"><SelectValue placeholder="From..." /></SelectTrigger>
                               <SelectContent>
                                   {accountData.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name} ({formatCurrency(acc.balance)})</SelectItem>)}
                               </SelectContent>
@@ -505,7 +505,7 @@ export function AddTransactionDialog({ children, accounts: accountData }: { chil
                       <div className="space-y-2">
                           <Label htmlFor="toAccount-transfer">To</Label>
                           <Select value={toAccountId} onValueChange={setToAccountId} required>
-                              <SelectTrigger id="toAccount-transfer"><SelectValue placeholder="To..." /></SelectTrigger>
+                              <SelectTrigger id="toAccount-transfer" className="bg-card"><SelectValue placeholder="To..." /></SelectTrigger>
                               <SelectContent>
                                   {accountData.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name} ({formatCurrency(acc.balance)})</SelectItem>)}
                               </SelectContent>
