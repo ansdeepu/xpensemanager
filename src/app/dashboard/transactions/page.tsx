@@ -20,6 +20,8 @@ import { Button } from "@/components/ui/button";
 import { AddTransactionDialog } from "@/components/dashboard/transactions/add-transaction-dialog";
 import { Badge } from "@/components/ui/badge";
 import { AccountDetailsDialog } from "@/components/dashboard/account-details-dialog";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+
 
 type WalletType = 'cash-wallet' | 'digital-wallet';
 type AccountForDetails = (Account) | { id: WalletType, name: string, balance: number, walletPreferences?: any };
@@ -705,7 +707,7 @@ export default function TransactionsPage() {
                               <h3 className="font-semibold text-lg">Primary ({primaryAccount.name})</h3>
                               <span className="font-bold text-xl text-primary">{formatCurrency(primaryAllBalance)}</span>
                         </div>
-                        <div className="w-full grid grid-cols-4 gap-x-4 text-left pt-2">
+                        <div className="w-full grid grid-cols-4 gap-x-2 text-left pt-2">
                             <div className="space-y-1">
                                 <Label className="text-sm">Bank Balance</Label>
                                 <div className="font-mono text-lg cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); handleAccountClick(primaryAccount); }}>{formatCurrency(primaryAccount.balance)}</div>
@@ -811,7 +813,7 @@ export default function TransactionsPage() {
                                   id={`actual-balance-${account.id}`}
                                   type="number"
                                   placeholder={isCard ? 'Actual Due' : 'Actual'}
-                                  className="hide-number-arrows h-8 text-sm w-24 text-right bg-background"
+                                  className="hide-number-arrows h-8 text-sm w-20 text-right bg-background"
                                   defaultValue={account.actualBalance ?? ''}
                                   onChange={(e) => {
                                       const value = e.target.value === '' ? null : parseFloat(e.target.value);
