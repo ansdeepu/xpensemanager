@@ -519,9 +519,9 @@ export function TransactionTable({
 
   return (
     <>
-      <div className="relative h-[calc(100vh_-_25rem)] w-full overflow-auto">
+      <div className="w-full overflow-auto">
         <Table>
-          <TableHeader className="sticky top-0 z-10 bg-background">
+          <TableHeader>
             <TableRow>
               <TableHead className="whitespace-nowrap">Sl.</TableHead>
               <TableHead className="whitespace-nowrap">Date</TableHead>
@@ -543,63 +543,63 @@ export function TransactionTable({
                 if (t.items && t.items.length > 0) {
                     return (
                         <Fragment key={t.id}>
+                            <TableRow className="bg-muted/40 font-bold hover:bg-muted/50">
+                                <TableCell className="font-medium">{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
+                                <TableCell>{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
+                                <TableCell className="font-medium break-words">{t.description}</TableCell>
+                                <TableCell>
+                                    <Badge variant={getBadgeVariant(t.type)}>{t.type}</Badge>
+                                </TableCell>
+                                <TableCell className="break-words">{getAccountName(t.accountId, t.paymentMethod)}</TableCell>
+                                <TableCell colSpan={5}></TableCell>
+                                <TableCell className="text-right print-hide">
+                                    <div className="flex items-center justify-end gap-2">
+                                        <Button variant="ghost" size="icon" className="h-8 w-8" disabled>
+                                            <Pencil className="h-4 w-4" />
+                                        </Button>
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-8 w-8">
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                <AlertDialogDescription>This will permanently delete this combined transaction and all its items. This action cannot be undone.</AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => handleDeleteTransaction(t)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                            </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
+                                    </div>
+                                </TableCell>
+                            </TableRow>
+
                             {t.items.map((item, itemIndex) => {
-                                const isFirst = itemIndex === 0;
                                 const categoryDoc = categories.find(c => c.id === item.categoryId || c.name === item.category);
-                
                                 return (
                                     <TableRow key={`${t.id}-${itemIndex}`} className="bg-muted/20 hover:bg-muted/40">
-                                        <TableCell className="font-medium align-top">
-                                            {isFirst ? `${(currentPage - 1) * itemsPerPage + index + 1}` : ''}
-                                        </TableCell>
-                                        <TableCell className="align-top">{isFirst ? format(new Date(t.date), 'dd/MM/yy') : ''}</TableCell>
-                                        <TableCell className="font-medium break-words align-top">{item.description}</TableCell>
-                                        <TableCell className="align-top">
-                                            {isFirst && <Badge variant={getBadgeVariant(t.type)}>{t.type}</Badge>}
-                                        </TableCell>
-                                        <TableCell className="break-words align-top">
-                                            {isFirst ? getAccountName(t.accountId, t.paymentMethod) : ''}
-                                        </TableCell>
-                                        <TableCell className="break-words align-top">
+                                        <TableCell></TableCell>
+                                        <TableCell></TableCell>
+                                        <TableCell className="font-medium break-words pl-6">{item.description}</TableCell>
+                                        <TableCell></TableCell>
+                                        <TableCell></TableCell>
+                                        <TableCell className="break-words">
                                             <div>{categoryDoc?.name || item.category}</div>
                                             {item.subcategory && <div className="text-sm text-muted-foreground">{item.subcategory}</div>}
                                         </TableCell>
-                                        
-                                        <TableCell className="text-right font-mono text-red-600 align-top">{formatCurrency(item.amount)}</TableCell>
-                                        <TableCell className="align-top" />
-                                        <TableCell className="align-top" />
-
-                                        <TableCell className="align-top" />
-                                        <TableCell className="text-right print-hide align-top">
-                                            {isFirst && (
-                                                <div className="flex items-center justify-end gap-2">
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8" disabled>
-                                                        <Pencil className="h-4 w-4" />
-                                                    </Button>
-                                                    <AlertDialog>
-                                                        <AlertDialogTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-8 w-8">
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Button>
-                                                        </AlertDialogTrigger>
-                                                        <AlertDialogContent>
-                                                        <AlertDialogHeader>
-                                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                            <AlertDialogDescription>This will permanently delete this combined transaction and all its items. This action cannot be undone.</AlertDialogDescription>
-                                                        </AlertDialogHeader>
-                                                        <AlertDialogFooter>
-                                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                            <AlertDialogAction onClick={() => handleDeleteTransaction(t)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                                                        </AlertDialogFooter>
-                                                        </AlertDialogContent>
-                                                    </AlertDialog>
-                                                </div>
-                                            )}
-                                        </TableCell>
+                                        <TableCell className="text-right font-mono text-red-600">{formatCurrency(item.amount)}</TableCell>
+                                        <TableCell />
+                                        <TableCell />
+                                        <TableCell />
+                                        <TableCell />
                                     </TableRow>
                                 );
                             })}
-                            <TableRow className="bg-muted/40 font-bold hover:bg-muted/50 border-b">
+                             <TableRow className="bg-muted/40 font-bold hover:bg-muted/50 border-b">
                                 <TableCell colSpan={6} className="text-right py-2">Total</TableCell>
                                 <TableCell className="text-right font-mono text-red-600 py-2">{formatCurrency(t.amount)}</TableCell>
                                 <TableCell className="py-2" />
