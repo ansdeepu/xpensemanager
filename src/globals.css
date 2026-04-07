@@ -3,10 +3,6 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  font-family: Arial, Helvetica, sans-serif;
-}
-
 @layer base {
   :root {
     --background: 150 44% 95%;
@@ -201,5 +197,3 @@ body {
 .dark .text-fuchsia-200 { color: #f5d0fe; }
 .text-orange-800 { color: #9a3412; }
 .dark .text-orange-200 { color: #fed7aa; }
-
-    
