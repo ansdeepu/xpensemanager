@@ -52,7 +52,7 @@ export default function LoansPage() {
 
       const transactionsQuery = query(collection(db, 'transactions'), where('userId', '==', user.uid));
       const unsubscribeTransactions = onSnapshot(transactionsQuery, (snapshot) => {
-          setTransactions(snapshot.docs.map(doc => doc.data() as Transaction));
+          setTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction)));
       });
 
       return () => {
