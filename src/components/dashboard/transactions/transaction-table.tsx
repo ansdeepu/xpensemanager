@@ -323,67 +323,64 @@ export function TransactionTable({
                 const loanInfo = getLoanDisplayInfo(t);
                 
                 if (t.items && t.items.length > 0) {
+                    const firstItem = t.items[0];
+                    const otherItems = t.items.slice(1);
+                    const categoryDoc = categories.find(c => c.id === firstItem.categoryId || c.name === firstItem.category);
                     const concatenatedDescription = t.items.map(item => item.description).join('; ');
+
                     return (
                         <Collapsible asChild key={t.id}>
                             <TableBody>
-                                <TableRow className="border-b-0 data-[state=open]:border-b">
-                                    <TableCell className="font-medium w-16">
-                                        <div className="flex items-center">
-                                            <CollapsibleTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                    <ChevronRight className="h-4 w-4 transition-transform [&[data-state=open]]:rotate-90" />
+                                <CollapsibleTrigger asChild>
+                                    <TableRow className="border-b-0 data-[state=open]:border-b cursor-pointer">
+                                        <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
+                                        <TableCell>{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
+                                        <TableCell className="font-medium break-words">
+                                            {concatenatedDescription}
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge variant={getBadgeVariant(t.type)}>{t.type}</Badge>
+                                        </TableCell>
+                                        <TableCell className="break-words">{getAccountName(t.accountId, t.paymentMethod)}</TableCell>
+                                        <TableCell className="break-words">
+                                            <Badge variant="outline">Multiple</Badge>
+                                        </TableCell>
+                                        
+                                        <TableCell className="text-right font-mono text-red-600">
+                                            {formatCurrency(t.amount)}
+                                        </TableCell>
+                                        <TableCell />
+                                        <TableCell />
+                                        
+                                        <TableCell className={cn("text-right font-mono", t.balance < 0 ? 'text-red-600' : '')}>
+                                            {formatCurrency(t.balance)}
+                                        </TableCell>
+                                        <TableCell className="text-right print-hide">
+                                            <div className="flex items-center justify-end gap-2">
+                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); onEditTransaction(t); }}>
+                                                    <Pencil className="h-4 w-4" />
                                                 </Button>
-                                            </CollapsibleTrigger>
-                                            <span>{(currentPage - 1) * itemsPerPage + index + 1}</span>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
-                                    <TableCell className="font-medium break-words">
-                                        {concatenatedDescription}
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge variant={getBadgeVariant(t.type)}>{t.type}</Badge>
-                                    </TableCell>
-                                    <TableCell className="break-words">{getAccountName(t.accountId, t.paymentMethod)}</TableCell>
-                                    <TableCell className="break-words">
-                                        <Badge variant="outline">Multiple</Badge>
-                                    </TableCell>
-                                    
-                                    <TableCell className="text-right font-mono text-red-600">
-                                        {formatCurrency(t.amount)}
-                                    </TableCell>
-                                    <TableCell />
-                                    <TableCell />
-                                    
-                                    <TableCell className={cn("text-right font-mono", t.balance < 0 ? 'text-red-600' : '')}>
-                                        {formatCurrency(t.balance)}
-                                    </TableCell>
-                                    <TableCell className="text-right print-hide">
-                                        <div className="flex items-center justify-end gap-2">
-                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEditTransaction(t)}>
-                                                <Pencil className="h-4 w-4" />
-                                            </Button>
-                                            <AlertDialog>
-                                                <AlertDialogTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-8 w-8">
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
-                                                </AlertDialogTrigger>
-                                                <AlertDialogContent>
-                                                <AlertDialogHeader>
-                                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                    <AlertDialogDescription>This will permanently delete this combined transaction and all its items. This action cannot be undone.</AlertDialogDescription>
-                                                </AlertDialogHeader>
-                                                <AlertDialogFooter>
-                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                    <AlertDialogAction onClick={() => handleDeleteTransaction(t)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                                                </AlertDialogFooter>
-                                                </AlertDialogContent>
-                                            </AlertDialog>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
+                                                <AlertDialog>
+                                                    <AlertDialogTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-8 w-8">
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                    </AlertDialogTrigger>
+                                                    <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                        <AlertDialogDescription>This will permanently delete this combined transaction and all its items. This action cannot be undone.</AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={() => handleDeleteTransaction(t)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                </CollapsibleTrigger>
                                 <CollapsibleContent asChild>
                                     <TableRow>
                                         <TableCell colSpan={11} className="p-0">
