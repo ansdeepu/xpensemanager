@@ -697,9 +697,9 @@ export default function TransactionsPage() {
   return (
     <div className="space-y-6">
        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-8 gap-2 h-auto p-0 bg-transparent">
+          <TabsList className="flex w-full gap-2 h-auto p-0 bg-transparent">
             {primaryAccount && (
-                <TabsTrigger value={primaryAccount.id} asChild className="h-auto p-0 col-span-4">
+                <TabsTrigger value={primaryAccount.id} asChild className="h-auto p-0 grow-[4]">
                     <div className={cn("rounded-lg border-2 flex flex-col p-3 items-start text-left gap-2 cursor-pointer transition-shadow h-full w-full", activeTab === primaryAccount.id ? "shadow-lg border-primary bg-lime-100/50 dark:bg-lime-900/50" : "bg-card")}>
                         <div className="w-full flex justify-between items-center">
                               <h3 className="font-semibold text-lg">Primary ({primaryAccount.name})</h3>
@@ -791,10 +791,10 @@ export default function TransactionsPage() {
                 }
 
               return (
-                  <TabsTrigger key={account.id} value={account.id} asChild className="h-auto p-0 col-span-1">
+                  <TabsTrigger key={account.id} value={account.id} asChild className="h-auto p-0 grow">
                       <div 
                           className={cn(
-                              "rounded-lg border flex flex-col p-3 items-start text-left gap-1 cursor-pointer transition-shadow h-full", 
+                              "rounded-lg border flex flex-col p-3 items-start text-left gap-1 cursor-pointer transition-shadow h-full w-full", 
                               activeTab === account.id ? "shadow-lg ring-2 ring-primary" : "bg-card",
                               tabColors[index % tabColors.length],
                               textColors[index % textColors.length]
