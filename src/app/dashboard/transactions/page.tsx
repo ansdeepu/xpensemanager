@@ -595,15 +595,15 @@ export default function TransactionsPage(props: {
        <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="flex w-full items-stretch justify-start flex-wrap h-auto p-1 bg-transparent gap-3">
             {primaryAccount && (
-                <TabsTrigger value={primaryAccount.id} asChild className="h-full p-0 min-w-[580px]">
+                <TabsTrigger value={primaryAccount.id} asChild className="h-full p-0 min-w-[580px] flex-shrink-0">
                     <div className={cn("rounded-lg border-2 flex flex-col p-3 items-start text-left gap-2 cursor-pointer transition-shadow h-full w-full", activeTab === primaryAccount.id ? "shadow-lg border-primary bg-lime-100/50 dark:bg-lime-900/50" : "bg-card")}>
                         <div className="w-full flex justify-between items-center">
                               <h3 className="font-semibold text-base">Primary ({primaryAccount.name})</h3>
                               <span className="font-bold text-lg text-primary">{formatCurrency(primaryAllBalance)}</span>
                         </div>
-                        <div className="w-full grid grid-cols-4 gap-x-3 gap-y-3 text-left pt-2">
+                        <div className="w-full grid grid-cols-4 gap-x-3 text-left pt-2">
                             <div className="space-y-1">
-                                <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Bank Balance</Label>
+                                <Label className="text-[10px] uppercase tracking-wider text-muted-foreground whitespace-nowrap">Bank Balance</Label>
                                 <div className="font-mono text-sm font-semibold cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); handleAccountClick(primaryAccount); }}>{formatCurrency(primaryAccount.balance)}</div>
                                 <Input
                                     type="number"
@@ -620,7 +620,7 @@ export default function TransactionsPage(props: {
                                 )}
                             </div>
                             <div className="space-y-1">
-                                <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Digital</Label>
+                                <Label className="text-[10px] uppercase tracking-wider text-muted-foreground whitespace-nowrap">Digital</Label>
                                 <div className="font-mono text-sm font-semibold cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); handleAccountClick('digital-wallet', 'Digital Wallet'); }}>{formatCurrency(digitalWalletBalance)}</div>
                                 <Input
                                     type="number"
@@ -637,7 +637,7 @@ export default function TransactionsPage(props: {
                                 )}
                             </div>
                             <div className="space-y-1">
-                                <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Cash</Label>
+                                <Label className="text-[10px] uppercase tracking-wider text-muted-foreground whitespace-nowrap">Cash</Label>
                                 <div className="font-mono text-sm font-semibold cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); handleAccountClick('cash-wallet', 'Cash Wallet'); }}>{formatCurrency(cashWalletBalance)}</div>
                                 <Input
                                     type="number"
@@ -655,7 +655,7 @@ export default function TransactionsPage(props: {
                             </div>
                             {primaryCreditCard && (
                                 <div className="space-y-1">
-                                    <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">{primaryCreditCard.name}</Label>
+                                    <Label className="text-[10px] uppercase tracking-wider text-muted-foreground whitespace-nowrap">SBI Credit Card</Label>
                                     <div className="font-mono text-sm font-semibold cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); handleAccountClick(primaryCreditCard); }}>{formatCurrency(primaryCardAvailable)}</div>
                                     <Input
                                         type="number"
