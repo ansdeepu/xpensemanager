@@ -300,7 +300,7 @@ export function AddTransactionDialog({
             const firstItem = validItems[0];
             const categoryDoc = categories.find(c => c.id === firstItem.categoryId);
         
-            const transactionData: Partial<Transaction> = {
+            const transactionData: any = {
                 userId: user.uid,
                 date: adjustedDate.toISOString(),
                 amount: totalAmount,
@@ -313,10 +313,10 @@ export function AddTransactionDialog({
         
             if (expensePaymentMethod === 'cash-wallet') {
                 transactionData.paymentMethod = 'cash';
-                transactionData.accountId = undefined;
+                // Note: accountId is left off to avoid Firestore 'undefined' validation error
             } else if (expensePaymentMethod === 'digital-wallet') {
                 transactionData.paymentMethod = 'digital';
-                transactionData.accountId = undefined;
+                // Note: accountId is left off
             } else {
                 transactionData.paymentMethod = 'online';
                 transactionData.accountId = expensePaymentMethod;
@@ -324,6 +324,12 @@ export function AddTransactionDialog({
 
             if(isEditMode) {
                 const txRef = doc(db, "transactions", transactionToEdit.id);
+                
+                // For updates, handle explicit removal of accountId if switched to wallet
+                if (expensePaymentMethod === 'cash-wallet' || expensePaymentMethod === 'digital-wallet') {
+                    transactionData.accountId = deleteField();
+                }
+
                 if (validItems.length > 1) {
                     transactionData.items = validItems.map(item => {
                         const catDoc = categories.find(c => c.id === item.categoryId);
@@ -336,7 +342,7 @@ export function AddTransactionDialog({
                         };
                     });
                 } else {
-                    transactionData.items = deleteField() as any;
+                    transactionData.items = deleteField();
                 }
                 await updateDoc(txRef, transactionData);
                 toast({ title: `Expense updated.` });
@@ -359,7 +365,7 @@ export function AddTransactionDialog({
 
         } else if (transactionType === 'income') {
             const categoryDoc = categories.find(c => c.id === incomeCategory);
-            const transactionData: Partial<Transaction> = {
+            const transactionData: any = {
                 userId: user.uid,
                 date: adjustedDate.toISOString(),
                 description: incomeDescription,
@@ -384,7 +390,7 @@ export function AddTransactionDialog({
              if (fromAccountId === toAccountId) {
                 throw new Error("From and To accounts cannot be the same.");
             }
-            const transactionData: Partial<Transaction> = {
+            const transactionData: any = {
                 userId: user.uid,
                 date: adjustedDate.toISOString(),
                 description: transferDescription,
