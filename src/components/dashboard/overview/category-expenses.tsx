@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -82,7 +83,6 @@ export function CategoryExpenses() {
       const expenseCategoriesQuery = query(collection(db, "categories"), where("userId", "==", user.uid), where("type", "==", "expense"), orderBy("order", "asc"));
       const unsubscribeCategories = onSnapshot(expenseCategoriesQuery, (snapshot) => {
         setCategories(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category)));
-        if(dataLoading) setDataLoading(false);
       });
 
       const transactionsQuery = query(collection(db, "transactions"), where("userId", "==", user.uid), where("type", "==", "expense"));
@@ -90,16 +90,16 @@ export function CategoryExpenses() {
         setTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction)));
       });
 
-      // Fetch accounts
       const accountsQuery = query(collection(db, "accounts"), where("userId", "==", user.uid));
       const unsubscribeAccounts = onSnapshot(accountsQuery, (snapshot) => {
           setAccounts(snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}) as Account));
+          setDataLoading(false);
       });
 
       return () => {
         unsubscribeCategories();
         unsubscribeTransactions();
-        unsubscribeAccounts(); // Cleanup
+        unsubscribeAccounts();
       };
     } else if (!user) {
         if(dataLoading) setDataLoading(false);
@@ -216,9 +216,9 @@ export function CategoryExpenses() {
     <>
     <Card className="h-full flex flex-col">
     <CardHeader>
-        <CardTitle>Category Expenses</CardTitle>
+        <CardTitle>Category Expenses (Primary Ecosystem)</CardTitle>
         <div className="flex justify-between items-center">
-            <CardDescription>Your spending breakdown for the month from your primary account, wallets, and credit cards.</CardDescription>
+            <CardDescription>Spending breakdown for the month from your primary account, wallets, and credit cards.</CardDescription>
             <div className="flex items-center gap-2">
                 <Button variant="outline" size="icon" className="h-7 w-7" onClick={goToPreviousMonth}>
                     <ChevronLeft className="h-4 w-4" />
@@ -234,7 +234,7 @@ export function CategoryExpenses() {
         {categoryStats.length === 0 ? (
             <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-full">
                 <Tag className="h-10 w-10 mb-2"/>
-                <p>No expense categories or transactions found for this month.</p>
+                <p>No primary ecosystem expenses or budgets found for this month.</p>
             </div>
         ) : (
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

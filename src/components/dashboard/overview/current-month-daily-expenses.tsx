@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/table";
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
-import type { Transaction } from "@/lib/data";
+import type { Transaction, Account } from "@/lib/data";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format, startOfMonth, endOfMonth, isWithinInterval, getDaysInMonth, setDate } from "date-fns";
 import { useAuthState } from "@/hooks/use-auth-state";
@@ -54,6 +54,7 @@ type DailyDetail = {
 export function CurrentMonthDailyExpenses() {
   const [user, userLoading] = useAuthState();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [selectedDayDetail, setSelectedDayDetail] = useState<DailyDetail | null>(null);
@@ -67,10 +68,18 @@ export function CurrentMonthDailyExpenses() {
       );
       const unsubscribeTransactions = onSnapshot(transactionsQuery, (snapshot) => {
         setTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction)));
+      });
+
+      const accountsQuery = query(collection(db, "accounts"), where("userId", "==", user.uid));
+      const unsubscribeAccounts = onSnapshot(accountsQuery, (snapshot) => {
+        setAccounts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Account)));
         setDataLoading(false);
       });
 
-      return () => unsubscribeTransactions();
+      return () => {
+        unsubscribeTransactions();
+        unsubscribeAccounts();
+      };
     } else if (!user && !userLoading) {
       setDataLoading(false);
     }
@@ -81,9 +90,22 @@ export function CurrentMonthDailyExpenses() {
     const monthStart = startOfMonth(today);
     const monthEnd = endOfMonth(today);
 
-    const expensesForMonth = transactions.filter(t => 
-        isWithinInterval(new Date(t.date), { start: monthStart, end: monthEnd })
-    );
+    const primaryAccount = accounts.find(a => a.isPrimary);
+    const creditCardIds = accounts.filter(acc => acc.type === 'card').map(acc => acc.id);
+
+    const expensesForMonth = transactions.filter(t => {
+        if (!isWithinInterval(new Date(t.date), { start: monthStart, end: monthEnd })) {
+            return false;
+        }
+
+        if (!primaryAccount) return true;
+
+        const isPrimaryAccountExpense = t.accountId === primaryAccount.id;
+        const isWalletExpense = t.paymentMethod === 'cash' || t.paymentMethod === 'digital';
+        const isCreditCardExpense = t.accountId ? creditCardIds.includes(t.accountId) : false;
+
+        return isPrimaryAccountExpense || isWalletExpense || isCreditCardExpense;
+    });
 
     const expensesByDay: { [day: number]: { total: number, transactions: Transaction[]} } = {};
     expensesForMonth.forEach(t => {
@@ -106,7 +128,7 @@ export function CurrentMonthDailyExpenses() {
     }
 
     return result;
-  }, [transactions]);
+  }, [transactions, accounts]);
 
   const grandTotal = useMemo(() => {
     return dailyExpenses.reduce((sum, item) => sum + item.total, 0);
@@ -140,7 +162,7 @@ export function CurrentMonthDailyExpenses() {
       <CardHeader>
         <CardTitle>Current Month's Daily Expenses</CardTitle>
         <CardDescription>
-          A summary of your total expenses for each day of {format(new Date(), 'MMMM yyyy')}.
+          Daily spending summary from your primary account, wallets, and credit cards for {format(new Date(), 'MMMM yyyy')}.
         </CardDescription>
       </CardHeader>
       <CardContent>

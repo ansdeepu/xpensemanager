@@ -63,10 +63,10 @@ export function DateWiseExpenses() {
     }
   }, [user, userLoading, dataLoading]);
 
-  const { primaryAccount, otherAccounts } = useMemo(() => {
+  const { primaryAccount, creditCardIds } = useMemo(() => {
     const primary = accounts.find(a => a.isPrimary);
-    const others = accounts.filter(a => !a.isPrimary);
-    return { primaryAccount: primary, otherAccounts: others };
+    const ccIds = accounts.filter(acc => acc.type === 'card').map(acc => acc.id);
+    return { primaryAccount: primary, creditCardIds: ccIds };
   }, [accounts]);
 
   const expensesForSelectedDate = useMemo(() => {
@@ -82,17 +82,25 @@ export function DateWiseExpenses() {
       const transactionDate = startOfDay(new Date(t.date));
       const transactionDateString = format(transactionDate, 'yyyy-MM-dd');
       
-      return transactionDateString === targetDateString;
+      if (transactionDateString !== targetDateString) return false;
+
+      // Primary Ecosystem Filter
+      if (!primaryAccount) return true;
+      const isPrimaryAccountExpense = t.accountId === primaryAccount.id;
+      const isWalletExpense = t.paymentMethod === 'cash' || t.paymentMethod === 'digital';
+      const isCreditCardExpense = t.accountId ? creditCardIds.includes(t.accountId) : false;
+
+      return isPrimaryAccountExpense || isWalletExpense || isCreditCardExpense;
     });
-  }, [transactions, selectedDate]);
+  }, [transactions, selectedDate, primaryAccount, creditCardIds]);
 
   const groupedExpenses = useMemo(() => {
     const groups: {
       primary: Transaction[];
-      others: Transaction[];
       cash: Transaction[];
       digital: Transaction[];
-    } = { primary: [], others: [], cash: [], digital: [] };
+      cards: Transaction[];
+    } = { primary: [], cash: [], digital: [], cards: [] };
 
     expensesForSelectedDate.forEach(t => {
       if (t.paymentMethod === 'cash') {
@@ -101,20 +109,20 @@ export function DateWiseExpenses() {
         groups.digital.push(t);
       } else if (t.accountId === primaryAccount?.id) {
         groups.primary.push(t);
-      } else {
-        groups.others.push(t);
+      } else if (t.accountId && creditCardIds.includes(t.accountId)) {
+        groups.cards.push(t);
       }
     });
 
     return groups;
-  }, [expensesForSelectedDate, primaryAccount]);
+  }, [expensesForSelectedDate, primaryAccount, creditCardIds]);
 
   const totals = useMemo(() => {
     return {
       primary: groupedExpenses.primary.reduce((sum, t) => sum + t.amount, 0),
-      others: groupedExpenses.others.reduce((sum, t) => sum + t.amount, 0),
       cash: groupedExpenses.cash.reduce((sum, t) => sum + t.amount, 0),
       digital: groupedExpenses.digital.reduce((sum, t) => sum + t.amount, 0),
+      cards: groupedExpenses.cards.reduce((sum, t) => sum + t.amount, 0),
     };
   }, [groupedExpenses]);
 
@@ -133,46 +141,44 @@ export function DateWiseExpenses() {
   }
 
   const renderExpenseTable = (title: string, transactions: Transaction[], total: number) => (
-    (transactions.length > 0 || title.includes("Primary")) && (
+    (transactions.length > 0) && (
       <div className="pt-4">
         <h4 className="font-semibold mb-2">{title} Expenses</h4>
-        {transactions.length > 0 ? (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Description</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Description</TableHead>
+              <TableHead>Category</TableHead>
+              <TableHead className="text-right">Amount</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {transactions.map(t => (
+              <TableRow key={t.id}>
+                <TableCell>{t.description}</TableCell>
+                <TableCell>{t.category}{t.subcategory ? ` / ${t.subcategory}` : ''}</TableCell>
+                <TableCell className="text-right">{formatCurrency(t.amount)}</TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {transactions.map(t => (
-                <TableRow key={t.id}>
-                  <TableCell>{t.description}</TableCell>
-                  <TableCell>{t.category}{t.subcategory ? ` / ${t.subcategory}` : ''}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(t.amount)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-            <TableFooter>
-              <TableRow>
-                <TableCell colSpan={2} className="text-right font-bold">Total</TableCell>
-                <TableCell className="text-right font-bold">{formatCurrency(total)}</TableCell>
-              </TableRow>
-            </TableFooter>
-          </Table>
-        ) : <p className="text-sm text-muted-foreground text-center py-4">No expenses for {title.toLowerCase()} on this day.</p>}
+            ))}
+          </TableBody>
+          <TableFooter>
+            <TableRow>
+              <TableCell colSpan={2} className="text-right font-bold">Total</TableCell>
+              <TableCell className="text-right font-bold">{formatCurrency(total)}</TableCell>
+            </TableRow>
+          </TableFooter>
+        </Table>
       </div>
     )
   );
 
-  const grandTotal = totals.primary + totals.others + totals.cash + totals.digital;
+  const grandTotal = totals.primary + totals.cash + totals.digital + totals.cards;
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Date-wise Expenses</CardTitle>
-        <CardDescription>Select a date to see a breakdown of your expenses for that day.</CardDescription>
+        <CardTitle>Date-wise Expenses (Primary Ecosystem)</CardTitle>
+        <CardDescription>Spending breakdown for the selected date from primary account, wallets, and cards.</CardDescription>
         <div className="flex items-center gap-2 pt-2">
           <Label htmlFor="expense-date" className="flex-shrink-0">Select Date:</Label>
           <Input
@@ -187,14 +193,14 @@ export function DateWiseExpenses() {
       <CardContent>
         {expensesForSelectedDate.length === 0 ? (
             <div className="text-center text-muted-foreground py-10">
-                <p>No expenses recorded on {format(new Date(selectedDate), 'PPP')}.</p>
+                <p>No primary ecosystem expenses recorded on {format(new Date(selectedDate), 'PPP')}.</p>
             </div>
         ) : (
           <>
             {primaryAccount && renderExpenseTable(`Primary Account (${primaryAccount.name})`, groupedExpenses.primary, totals.primary)}
-            {renderExpenseTable("Other Bank Accounts", groupedExpenses.others, totals.others)}
             {renderExpenseTable("Cash Wallet", groupedExpenses.cash, totals.cash)}
             {renderExpenseTable("Digital Wallet", groupedExpenses.digital, totals.digital)}
+            {renderExpenseTable("Credit Cards", groupedExpenses.cards, totals.cards)}
             
             <div className="border-t mt-6 pt-4">
               <div className="flex justify-between items-center font-bold text-lg">
