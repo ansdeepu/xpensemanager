@@ -592,9 +592,9 @@ export default function TransactionsPage(props: {
   return (
     <div className="space-y-6">
        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="rounded-md text-muted-foreground flex w-full items-stretch justify-start overflow-x-auto h-auto p-1 bg-transparent gap-3">
+          <TabsList className="grid grid-cols-8 gap-3 w-full h-auto p-1 bg-transparent overflow-hidden">
             {primaryAccount && (
-                <TabsTrigger value={primaryAccount.id} asChild className="h-full p-0 min-w-[580px] flex-shrink-0">
+                <TabsTrigger value={primaryAccount.id} asChild className="h-full p-0 col-span-4 min-w-0">
                     <div className={cn("rounded-lg border-2 flex flex-col p-3 items-start text-left gap-2 cursor-pointer transition-shadow h-full w-full", activeTab === primaryAccount.id ? "shadow-lg border-primary bg-lime-100/50 dark:bg-lime-900/50" : "bg-card")}>
                         <div className="w-full flex justify-between items-center">
                               <h3 className="font-semibold text-base">Primary ({primaryAccount.name})</h3>
@@ -683,7 +683,7 @@ export default function TransactionsPage(props: {
                     balanceDifference = isCard ? availableBalance - account.actualBalance : (account.balance - account.actualBalance);
                 }
               return (
-                  <TabsTrigger key={account.id} value={account.id} asChild className="h-full p-0 min-w-[150px]">
+                  <TabsTrigger key={account.id} value={account.id} asChild className="h-full p-0 col-span-1 min-w-0">
                       <div className={cn("rounded-lg border flex flex-col p-3 items-start text-left gap-1 cursor-pointer transition-shadow h-full w-full", activeTab === account.id ? "shadow-lg ring-2 ring-primary bg-muted/50" : "bg-card", textColors[index % textColors.length])}>
                           <div className="w-full flex justify-between items-start">
                               <span className="font-semibold text-xs leading-tight pr-2">{account.name}</span>
