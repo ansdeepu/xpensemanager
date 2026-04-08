@@ -87,11 +87,14 @@ export function Header() {
   
   if (!clientLoaded) {
     return (
-      <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6">
-        <div className="flex items-center gap-2">
-          <Skeleton className="h-6 w-32" />
+      <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b bg-background px-4 md:px-6">
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2 font-semibold">
+            <Wallet className="h-6 w-6 text-primary" />
+            <span className="hidden sm:inline">Expense Manager</span>
+          </div>
         </div>
-        <div className="ml-auto">
+        <div className="flex items-center gap-2">
           <Skeleton className="h-8 w-8 rounded-full" />
         </div>
       </header>
