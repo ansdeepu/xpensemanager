@@ -593,7 +593,7 @@ export default function TransactionsPage(props: {
   return (
     <div className="space-y-6">
        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="flex w-full items-stretch justify-start overflow-x-auto h-auto p-1 bg-transparent gap-3">
+          <TabsList className="flex w-full items-stretch justify-start flex-wrap h-auto p-1 bg-transparent gap-3">
             {primaryAccount && (
                 <TabsTrigger value={primaryAccount.id} asChild className="h-full p-0 min-w-[580px]">
                     <div className={cn("rounded-lg border-2 flex flex-col p-3 items-start text-left gap-2 cursor-pointer transition-shadow h-full w-full", activeTab === primaryAccount.id ? "shadow-lg border-primary bg-lime-100/50 dark:bg-lime-900/50" : "bg-card")}>
