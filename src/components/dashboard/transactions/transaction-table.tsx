@@ -35,21 +35,13 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 
 
 const formatCurrency = (amount: number) => {
-    if (Object.is(amount, -0)) {
-        amount = 0;
-    }
-    if (amount % 1 === 0) {
-      return new Intl.NumberFormat("en-IN", {
-        style: "decimal",
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
-      }).format(amount);
-    }
-    return new Intl.NumberFormat("en-IN", {
-        style: "decimal",
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 2,
-    }).format(amount);
+  if (Object.is(amount, -0)) {
+    amount = 0;
+  }
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+  }).format(amount);
 };
 
 export function TransactionTable({
@@ -318,69 +310,73 @@ export function TransactionTable({
               <TableHead className="text-right print-hide whitespace-nowrap">Actions</TableHead>
             </TableRow>
           </TableHeader>
-          <>
+          <TableBody>
               {transactionsWithColumns.map((t, index) => {
                 const loanInfo = getLoanDisplayInfo(t);
                 
                 if (t.items && t.items.length > 0) {
-                    const firstItem = t.items[0];
-                    const otherItems = t.items.slice(1);
-                    const categoryDoc = categories.find(c => c.id === firstItem.categoryId || c.name === firstItem.category);
                     const concatenatedDescription = t.items.map(item => item.description).join('; ');
 
                     return (
                         <Collapsible asChild key={t.id}>
-                            <TableBody>
-                                <CollapsibleTrigger asChild>
-                                    <TableRow className="border-b-0 data-[state=open]:border-b cursor-pointer">
-                                        <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
-                                        <TableCell>{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
-                                        <TableCell className="font-medium break-words">
-                                            {concatenatedDescription}
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant={getBadgeVariant(t.type)}>{t.type}</Badge>
-                                        </TableCell>
-                                        <TableCell className="break-words">{getAccountName(t.accountId, t.paymentMethod)}</TableCell>
-                                        <TableCell className="break-words">
-                                            <Badge variant="outline">Multiple</Badge>
-                                        </TableCell>
-                                        
-                                        <TableCell className="text-right font-mono text-red-600">
-                                            {formatCurrency(t.amount)}
-                                        </TableCell>
-                                        <TableCell />
-                                        <TableCell />
-                                        
-                                        <TableCell className={cn("text-right font-mono", t.balance < 0 ? 'text-red-600' : '')}>
-                                            {formatCurrency(t.balance)}
-                                        </TableCell>
-                                        <TableCell className="text-right print-hide">
-                                            <div className="flex items-center justify-end gap-2">
-                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); onEditTransaction(t); }}>
-                                                    <Pencil className="h-4 w-4" />
+                            <Fragment>
+                                <TableRow className="border-b-0 data-[state=open]:border-b cursor-pointer" onClick={(e) => {
+                                    // Make sure we are not clicking a button
+                                    const target = e.target as HTMLElement;
+                                    if (target.closest('button')) return;
+                                    // Find and click the hidden trigger
+                                    target.closest('tr')?.querySelector<HTMLButtonElement>('[data-collapsible-trigger]')?.click();
+                                }}>
+                                    <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
+                                    <TableCell>{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
+                                    <TableCell className="font-medium break-words">
+                                        {concatenatedDescription}
+                                    </TableCell>
+                                    <TableCell>
+                                        <Badge variant={getBadgeVariant(t.type)}>{t.type}</Badge>
+                                    </TableCell>
+                                    <TableCell className="break-words">{getAccountName(t.accountId, t.paymentMethod)}</TableCell>
+                                    <TableCell className="break-words">
+                                        <Badge variant="outline">Multiple</Badge>
+                                    </TableCell>
+                                    
+                                    <TableCell className="text-right font-mono text-red-600">
+                                        {formatCurrency(t.amount)}
+                                    </TableCell>
+                                    <TableCell />
+                                    <TableCell />
+                                    
+                                    <TableCell className={cn("text-right font-mono", t.balance < 0 ? 'text-red-600' : '')}>
+                                        {formatCurrency(t.balance)}
+                                    </TableCell>
+                                    <TableCell className="text-right print-hide">
+                                        <div className="flex items-center justify-end gap-2">
+                                            <CollapsibleTrigger asChild>
+                                                 <button data-collapsible-trigger className="hidden">Toggle</button>
+                                            </CollapsibleTrigger>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); onEditTransaction(t); }}>
+                                                <Pencil className="h-4 w-4" />
+                                            </Button>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-8 w-8">
+                                                    <Trash2 className="h-4 w-4" />
                                                 </Button>
-                                                <AlertDialog>
-                                                    <AlertDialogTrigger asChild onClick={(e) => e.stopPropagation()}>
-                                                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-8 w-8">
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
-                                                    </AlertDialogTrigger>
-                                                    <AlertDialogContent>
-                                                    <AlertDialogHeader>
-                                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                        <AlertDialogDescription>This will permanently delete this combined transaction and all its items. This action cannot be undone.</AlertDialogDescription>
-                                                    </AlertDialogHeader>
-                                                    <AlertDialogFooter>
-                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={() => handleDeleteTransaction(t)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                                                    </AlertDialogFooter>
-                                                    </AlertDialogContent>
-                                                </AlertDialog>
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                </CollapsibleTrigger>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                    <AlertDialogDescription>This will permanently delete this combined transaction and all its items. This action cannot be undone.</AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                    <AlertDialogAction onClick={() => handleDeleteTransaction(t)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                                </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
                                 <CollapsibleContent asChild>
                                     <TableRow>
                                         <TableCell colSpan={11} className="p-0">
@@ -413,7 +409,7 @@ export function TransactionTable({
                                         </TableCell>
                                     </TableRow>
                                 </CollapsibleContent>
-                            </TableBody>
+                            </Fragment>
                         </Collapsible>
                     )
                 }
@@ -421,8 +417,7 @@ export function TransactionTable({
                 const {debit, credit, transfer} = t;
 
                 return (
-                  <TableBody key={t.id}>
-                    <TableRow>
+                    <TableRow key={t.id}>
                         <TableCell className="font-medium">{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
                         <TableCell>{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
                         <TableCell className={cn("font-medium break-words", loanInfo.descriptionClassName)}>
@@ -482,10 +477,9 @@ export function TransactionTable({
                             </div>
                         </TableCell>
                     </TableRow>
-                  </TableBody>
                 );
               })}
-            </>
+            </TableBody>
         </Table>
       </div>
       <div className="hidden print-block">
