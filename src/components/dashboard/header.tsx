@@ -104,13 +104,10 @@ export function Header() {
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b bg-background px-4 md:px-6">
       <div className="flex items-center gap-6">
         <div className="flex items-center gap-2">
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-2 font-semibold"
-          >
+          <div className="flex items-center gap-2 font-semibold">
             <Wallet className="h-6 w-6 text-primary" />
             <span className="">Expense Manager</span>
-          </Link>
+          </div>
         </div>
         <nav className="flex flex-row items-center gap-5 text-sm lg:gap-6">
           {menuItems.map(item => (
