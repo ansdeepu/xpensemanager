@@ -29,18 +29,9 @@ const formatCurrency = (amount: number) => {
   if (Object.is(amount, -0)) {
     amount = 0;
   }
-   if (amount % 1 === 0) {
-      return new Intl.NumberFormat("en-IN", {
-        style: "decimal",
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
-      }).format(amount);
-    }
   return new Intl.NumberFormat("en-IN", {
-    style: "decimal",
+    style: "currency",
     currency: "INR",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
   }).format(amount);
 };
 
@@ -696,15 +687,15 @@ export default function TransactionsPage() {
   return (
     <div className="space-y-6">
        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-7 gap-2 h-auto p-0 bg-transparent">
+          <TabsList className="grid w-full grid-cols-1 lg:grid-cols-7 gap-2 h-auto p-0 bg-transparent">
             {primaryAccount && (
-                <TabsTrigger value={primaryAccount.id} asChild className="h-auto p-0 col-span-3">
+                <TabsTrigger value={primaryAccount.id} asChild className="h-auto p-0 col-span-1 lg:col-span-3">
                     <div className={cn("rounded-lg border-2 flex flex-col p-3 items-start text-left gap-2 cursor-pointer transition-shadow h-full w-full", activeTab === primaryAccount.id ? "shadow-lg border-primary bg-lime-100/50 dark:bg-lime-900/50" : "bg-card")}>
                         <div className="w-full flex justify-between items-center">
                               <h3 className="font-semibold text-lg">Primary ({primaryAccount.name})</h3>
                               <span className="font-bold text-xl text-primary">{formatCurrency(primaryAllBalance)}</span>
                         </div>
-                        <div className="w-full grid grid-cols-4 gap-x-2 text-left pt-2">
+                        <div className="w-full grid grid-cols-2 sm:grid-cols-4 gap-x-2 text-left pt-2">
                             <div className="space-y-1">
                                 <Label className="text-sm">Bank Balance</Label>
                                 <div className="font-mono text-lg cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); handleAccountClick(primaryAccount); }}>{formatCurrency(primaryAccount.balance)}</div>
