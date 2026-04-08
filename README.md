@@ -1,4 +1,4 @@
-xpens# Firebase Studio
+npm run builxpens# Firebase Studio
 
 This is a NextJS starter in Firebase Studio.
 
