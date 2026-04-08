@@ -88,13 +88,11 @@ export function Header() {
   if (!clientLoaded) {
     return (
       <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6">
-        <nav className="flex flex-row items-center gap-5 text-sm lg:gap-6">
+        <div className="flex items-center gap-2">
           <Skeleton className="h-6 w-32" />
-        </nav>
-        <div className="flex w-full items-center gap-4 md:ml-auto md:flex-initial">
-          <div className="ml-auto flex-1 sm:flex-initial">
-            <Skeleton className="h-8 w-24 rounded-full" />
-          </div>
+        </div>
+        <div className="ml-auto">
+          <Skeleton className="h-8 w-8 rounded-full" />
         </div>
       </header>
     )
@@ -102,26 +100,24 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b bg-background px-4 md:px-6">
-      <div className="flex items-center gap-6">
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 font-semibold">
-            <Wallet className="h-6 w-6 text-primary" />
-            <span className="">Expense Manager</span>
-          </div>
+      <div className="flex items-center gap-6 overflow-hidden">
+        <div className="flex items-center gap-2 font-semibold flex-shrink-0">
+          <Wallet className="h-6 w-6 text-primary" />
+          <span className="hidden sm:inline">Expense Manager</span>
         </div>
-        <nav className="flex flex-row items-center gap-5 text-sm lg:gap-6">
+        <nav className="flex flex-row items-center gap-1 overflow-x-auto no-scrollbar py-1">
           {menuItems.map(item => (
-            <div key={item.href} className="flex items-center gap-1">
+            <div key={item.href} className="flex items-center gap-0.5 whitespace-nowrap px-1">
               <Link
                 href={item.href}
                 className={cn(
-                  "transition-colors hover:text-foreground",
-                  pathname === item.href ? "text-foreground font-medium" : "text-muted-foreground"
+                  "text-xs px-2 py-1 rounded-md transition-colors hover:bg-muted hover:text-foreground",
+                  pathname === item.href ? "text-foreground font-semibold bg-muted" : "text-muted-foreground"
                 )}
               >
                 {item.label}
               </Link>
-              <Button variant="ghost" size="icon" onClick={() => handleOpenNewWindow(item.href)} aria-label={`Open ${item.label} in new window`} className="h-6 w-6">
+              <Button variant="ghost" size="icon" onClick={() => handleOpenNewWindow(item.href)} aria-label={`Open ${item.label} in new window`} className="h-6 w-6 opacity-50 hover:opacity-100">
                 <ArrowUpRight className="h-3 w-3" />
               </Button>
             </div>
@@ -129,12 +125,12 @@ export function Header() {
         </nav>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-shrink-0">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="flex items-center gap-2 rounded-full p-1 pr-3">
+            <Button variant="ghost" className="flex items-center gap-2 rounded-full p-1 h-auto">
               <Avatar className="h-8 w-8">
-                {loading || !clientLoaded ? (
+                {loading ? (
                   <Skeleton className="h-full w-full rounded-full" />
                 ) : (
                   <>
@@ -145,15 +141,11 @@ export function Header() {
                   </>
                 )}
               </Avatar>
-              {loading || !clientLoaded ? (
-                <Skeleton className="h-4 w-20" />
-              ) : (
-                <span className="font-medium hidden md:block">{user?.displayName}</span>
-              )}
+              <span className="font-medium text-sm hidden lg:block pr-2">{user?.displayName}</span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuLabel>{user?.displayName || "My Account"}</DropdownMenuLabel>
+            <DropdownMenuLabel className="max-w-[200px] truncate">{user?.displayName || "My Account"}</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <Link href="/dashboard/profile">
               <DropdownMenuItem>
@@ -162,12 +154,10 @@ export function Header() {
               </DropdownMenuItem>
             </Link>
             <DropdownMenuSeparator />
-            <Link href="/">
-              <DropdownMenuItem onClick={() => auth.signOut()}>
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Log out</span>
-              </DropdownMenuItem>
-            </Link>
+            <DropdownMenuItem onClick={() => auth.signOut()}>
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Log out</span>
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

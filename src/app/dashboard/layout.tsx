@@ -1,17 +1,20 @@
+
 "use client";
 
+import React, { useEffect } from "react";
 import { Header } from "@/components/dashboard/header";
 import { ReportDateProvider } from "@/context/report-date-context";
 import { useAuthState } from "@/hooks/use-auth-state";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 
-export default function DashboardLayout({
-  children,
-}: {
+export default function DashboardLayout(props: {
   children: React.ReactNode;
+  params: Promise<any>;
 }) {
+  // Access dynamic APIs correctly for Next.js 15
+  const params = React.use(props.params);
+  
   const [user, loading] = useAuthState();
   const router = useRouter();
 
@@ -30,11 +33,6 @@ export default function DashboardLayout({
               <Skeleton className="h-6 w-6" />
               <Skeleton className="h-5 w-36" />
             </div>
-            <nav className="hidden md:flex md:flex-row md:items-center md:gap-5 lg:gap-6">
-              <Skeleton className="h-4 w-20" />
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-4 w-16" />
-            </nav>
           </div>
           <div className="flex items-center gap-2">
             <Skeleton className="h-8 w-24 rounded-full" />
@@ -42,12 +40,11 @@ export default function DashboardLayout({
         </header>
         <main className="flex-1 p-4 md:p-6">
           <div className="space-y-6">
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-              <Skeleton className="h-48 lg:col-span-1" />
-              <Skeleton className="h-48 lg:col-span-2" />
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <Skeleton className="h-48" />
+              <Skeleton className="h-48" />
             </div>
             <Skeleton className="h-32" />
-            <Skeleton className="h-64" />
             <Skeleton className="h-64" />
           </div>
         </main>
@@ -59,7 +56,7 @@ export default function DashboardLayout({
       <ReportDateProvider>
         <div className="flex min-h-screen w-full flex-col">
             <Header />
-            <main className="flex-1 p-4 md:p-6">{children}</main>
+            <main className="flex-1 p-4 md:p-6">{props.children}</main>
         </div>
       </ReportDateProvider>
   );

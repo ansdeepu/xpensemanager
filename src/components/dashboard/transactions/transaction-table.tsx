@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useMemo, Fragment } from "react";
+import React, { useState, useEffect, useMemo, Fragment } from "react";
 import {
   Table,
   TableBody,
@@ -66,79 +66,50 @@ export function TransactionTable({
 
   const toggleRow = (id: string) => {
     const newSet = new Set(expandedRows);
-    if (newSet.has(id)) {
-      newSet.delete(id);
-    } else {
-      newSet.add(id);
-    }
+    if (newSet.has(id)) newSet.delete(id);
+    else newSet.add(id);
     setExpandedRows(newSet);
   };
 
   const getAccountName = (accId?: string, paymentMethod?: Transaction['paymentMethod']) => {
     if (accId === 'cash-wallet' || paymentMethod === 'cash') return "Cash Wallet";
     if (accId === 'digital-wallet' || paymentMethod === 'digital') return "Digital Wallet";
-    
     if (accId?.startsWith('loan-virtual-account-')) {
         const personName = accId.replace('loan-virtual-account-', '').replace(/-/g, ' ');
         const loan = loans.find(l => l.personName.toLowerCase() === personName.toLowerCase());
-        if (loan) return loan.personName;
-        return personName;
+        return loan ? loan.personName : personName;
     }
-
     if (!accId) return "-";
-    
     const account = accounts.find((a) => a.id === accId);
     if (!account) {
          const loan = loans.find(l => l.id === accId);
-         if (loan) return loan.personName;
-         return "N/A";
+         return loan ? loan.personName : "N/A";
     }
-    
     return account.name;
   };
 
   const getLoanDisplayInfo = useMemo(() => {
     return (t: Transaction) => {
         const defaultInfo = { isLoan: false, type: t.type, category: t.category, description: t.description, descriptionClassName: "" };
-
         if (t.type === 'transfer') {
             if (t.loanTransactionId) {
                 const loan = loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId));
                 if (loan) {
                     const loanTx = loan.transactions.find(lt => lt.id === t.loanTransactionId)!;
                     const otherPartyName = loan.personName;
-                    
                     const isLoanTaken = loan.type === 'taken';
                     const isRepayment = loanTx.type === 'repayment';
-                    let descriptionPrefix = '';
-
-                    if (isLoanTaken) {
-                        descriptionPrefix = isRepayment ? 'Repayment to' : 'Loan from';
-                    } else { // 'given'
-                        descriptionPrefix = isRepayment ? 'Repayment from' : 'Loan to';
-                    }
-                    
-                    const description = `${descriptionPrefix} ${otherPartyName}`;
-                    return { isLoan: true, type: loanTx.type, category: 'Loan', description, descriptionClassName: 'text-orange-600 font-bold' };
+                    let descriptionPrefix = isLoanTaken ? (isRepayment ? 'Repayment to' : 'Loan from') : (isRepayment ? 'Repayment from' : 'Loan to');
+                    return { isLoan: true, type: loanTx.type, category: 'Loan', description: `${descriptionPrefix} ${otherPartyName}`, descriptionClassName: 'text-orange-600 font-bold' };
                 }
             }
-            
             const fromIsPrimaryBank = t.fromAccountId === primaryAccount?.id;
             const toIsPrimaryBank = t.toAccountId === primaryAccount?.id;
             const fromIsWallet = t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
             const toIsWallet = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
-
-            if (fromIsPrimaryBank && toIsWallet) {
-                const toWalletName = t.toAccountId === 'cash-wallet' ? 'Cash' : 'Digital';
-                return { ...defaultInfo, type: 'issue' as const, description: `Issue to ${toWalletName} Wallet` };
-            }
-
-            if (fromIsWallet && toIsPrimaryBank) {
-                const fromWalletName = t.fromAccountId === 'cash-wallet' ? 'Cash' : 'Digital';
-                return { ...defaultInfo, type: 'return' as const, description: `Return from ${fromWalletName} Wallet` };
-            }
+            if (fromIsPrimaryBank && toIsWallet) return { ...defaultInfo, type: 'issue' as const, description: `Issue to ${t.toAccountId === 'cash-wallet' ? 'Cash' : 'Digital'} Wallet` };
+            if (fromIsWallet && toIsPrimaryBank) return { ...defaultInfo, type: 'return' as const, description: `Return from ${t.fromAccountId === 'cash-wallet' ? 'Cash' : 'Digital'} Wallet` };
         }
-        
         return defaultInfo;
     };
   }, [loans, primaryAccount]);
@@ -146,322 +117,166 @@ export function TransactionTable({
   const transactionsWithColumns = useMemo(() => {
     const isPrimaryView = primaryAccount?.id === accountId;
     const creditCardIds = accounts.filter(a => a.type === 'card').map(a => a.id);
-
     return transactions.map(t => {
-      let debit = null;
-      let credit = null;
-      let transfer = null;
-
+      let debit = null, credit = null, transfer = null;
       const fromAccountIsWallet = t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
       const toAccountIsWallet = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
-      
-      const fromCurrentView = isPrimaryView 
-          ? (t.fromAccountId === accountId || fromAccountIsWallet || (t.fromAccountId && creditCardIds.includes(t.fromAccountId)))
-          : t.fromAccountId === accountId;
-
-      const toCurrentView = isPrimaryView
-          ? (t.toAccountId === accountId || toAccountIsWallet || (t.toAccountId && creditCardIds.includes(t.toAccountId)))
-          : t.toAccountId === accountId;
+      const fromCurrentView = isPrimaryView ? (t.fromAccountId === accountId || fromAccountIsWallet || (t.fromAccountId && creditCardIds.includes(t.fromAccountId))) : t.fromAccountId === accountId;
+      const toCurrentView = isPrimaryView ? (t.toAccountId === accountId || toAccountIsWallet || (t.toAccountId && creditCardIds.includes(t.toAccountId))) : t.toAccountId === accountId;
 
       if (t.type === 'income') {
-          if(isPrimaryView) {
-                if (t.accountId === accountId || t.accountId === 'cash-wallet' || t.accountId === 'digital-wallet') credit = t.amount;
-          } else {
-                if (t.accountId === accountId) credit = t.amount;
-          }
+          if (isPrimaryView && (t.accountId === accountId || t.accountId === 'cash-wallet' || t.accountId === 'digital-wallet')) credit = t.amount;
+          else if (!isPrimaryView && t.accountId === accountId) credit = t.amount;
       } else if (t.type === 'expense') {
-          if(isPrimaryView) {
-              if (t.accountId === accountId || t.paymentMethod === 'cash' || t.paymentMethod === 'digital' || (t.accountId && creditCardIds.includes(t.accountId))) {
-                  debit = t.amount;
-              }
-          } else {
-                if (t.accountId === accountId) {
-                  debit = t.amount;
-              }
-          }
+          if (isPrimaryView && (t.accountId === accountId || t.paymentMethod === 'cash' || t.paymentMethod === 'digital' || (t.accountId && creditCardIds.includes(t.accountId)))) debit = t.amount;
+          else if (!isPrimaryView && t.accountId === accountId) debit = t.amount;
       } else if (t.type === 'transfer') {
-            if (fromCurrentView && toCurrentView) {
-              transfer = t.amount;
-            } else if (fromCurrentView) {
-              debit = t.amount;
-            } else if (toCurrentView) {
-              credit = t.amount;
-            }
+            if (fromCurrentView && toCurrentView) transfer = t.amount;
+            else if (fromCurrentView) debit = t.amount;
+            else if (toCurrentView) credit = t.amount;
       }
-      
-      return {
-          ...t,
-          debit,
-          credit,
-          transfer
-      }
+      return { ...t, debit, credit, transfer }
     });
   }, [transactions, accountId, primaryAccount, accounts]);
 
   useEffect(() => {
     if (user && db) {
-      const accountsQuery = query(collection(db, "accounts"), where("userId", "==", user.uid));
-      const unsubscribeAccounts = onSnapshot(accountsQuery, (snapshot) => {
-        setAccounts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Account)));
-      });
-      
-      const categoriesQuery = query(collection(db, "categories"), where("userId", "==", user.uid));
-      const unsubscribeCategories = onSnapshot(categoriesQuery, (snapshot) => {
-        setCategories(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category)));
-      });
-      
-      const loansQuery = query(collection(db, "loans"), where("userId", "==", user.uid));
-      const unsubscribeLoans = onSnapshot(loansQuery, (snapshot) => {
-        setLoans(snapshot.docs.map(doc => {
-            const data = doc.data();
-            const transactions = data.transactions || [];
-            const totalLoan = transactions.filter((t: any) => t.type === 'loan').reduce((sum: number, t: any) => sum + t.amount, 0);
-            const totalRepayment = transactions.filter((t: any) => t.type === 'repayment').reduce((sum: number, t: any) => sum + t.amount, 0);
-            return {
-                id: doc.id,
-                ...data,
-                transactions,
-                totalLoan,
-                totalRepayment,
-                balance: totalLoan - totalRepayment,
-            } as Loan;
+      const unsubscribeAccounts = onSnapshot(query(collection(db, "accounts"), where("userId", "==", user.uid)), (s) => setAccounts(s.docs.map(doc => ({ id: doc.id, ...doc.data() } as Account))));
+      const unsubscribeCategories = onSnapshot(query(collection(db, "categories"), where("userId", "==", user.uid)), (s) => setCategories(s.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category))));
+      const unsubscribeLoans = onSnapshot(query(collection(db, "loans"), where("userId", "==", user.uid)), (s) => {
+        setLoans(s.docs.map(doc => {
+            const data = doc.data(), txs = data.transactions || [];
+            const totalL = txs.filter((t: any) => t.type === 'loan').reduce((sum: number, t: any) => sum + t.amount, 0);
+            const totalR = txs.filter((t: any) => t.type === 'repayment').reduce((sum: number, t: any) => sum + t.amount, 0);
+            return { id: doc.id, ...data, transactions: txs, totalLoan: totalL, totalRepayment: totalR, balance: totalL - totalR } as Loan;
         }));
       });
-
-      return () => {
-        unsubscribeAccounts();
-        unsubscribeCategories();
-        unsubscribeLoans();
-      };
+      return () => { unsubscribeAccounts(); unsubscribeCategories(); unsubscribeLoans(); };
     }
   }, [user]);
 
-  const handleDeleteTransaction = async (transactionToDelete: Transaction) => {
+  const handleDeleteTransaction = async (txToDelete: Transaction) => {
     if (!user) return;
     try {
-        const batch = writeBatch(db);
-        const transactionRef = doc(db, "transactions", transactionToDelete.id);
-
-        if (transactionToDelete.loanTransactionId) {
-            const loansQuery = query(collection(db, "loans"), where("userId", "==", user.uid));
-            const loansSnapshot = await getDocs(loansQuery);
-
+        const batch = writeBatch(db), txRef = doc(db, "transactions", txToDelete.id);
+        if (txToDelete.loanTransactionId) {
+            const loansSnapshot = await getDocs(query(collection(db, "loans"), where("userId", "==", user.uid)));
             for (const loanDoc of loansSnapshot.docs) {
                 const loan = { id: loanDoc.id, ...loanDoc.data() } as Loan;
-                const txIndex = loan.transactions.findIndex(t => t.id === transactionToDelete.loanTransactionId);
-
-                if (txIndex !== -1) {
-                    const updatedTransactions = loan.transactions.filter(t => t.id !== transactionToDelete.loanTransactionId);
-                    
-                    if (updatedTransactions.length > 0) {
-                        batch.update(loanDoc.ref, { transactions: updatedTransactions });
-                    } else {
-                        batch.delete(loanDoc.ref);
-                    }
+                if (loan.transactions.some(t => t.id === txToDelete.loanTransactionId)) {
+                    const updatedTxs = loan.transactions.filter(t => t.id !== txToDelete.loanTransactionId);
+                    if (updatedTxs.length > 0) batch.update(loanDoc.ref, { transactions: updatedTxs });
+                    else batch.delete(loanDoc.ref);
                     break;
                 }
             }
         }
-
-        batch.delete(transactionRef);
-        await batch.commit();
+        batch.delete(txRef); await batch.commit();
         toast({ title: "Transaction deleted successfully." });
-    } catch (error: any) {
-        toast({
-            variant: "destructive",
-            title: "Deletion failed",
-            description: error.message || "An unexpected error occurred."
-        });
-    }
+    } catch (e: any) { toast({ variant: "destructive", title: "Deletion failed", description: e.message || "An unexpected error occurred." }); }
   };
   
-  const getBadgeVariant = (type: string) => {
-    switch (type) {
-      case 'income': return 'default';
-      case 'expense': return 'destructive';
-      default: return 'secondary';
-    }
-  };
+  const getBadgeVariant = (type: string) => type === 'income' ? 'default' : type === 'expense' ? 'destructive' : 'secondary';
 
   return (
-    <>
-      <div className="w-full overflow-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="whitespace-nowrap">Sl.</TableHead>
-              <TableHead className="whitespace-nowrap">Date</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Account</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead className="text-right whitespace-nowrap">Debit</TableHead>
-              <TableHead className="text-right whitespace-nowrap">Transfer</TableHead>
-              <TableHead className="text-right whitespace-nowrap">Credit</TableHead>
-              <TableHead className="text-right whitespace-nowrap">Balance</TableHead>
-              <TableHead className="text-right print-hide whitespace-nowrap">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-              {transactionsWithColumns.map((t, index) => {
-                const loanInfo = getLoanDisplayInfo(t);
-                const isExpanded = expandedRows.has(t.id);
-                
-                if (t.items && t.items.length > 0) {
-                    const concatenatedDescription = t.items.map(item => item.description).join('; ');
-
-                    return (
-                        <Fragment key={t.id}>
-                            <TableRow className={cn("border-b-0 cursor-pointer", isExpanded && "bg-muted/40")} onClick={() => toggleRow(t.id)}>
-                                <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
-                                <TableCell>{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
-                                <TableCell className="break-words">{concatenatedDescription}</TableCell>
-                                <TableCell><Badge variant={getBadgeVariant(t.type)}>{t.type}</Badge></TableCell>
-                                <TableCell className="break-words">{getAccountName(t.accountId, t.paymentMethod)}</TableCell>
-                                <TableCell className="break-words"><Badge variant="outline">Multiple</Badge></TableCell>
-                                <TableCell className="text-right font-mono text-red-600">{formatCurrency(t.amount)}</TableCell>
-                                <TableCell /><TableCell />
-                                <TableCell className={cn("text-right font-mono", t.balance < 0 ? 'text-red-600' : '')}>{formatCurrency(t.balance)}</TableCell>
-                                <TableCell className="text-right print-hide" onClick={(e) => e.stopPropagation()}>
-                                    <div className="flex items-center justify-end gap-2">
-                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEditTransaction(t)}>
-                                            <Pencil className="h-4 w-4" />
-                                        </Button>
-                                        <AlertDialog>
-                                            <AlertDialogTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-8 w-8">
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
-                                            </AlertDialogTrigger>
-                                            <AlertDialogContent>
-                                                <AlertDialogHeader>
-                                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                    <AlertDialogDescription>This will permanently delete this combined transaction and all its items. This action cannot be undone.</AlertDialogDescription>
-                                                </AlertDialogHeader>
-                                                <AlertDialogFooter>
-                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                    <AlertDialogAction onClick={() => handleDeleteTransaction(t)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                                                </AlertDialogFooter>
-                                            </AlertDialogContent>
-                                        </AlertDialog>
-                                    </div>
-                                </TableCell>
-                            </TableRow>
-                            {isExpanded && (
-                                <TableRow className="bg-muted/20">
-                                    <TableCell colSpan={11} className="p-0 border-b">
-                                        <div className="p-4 bg-muted/10">
-                                            <Table>
-                                                <TableHeader>
-                                                    <TableRow>
-                                                        <TableHead>Item Description</TableHead>
-                                                        <TableHead>Category</TableHead>
-                                                        <TableHead className="text-right">Amount</TableHead>
-                                                    </TableRow>
-                                                </TableHeader>
-                                                <TableBody>
-                                                    {t.items.map((item, itemIndex) => {
-                                                        const categoryDoc = categories.find(c => c.id === item.categoryId || c.name === item.category);
-                                                        return (
-                                                            <TableRow key={itemIndex}>
-                                                                <TableCell>{item.description}</TableCell>
-                                                                <TableCell>
-                                                                    {categoryDoc?.name || item.category}
-                                                                    {item.subcategory && ` / ${item.subcategory}`}
-                                                                </TableCell>
-                                                                <TableCell className="text-right font-mono">{formatCurrency(item.amount)}</TableCell>
-                                                            </TableRow>
-                                                        )
-                                                    })}
-                                                </TableBody>
-                                            </Table>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </Fragment>
-                    )
-                }
-
-                const {debit, credit, transfer} = t;
-
-                return (
-                    <TableRow key={t.id}>
-                        <TableCell className="font-medium">{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
-                        <TableCell>{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
-                        <TableCell className={cn("break-words", loanInfo.descriptionClassName)}>{loanInfo.description}</TableCell>
-                        <TableCell><Badge variant={getBadgeVariant(loanInfo.type)} className="capitalize">{loanInfo.type}</Badge></TableCell>
-                        <TableCell className="break-words">{t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} -> ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod)}</TableCell>
-                        <TableCell className="break-words">
-                            <div>{loanInfo.category}</div>
-                            {t.subcategory && <div className="text-sm text-muted-foreground">{t.subcategory}</div>}
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-red-600">{debit !== null ? formatCurrency(debit) : null}</TableCell>
-                        <TableCell className="text-right font-mono text-blue-600">{transfer !== null ? formatCurrency(transfer) : null}</TableCell>
-                        <TableCell className="text-right font-mono text-green-600">{credit !== null ? formatCurrency(credit) : null}</TableCell>
-                        <TableCell className={cn("text-right font-mono", t.balance < 0 ? 'text-red-600' : '')}>{formatCurrency(t.balance)}</TableCell>
-                        <TableCell className="text-right print-hide">
-                            <div className="flex items-center justify-end gap-2">
-                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEditTransaction(t)}>
-                                    <Pencil className="h-4 w-4" />
-                                </Button>
-                                <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-8 w-8">
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                                This will permanently delete the transaction. This action cannot be undone and will update account balances.
-                                            </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => handleDeleteTransaction(t)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                                        </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                </AlertDialog>
-                            </div>
-                        </TableCell>
-                    </TableRow>
-                );
-              })}
-            </TableBody>
-        </Table>
-      </div>
-      <div className="hidden print-block">
-        <div id="printable-area">
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Description</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Account</TableHead>
-                        <TableHead>Category</TableHead>
-                        <TableHead className="text-right">Amount</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {transactions.map(t => (
-                        <TableRow key={t.id}>
-                            <TableCell>{format(new Date(t.date), 'dd/MM/yyyy')}</TableCell>
-                            <TableCell>{t.description}</TableCell>
-                            <TableCell>{t.type}</TableCell>
-                            <TableCell>{t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} -> ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod)}</TableCell>
-                            <TableCell>{t.category}{t.subcategory ? ` / ${t.subcategory}` : ''}</TableCell>
-                            <TableCell className={cn("text-right", t.type === 'income' ? 'text-green-600' : 'text-red-600')}>
-                                {t.type !== 'transfer' ? formatCurrency(t.amount) : '-'}
-                            </TableCell>
-                        </TableRow>
-                    ))}
-                </TableBody>
-            </Table>
-        </div>
-      </div>
-    </>
+    <div className="w-full">
+      <Table className="min-w-[1000px]">
+        <TableHeader className="sticky top-0 bg-background z-10 shadow-sm">
+          <TableRow>
+            <TableHead className="w-[50px]">Sl.</TableHead>
+            <TableHead className="w-[100px]">Date</TableHead>
+            <TableHead className="min-w-[200px]">Description</TableHead>
+            <TableHead className="w-[90px]">Type</TableHead>
+            <TableHead className="min-w-[150px]">Account</TableHead>
+            <TableHead className="min-w-[120px]">Category</TableHead>
+            <TableHead className="text-right w-[100px]">Debit</TableHead>
+            <TableHead className="text-right w-[100px]">Transfer</TableHead>
+            <TableHead className="text-right w-[100px]">Credit</TableHead>
+            <TableHead className="text-right w-[120px]">Balance</TableHead>
+            <TableHead className="text-right print-hide w-[100px]">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+            {transactionsWithColumns.map((t, index) => {
+              const loanInfo = getLoanDisplayInfo(t);
+              const isExpanded = expandedRows.has(t.id);
+              const isMultiItem = t.items && t.items.length > 0;
+              const rowContent = isMultiItem ? (
+                  <Fragment key={t.id}>
+                      <TableRow className={cn("border-b-0 cursor-pointer hover:bg-muted/50", isExpanded && "bg-muted/40")} onClick={() => toggleRow(t.id)}>
+                          <TableCell className="py-2">{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
+                          <TableCell className="py-2">{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
+                          <TableCell className="py-2 font-medium">{t.items!.map(item => item.description).join('; ')}</TableCell>
+                          <TableCell className="py-2"><Badge variant={getBadgeVariant(t.type)} className="text-[10px] h-5">{t.type}</Badge></TableCell>
+                          <TableCell className="py-2 text-xs">{getAccountName(t.accountId, t.paymentMethod)}</TableCell>
+                          <TableCell className="py-2"><Badge variant="outline" className="text-[10px] h-5">Multiple</Badge></TableCell>
+                          <TableCell className="text-right font-mono text-red-600 text-xs">{formatCurrency(t.amount)}</TableCell>
+                          <TableCell className="py-2"/><TableCell className="py-2"/>
+                          <TableCell className={cn("text-right font-mono text-xs", t.balance < 0 ? 'text-red-600' : '')}>{formatCurrency(t.balance)}</TableCell>
+                          <TableCell className="text-right print-hide py-2" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex items-center justify-end gap-1">
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEditTransaction(t)}><Pencil className="h-3.5 w-3.5" /></Button>
+                                  <AlertDialog>
+                                      <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-destructive h-7 w-7"><Trash2 className="h-3.5 w-3.5" /></Button></AlertDialogTrigger>
+                                      <AlertDialogContent>
+                                          <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will delete all items in this transaction.</AlertDialogDescription></AlertDialogHeader>
+                                          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteTransaction(t)} className="bg-destructive">Delete</AlertDialogAction></AlertDialogFooter>
+                                      </AlertDialogContent>
+                                  </AlertDialog>
+                              </div>
+                          </TableCell>
+                      </TableRow>
+                      {isExpanded && (
+                          <TableRow className="bg-muted/20 border-b">
+                              <TableCell colSpan={11} className="p-0">
+                                  <div className="px-12 py-3 bg-muted/10 border-l-4 border-primary/20">
+                                      <Table className="min-w-0">
+                                          <TableHeader><TableRow className="border-none hover:bg-transparent"><TableHead className="h-8 text-[10px]">Item Description</TableHead><TableHead className="h-8 text-[10px]">Category</TableHead><TableHead className="h-8 text-right text-[10px]">Amount</TableHead></TableRow></TableHeader>
+                                          <TableBody>
+                                              {t.items!.map((item, i) => (
+                                                  <TableRow key={i} className="border-none hover:bg-transparent">
+                                                      <TableCell className="py-1 text-xs">{item.description}</TableCell>
+                                                      <TableCell className="py-1 text-xs">{categories.find(c => c.id === item.categoryId || c.name === item.category)?.name || item.category}{item.subcategory && ` / ${item.subcategory}`}</TableCell>
+                                                      <TableCell className="text-right font-mono text-xs py-1">{formatCurrency(item.amount)}</TableCell>
+                                                  </TableRow>
+                                              ))}
+                                          </TableBody>
+                                      </Table>
+                                  </div>
+                              </TableCell>
+                          </TableRow>
+                      )}
+                  </Fragment>
+              ) : (
+                  <TableRow key={t.id} className="hover:bg-muted/50">
+                      <TableCell className="py-2 text-xs">{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
+                      <TableCell className="py-2 text-xs">{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
+                      <TableCell className={cn("py-2 text-sm", loanInfo.descriptionClassName)}>{loanInfo.description}</TableCell>
+                      <TableCell className="py-2"><Badge variant={getBadgeVariant(loanInfo.type)} className="text-[10px] h-5 capitalize">{loanInfo.type}</Badge></TableCell>
+                      <TableCell className="py-2 text-xs leading-tight">{t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} ➔ ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod)}</TableCell>
+                      <TableCell className="py-2 text-xs leading-tight"><div>{loanInfo.category}</div>{t.subcategory && <div className="text-[10px] text-muted-foreground">{t.subcategory}</div>}</TableCell>
+                      <TableCell className="text-right font-mono text-red-600 text-xs">{t.debit !== null ? formatCurrency(t.debit) : null}</TableCell>
+                      <TableCell className="text-right font-mono text-blue-600 text-xs">{t.transfer !== null ? formatCurrency(t.transfer) : null}</TableCell>
+                      <TableCell className="text-right font-mono text-green-600 text-xs">{t.credit !== null ? formatCurrency(t.credit) : null}</TableCell>
+                      <TableCell className={cn("text-right font-mono text-xs", t.balance < 0 ? 'text-red-600' : '')}>{formatCurrency(t.balance)}</TableCell>
+                      <TableCell className="text-right print-hide py-2">
+                          <div className="flex items-center justify-end gap-1">
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEditTransaction(t)}><Pencil className="h-3.5 w-3.5" /></Button>
+                              <AlertDialog>
+                                  <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-destructive h-7 w-7"><Trash2 className="h-3.5 w-3.5" /></Button></AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                      <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
+                                      <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteTransaction(t)} className="bg-destructive">Delete</AlertDialogAction></AlertDialogFooter>
+                                  </AlertDialogContent>
+                              </AlertDialog>
+                          </div>
+                      </TableCell>
+                  </TableRow>
+              );
+              return rowContent;
+            })}
+        </TableBody>
+      </Table>
+    </div>
   );
 }
