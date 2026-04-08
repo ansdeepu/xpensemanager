@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -56,6 +57,8 @@ export function AccountBalances() {
 
   const { cashWalletBalance, digitalWalletBalance, accountBalances } = useMemo(() => {
     const calculatedAccountBalances: { [key: string]: number } = {};
+    const accountMap = new Map(rawAccounts.map(acc => [acc.id, acc]));
+
     rawAccounts.forEach(acc => {
         calculatedAccountBalances[acc.id] = 0;
     });
@@ -66,43 +69,58 @@ export function AccountBalances() {
     const chronologicalTransactions = [...transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     chronologicalTransactions.forEach(t => {
-      if (t.type === 'transfer') {
-        if (t.toAccountId === 'cash-wallet') calculatedCashWalletBalance += t.amount;
-        if (t.fromAccountId === 'cash-wallet') calculatedCashWalletBalance -= t.amount;
-        if (t.toAccountId === 'digital-wallet') calculatedDigitalWalletBalance += t.amount;
-        if (t.fromAccountId === 'digital-wallet') calculatedDigitalWalletBalance -= t.amount;
-      } else if (t.type === 'expense') {
-        if (t.paymentMethod === 'cash') calculatedCashWalletBalance -= t.amount;
-        if (t.paymentMethod === 'digital') calculatedDigitalWalletBalance -= t.amount;
-      }
-
-        if (t.type === 'income' && t.accountId && calculatedAccountBalances[t.accountId] !== undefined) {
+      // Income
+      if (t.type === 'income' && t.accountId && calculatedAccountBalances[t.accountId] !== undefined) {
+          const account = accountMap.get(t.accountId);
+          if (account?.type !== 'card') {
             calculatedAccountBalances[t.accountId] += t.amount;
-        } else if (t.type === 'expense' && t.accountId && t.paymentMethod === 'online' && calculatedAccountBalances[t.accountId] !== undefined) {
-            const isCard = rawAccounts.find(a => a.id === t.accountId)?.type === 'card';
-            if (isCard) {
-                calculatedAccountBalances[t.accountId] += t.amount;
+          }
+      } 
+      // Expenses
+      else if (t.type === 'expense') {
+        if (t.paymentMethod === 'online' && t.accountId && calculatedAccountBalances[t.accountId] !== undefined) {
+            const account = accountMap.get(t.accountId);
+            if (account?.type === 'card') {
+              calculatedAccountBalances[t.accountId] += t.amount; // Debt increases
             } else {
-                calculatedAccountBalances[t.accountId] -= t.amount;
+              calculatedAccountBalances[t.accountId] -= t.amount; // Balance decreases
             }
-        } else if (t.type === 'transfer') {
-            if (t.fromAccountId && calculatedAccountBalances[t.fromAccountId] !== undefined) {
-                const isCard = rawAccounts.find(a => a.id === t.fromAccountId)?.type === 'card';
-                if (isCard) {
-                    calculatedAccountBalances[t.fromAccountId] += t.amount;
-                } else {
-                    calculatedAccountBalances[t.fromAccountId] -= t.amount;
-                }
-            }
-            if (t.toAccountId && calculatedAccountBalances[t.toAccountId] !== undefined) {
-                const isCard = rawAccounts.find(a => a.id === t.toAccountId)?.type === 'card';
-                if (isCard) {
-                    calculatedAccountBalances[t.toAccountId] -= t.amount;
-                } else {
-                    calculatedAccountBalances[t.toAccountId] += t.amount;
-                }
-            }
+        } else if (t.paymentMethod === 'cash') {
+          calculatedCashWalletBalance -= t.amount;
+        } else if (t.paymentMethod === 'digital') {
+          calculatedDigitalWalletBalance -= t.amount;
         }
+      } 
+      // Transfers
+      else if (t.type === 'transfer') {
+        // From
+        if (t.fromAccountId && calculatedAccountBalances[t.fromAccountId] !== undefined) {
+          const fromAccount = accountMap.get(t.fromAccountId);
+          if (fromAccount?.type === 'card') {
+            calculatedAccountBalances[t.fromAccountId] += t.amount; // Cash advance increases debt
+          } else {
+            calculatedAccountBalances[t.fromAccountId] -= t.amount;
+          }
+        } else if (t.fromAccountId === 'cash-wallet') {
+          calculatedCashWalletBalance -= t.amount;
+        } else if (t.fromAccountId === 'digital-wallet') {
+          calculatedDigitalWalletBalance -= t.amount;
+        }
+
+        // To
+        if (t.toAccountId && calculatedAccountBalances[t.toAccountId] !== undefined) {
+           const toAccount = accountMap.get(t.toAccountId);
+           if (toAccount?.type === 'card') {
+             calculatedAccountBalances[t.toAccountId] -= t.amount; // Payment to card decreases debt
+           } else {
+             calculatedAccountBalances[t.toAccountId] += t.amount;
+           }
+        } else if (t.toAccountId === 'cash-wallet') {
+          calculatedCashWalletBalance += t.amount;
+        } else if (t.toAccountId === 'digital-wallet') {
+          calculatedDigitalWalletBalance += t.amount;
+        }
+      }
     });
 
     return { cashWalletBalance: calculatedCashWalletBalance, digitalWalletBalance: calculatedDigitalWalletBalance, accountBalances: calculatedAccountBalances };
