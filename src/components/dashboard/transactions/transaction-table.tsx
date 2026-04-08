@@ -247,7 +247,6 @@ export function TransactionTable({
         const transactionRef = doc(db, "transactions", transactionToDelete.id);
 
         if (transactionToDelete.loanTransactionId) {
-            // Find the parent loan document
             const loansQuery = query(collection(db, "loans"), where("userId", "==", user.uid));
             const loansSnapshot = await getDocs(loansQuery);
 
@@ -261,10 +260,9 @@ export function TransactionTable({
                     if (updatedTransactions.length > 0) {
                         batch.update(loanDoc.ref, { transactions: updatedTransactions });
                     } else {
-                        // If no transactions are left, delete the entire loan document
                         batch.delete(loanDoc.ref);
                     }
-                    break; // Exit loop once found and updated
+                    break;
                 }
             }
         }
@@ -323,9 +321,6 @@ export function TransactionTable({
                 const loanInfo = getLoanDisplayInfo(t);
                 
                 if (t.items && t.items.length > 0) {
-                    const firstItem = t.items[0];
-                    const otherItems = t.items.slice(1);
-                    const categoryDoc = categories.find(c => c.id === firstItem.categoryId || c.name === firstItem.category);
                     const concatenatedDescription = t.items.map(item => item.description).join('; ');
 
                     return (
@@ -335,7 +330,7 @@ export function TransactionTable({
                                     <TableRow className="border-b-0 data-[state=open]:border-b cursor-pointer">
                                         <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
                                         <TableCell>{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
-                                        <TableCell className="font-medium break-words">
+                                        <TableCell className="break-words">
                                             {concatenatedDescription}
                                         </TableCell>
                                         <TableCell>
@@ -425,7 +420,7 @@ export function TransactionTable({
                     <TableRow>
                         <TableCell className="font-medium">{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
                         <TableCell>{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
-                        <TableCell className={cn("font-medium break-words", loanInfo.descriptionClassName)}>
+                        <TableCell className={cn("break-words", loanInfo.descriptionClassName)}>
                           {loanInfo.description}
                         </TableCell>
                         <TableCell>

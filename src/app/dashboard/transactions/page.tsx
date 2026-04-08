@@ -1,8 +1,7 @@
 
-
 "use client";
 
-import { useState, useEffect, useMemo, useCallback, useRef, Fragment } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { TransactionTable } from "@/components/dashboard/transactions/transaction-table";
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, orderBy, doc, setDoc, updateDoc } from "firebase/firestore";
@@ -20,7 +19,6 @@ import { Button } from "@/components/ui/button";
 import { AddTransactionDialog } from "@/components/dashboard/transactions/add-transaction-dialog";
 import { Badge } from "@/components/ui/badge";
 import { AccountDetailsDialog } from "@/components/dashboard/account-details-dialog";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 
 type WalletType = 'cash-wallet' | 'digital-wallet';
@@ -135,31 +133,30 @@ export default function TransactionsPage() {
   const [isAddOrEditDialogOpen, setIsAddOrEditDialogOpen] = useState(false);
   const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null);
 
-  const useDebounce = (callback: Function, delay: number) => {
-    const timeoutRef = useRef<any | null>(null);
-    return (...args: any) => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      timeoutRef.current = setTimeout(() => {
-        callback(...args);
-      }, delay);
-    };
-  };
+  const accountUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const walletUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const debouncedUpdateAccount = useCallback(useDebounce(async (accountId: string, data: { actualBalance?: number | null }) => {
-        if (!user) return;
-        const accountRef = doc(db, "accounts", accountId);
-        await updateDoc(accountRef, { ...data, actualBalanceDate: reconciliationDate?.toISOString() });
-    }, 500), [user, reconciliationDate]);
+  const debouncedUpdateAccount = useCallback((accountId: string, data: { actualBalance?: number | null }) => {
+        if (accountUpdateTimeoutRef.current) clearTimeout(accountUpdateTimeoutRef.current);
+        accountUpdateTimeoutRef.current = setTimeout(async () => {
+            if (!user) return;
+            const accountRef = doc(db, "accounts", accountId);
+            await updateDoc(accountRef, { ...data, actualBalanceDate: reconciliationDate?.toISOString() });
+        }, 500);
+    }, [user, reconciliationDate]);
     
-  const debouncedUpdateWallet = useCallback(useDebounce(async (walletType: 'cash' | 'digital', data: { balance?: number | null }) => {
-    if (!user) return;
-    const prefRef = doc(db, "user_preferences", user.uid);
-    const updatedWallets = { 
-        ...walletPreferences, 
-        [walletType]: { ...walletPreferences[walletType], ...data, date: reconciliationDate?.toISOString() } 
-    };
-    await setDoc(prefRef, { wallets: updatedWallets }, { merge: true });
-  }, 500), [user, walletPreferences, reconciliationDate]);
+  const debouncedUpdateWallet = useCallback((walletType: 'cash' | 'digital', data: { balance?: number | null }) => {
+    if (walletUpdateTimeoutRef.current) clearTimeout(walletUpdateTimeoutRef.current);
+    walletUpdateTimeoutRef.current = setTimeout(async () => {
+        if (!user) return;
+        const prefRef = doc(db, "user_preferences", user.uid);
+        const updatedWallets = { 
+            ...walletPreferences, 
+            [walletType]: { ...walletPreferences[walletType], ...data, date: reconciliationDate?.toISOString() } 
+        };
+        await setDoc(prefRef, { wallets: updatedWallets }, { merge: true });
+    }, 500);
+  }, [user, walletPreferences, reconciliationDate]);
   
   const handleReconciliationDateChange = async (date: Date | undefined) => {
     setReconciliationDate(date);
