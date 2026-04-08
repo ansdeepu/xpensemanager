@@ -1,5 +1,5 @@
 
-import type { Metadata, Viewport } from "next";
+import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
@@ -9,11 +9,6 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "Expense Manager",
   description: "Manage your expenses with ease and get AI-powered insights.",
-};
-
-export const viewport: Viewport = {
-  width: "device-width",
-  initialScale: 1.0,
 };
 
 export default function RootLayout({

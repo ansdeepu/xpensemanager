@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -14,7 +15,6 @@ import {
   BookText,
   HandCoins,
   LogOut,
-  Menu,
   ArrowUpRight,
   Building2,
 } from "lucide-react";
@@ -26,14 +26,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { auth } from "@/lib/firebase";
@@ -71,7 +63,6 @@ export function Header() {
   const [user, loading] = useAuthState();
   const [clientLoaded, setClientLoaded] = useState(false);
   const pathname = usePathname();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     setClientLoaded(true);
@@ -97,7 +88,7 @@ export function Header() {
   if (!clientLoaded) {
     return (
       <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6">
-        <nav className="hidden flex-col gap-6 text-lg font-medium md:flex md:flex-row md:items-center md:gap-5 md:text-sm lg:gap-6">
+        <nav className="flex flex-row items-center gap-5 text-sm lg:gap-6">
           <Skeleton className="h-6 w-32" />
         </nav>
         <div className="flex w-full items-center gap-4 md:ml-auto md:flex-initial">
@@ -121,7 +112,7 @@ export function Header() {
             <span className="">Expense Manager</span>
           </Link>
         </div>
-        <nav className="hidden flex-col gap-6 text-lg font-medium md:flex md:flex-row md:items-center md:gap-5 md:text-sm lg:gap-6">
+        <nav className="flex flex-row items-center gap-5 text-sm lg:gap-6">
           {menuItems.map(item => (
             <div key={item.href} className="flex items-center gap-1">
               <Link
@@ -142,54 +133,6 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-2">
-        <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-          <SheetTrigger asChild>
-            <Button
-              variant="outline"
-              size="icon"
-              className="shrink-0 md:hidden"
-            >
-              <Menu className="h-5 w-5" />
-              <span className="sr-only">Toggle navigation menu</span>
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left">
-            <SheetHeader className="sr-only">
-              <SheetTitle>Menu</SheetTitle>
-              <SheetDescription>
-                A list of pages to navigate to.
-              </SheetDescription>
-            </SheetHeader>
-            <nav className="grid gap-6 text-lg font-medium">
-              <Link
-                href="/dashboard"
-                className="flex items-center gap-2 text-lg font-semibold"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <Wallet className="h-6 w-6 text-primary" />
-                <span>Expense Manager</span>
-              </Link>
-              {menuItems.map(item => (
-                <div key={item.href} className="flex items-center justify-between">
-                  <Link
-                    href={item.href}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={cn(
-                      "transition-colors hover:text-foreground",
-                      pathname === item.href ? "text-foreground" : "text-muted-foreground"
-                    )}
-                  >
-                    {item.label}
-                  </Link>
-                  <Button variant="ghost" size="icon" onClick={() => handleOpenNewWindow(item.href)} aria-label={`Open ${item.label} in new window`} className="h-8 w-8">
-                    <ArrowUpRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-            </nav>
-          </SheetContent>
-        </Sheet>
-
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="flex items-center gap-2 rounded-full p-1 pr-3">
