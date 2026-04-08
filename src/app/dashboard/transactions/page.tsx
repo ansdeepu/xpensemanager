@@ -690,13 +690,13 @@ export default function TransactionsPage(props: {
                               <span onClick={(e) => { e.stopPropagation(); handleAccountClick(account as Account, account.name); }} className="font-bold text-sm cursor-pointer hover:underline">{formatCurrency(availableBalance)}</span>
                           </div>
                           <div className="w-full mt-auto space-y-1 pt-2">
-                              <div className="flex items-center justify-between gap-2">
-                                <Label htmlFor={`actual-balance-${account.id}`} className="text-[10px] flex-shrink-0">{isCard ? 'Actual Due' : 'Actual'}</Label>
+                              <div className="space-y-1">
+                                <Label htmlFor={`actual-balance-${account.id}`} className="text-[10px] block text-muted-foreground">{isCard ? 'Actual Due' : 'Actual'}</Label>
                                 <Input
                                     id={`actual-balance-${account.id}`}
                                     type="number"
                                     placeholder={isCard ? 'Due' : 'Bal'}
-                                    className="hide-number-arrows h-7 text-xs w-16 text-right bg-background"
+                                    className="hide-number-arrows h-7 text-xs w-full text-right bg-background"
                                     defaultValue={account.actualBalance ?? ''}
                                     onChange={(e) => debouncedUpdateAccount(account.id, { actualBalance: e.target.value === '' ? null : parseFloat(e.target.value) })}
                                     onClick={(e) => e.stopPropagation()}
