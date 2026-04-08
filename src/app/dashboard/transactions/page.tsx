@@ -685,7 +685,7 @@ export default function TransactionsPage(props: {
               return (
                   <TabsTrigger key={account.id} value={account.id} asChild className="h-full p-0 col-span-1">
                       <div className={cn("rounded-lg border flex flex-col p-3 items-start text-left gap-1 cursor-pointer transition-shadow h-full w-full", activeTab === account.id ? "shadow-lg ring-2 ring-primary bg-muted/50" : "bg-card", textColors[index % textColors.length])}>
-                          <div className="w-full flex justify-between items-start">
+                          <div className="w-full flex flex-col items-start gap-0.5">
                               <span className="font-semibold text-xs leading-tight pr-2">{account.name}</span>
                               <span onClick={(e) => { e.stopPropagation(); handleAccountClick(account as Account, account.name); }} className="font-bold text-sm cursor-pointer hover:underline">{formatCurrency(availableBalance)}</span>
                           </div>
