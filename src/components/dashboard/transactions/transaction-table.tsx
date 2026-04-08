@@ -24,15 +24,13 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import type { Transaction, Account, Category, Loan } from "@/lib/data";
-import { Pencil, Trash2, ChevronRight } from "lucide-react";
-import { auth, db } from "@/lib/firebase";
+import { Pencil, Trash2 } from "lucide-react";
+import { db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, doc, writeBatch, getDocs } from "firebase/firestore";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useAuthState } from "@/hooks/use-auth-state";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-
 
 const formatCurrency = (amount: number) => {
   if (Object.is(amount, -0)) {
@@ -62,78 +60,88 @@ export function TransactionTable({
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loans, setLoans] = useState<Loan[]>([]);
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [user] = useAuthState();
   const { toast } = useToast();
 
-    const getAccountName = (accountId?: string, paymentMethod?: Transaction['paymentMethod']) => {
-        if (accountId === 'cash-wallet' || paymentMethod === 'cash') return "Cash Wallet";
-        if (accountId === 'digital-wallet' || paymentMethod === 'digital') return "Digital Wallet";
-        
-        if (accountId?.startsWith('loan-virtual-account-')) {
-            const personName = accountId.replace('loan-virtual-account-', '').replace(/-/g, ' ');
-            const loan = loans.find(l => l.personName.toLowerCase() === personName.toLowerCase());
-            if (loan) return loan.personName;
-            return personName;
-        }
-    
-        if (!accountId) return "-";
-        
-        const account = accounts.find((a) => a.id === accountId);
-        if (!account) {
-             const loan = loans.find(l => l.id === accountId);
-             if (loan) return loan.personName;
-             return "N/A";
-        }
-        
-        return account.name;
-      };
-    
-    const getLoanDisplayInfo = useMemo(() => {
-        return (t: Transaction) => {
-            const defaultInfo = { isLoan: false, type: t.type, category: t.category, description: t.description, descriptionClassName: "" };
+  const toggleRow = (id: string) => {
+    const newSet = new Set(expandedRows);
+    if (newSet.has(id)) {
+      newSet.delete(id);
+    } else {
+      newSet.add(id);
+    }
+    setExpandedRows(newSet);
+  };
 
-            if (t.type === 'transfer') {
-                if (t.loanTransactionId) {
-                    const loan = loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId));
-                    if (loan) {
-                        const loanTx = loan.transactions.find(lt => lt.id === t.loanTransactionId)!;
-                        const otherPartyName = loan.personName;
-                        
-                        const isLoanTaken = loan.type === 'taken';
-                        const isRepayment = loanTx.type === 'repayment';
-                        let descriptionPrefix = '';
+  const getAccountName = (accId?: string, paymentMethod?: Transaction['paymentMethod']) => {
+    if (accId === 'cash-wallet' || paymentMethod === 'cash') return "Cash Wallet";
+    if (accId === 'digital-wallet' || paymentMethod === 'digital') return "Digital Wallet";
+    
+    if (accId?.startsWith('loan-virtual-account-')) {
+        const personName = accId.replace('loan-virtual-account-', '').replace(/-/g, ' ');
+        const loan = loans.find(l => l.personName.toLowerCase() === personName.toLowerCase());
+        if (loan) return loan.personName;
+        return personName;
+    }
 
-                        if (isLoanTaken) {
-                            descriptionPrefix = isRepayment ? 'Repayment to' : 'Loan from';
-                        } else { // 'given'
-                            descriptionPrefix = isRepayment ? 'Repayment from' : 'Loan to';
-                        }
-                        
-                        const description = `${descriptionPrefix} ${otherPartyName}`;
-                        return { isLoan: true, type: loanTx.type, category: 'Loan', description, descriptionClassName: 'text-orange-600 font-bold' };
+    if (!accId) return "-";
+    
+    const account = accounts.find((a) => a.id === accId);
+    if (!account) {
+         const loan = loans.find(l => l.id === accId);
+         if (loan) return loan.personName;
+         return "N/A";
+    }
+    
+    return account.name;
+  };
+
+  const getLoanDisplayInfo = useMemo(() => {
+    return (t: Transaction) => {
+        const defaultInfo = { isLoan: false, type: t.type, category: t.category, description: t.description, descriptionClassName: "" };
+
+        if (t.type === 'transfer') {
+            if (t.loanTransactionId) {
+                const loan = loans.find(l => l.transactions.some(lt => lt.id === t.loanTransactionId));
+                if (loan) {
+                    const loanTx = loan.transactions.find(lt => lt.id === t.loanTransactionId)!;
+                    const otherPartyName = loan.personName;
+                    
+                    const isLoanTaken = loan.type === 'taken';
+                    const isRepayment = loanTx.type === 'repayment';
+                    let descriptionPrefix = '';
+
+                    if (isLoanTaken) {
+                        descriptionPrefix = isRepayment ? 'Repayment to' : 'Loan from';
+                    } else { // 'given'
+                        descriptionPrefix = isRepayment ? 'Repayment from' : 'Loan to';
                     }
-                }
-                
-                const fromIsPrimaryBank = t.fromAccountId === primaryAccount?.id;
-                const toIsPrimaryBank = t.toAccountId === primaryAccount?.id;
-                const fromIsWallet = t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
-                const toIsWallet = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
-
-                if (fromIsPrimaryBank && toIsWallet) {
-                    const toWalletName = t.toAccountId === 'cash-wallet' ? 'Cash' : 'Digital';
-                    return { ...defaultInfo, type: 'issue' as const, description: `Issue to ${toWalletName} Wallet` };
-                }
-
-                if (fromIsWallet && toIsPrimaryBank) {
-                    const fromWalletName = t.fromAccountId === 'cash-wallet' ? 'Cash' : 'Digital';
-                    return { ...defaultInfo, type: 'return' as const, description: `Return from ${fromWalletName} Wallet` };
+                    
+                    const description = `${descriptionPrefix} ${otherPartyName}`;
+                    return { isLoan: true, type: loanTx.type, category: 'Loan', description, descriptionClassName: 'text-orange-600 font-bold' };
                 }
             }
             
-            return defaultInfo;
-        };
-    }, [loans, primaryAccount]);
-    
+            const fromIsPrimaryBank = t.fromAccountId === primaryAccount?.id;
+            const toIsPrimaryBank = t.toAccountId === primaryAccount?.id;
+            const fromIsWallet = t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
+            const toIsWallet = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
+
+            if (fromIsPrimaryBank && toIsWallet) {
+                const toWalletName = t.toAccountId === 'cash-wallet' ? 'Cash' : 'Digital';
+                return { ...defaultInfo, type: 'issue' as const, description: `Issue to ${toWalletName} Wallet` };
+            }
+
+            if (fromIsWallet && toIsPrimaryBank) {
+                const fromWalletName = t.fromAccountId === 'cash-wallet' ? 'Cash' : 'Digital';
+                return { ...defaultInfo, type: 'return' as const, description: `Return from ${fromWalletName} Wallet` };
+            }
+        }
+        
+        return defaultInfo;
+    };
+  }, [loans, primaryAccount]);
 
   const transactionsWithColumns = useMemo(() => {
     const isPrimaryView = primaryAccount?.id === accountId;
@@ -190,24 +198,21 @@ export function TransactionTable({
     });
   }, [transactions, accountId, primaryAccount, accounts]);
 
-
-   useEffect(() => {
+  useEffect(() => {
     if (user && db) {
       const accountsQuery = query(collection(db, "accounts"), where("userId", "==", user.uid));
       const unsubscribeAccounts = onSnapshot(accountsQuery, (snapshot) => {
-        const userAccounts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Account));
-        setAccounts(userAccounts);
+        setAccounts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Account)));
       });
       
       const categoriesQuery = query(collection(db, "categories"), where("userId", "==", user.uid));
       const unsubscribeCategories = onSnapshot(categoriesQuery, (snapshot) => {
-        const userCategories = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
-        setCategories(userCategories);
+        setCategories(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category)));
       });
       
       const loansQuery = query(collection(db, "loans"), where("userId", "==", user.uid));
       const unsubscribeLoans = onSnapshot(loansQuery, (snapshot) => {
-        const userLoans = snapshot.docs.map(doc => {
+        setLoans(snapshot.docs.map(doc => {
             const data = doc.data();
             const transactions = data.transactions || [];
             const totalLoan = transactions.filter((t: any) => t.type === 'loan').reduce((sum: number, t: any) => sum + t.amount, 0);
@@ -220,8 +225,7 @@ export function TransactionTable({
                 totalRepayment,
                 balance: totalLoan - totalRepayment,
             } as Loan;
-        });
-        setLoans(userLoans);
+        }));
       });
 
       return () => {
@@ -230,7 +234,7 @@ export function TransactionTable({
         unsubscribeLoans();
       };
     }
-  }, [user, db]);
+  }, [user]);
 
   const handleDeleteTransaction = async (transactionToDelete: Transaction) => {
     if (!user) return;
@@ -271,23 +275,13 @@ export function TransactionTable({
     }
   };
   
-  const getBadgeVariant = (type: Transaction['type'] | 'loan' | 'repayment' | 'withdraw' | 'movement' | 'issue' | 'return') => {
+  const getBadgeVariant = (type: string) => {
     switch (type) {
-      case 'income':
-        return 'default';
-      case 'expense':
-        return 'destructive';
-      case 'transfer':
-      case 'loan':
-      case 'repayment':
-      case 'withdraw':
-      case 'movement':
-      case 'issue':
-      case 'return':
-      default:
-        return 'secondary';
+      case 'income': return 'default';
+      case 'expense': return 'destructive';
+      default: return 'secondary';
     }
-  }
+  };
 
   return (
     <>
@@ -311,89 +305,35 @@ export function TransactionTable({
           <TableBody>
               {transactionsWithColumns.map((t, index) => {
                 const loanInfo = getLoanDisplayInfo(t);
+                const isExpanded = expandedRows.has(t.id);
                 
                 if (t.items && t.items.length > 0) {
                     const concatenatedDescription = t.items.map(item => item.description).join('; ');
 
                     return (
-                        <Collapsible asChild key={t.id}>
-<<<<<<< HEAD
-                            <TableBody>
-                                <CollapsibleTrigger asChild>
-                                    <TableRow className="border-b-0 data-[state=open]:border-b cursor-pointer">
-                                        <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
-                                        <TableCell>{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
-                                        <TableCell className="break-words">
-                                            {concatenatedDescription}
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant={getBadgeVariant(t.type)}>{t.type}</Badge>
-                                        </TableCell>
-                                        <TableCell className="break-words">{getAccountName(t.accountId, t.paymentMethod)}</TableCell>
-                                        <TableCell className="break-words">
-                                            <Badge variant="outline">Multiple</Badge>
-                                        </TableCell>
-                                        
-                                        <TableCell className="text-right font-mono text-red-600">
-                                            {formatCurrency(t.amount)}
-                                        </TableCell>
-                                        <TableCell />
-                                        <TableCell />
-                                        
-                                        <TableCell className={cn("text-right font-mono", t.balance < 0 ? 'text-red-600' : '')}>
-                                            {formatCurrency(t.balance)}
-                                        </TableCell>
-                                        <TableCell className="text-right print-hide">
-                                            <div className="flex items-center justify-end gap-2">
-                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); onEditTransaction(t); }}>
-                                                    <Pencil className="h-4 w-4" />
-=======
-                            <Fragment>
-                                <TableRow className="border-b-0 data-[state=open]:border-b cursor-pointer" onClick={(e) => {
-                                    // Make sure we are not clicking a button
-                                    const target = e.target as HTMLElement;
-                                    if (target.closest('button')) return;
-                                    // Find and click the hidden trigger
-                                    target.closest('tr')?.querySelector<HTMLButtonElement>('[data-collapsible-trigger]')?.click();
-                                }}>
-                                    <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
-                                    <TableCell>{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
-                                    <TableCell className="font-medium break-words">
-                                        {concatenatedDescription}
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge variant={getBadgeVariant(t.type)}>{t.type}</Badge>
-                                    </TableCell>
-                                    <TableCell className="break-words">{getAccountName(t.accountId, t.paymentMethod)}</TableCell>
-                                    <TableCell className="break-words">
-                                        <Badge variant="outline">Multiple</Badge>
-                                    </TableCell>
-                                    
-                                    <TableCell className="text-right font-mono text-red-600">
-                                        {formatCurrency(t.amount)}
-                                    </TableCell>
-                                    <TableCell />
-                                    <TableCell />
-                                    
-                                    <TableCell className={cn("text-right font-mono", t.balance < 0 ? 'text-red-600' : '')}>
-                                        {formatCurrency(t.balance)}
-                                    </TableCell>
-                                    <TableCell className="text-right print-hide">
-                                        <div className="flex items-center justify-end gap-2">
-                                            <CollapsibleTrigger asChild>
-                                                 <button data-collapsible-trigger className="hidden">Toggle</button>
-                                            </CollapsibleTrigger>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); onEditTransaction(t); }}>
-                                                <Pencil className="h-4 w-4" />
-                                            </Button>
-                                            <AlertDialog>
-                                                <AlertDialogTrigger asChild onClick={(e) => e.stopPropagation()}>
+                        <Fragment key={t.id}>
+                            <TableRow className={cn("border-b-0 cursor-pointer", isExpanded && "bg-muted/40")} onClick={() => toggleRow(t.id)}>
+                                <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
+                                <TableCell>{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
+                                <TableCell className="break-words">{concatenatedDescription}</TableCell>
+                                <TableCell><Badge variant={getBadgeVariant(t.type)}>{t.type}</Badge></TableCell>
+                                <TableCell className="break-words">{getAccountName(t.accountId, t.paymentMethod)}</TableCell>
+                                <TableCell className="break-words"><Badge variant="outline">Multiple</Badge></TableCell>
+                                <TableCell className="text-right font-mono text-red-600">{formatCurrency(t.amount)}</TableCell>
+                                <TableCell /><TableCell />
+                                <TableCell className={cn("text-right font-mono", t.balance < 0 ? 'text-red-600' : '')}>{formatCurrency(t.balance)}</TableCell>
+                                <TableCell className="text-right print-hide" onClick={(e) => e.stopPropagation()}>
+                                    <div className="flex items-center justify-end gap-2">
+                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEditTransaction(t)}>
+                                            <Pencil className="h-4 w-4" />
+                                        </Button>
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
                                                 <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-8 w-8">
                                                     <Trash2 className="h-4 w-4" />
->>>>>>> 152d1a172139df407f6f44f4c1edecf5208f6f2f
                                                 </Button>
-                                                </AlertDialogTrigger>
-                                                <AlertDialogContent>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
                                                 <AlertDialogHeader>
                                                     <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                                                     <AlertDialogDescription>This will permanently delete this combined transaction and all its items. This action cannot be undone.</AlertDialogDescription>
@@ -402,45 +342,44 @@ export function TransactionTable({
                                                     <AlertDialogCancel>Cancel</AlertDialogCancel>
                                                     <AlertDialogAction onClick={() => handleDeleteTransaction(t)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
                                                 </AlertDialogFooter>
-                                                </AlertDialogContent>
-                                            </AlertDialog>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
+                                    </div>
+                                </TableCell>
+                            </TableRow>
+                            {isExpanded && (
+                                <TableRow className="bg-muted/20">
+                                    <TableCell colSpan={11} className="p-0 border-b">
+                                        <div className="p-4 bg-muted/10">
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead>Item Description</TableHead>
+                                                        <TableHead>Category</TableHead>
+                                                        <TableHead className="text-right">Amount</TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {t.items.map((item, itemIndex) => {
+                                                        const categoryDoc = categories.find(c => c.id === item.categoryId || c.name === item.category);
+                                                        return (
+                                                            <TableRow key={itemIndex}>
+                                                                <TableCell>{item.description}</TableCell>
+                                                                <TableCell>
+                                                                    {categoryDoc?.name || item.category}
+                                                                    {item.subcategory && ` / ${item.subcategory}`}
+                                                                </TableCell>
+                                                                <TableCell className="text-right font-mono">{formatCurrency(item.amount)}</TableCell>
+                                                            </TableRow>
+                                                        )
+                                                    })}
+                                                </TableBody>
+                                            </Table>
                                         </div>
                                     </TableCell>
                                 </TableRow>
-                                <CollapsibleContent asChild>
-                                    <TableRow>
-                                        <TableCell colSpan={11} className="p-0">
-                                            <div className="p-4 bg-muted/30">
-                                                <Table>
-                                                    <TableHeader>
-                                                        <TableRow>
-                                                            <TableHead>Item Description</TableHead>
-                                                            <TableHead>Category</TableHead>
-                                                            <TableHead className="text-right">Amount</TableHead>
-                                                        </TableRow>
-                                                    </TableHeader>
-                                                    <TableBody>
-                                                        {t.items.map((item, itemIndex) => {
-                                                            const categoryDoc = categories.find(c => c.id === item.categoryId || c.name === item.category);
-                                                            return (
-                                                                <TableRow key={itemIndex}>
-                                                                    <TableCell>{item.description}</TableCell>
-                                                                    <TableCell>
-                                                                        {categoryDoc?.name || item.category}
-                                                                        {item.subcategory && ` / ${item.subcategory}`}
-                                                                    </TableCell>
-                                                                    <TableCell className="text-right font-mono">{formatCurrency(item.amount)}</TableCell>
-                                                                </TableRow>
-                                                            )
-                                                        })}
-                                                    </TableBody>
-                                                </Table>
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                </CollapsibleContent>
-                            </Fragment>
-                        </Collapsible>
+                            )}
+                        </Fragment>
                     )
                 }
 
@@ -450,39 +389,20 @@ export function TransactionTable({
                     <TableRow key={t.id}>
                         <TableCell className="font-medium">{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
                         <TableCell>{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
-                        <TableCell className={cn("break-words", loanInfo.descriptionClassName)}>
-                          {loanInfo.description}
-                        </TableCell>
-                        <TableCell>
-                          <Badge 
-                              variant={getBadgeVariant(loanInfo.type)}
-                              className="capitalize"
-                              >
-                              {loanInfo.type}
-                          </Badge>
-                        </TableCell>
+                        <TableCell className={cn("break-words", loanInfo.descriptionClassName)}>{loanInfo.description}</TableCell>
+                        <TableCell><Badge variant={getBadgeVariant(loanInfo.type)} className="capitalize">{loanInfo.type}</Badge></TableCell>
                         <TableCell className="break-words">{t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} -> ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod)}</TableCell>
                         <TableCell className="break-words">
                             <div>{loanInfo.category}</div>
                             {t.subcategory && <div className="text-sm text-muted-foreground">{t.subcategory}</div>}
                         </TableCell>
-                        
-                        <TableCell className="text-right font-mono text-red-600">
-                          {debit !== null ? formatCurrency(debit) : null}
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-blue-600">
-                          {transfer !== null ? formatCurrency(transfer) : null}
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-green-600">
-                          {credit !== null ? formatCurrency(credit) : null}
-                        </TableCell>
-                        
-                        <TableCell className={cn("text-right font-mono", t.balance < 0 ? 'text-red-600' : '')}>
-                          {formatCurrency(t.balance)}
-                        </TableCell>
+                        <TableCell className="text-right font-mono text-red-600">{debit !== null ? formatCurrency(debit) : null}</TableCell>
+                        <TableCell className="text-right font-mono text-blue-600">{transfer !== null ? formatCurrency(transfer) : null}</TableCell>
+                        <TableCell className="text-right font-mono text-green-600">{credit !== null ? formatCurrency(credit) : null}</TableCell>
+                        <TableCell className={cn("text-right font-mono", t.balance < 0 ? 'text-red-600' : '')}>{formatCurrency(t.balance)}</TableCell>
                         <TableCell className="text-right print-hide">
                             <div className="flex items-center justify-end gap-2">
-                                <Button variant="ghost" size="icon" onClick={() => onEditTransaction(t)} className="h-8 w-8">
+                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEditTransaction(t)}>
                                     <Pencil className="h-4 w-4" />
                                 </Button>
                                 <AlertDialog>

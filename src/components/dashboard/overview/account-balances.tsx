@@ -11,8 +11,8 @@ import {
 } from "@/components/ui/card";
 import { Landmark, Wallet, Coins, CalendarIcon } from "lucide-react";
 import { useAuthState } from "@/hooks/use-auth-state";
-import { auth, db } from "@/lib/firebase";
-import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, getDoc, setDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, setDoc } from "firebase/firestore";
 import type { Account, Transaction } from "@/lib/data";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AccountDetailsDialog } from "@/components/dashboard/account-details-dialog";
@@ -33,10 +33,17 @@ export function AccountBalances() {
   const [rawAccounts, setRawAccounts] = useState<Omit<Account, 'balance'>[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [walletPreferences, setWalletPreferences] = useState<{ cash?: { balance?: number, date?: string }, digital?: { balance?: number, date?: string } }>({});
-  const [reconciliationDate, setReconciliationDate] = useState<Date | undefined>(new Date());
+  const [reconciliationDate, setReconciliationDate] = useState<Date | undefined>();
   const [dataLoading, setDataLoading] = useState(true);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [selectedAccountForDetails, setSelectedAccountForDetails] = useState<AccountForDetails | null>(null);
+
+  const accountUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const walletUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    setReconciliationDate(new Date());
+  }, []);
 
   useEffect(() => {
     if (user && db) {
@@ -44,7 +51,7 @@ export function AccountBalances() {
       const unsubscribeAccounts = onSnapshot(accountsQuery, (snapshot) => {
         const userAccounts: Omit<Account, 'balance'>[] = [];
         snapshot.forEach((doc) => {
-          const { balance, ...data } = doc.data();
+          const data = doc.data();
           userAccounts.push({ id: doc.id, ...data } as Omit<Account, 'balance'>);
         });
         setRawAccounts(userAccounts);
@@ -72,19 +79,18 @@ export function AccountBalances() {
     } else if (!user && !userLoading) {
         setDataLoading(false);
     }
-  }, [user, userLoading, db]);
+  }, [user, userLoading]);
 
   const { cashWalletBalance, digitalWalletBalance, accountBalances } = useMemo(() => {
     const calculatedAccountBalances: { [key: string]: number } = {};
     rawAccounts.forEach(acc => {
-        calculatedAccountBalances[acc.id] = 0; // Start with 0
+        calculatedAccountBalances[acc.id] = 0;
     });
 
     let calculatedCashWalletBalance = 0;
     let calculatedDigitalWalletBalance = 0;
 
     transactions.forEach(t => {
-      // Wallet balance calculation
       if (t.type === 'transfer') {
         if (t.toAccountId === 'cash-wallet') calculatedCashWalletBalance += t.amount;
         if (t.fromAccountId === 'cash-wallet') calculatedCashWalletBalance -= t.amount;
@@ -95,7 +101,6 @@ export function AccountBalances() {
         if (t.paymentMethod === 'digital') calculatedDigitalWalletBalance -= t.amount;
       }
 
-        // Bank account balance calculation
         if (t.type === 'income' && t.accountId && calculatedAccountBalances[t.accountId] !== undefined) {
             calculatedAccountBalances[t.accountId] += t.amount;
         } else if (t.type === 'expense' && t.accountId && t.paymentMethod === 'online' && calculatedAccountBalances[t.accountId] !== undefined) {
@@ -127,19 +132,16 @@ export function AccountBalances() {
     }).format(amount);
   };
 
-  const accountUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const walletUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  const debouncedUpdateAccount = useCallback((accountId: string, data: { actualBalance?: number | null, actualBalanceDate?: string }) => {
-        if (accountUpdateTimeoutRef.current) clearTimeout(accountUpdateTimeoutRef.current);
-        accountUpdateTimeoutRef.current = setTimeout(async () => {
-            if (!user) return;
-            const accountRef = doc(db, "accounts", accountId);
-            await updateDoc(accountRef, { ...data, actualBalanceDate: reconciliationDate?.toISOString() });
-        }, 500);
-    }, [user, reconciliationDate]);
+  const debouncedUpdateAccount = useCallback((accountId: string, data: { actualBalance?: number | null }) => {
+    if (accountUpdateTimeoutRef.current) clearTimeout(accountUpdateTimeoutRef.current);
+    accountUpdateTimeoutRef.current = setTimeout(async () => {
+        if (!user) return;
+        const accountRef = doc(db, "accounts", accountId);
+        await updateDoc(accountRef, { ...data, actualBalanceDate: reconciliationDate?.toISOString() });
+    }, 500);
+  }, [user, reconciliationDate]);
     
-  const debouncedUpdateWallet = useCallback((walletType: 'cash' | 'digital', data: { balance?: number | null, date?: string }) => {
+  const debouncedUpdateWallet = useCallback((walletType: 'cash' | 'digital', data: { balance?: number | null }) => {
     if (walletUpdateTimeoutRef.current) clearTimeout(walletUpdateTimeoutRef.current);
     walletUpdateTimeoutRef.current = setTimeout(async () => {
         if (!user) return;
@@ -191,8 +193,8 @@ export function AccountBalances() {
       )
   }
 
-  const cashBalanceDifference = walletPreferences.cash?.balance !== undefined ? cashWalletBalance - walletPreferences.cash.balance : null;
-  const digitalBalanceDifference = walletPreferences.digital?.balance !== undefined ? digitalWalletBalance - walletPreferences.digital.balance : null;
+  const cashBalanceDifference = walletPreferences.cash?.balance !== undefined ? cashWalletBalance - (walletPreferences.cash.balance || 0) : null;
+  const digitalBalanceDifference = walletPreferences.digital?.balance !== undefined ? digitalWalletBalance - (walletPreferences.digital.balance || 0) : null;
 
 
   return (
@@ -258,8 +260,7 @@ export function AccountBalances() {
                             {cashBalanceDifference !== null && (
                                 <p className={cn(
                                     "text-xs font-medium pt-1",
-                                    cashBalanceDifference === 0 && "text-green-600",
-                                    cashBalanceDifference !== 0 && "text-red-600"
+                                    Math.abs(cashBalanceDifference) < 0.01 ? "text-green-600" : "text-red-600"
                                 )}>
                                     Diff: {formatCurrency(cashBalanceDifference)}
                                 </p>
@@ -297,8 +298,7 @@ export function AccountBalances() {
                             {digitalBalanceDifference !== null && (
                                 <p className={cn(
                                     "text-xs font-medium pt-1",
-                                    digitalBalanceDifference === 0 && "text-green-600",
-                                    digitalBalanceDifference !== 0 && "text-red-600"
+                                    Math.abs(digitalBalanceDifference) < 0.01 ? "text-green-600" : "text-red-600"
                                 )}>
                                     Diff: {formatCurrency(digitalBalanceDifference)}
                                 </p>
@@ -339,8 +339,7 @@ export function AccountBalances() {
                                 {balanceDifference !== null && (
                                     <p className={cn(
                                         "text-xs font-medium pt-1",
-                                        balanceDifference === 0 && "text-green-600",
-                                        balanceDifference !== 0 && "text-red-600"
+                                        Math.abs(balanceDifference) < 0.01 ? "text-green-600" : "text-red-600"
                                     )}>
                                         Diff: {formatCurrency(balanceDifference)}
                                     </p>
