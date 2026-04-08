@@ -99,13 +99,13 @@ export function Header() {
   }
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b bg-background px-4 md:px-6">
-      <div className="flex items-center gap-6 overflow-hidden">
+    <header className="sticky top-0 z-30 flex min-h-16 items-center justify-between gap-4 border-b bg-background px-4 md:px-6 py-2 md:py-0">
+      <div className="flex items-center gap-6">
         <div className="flex items-center gap-2 font-semibold flex-shrink-0">
           <Wallet className="h-6 w-6 text-primary" />
           <span className="hidden sm:inline">Expense Manager</span>
         </div>
-        <nav className="flex flex-row items-center gap-1 overflow-x-auto no-scrollbar py-1">
+        <nav className="flex flex-row items-center gap-1 flex-wrap py-1">
           {menuItems.map(item => (
             <div key={item.href} className="flex items-center gap-0.5 whitespace-nowrap px-1">
               <Link
