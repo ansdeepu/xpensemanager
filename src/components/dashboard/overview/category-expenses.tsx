@@ -80,12 +80,12 @@ export function CategoryExpenses() {
 
   useEffect(() => {
     if (user && db) {
-      const expenseCategoriesQuery = query(collection(db, "categories"), where("userId", "==", user.uid), where("type", "==", "expense"), orderBy("order", "asc"));
+      const expenseCategoriesQuery = query(collection(db, "categories"), where("userId", "==", user.uid), where("type", "in", ["expense", "bank-expense"]), orderBy("order", "asc"));
       const unsubscribeCategories = onSnapshot(expenseCategoriesQuery, (snapshot) => {
         setCategories(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category)));
       });
 
-      const transactionsQuery = query(collection(db, "transactions"), where("userId", "==", user.uid), where("type", "==", "expense"));
+      const transactionsQuery = query(collection(db, "transactions"), where("userId", "==", user.uid));
       const unsubscribeTransactions = onSnapshot(transactionsQuery, (snapshot) => {
         setTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction)));
       });
@@ -109,24 +109,34 @@ export function CategoryExpenses() {
   const monthInterval = useMemo(() => ({ start: startOfMonth(currentDate), end: endOfMonth(currentDate) }), [currentDate]);
   const currentMonthName = useMemo(() => months[currentDate.getMonth()], [currentDate]);
   
-  const primaryAccount = useMemo(() => accounts.find(a => a.isPrimary), [accounts]);
-  const creditCardIds = useMemo(() => accounts.filter(acc => acc.type === 'card').map(acc => acc.id), [accounts]);
+  const { primaryAccount, creditCardIds } = useMemo(() => {
+    const primary = accounts.find(a => a.isPrimary);
+    const ccIds = accounts.filter(acc => acc.type === 'card').map(acc => acc.id);
+    return { primaryAccount: primary, creditCardIds: ccIds };
+  }, [accounts]);
 
-  const monthlyTransactions = useMemo(() => {
+  const primaryEcosystemOutflows = useMemo(() => {
+    if (!primaryAccount) return [];
+
+    const isInEcosystem = (id?: string, method?: string) => 
+        id === primaryAccount.id || 
+        id === 'cash-wallet' || 
+        id === 'digital-wallet' || 
+        method === 'cash' || 
+        method === 'digital' || 
+        (id ? creditCardIds.includes(id) : false);
+
     return transactions.filter(t => {
-      if (!isWithinInterval(new Date(t.date), monthInterval)) {
-        return false;
-      }
-      
-      if (!primaryAccount) {
-          return true; // Show all if no primary account is set yet
-      }
+      if (!isWithinInterval(new Date(t.date), monthInterval)) return false;
 
-      const isPrimaryAccountExpense = t.accountId === primaryAccount.id;
-      const isWalletExpense = t.paymentMethod === 'cash' || t.paymentMethod === 'digital';
-      const isCreditCardExpense = t.accountId ? creditCardIds.includes(t.accountId) : false;
-
-      return isPrimaryAccountExpense || isWalletExpense || isCreditCardExpense;
+      if (t.type === 'expense') {
+        return isInEcosystem(t.accountId, t.paymentMethod);
+      }
+      if (t.type === 'transfer') {
+        // Only count transfers LEAVING the ecosystem
+        return isInEcosystem(t.fromAccountId) && !isInEcosystem(t.toAccountId);
+      }
+      return false;
     });
   }, [transactions, monthInterval, primaryAccount, creditCardIds]);
 
@@ -153,17 +163,24 @@ export function CategoryExpenses() {
       };
     });
 
-    monthlyTransactions.forEach(t => {
-      const category = categories.find(c => c.id === t.categoryId || c.name === t.category);
-      if (category && stats[category.id]) {
-        stats[category.id].spent += t.amount;
-        const subCategoryName = t.subcategory || "Unspecified";
-        stats[category.id].subcategories[subCategoryName] = (stats[category.id].subcategories[subCategoryName] || 0) + t.amount;
+    primaryEcosystemOutflows.forEach(t => {
+      let category = categories.find(c => c.id === t.categoryId || c.name === t.category);
+      
+      // Fallback for loans or unmapped categories
+      const categoryName = category?.name || t.category || "Uncategorized";
+      const catId = category?.id || categoryName;
+
+      if (!stats[catId]) {
+          stats[catId] = { id: catId, spent: 0, budget: 0, name: categoryName, icon: 'Tag', subcategories: {}, subcategoryCount: 0 };
       }
+
+      stats[catId].spent += t.amount;
+      const subCategoryName = t.subcategory || "Unspecified";
+      stats[catId].subcategories[subCategoryName] = (stats[catId].subcategories[subCategoryName] || 0) + t.amount;
     });
     
     return Object.values(stats).filter(s => s.spent > 0 || s.budget > 0);
-  }, [categories, monthlyTransactions, currentMonthName]);
+  }, [categories, primaryEcosystemOutflows, currentMonthName]);
 
   const totalExpenses = useMemo(() => {
     return categoryStats.reduce((sum, stat) => sum + stat.spent, 0);
@@ -271,7 +288,7 @@ export function CategoryExpenses() {
          <CardFooter className="flex flex-col items-start pt-4 border-t gap-2">
             <div className="w-full space-y-2">
                 <div className="flex justify-between w-full font-medium">
-                    <span>Total Expenses</span>
+                    <span>Total Expenses & Outflows</span>
                     <span>{formatCurrency(totalExpenses)}</span>
                 </div>
                  {totalBudget > 0 && (

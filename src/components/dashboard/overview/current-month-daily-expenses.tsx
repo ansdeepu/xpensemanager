@@ -63,8 +63,7 @@ export function CurrentMonthDailyExpenses() {
     if (user && db) {
       const transactionsQuery = query(
         collection(db, "transactions"),
-        where("userId", "==", user.uid),
-        where("type", "==", "expense")
+        where("userId", "==", user.uid)
       );
       const unsubscribeTransactions = onSnapshot(transactionsQuery, (snapshot) => {
         setTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction)));
@@ -93,22 +92,33 @@ export function CurrentMonthDailyExpenses() {
     const primaryAccount = accounts.find(a => a.isPrimary);
     const creditCardIds = accounts.filter(acc => acc.type === 'card').map(acc => acc.id);
 
-    const expensesForMonth = transactions.filter(t => {
+    if (!primaryAccount) return [];
+
+    const isInEcosystem = (id?: string, method?: string) => 
+        id === primaryAccount.id || 
+        id === 'cash-wallet' || 
+        id === 'digital-wallet' || 
+        method === 'cash' || 
+        method === 'digital' || 
+        (id ? creditCardIds.includes(id) : false);
+
+    const outflowsForMonth = transactions.filter(t => {
         if (!isWithinInterval(new Date(t.date), { start: monthStart, end: monthEnd })) {
             return false;
         }
 
-        if (!primaryAccount) return true;
-
-        const isPrimaryAccountExpense = t.accountId === primaryAccount.id;
-        const isWalletExpense = t.paymentMethod === 'cash' || t.paymentMethod === 'digital';
-        const isCreditCardExpense = t.accountId ? creditCardIds.includes(t.accountId) : false;
-
-        return isPrimaryAccountExpense || isWalletExpense || isCreditCardExpense;
+        if (t.type === 'expense') {
+            return isInEcosystem(t.accountId, t.paymentMethod);
+        }
+        if (t.type === 'transfer') {
+            // Count outflows leaving the ecosystem
+            return isInEcosystem(t.fromAccountId) && !isInEcosystem(t.toAccountId);
+        }
+        return false;
     });
 
     const expensesByDay: { [day: number]: { total: number, transactions: Transaction[]} } = {};
-    expensesForMonth.forEach(t => {
+    outflowsForMonth.forEach(t => {
       const dayOfMonth = new Date(t.date).getDate();
       if (!expensesByDay[dayOfMonth]) {
           expensesByDay[dayOfMonth] = { total: 0, transactions: [] };
@@ -160,7 +170,7 @@ export function CurrentMonthDailyExpenses() {
     <>
     <Card>
       <CardHeader>
-        <CardTitle>Current Month's Daily Expenses</CardTitle>
+        <CardTitle>Current Month's Daily Outflows</CardTitle>
         <CardDescription>
           Daily spending summary from your primary account, wallets, and credit cards for {format(new Date(), 'MMMM yyyy')}.
         </CardDescription>
@@ -169,7 +179,7 @@ export function CurrentMonthDailyExpenses() {
         {grandTotal === 0 ? (
           <div className="text-center text-muted-foreground py-10 flex flex-col items-center">
             <Coins className="h-10 w-10 mb-2"/>
-            <p>No expenses recorded for this month yet.</p>
+            <p>No primary ecosystem outflows recorded for this month yet.</p>
           </div>
         ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-4">
@@ -204,9 +214,9 @@ export function CurrentMonthDailyExpenses() {
     <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
       <DialogContent onInteractOutside={(e) => e.preventDefault()} className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Expenses for {selectedDayDetail ? format(setDate(new Date(), selectedDayDetail.day), 'MMMM dd, yyyy') : ''}</DialogTitle>
+          <DialogTitle>Outflows for {selectedDayDetail ? format(setDate(new Date(), selectedDayDetail.day), 'MMMM dd, yyyy') : ''}</DialogTitle>
           <DialogDescription>
-            A detailed list of all expenses for this day.
+            A detailed list of all expenses and external transfers for this day.
           </DialogDescription>
         </DialogHeader>
         <ScrollArea className="h-72 w-full pr-4">
@@ -222,7 +232,7 @@ export function CurrentMonthDailyExpenses() {
                   <TableRow key={t.id}>
                     <TableCell>
                       <p className="font-medium">{t.description}</p>
-                      <p className="text-xs text-muted-foreground">{t.category}{t.subcategory ? ` / ${t.subcategory}` : ''}</p>
+                      <p className="text-xs text-muted-foreground">{t.type === 'transfer' ? 'Transfer Out' : (t.category || 'Expense')}{t.subcategory ? ` / ${t.subcategory}` : ''}</p>
                     </TableCell>
                     <TableCell className="text-right font-mono">{formatCurrency(t.amount)}</TableCell>
                   </TableRow>

@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/table";
 import { auth, db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
-import type { Account, Transaction } from "@/lib/data";
+import type { Transaction, Account } from "@/lib/data";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format, startOfDay } from "date-fns";
 import { useAuthState } from "@/hooks/use-auth-state";
@@ -69,32 +69,34 @@ export function DateWiseExpenses() {
     return { primaryAccount: primary, creditCardIds: ccIds };
   }, [accounts]);
 
-  const expensesForSelectedDate = useMemo(() => {
-    if (!selectedDate) return [];
+  const ecosystemOutflowsForDate = useMemo(() => {
+    if (!selectedDate || !primaryAccount) return [];
     
-    // Normalize selectedDate to the start of the day in local time.
-    const targetDate = startOfDay(new Date(selectedDate));
-    const targetDateString = format(targetDate, 'yyyy-MM-dd');
+    const targetDateString = format(startOfDay(new Date(selectedDate)), 'yyyy-MM-dd');
+
+    const isInEcosystem = (id?: string, method?: string) => 
+        id === primaryAccount.id || 
+        id === 'cash-wallet' || 
+        id === 'digital-wallet' || 
+        method === 'cash' || 
+        method === 'digital' || 
+        (id ? creditCardIds.includes(id) : false);
 
     return transactions.filter(t => {
-      if (t.type !== 'expense') return false;
-      // Normalize transaction date to the start of its day in local time.
-      const transactionDate = startOfDay(new Date(t.date));
-      const transactionDateString = format(transactionDate, 'yyyy-MM-dd');
-      
-      if (transactionDateString !== targetDateString) return false;
+      const txDateString = format(startOfDay(new Date(t.date)), 'yyyy-MM-dd');
+      if (txDateString !== targetDateString) return false;
 
-      // Primary Ecosystem Filter
-      if (!primaryAccount) return true;
-      const isPrimaryAccountExpense = t.accountId === primaryAccount.id;
-      const isWalletExpense = t.paymentMethod === 'cash' || t.paymentMethod === 'digital';
-      const isCreditCardExpense = t.accountId ? creditCardIds.includes(t.accountId) : false;
-
-      return isPrimaryAccountExpense || isWalletExpense || isCreditCardExpense;
+      if (t.type === 'expense') {
+        return isInEcosystem(t.accountId, t.paymentMethod);
+      }
+      if (t.type === 'transfer') {
+        return isInEcosystem(t.fromAccountId) && !isInEcosystem(t.toAccountId);
+      }
+      return false;
     });
   }, [transactions, selectedDate, primaryAccount, creditCardIds]);
 
-  const groupedExpenses = useMemo(() => {
+  const groupedOutflows = useMemo(() => {
     const groups: {
       primary: Transaction[];
       cash: Transaction[];
@@ -102,29 +104,31 @@ export function DateWiseExpenses() {
       cards: Transaction[];
     } = { primary: [], cash: [], digital: [], cards: [] };
 
-    expensesForSelectedDate.forEach(t => {
-      if (t.paymentMethod === 'cash') {
+    ecosystemOutflowsForDate.forEach(t => {
+      if (t.paymentMethod === 'cash' || t.fromAccountId === 'cash-wallet') {
         groups.cash.push(t);
-      } else if (t.paymentMethod === 'digital') {
+      } else if (t.paymentMethod === 'digital' || t.fromAccountId === 'digital-wallet') {
         groups.digital.push(t);
-      } else if (t.accountId === primaryAccount?.id) {
+      } else if (t.accountId === primaryAccount?.id || t.fromAccountId === primaryAccount?.id) {
         groups.primary.push(t);
+      } else if (t.fromAccountId && creditCardIds.includes(t.fromAccountId)) {
+        groups.cards.push(t);
       } else if (t.accountId && creditCardIds.includes(t.accountId)) {
         groups.cards.push(t);
       }
     });
 
     return groups;
-  }, [expensesForSelectedDate, primaryAccount, creditCardIds]);
+  }, [ecosystemOutflowsForDate, primaryAccount, creditCardIds]);
 
   const totals = useMemo(() => {
     return {
-      primary: groupedExpenses.primary.reduce((sum, t) => sum + t.amount, 0),
-      cash: groupedExpenses.cash.reduce((sum, t) => sum + t.amount, 0),
-      digital: groupedExpenses.digital.reduce((sum, t) => sum + t.amount, 0),
-      cards: groupedExpenses.cards.reduce((sum, t) => sum + t.amount, 0),
+      primary: groupedOutflows.primary.reduce((sum, t) => sum + t.amount, 0),
+      cash: groupedOutflows.cash.reduce((sum, t) => sum + t.amount, 0),
+      digital: groupedOutflows.digital.reduce((sum, t) => sum + t.amount, 0),
+      cards: groupedOutflows.cards.reduce((sum, t) => sum + t.amount, 0),
     };
-  }, [groupedExpenses]);
+  }, [groupedOutflows]);
 
   if (userLoading || dataLoading) {
     return (
@@ -140,10 +144,10 @@ export function DateWiseExpenses() {
     );
   }
 
-  const renderExpenseTable = (title: string, transactions: Transaction[], total: number) => (
+  const renderOutflowTable = (title: string, transactions: Transaction[], total: number) => (
     (transactions.length > 0) && (
       <div className="pt-4">
-        <h4 className="font-semibold mb-2">{title} Expenses</h4>
+        <h4 className="font-semibold mb-2">{title} Outflows</h4>
         <Table>
           <TableHeader>
             <TableRow>
@@ -156,7 +160,7 @@ export function DateWiseExpenses() {
             {transactions.map(t => (
               <TableRow key={t.id}>
                 <TableCell>{t.description}</TableCell>
-                <TableCell>{t.category}{t.subcategory ? ` / ${t.subcategory}` : ''}</TableCell>
+                <TableCell>{t.type === 'transfer' ? 'External Transfer' : (t.category || 'Expense')}{t.subcategory ? ` / ${t.subcategory}` : ''}</TableCell>
                 <TableCell className="text-right">{formatCurrency(t.amount)}</TableCell>
               </TableRow>
             ))}
@@ -177,7 +181,7 @@ export function DateWiseExpenses() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Date-wise Expenses (Primary Ecosystem)</CardTitle>
+        <CardTitle>Date-wise Outflows (Primary Ecosystem)</CardTitle>
         <CardDescription>Spending breakdown for the selected date from primary account, wallets, and cards.</CardDescription>
         <div className="flex items-center gap-2 pt-2">
           <Label htmlFor="expense-date" className="flex-shrink-0">Select Date:</Label>
@@ -191,20 +195,20 @@ export function DateWiseExpenses() {
         </div>
       </CardHeader>
       <CardContent>
-        {expensesForSelectedDate.length === 0 ? (
+        {ecosystemOutflowsForDate.length === 0 ? (
             <div className="text-center text-muted-foreground py-10">
-                <p>No primary ecosystem expenses recorded on {format(new Date(selectedDate), 'PPP')}.</p>
+                <p>No primary ecosystem outflows recorded on {format(new Date(selectedDate), 'PPP')}.</p>
             </div>
         ) : (
           <>
-            {primaryAccount && renderExpenseTable(`Primary Account (${primaryAccount.name})`, groupedExpenses.primary, totals.primary)}
-            {renderExpenseTable("Cash Wallet", groupedExpenses.cash, totals.cash)}
-            {renderExpenseTable("Digital Wallet", groupedExpenses.digital, totals.digital)}
-            {renderExpenseTable("Credit Cards", groupedExpenses.cards, totals.cards)}
+            {primaryAccount && renderOutflowTable(`Primary Account (${primaryAccount.name})`, groupedOutflows.primary, totals.primary)}
+            {renderOutflowTable("Cash Wallet", groupedOutflows.cash, totals.cash)}
+            {renderOutflowTable("Digital Wallet", groupedOutflows.digital, totals.digital)}
+            {renderOutflowTable("Credit Cards", groupedOutflows.cards, totals.cards)}
             
             <div className="border-t mt-6 pt-4">
               <div className="flex justify-between items-center font-bold text-lg">
-                <span>Grand Total</span>
+                <span>Grand Total Outflow</span>
                 <span>{formatCurrency(grandTotal)}</span>
               </div>
             </div>
