@@ -42,10 +42,6 @@ export function AccountBalances() {
   const walletUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    setReconciliationDate(new Date());
-  }, []);
-
-  useEffect(() => {
     if (user && db) {
       const accountsQuery = query(collection(db, "accounts"), where("userId", "==", user.uid), orderBy("order", "asc"));
       const unsubscribeAccounts = onSnapshot(accountsQuery, (snapshot) => {
@@ -66,7 +62,15 @@ export function AccountBalances() {
       const preferencesDocRef = doc(db, "user_preferences", user.uid);
       const unsubscribePreferences = onSnapshot(preferencesDocRef, (doc) => {
         if (doc.exists()) {
-          setWalletPreferences(doc.data().wallets || {});
+          const prefs = doc.data();
+          setWalletPreferences(prefs.wallets || {});
+          if (prefs.reconciliationDate) {
+              setReconciliationDate(new Date(prefs.reconciliationDate));
+          } else {
+              setReconciliationDate(new Date());
+          }
+        } else {
+             setReconciliationDate(new Date());
         }
       });
 
@@ -90,7 +94,9 @@ export function AccountBalances() {
     let calculatedCashWalletBalance = 0;
     let calculatedDigitalWalletBalance = 0;
 
-    transactions.forEach(t => {
+    const chronologicalTransactions = [...transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    chronologicalTransactions.forEach(t => {
       if (t.type === 'transfer') {
         if (t.toAccountId === 'cash-wallet') calculatedCashWalletBalance += t.amount;
         if (t.fromAccountId === 'cash-wallet') calculatedCashWalletBalance -= t.amount;
@@ -104,13 +110,28 @@ export function AccountBalances() {
         if (t.type === 'income' && t.accountId && calculatedAccountBalances[t.accountId] !== undefined) {
             calculatedAccountBalances[t.accountId] += t.amount;
         } else if (t.type === 'expense' && t.accountId && t.paymentMethod === 'online' && calculatedAccountBalances[t.accountId] !== undefined) {
-            calculatedAccountBalances[t.accountId] -= t.amount;
+            const isCard = rawAccounts.find(a => a.id === t.accountId)?.type === 'card';
+            if (isCard) {
+                calculatedAccountBalances[t.accountId] += t.amount;
+            } else {
+                calculatedAccountBalances[t.accountId] -= t.amount;
+            }
         } else if (t.type === 'transfer') {
             if (t.fromAccountId && calculatedAccountBalances[t.fromAccountId] !== undefined) {
-                calculatedAccountBalances[t.fromAccountId] -= t.amount;
+                const isCard = rawAccounts.find(a => a.id === t.fromAccountId)?.type === 'card';
+                if (isCard) {
+                    calculatedAccountBalances[t.fromAccountId] += t.amount;
+                } else {
+                    calculatedAccountBalances[t.fromAccountId] -= t.amount;
+                }
             }
             if (t.toAccountId && calculatedAccountBalances[t.toAccountId] !== undefined) {
-                calculatedAccountBalances[t.toAccountId] += t.amount;
+                const isCard = rawAccounts.find(a => a.id === t.toAccountId)?.type === 'card';
+                if (isCard) {
+                    calculatedAccountBalances[t.toAccountId] -= t.amount;
+                } else {
+                    calculatedAccountBalances[t.toAccountId] += t.amount;
+                }
             }
         }
     });
@@ -126,10 +147,12 @@ export function AccountBalances() {
   }, [rawAccounts, accountBalances]);
 
   const formatCurrency = (amount: number) => {
+    let val = amount;
+    if (Object.is(val, -0)) val = 0;
     return new Intl.NumberFormat("en-IN", {
       style: "currency",
       currency: "INR",
-    }).format(amount);
+    }).format(val);
   };
 
   const debouncedUpdateAccount = useCallback((accountId: string, data: { actualBalance?: number | null }) => {
@@ -203,7 +226,7 @@ export function AccountBalances() {
         <CardHeader>
             <CardTitle>Account Balances</CardTitle>
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                <CardDescription>Click any account to see a detailed balance breakdown. Enter actual balances to reconcile.</CardDescription>
+                <CardDescription>Click any account to see a detailed breakdown. Enter actual balances to reconcile.</CardDescription>
                  <Popover>
                     <PopoverTrigger asChild>
                         <Button
@@ -307,21 +330,30 @@ export function AccountBalances() {
                     </CardContent>
                 </Card>
                 {accounts.map(account => {
-                    const balanceDifference = account.actualBalance !== undefined ? account.balance - account.actualBalance : null;
+                    const isCard = account.type === 'card';
+                    const availableLimit = isCard ? ((account.limit || 0) - account.balance) : 0;
+                    const displayBalance = isCard ? availableLimit : account.balance;
+                    
+                    let balanceDifference: number | null = null;
+                    if (account.actualBalance !== undefined && account.actualBalance !== null) {
+                        balanceDifference = displayBalance - account.actualBalance;
+                    }
+
                     return (
                      <Card key={account.id}>
                         <div className="cursor-pointer hover:bg-muted/50" onClick={() => handleAccountClick(account)}>
                             <CardHeader className="flex flex-row items-center justify-between pb-2">
                             <CardTitle className="text-sm font-medium">{account.name}</CardTitle>
-                            < Landmark className="h-4 w-4 text-muted-foreground" />
+                            <Landmark className="h-4 w-4 text-muted-foreground" />
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold">{formatCurrency(account.balance)}</div>
+                                <div className="text-2xl font-bold">{formatCurrency(displayBalance)}</div>
+                                {isCard && <p className="text-[10px] text-muted-foreground mt-1">Available of {formatCurrency(account.limit || 0)}</p>}
                             </CardContent>
                         </div>
                         <CardContent className="pt-2">
                             <div className="space-y-2">
-                                <Label htmlFor={`actual-balance-${account.id}`} className="text-xs">Actual Balance</Label>
+                                <Label htmlFor={`actual-balance-${account.id}`} className="text-xs">{isCard ? 'Actual Available' : 'Actual Balance'}</Label>
                                 <div className="flex gap-2">
                                     <Input
                                         id={`actual-balance-${account.id}`}
