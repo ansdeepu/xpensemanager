@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef, use } from "react";
 import { TransactionTable } from "@/components/dashboard/transactions/transaction-table";
 import { db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, orderBy, doc, setDoc, updateDoc } from "firebase/firestore";
@@ -92,8 +92,8 @@ export default function TransactionsPage(props: {
   searchParams: Promise<any>;
 }) {
   // Access dynamic APIs correctly for Next.js 15
-  const params = React.use(props.params);
-  const searchParams = React.use(props.searchParams);
+  const params = use(props.params);
+  const searchParams = use(props.searchParams);
 
   const [user, userLoading] = useAuthState();
   const [rawAccounts, setRawAccounts] = useState<Omit<Account, 'balance'>[]>([]);
@@ -593,7 +593,7 @@ export default function TransactionsPage(props: {
   return (
     <div className="space-y-6">
        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="flex w-full items-stretch justify-start overflow-x-auto h-auto p-1 bg-transparent gap-3 scrollbar-hide">
+          <TabsList className="flex w-full items-stretch justify-start overflow-x-auto h-auto p-1 bg-transparent gap-3">
             {primaryAccount && (
                 <TabsTrigger value={primaryAccount.id} asChild className="h-full p-0 flex-shrink-0 min-w-[320px]">
                     <div className={cn("rounded-lg border-2 flex flex-col p-3 items-start text-left gap-2 cursor-pointer transition-shadow h-full w-full", activeTab === primaryAccount.id ? "shadow-lg border-primary bg-lime-100/50 dark:bg-lime-900/50" : "bg-card")}>

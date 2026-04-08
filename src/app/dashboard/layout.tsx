@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, use } from "react";
 import { Header } from "@/components/dashboard/header";
 import { ReportDateProvider } from "@/context/report-date-context";
 import { useAuthState } from "@/hooks/use-auth-state";
@@ -13,7 +13,7 @@ export default function DashboardLayout(props: {
   params: Promise<any>;
 }) {
   // Access dynamic APIs correctly for Next.js 15
-  const params = React.use(props.params);
+  const params = use(props.params);
   
   const [user, loading] = useAuthState();
   const router = useRouter();
@@ -54,7 +54,7 @@ export default function DashboardLayout(props: {
 
   return (
       <ReportDateProvider>
-        <div className="flex min-h-screen w-full flex-col">
+        <div className="flex min-h-screen w-full flex-col overflow-x-hidden">
             <Header />
             <main className="flex-1 p-4 md:p-6">{props.children}</main>
         </div>
