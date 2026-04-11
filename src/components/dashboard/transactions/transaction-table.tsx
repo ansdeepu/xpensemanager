@@ -17,8 +17,6 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
@@ -74,6 +72,8 @@ export function TransactionTable({
   const getAccountName = (accId?: string, paymentMethod?: Transaction['paymentMethod']) => {
     if (accId === 'cash-wallet' || paymentMethod === 'cash') return "Cash Wallet";
     if (accId === 'digital-wallet' || paymentMethod === 'digital') return "Digital Wallet";
+    if (accId === 'cashback-source') return "Cashback/Reward";
+    
     if (accId?.startsWith('loan-virtual-account-')) {
         const personName = accId.replace('loan-virtual-account-', '').replace(/-/g, ' ');
         const loan = loans.find(l => l.personName.toLowerCase() === personName.toLowerCase());
@@ -162,9 +162,9 @@ export function TransactionTable({
         if (txToDelete.loanTransactionId) {
             const loansSnapshot = await getDocs(query(collection(db, "loans"), where("userId", "==", user.uid)));
             for (const loanDoc of loansSnapshot.docs) {
-                const loan = { id: loanDoc.id, ...loanDoc.data() } as Loan;
-                if (loan.transactions.some(t => t.id === txToDelete.loanTransactionId)) {
-                    const updatedTxs = loan.transactions.filter(t => t.id !== txToDelete.loanTransactionId);
+                const loanData = loanDoc.data() as Loan;
+                if (loanData.transactions.some(t => t.id === txToDelete.loanTransactionId)) {
+                    const updatedTxs = loanData.transactions.filter(t => t.id !== txToDelete.loanTransactionId);
                     if (updatedTxs.length > 0) batch.update(loanDoc.ref, { transactions: updatedTxs });
                     else batch.delete(loanDoc.ref);
                     break;

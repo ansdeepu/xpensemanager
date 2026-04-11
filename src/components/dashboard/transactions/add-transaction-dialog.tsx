@@ -34,9 +34,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { Account, Category, Transaction } from "@/lib/data";
+import type { Account, Category, Transaction, Loan } from "@/lib/data";
 import { auth, db } from "@/lib/firebase";
-import { collection, addDoc, query, where, onSnapshot, orderBy, writeBatch, doc, updateDoc, deleteField } from "firebase/firestore";
+import { collection, addDoc, query, where, onSnapshot, orderBy, writeBatch, doc, updateDoc, deleteField, getDocs } from "firebase/firestore";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useAuthState } from "@/hooks/use-auth-state";
@@ -306,20 +306,25 @@ export function AddTransactionDialog({
     const adjustedDate = new Date(transactionDate.getTime() + timezoneOffset);
 
     try {
+        let finalTransactionData: any;
+        let finalAmount: number = 0;
+        let finalDescription: string = "";
+
         if (transactionType === 'expense') {
             const validItems = expenseItems.filter(item => item.description && parseFloat(item.amount) > 0);
             if (validItems.length === 0) throw new Error("No valid expense items to save.");
             
-            const totalAmount = validItems.reduce((sum, item) => sum + parseFloat(item.amount), 0);
+            finalAmount = validItems.reduce((sum, item) => sum + parseFloat(item.amount), 0);
             const firstItem = validItems[0];
+            finalDescription = firstItem.description;
             const categoryDoc = categories.find(c => c.id === firstItem.categoryId);
         
-            const transactionData: any = {
+            finalTransactionData = {
                 userId: user.uid,
                 date: adjustedDate.toISOString(),
-                amount: totalAmount,
+                amount: finalAmount,
                 type: 'expense',
-                description: firstItem.description,
+                description: finalDescription,
                 category: categoryDoc?.name || 'Uncategorized',
                 categoryId: firstItem.categoryId || "",
                 subcategory: firstItem.subcategory || "",
@@ -327,61 +332,36 @@ export function AddTransactionDialog({
             };
         
             if (expensePaymentMethod === 'cash-wallet') {
-                transactionData.paymentMethod = 'cash';
+                finalTransactionData.paymentMethod = 'cash';
             } else if (expensePaymentMethod === 'digital-wallet') {
-                transactionData.paymentMethod = 'digital';
+                finalTransactionData.paymentMethod = 'digital';
             } else {
-                transactionData.paymentMethod = 'online';
-                transactionData.accountId = expensePaymentMethod;
+                finalTransactionData.paymentMethod = 'online';
+                finalTransactionData.accountId = expensePaymentMethod;
             }
 
-            if(isEditMode) {
-                const txRef = doc(db, "transactions", transactionToEdit.id);
-                
-                if (expensePaymentMethod === 'cash-wallet' || expensePaymentMethod === 'digital-wallet') {
-                    transactionData.accountId = deleteField();
-                }
-
-                if (validItems.length > 1) {
-                    transactionData.items = validItems.map(item => {
-                        const catDoc = categories.find(c => c.id === item.categoryId);
-                        return {
-                            description: item.description,
-                            amount: parseFloat(item.amount),
-                            categoryId: item.categoryId,
-                            category: catDoc?.name || 'Uncategorized',
-                            subcategory: item.subcategory,
-                        };
-                    });
-                } else {
-                    transactionData.items = deleteField();
-                }
-                await updateDoc(txRef, transactionData);
-                toast({ title: `Expense updated.` });
-            } else {
-                if (validItems.length > 1) {
-                    transactionData.items = validItems.map(item => {
-                        const catDoc = categories.find(c => c.id === item.categoryId);
-                        return {
-                            description: item.description,
-                            amount: parseFloat(item.amount),
-                            categoryId: item.categoryId,
-                            category: catDoc?.name || 'Uncategorized',
-                            subcategory: item.subcategory,
-                        };
-                    });
-                }
-                await addDoc(collection(db, "transactions"), transactionData);
-                toast({ title: `Expense added.` });
+            if (validItems.length > 1) {
+                finalTransactionData.items = validItems.map(item => {
+                    const catDoc = categories.find(c => c.id === item.categoryId);
+                    return {
+                        description: item.description,
+                        amount: parseFloat(item.amount),
+                        categoryId: item.categoryId,
+                        category: catDoc?.name || 'Uncategorized',
+                        subcategory: item.subcategory,
+                    };
+                });
             }
 
         } else if (transactionType === 'income') {
             const categoryDoc = categories.find(c => c.id === incomeCategory);
-            const transactionData: any = {
+            finalAmount = parseFloat(incomeAmount);
+            finalDescription = incomeDescription;
+            finalTransactionData = {
                 userId: user.uid,
                 date: adjustedDate.toISOString(),
-                description: incomeDescription,
-                amount: parseFloat(incomeAmount),
+                description: finalDescription,
+                amount: finalAmount,
                 type: 'income',
                 category: categoryDoc?.name || 'Uncategorized',
                 categoryId: incomeCategory,
@@ -389,36 +369,65 @@ export function AddTransactionDialog({
                 paymentMethod: 'online',
                 accountId: incomeAccountId,
             };
-            if(isEditMode) {
-                const txRef = doc(db, "transactions", transactionToEdit.id);
-                await updateDoc(txRef, transactionData);
-                toast({ title: `Income updated.` });
-            } else {
-                await addDoc(collection(db, "transactions"), transactionData);
-                toast({ title: "Income added successfully." });
-            }
 
         } else if (transactionType === 'transfer') {
              if (fromAccountId === toAccountId) {
                 throw new Error("From and To accounts cannot be the same.");
             }
-            const transactionData: any = {
+            finalAmount = parseFloat(transferAmount);
+            finalDescription = transferDescription;
+            finalTransactionData = {
                 userId: user.uid,
                 date: adjustedDate.toISOString(),
-                description: transferDescription,
-                amount: parseFloat(transferAmount),
+                description: finalDescription,
+                amount: finalAmount,
                 type: 'transfer',
                 fromAccountId: fromAccountId,
                 toAccountId: toAccountId,
             };
-            if(isEditMode) {
-                const txRef = doc(db, "transactions", transactionToEdit.id);
-                await updateDoc(txRef, transactionData);
-                toast({ title: `Transfer updated.` });
-            } else {
-                await addDoc(collection(db, "transactions"), transactionData);
-                toast({ title: "Transfer recorded successfully." });
+        }
+
+        if(isEditMode) {
+            const txRef = doc(db, "transactions", transactionToEdit.id);
+            
+            // Clean up old fields if switching payment methods
+            if (transactionType === 'expense' && (expensePaymentMethod === 'cash-wallet' || expensePaymentMethod === 'digital-wallet')) {
+                finalTransactionData.accountId = deleteField();
             }
+            if (transactionType === 'expense' && expenseItems.length <= 1) {
+                finalTransactionData.items = deleteField();
+            }
+
+            await updateDoc(txRef, finalTransactionData);
+
+            // SYNC TO LOANS: If this transaction is linked to a loan, update the loan record too
+            if (transactionToEdit.loanTransactionId) {
+                const loansQuery = query(collection(db, "loans"), where("userId", "==", user.uid));
+                const loansSnapshot = await getDocs(loansQuery);
+                for (const loanDoc of loansSnapshot.docs) {
+                    const loan = loanDoc.data() as Loan;
+                    if (loan.transactions.some(lt => lt.id === transactionToEdit.loanTransactionId)) {
+                        const updatedLoanTransactions = loan.transactions.map(lt => {
+                            if (lt.id === transactionToEdit.loanTransactionId) {
+                                return {
+                                    ...lt,
+                                    date: adjustedDate.toISOString(),
+                                    amount: finalAmount,
+                                    description: finalDescription,
+                                    accountId: transactionType === 'transfer' ? (transactionToEdit.type === 'transfer' ? (loan.type === 'taken' ? (lt.type === 'loan' ? finalTransactionData.toAccountId : finalTransactionData.fromAccountId) : (lt.type === 'loan' ? finalTransactionData.fromAccountId : finalTransactionData.toAccountId)) : lt.accountId) : (transactionType === 'income' ? incomeAccountId : expensePaymentMethod),
+                                };
+                            }
+                            return lt;
+                        });
+                        await updateDoc(loanDoc.ref, { transactions: updatedLoanTransactions });
+                        break;
+                    }
+                }
+            }
+            toast({ title: `${transactionType.charAt(0).toUpperCase() + transactionType.slice(1)} updated.` });
+        } else {
+            await addDoc(collection(db, "transactions"), finalTransactionData);
+            toast({ title: `${transactionType.charAt(0).toUpperCase() + transactionType.slice(1)} added.` });
         }
 
         onOpenChange(false);
