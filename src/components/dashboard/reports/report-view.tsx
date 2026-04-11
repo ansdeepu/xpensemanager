@@ -213,8 +213,8 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
           includeTransaction = true;
         } else if (isPrimaryReport) {
             const involvesPrimaryOrWallet = t.accountId === accountId || isWalletExpense || t.fromAccountId === accountId || t.toAccountId === accountId || t.fromAccountId === 'cash-wallet' || t.toAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet' || t.toAccountId === 'digital-wallet';
-            const involvesCreditCard = (t.accountId && creditCardIds.has(t.accountId)) || (t.fromAccountId && creditCardIds.has(t.fromAccountId)) || (t.toAccountId && creditCardIds.has(t.toAccountId));
-            includeTransaction = involvesPrimaryOrWallet || involvesCreditCard;
+            const involvesCreditCard = Boolean(t.accountId && creditCardIds.has(t.accountId)) || Boolean(t.fromAccountId && creditCardIds.has(t.fromAccountId)) || Boolean(t.toAccountId && creditCardIds.has(t.toAccountId));
+            includeTransaction = Boolean(involvesPrimaryOrWallet || involvesCreditCard);
         } else {
             includeTransaction = t.accountId === accountId || t.fromAccountId === accountId || t.toAccountId === accountId;
         }
