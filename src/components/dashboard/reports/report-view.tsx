@@ -83,6 +83,8 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
   const monthEnd = useMemo(() => endOfMonth(currentDate), [currentDate]);
   const currentMonthName = useMemo(() => format(currentDate, "MMM"), [currentDate]);
 
+  const creditCardIds = useMemo(() => new Set(accounts.filter(a => a.type === 'card').map(a => a.id)), [accounts]);
+
   const monthlyTransactions = useMemo(() => 
     transactions.filter(t => isWithinInterval(new Date(t.date), { start: monthStart, end: monthEnd })),
     [transactions, monthStart, monthEnd]
@@ -118,7 +120,9 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                 if (isOverallSummary) {
                     include = true;
                 } else if (isPrimaryReport) {
-                    include = tx.accountId === accountId || tx.accountId === 'cash-wallet' || tx.accountId === 'digital-wallet';
+                    // Include if using primary bank, wallets, OR any credit card to match the primary ecosystem definition
+                    const isCreditCard = tx.accountId ? creditCardIds.has(tx.accountId) : false;
+                    include = tx.accountId === accountId || tx.accountId === 'cash-wallet' || tx.accountId === 'digital-wallet' || isCreditCard;
                 } else {
                     include = tx.accountId === accountId;
                 }
@@ -163,7 +167,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
         repaymentMadeTransactions: convertAndSort(report.repaymentMadeMap),
         repaymentReceivedTransactions: convertAndSort(report.repaymentReceivedMap),
     };
-  }, [loans, monthStart, monthEnd, isOverallSummary, isPrimaryReport, accountId]);
+  }, [loans, monthStart, monthEnd, isOverallSummary, isPrimaryReport, accountId, creditCardIds]);
 
   const monthlyReport = useMemo(() => {
     const data: ReportData = {
@@ -187,7 +191,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
         totalOccasionalBudget: 0,
     };
     
-    const nonPrimaryBankAccountIds = new Set(accounts.filter(acc => !acc.isPrimary).map(acc => acc.id));
+    const nonPrimaryBankAccountIds = new Set(accounts.filter(acc => !acc.isPrimary && acc.type !== 'card').map(acc => acc.id));
 
     monthlyTransactions.forEach(t => {
         const categoryName = t.category || "Uncategorized";
@@ -198,7 +202,9 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
         if (isOverallSummary) {
           includeTransaction = true;
         } else if (isPrimaryReport) {
-            includeTransaction = t.accountId === accountId || isWalletExpense || t.fromAccountId === accountId || t.toAccountId === accountId || t.fromAccountId === 'cash-wallet' || t.toAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet' || t.toAccountId === 'digital-wallet';
+            const involvesPrimaryOrWallet = t.accountId === accountId || isWalletExpense || t.fromAccountId === accountId || t.toAccountId === accountId || t.fromAccountId === 'cash-wallet' || t.toAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet' || t.toAccountId === 'digital-wallet';
+            const involvesCreditCard = (t.accountId && creditCardIds.has(t.accountId)) || (t.fromAccountId && creditCardIds.has(t.fromAccountId)) || (t.toAccountId && creditCardIds.has(t.toAccountId));
+            includeTransaction = involvesPrimaryOrWallet || involvesCreditCard;
         } else {
             includeTransaction = t.accountId === accountId || t.fromAccountId === accountId || t.toAccountId === accountId;
         }
@@ -219,7 +225,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
             if (isOverallSummary) {
                 shouldProcessExpense = true;
             } else if (isPrimaryReport) {
-                shouldProcessExpense = t.accountId === accountId || isWalletExpense;
+                shouldProcessExpense = t.accountId === accountId || isWalletExpense || (t.accountId ? creditCardIds.has(t.accountId) : false);
             } else { // Non-primary account view
                 shouldProcessExpense = t.accountId === accountId;
             }
@@ -254,10 +260,16 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
             }
         } else if (t.type === 'transfer') {
              if (isPrimaryReport) {
-                const isToPrimaryEcosystem = t.toAccountId === accountId || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
+                const isToPrimaryEcosystem = t.toAccountId === accountId || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet' || (t.toAccountId ? creditCardIds.has(t.toAccountId) : false);
+                const isFromPrimaryEcosystem = t.fromAccountId === accountId || t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet' || (t.fromAccountId ? creditCardIds.has(t.fromAccountId) : false);
+
                 if (t.fromAccountId && nonPrimaryBankAccountIds.has(t.fromAccountId) && isToPrimaryEcosystem) {
                     data.totalTransfersIn += t.amount;
                     data.transferInTransactions.push(t);
+                }
+                if (t.toAccountId && nonPrimaryBankAccountIds.has(t.toAccountId) && isFromPrimaryEcosystem) {
+                    data.totalTransfersOut += t.amount;
+                    data.transferOutTransactions.push(t);
                 }
             } else if (!isOverallSummary) {
                 if (t.toAccountId === accountId) {
@@ -322,7 +334,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
 
 
     return data;
-  }, [monthlyTransactions, isOverallSummary, accountId, isPrimaryReport, categories, accounts, currentMonthName]);
+  }, [monthlyTransactions, isOverallSummary, accountId, isPrimaryReport, categories, accounts, currentMonthName, creditCardIds]);
 
   const handleCategoryClick = (categoryName: string, type: 'income' | 'expense' | 'regular' | 'occasional') => {
     let categoryData;
@@ -342,7 +354,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
   };
   
   const grandTotalInflow = monthlyReport.totalIncome + monthlyReport.totalTransfersIn + monthlyLoanReport.totalLoanTaken + monthlyLoanReport.totalRepaymentReceived;
-  const grandTotalOutflow = monthlyReport.totalExpense + (!isOverallSummary && !isPrimaryReport ? monthlyReport.totalTransfersOut : 0) + monthlyLoanReport.totalLoanGiven + monthlyLoanReport.totalRepaymentMade;
+  const grandTotalOutflow = monthlyReport.totalExpense + monthlyReport.totalTransfersOut + monthlyLoanReport.totalLoanGiven + monthlyLoanReport.totalRepaymentMade;
   const netBalance = grandTotalInflow - grandTotalOutflow;
   const hasTransactions = monthlyTransactions.length > 0;
 
@@ -590,9 +602,13 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                     <Table>
                         <TableHeader><TableRow><TableHead>From</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
                         <TableBody>
-                            {monthlyLoanReport.loanTakenTransactions.map(tx => (
-                                <TableRow key={tx.personName}><TableCell>{tx.personName}</TableCell><TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell></TableRow>
-                            ))}
+                            {monthlyLoanReport.loanTakenTransactions.length > 0 ? (
+                                monthlyLoanReport.loanTakenTransactions.map(tx => (
+                                    <TableRow key={tx.personName}><TableCell>{tx.personName}</TableCell><TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell></TableRow>
+                                ))
+                            ) : (
+                                <TableRow><TableCell colSpan={2} className="text-center text-muted-foreground">No loans taken this month.</TableCell></TableRow>
+                            )}
                         </TableBody>
                         <TableFooter><TableRow><TableHead>Total Loans Taken</TableHead><TableHead className="text-right">{formatCurrency(monthlyLoanReport.totalLoanTaken)}</TableHead></TableRow></TableFooter>
                     </Table>
@@ -600,9 +616,13 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                     <Table>
                         <TableHeader><TableRow><TableHead>Repayments To</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
                         <TableBody>
-                            {monthlyLoanReport.repaymentMadeTransactions.map(tx => (
-                                <TableRow key={tx.personName}><TableCell>{tx.personName}</TableCell><TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell></TableRow>
-                            ))}
+                            {monthlyLoanReport.repaymentMadeTransactions.length > 0 ? (
+                                monthlyLoanReport.repaymentMadeTransactions.map(tx => (
+                                    <TableRow key={tx.personName}><TableCell>{tx.personName}</TableCell><TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell></TableRow>
+                                ))
+                            ) : (
+                                <TableRow><TableCell colSpan={2} className="text-center text-muted-foreground">No repayments made this month.</TableCell></TableRow>
+                            )}
                         </TableBody>
                         <TableFooter><TableRow><TableHead>Total Repayments Made</TableHead><TableHead className="text-right">{formatCurrency(monthlyLoanReport.totalRepaymentMade)}</TableHead></TableRow></TableFooter>
                     </Table>
@@ -614,9 +634,13 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                     <Table>
                         <TableHeader><TableRow><TableHead>To</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
                         <TableBody>
-                            {monthlyLoanReport.loanGivenTransactions.map(tx => (
-                                <TableRow key={tx.personName}><TableCell>{tx.personName}</TableCell><TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell></TableRow>
-                            ))}
+                            {monthlyLoanReport.loanGivenTransactions.length > 0 ? (
+                                monthlyLoanReport.loanGivenTransactions.map(tx => (
+                                    <TableRow key={tx.personName}><TableCell>{tx.personName}</TableCell><TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell></TableRow>
+                                ))
+                            ) : (
+                                <TableRow><TableCell colSpan={2} className="text-center text-muted-foreground">No loans given this month.</TableCell></TableRow>
+                            )}
                         </TableBody>
                         <TableFooter><TableRow><TableHead>Total Loans Given</TableHead><TableHead className="text-right">{formatCurrency(monthlyLoanReport.totalLoanGiven)}</TableHead></TableRow></TableFooter>
                     </Table>
@@ -624,9 +648,13 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                     <Table>
                         <TableHeader><TableRow><TableHead>Repayments From</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
                         <TableBody>
-                            {monthlyLoanReport.repaymentReceivedTransactions.map(tx => (
-                                <TableRow key={tx.personName}><TableCell>{tx.personName}</TableCell><TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell></TableRow>
-                            ))}
+                            {monthlyLoanReport.repaymentReceivedTransactions.length > 0 ? (
+                                monthlyLoanReport.repaymentReceivedTransactions.map(tx => (
+                                    <TableRow key={tx.personName}><TableCell>{tx.personName}</TableCell><TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell></TableRow>
+                                ))
+                            ) : (
+                                <TableRow><TableCell colSpan={2} className="text-center text-muted-foreground">No repayments received this month.</TableCell></TableRow>
+                            )}
                         </TableBody>
                         <TableFooter><TableRow><TableHead>Total Repayments Received</TableHead><TableHead className="text-right">{formatCurrency(monthlyLoanReport.totalRepaymentReceived)}</TableHead></TableRow></TableFooter>
                     </Table>
