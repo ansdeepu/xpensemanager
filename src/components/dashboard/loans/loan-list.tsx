@@ -578,9 +578,14 @@ export function LoanList({ loanType, loans: allLoans, creditCards, transactions:
     let otherPartyName: string | undefined;
     let otherPartyAccountIdForTransfer: string | undefined;
     
+    // We'll use the filtered accounts and loans from the useMemos below to ensure consistency
+    const currentPrimaryCreditCard = accounts.find(acc => acc.type === 'card' && acc.name.toLowerCase().includes('sbi'));
+    const currentOtherAccounts = accounts.filter(a => (!a.isPrimary && a.type !== 'card') || (currentPrimaryCreditCard && a.id === currentPrimaryCreditCard.id));
+    const currentFilteredLoans = loans.filter(l => !currentOtherAccounts.some(a => a.name.toLowerCase() === l.personName.toLowerCase()));
+
     const allLoanParties: (Loan | Omit<Account, "balance">)[] = [
-      ...loans,
-      ...accounts.filter(a => !a.isPrimary)
+      ...currentFilteredLoans,
+      ...currentOtherAccounts
     ];
 
     if (isNewPerson) {
@@ -921,7 +926,18 @@ export function LoanList({ loanType, loans: allLoans, creditCards, transactions:
   };
 
 
-  const otherAccounts = useMemo(() => accounts.filter(a => !a.isPrimary && a.type !== 'card'), [accounts]);
+  const primaryCreditCard = useMemo(() => accounts.find(acc => acc.type === 'card' && acc.name.toLowerCase().includes('sbi')), [accounts]);
+
+  const otherAccountsForSelect = useMemo(() => {
+    // Include non-primary bank accounts + SBI credit card
+    return accounts.filter(a => (!a.isPrimary && a.type !== 'card') || (primaryCreditCard && a.id === primaryCreditCard.id));
+  }, [accounts, primaryCreditCard]);
+
+  const filteredLoansForSelect = useMemo(() => {
+    // Exclude loans where the personName matches an account name we're already showing in otherAccountsForSelect
+    const accountNames = new Set(otherAccountsForSelect.map(a => a.name.toLowerCase()));
+    return loans.filter(l => !accountNames.has(l.personName.toLowerCase()));
+  }, [loans, otherAccountsForSelect]);
 
   const sbiCard = useMemo(() => creditCards?.find(c => c.name.toLowerCase().includes('sbi')), [creditCards]);
   const otherCards = useMemo(() => creditCards?.filter(c => c.name.toLowerCase().includes('sbi') === false), [creditCards]);
@@ -987,15 +1003,19 @@ export function LoanList({ loanType, loans: allLoans, creditCards, transactions:
                               }}>
                                   <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
                                   <SelectContent>
-                                      <SelectGroup>
-                                      <SelectLabel>People (Loans)</SelectLabel>
-                                      {loans.map(l => <SelectItem key={l.id} value={l.id}>{l.personName}</SelectItem>)}
-                                      </SelectGroup>
+                                      {filteredLoansForSelect.length > 0 && (
+                                        <SelectGroup>
+                                          <SelectLabel>People (Loans)</SelectLabel>
+                                          {filteredLoansForSelect.map(l => <SelectItem key={l.id} value={l.id}>{l.personName}</SelectItem>)}
+                                        </SelectGroup>
+                                      )}
                                       
-                                      <SelectGroup>
-                                          <SelectLabel>Your Other Accounts</SelectLabel>
-                                          {otherAccounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
-                                      </SelectGroup>
+                                      {otherAccountsForSelect.length > 0 && (
+                                        <SelectGroup>
+                                            <SelectLabel>Your Other Accounts</SelectLabel>
+                                            {otherAccountsForSelect.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
+                                        </SelectGroup>
+                                      )}
                                       
                                       <SelectGroup>
                                       <SelectItem value="new">Add a new person</SelectItem>
