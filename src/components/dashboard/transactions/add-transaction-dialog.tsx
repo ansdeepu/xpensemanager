@@ -503,7 +503,7 @@ export function AddTransactionDialog({
                                                     <Trash2 className="h-4 w-4 text-destructive" />
                                                 </Button>
                                             </AlertDialogTrigger>
-                                            <AlertDialogContent>
+                                            <AlertDialogContent className="z-[110]">
                                                 <AlertDialogHeader>
                                                     <AlertDialogTitle>Remove Item?</AlertDialogTitle>
                                                     <AlertDialogDescription>
@@ -511,8 +511,8 @@ export function AddTransactionDialog({
                                                     </AlertDialogDescription>
                                                 </AlertDialogHeader>
                                                 <AlertDialogFooter>
-                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                    <AlertDialogAction onClick={() => removeExpenseItem(index)} className="bg-destructive hover:bg-destructive/90">
+                                                    <AlertDialogCancel type="button">Cancel</AlertDialogCancel>
+                                                    <AlertDialogAction type="button" onClick={() => removeExpenseItem(index)} className="bg-destructive hover:bg-destructive/90">
                                                         Remove
                                                     </AlertDialogAction>
                                                 </AlertDialogFooter>
