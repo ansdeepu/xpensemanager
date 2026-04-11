@@ -293,22 +293,6 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
   return (
     <>
     <div className="space-y-6">
-       <div className="flex justify-end">
-        <div className="flex items-center gap-2">
-           <Label htmlFor="special-expense-threshold" className="text-sm font-bold text-red-600 flex items-center gap-2 flex-shrink-0">
-             <AlertTriangle className="h-4 w-4" />
-             <span>Special Expense Threshold</span>
-           </Label>
-           <Input
-            id="special-expense-threshold"
-            type="number"
-            value={specialExpenseThreshold}
-            onChange={(e) => setSpecialExpenseThreshold(Number(e.target.value))}
-            className="hide-number-arrows w-32"
-            placeholder="e.g. 2000"
-          />
-        </div>
-      </div>
       {!hasTransactions ? (
          <Card>
             <CardContent className="pt-6">
