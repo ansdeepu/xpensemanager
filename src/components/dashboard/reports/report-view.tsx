@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo } from "react";
@@ -46,12 +47,18 @@ type ReportData = {
   totalTransfersOut: number;
   incomeByCategory: CategoryBreakdown;
   expenseByCategory: CategoryBreakdown; 
+  regularExpenseByCategory: CategoryBreakdown;
+  occasionalExpenseByCategory: CategoryBreakdown;
+  totalRegularExpense: number;
+  totalOccasionalExpense: number;
   incomeTransactions: Transaction[];
   expenseTransactions: Transaction[];
   transferInTransactions: Transaction[];
   transferOutTransactions: Transaction[];
   totalIncomeBudget: number;
   totalExpenseBudget: number;
+  totalRegularBudget: number;
+  totalOccasionalBudget: number;
 };
 
 type CategoryDetail = {
@@ -136,12 +143,18 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
         totalTransfersOut: 0,
         incomeByCategory: {},
         expenseByCategory: {},
+        regularExpenseByCategory: {},
+        occasionalExpenseByCategory: {},
+        totalRegularExpense: 0,
+        totalOccasionalExpense: 0,
         incomeTransactions: [],
         expenseTransactions: [],
         transferInTransactions: [],
         transferOutTransactions: [],
         totalIncomeBudget: 0,
         totalExpenseBudget: 0,
+        totalRegularBudget: 0,
+        totalOccasionalBudget: 0,
     };
     
     const nonPrimaryBankAccountIds = new Set(accounts.filter(acc => !acc.isPrimary).map(acc => acc.id));
@@ -188,6 +201,25 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                 }
                 data.expenseByCategory[categoryName].total += t.amount;
                 data.expenseByCategory[categoryName].subcategories[subCategoryName] = (data.expenseByCategory[categoryName].subcategories[subCategoryName] || 0) + t.amount;
+                
+                // Frequency split
+                const frequency = t.frequency || 'regular';
+                if (frequency === 'occasional') {
+                    data.totalOccasionalExpense += t.amount;
+                    if (!data.occasionalExpenseByCategory[categoryName]) {
+                        data.occasionalExpenseByCategory[categoryName] = { total: 0, budget: 0, subcategories: {} };
+                    }
+                    data.occasionalExpenseByCategory[categoryName].total += t.amount;
+                    data.occasionalExpenseByCategory[categoryName].subcategories[subCategoryName] = (data.occasionalExpenseByCategory[categoryName].subcategories[subCategoryName] || 0) + t.amount;
+                } else {
+                    data.totalRegularExpense += t.amount;
+                    if (!data.regularExpenseByCategory[categoryName]) {
+                        data.regularExpenseByCategory[categoryName] = { total: 0, budget: 0, subcategories: {} };
+                    }
+                    data.regularExpenseByCategory[categoryName].total += t.amount;
+                    data.regularExpenseByCategory[categoryName].subcategories[subCategoryName] = (data.regularExpenseByCategory[categoryName].subcategories[subCategoryName] || 0) + t.amount;
+                }
+
                 data.expenseTransactions.push(t);
             }
         } else if (t.type === 'transfer') {
@@ -211,20 +243,43 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
     });
 
     categories.forEach(cat => {
-        const categoryBudget = cat.subcategories
+        const regularBudget = cat.subcategories
+          .filter(sub => sub.frequency === 'monthly')
+          .reduce((sum, sub) => sum + (sub.amount || 0), 0);
+
+        const occasionalBudget = cat.subcategories
           .filter(sub => 
-            sub.frequency === 'monthly' || 
-            (sub.frequency === 'occasional' && sub.selectedMonths?.includes(currentMonthName))
+            sub.frequency === 'occasional' && sub.selectedMonths?.includes(currentMonthName)
           )
           .reduce((sum, sub) => sum + (sub.amount || 0), 0);
 
+        const categoryBudget = regularBudget + occasionalBudget;
+
         if (cat.type === 'expense' || cat.type === 'bank-expense') {
+            // Overall
             if (data.expenseByCategory[cat.name]) {
                 data.expenseByCategory[cat.name].budget = categoryBudget;
             } else if (categoryBudget > 0) {
                 data.expenseByCategory[cat.name] = { total: 0, budget: categoryBudget, subcategories: {} };
             }
             data.totalExpenseBudget += categoryBudget;
+
+            // Regular
+            if (data.regularExpenseByCategory[cat.name]) {
+                data.regularExpenseByCategory[cat.name].budget = regularBudget;
+            } else if (regularBudget > 0) {
+                data.regularExpenseByCategory[cat.name] = { total: 0, budget: regularBudget, subcategories: {} };
+            }
+            data.totalRegularBudget += regularBudget;
+
+            // Occasional
+            if (data.occasionalExpenseByCategory[cat.name]) {
+                data.occasionalExpenseByCategory[cat.name].budget = occasionalBudget;
+            } else if (occasionalBudget > 0) {
+                data.occasionalExpenseByCategory[cat.name] = { total: 0, budget: occasionalBudget, subcategories: {} };
+            }
+            data.totalOccasionalBudget += occasionalBudget;
+
         } else if (cat.type === 'income') {
             if (data.incomeByCategory[cat.name]) {
                 data.incomeByCategory[cat.name].budget = categoryBudget;
@@ -239,10 +294,12 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
     return data;
   }, [monthlyTransactions, isOverallSummary, accountId, isPrimaryReport, categories, accounts, currentMonthName]);
 
-  const handleCategoryClick = (categoryName: string, type: 'income' | 'expense') => {
-    const categoryData = type === 'income' 
-      ? monthlyReport.incomeByCategory[categoryName] 
-      : monthlyReport.expenseByCategory[categoryName];
+  const handleCategoryClick = (categoryName: string, type: 'income' | 'expense' | 'regular' | 'occasional') => {
+    let categoryData;
+    if (type === 'income') categoryData = monthlyReport.incomeByCategory[categoryName];
+    else if (type === 'expense') categoryData = monthlyReport.expenseByCategory[categoryName];
+    else if (type === 'regular') categoryData = monthlyReport.regularExpenseByCategory[categoryName];
+    else if (type === 'occasional') categoryData = monthlyReport.occasionalExpenseByCategory[categoryName];
       
     if (categoryData) {
       setSelectedCategoryDetail({
@@ -321,7 +378,8 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
         />
         
         <div className="grid gap-6 md:grid-cols-2">
-            <Card>
+            {/* Income Column */}
+            <Card className="h-fit">
                 <CardHeader>
                     <CardTitle>Income Details</CardTitle>
                 </CardHeader>
@@ -370,7 +428,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                 </CardContent>
                  {isPrimaryReport && (
                     <CardFooter className="flex-col items-start gap-2 pt-4">
-                      <div>
+                      <div className="w-full">
                         <Separator />
                         <div className="w-full flex justify-between font-bold text-base text-blue-600 mt-2">
                             <span>Total Income Budget</span>
@@ -380,53 +438,121 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                     </CardFooter>
                 )}
             </Card>
-            <Card>
-                <CardHeader>
-                    <CardTitle>Expense Details</CardTitle>
-                </CardHeader>
-                <CardContent>
-                     <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Expenses</TableHead>
-                                <TableHead className="text-right">Amount</TableHead>
-                                {isPrimaryReport && <TableHead className="text-right">Budget</TableHead>}
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                             {Object.keys(monthlyReport.expenseByCategory).length > 0 ? (
-                                Object.entries(monthlyReport.expenseByCategory).sort(([,a],[,b])=> b.total - a.total).map(([category, {total, budget}]) => (
-                                    <TableRow key={category} onClick={() => handleCategoryClick(category, 'expense')} className="cursor-pointer">
-                                        <TableCell className="font-medium">{category}</TableCell>
-                                        <TableCell className="text-right">{formatCurrency(total)}</TableCell>
-                                        {isPrimaryReport && <TableCell className="text-right">{budget > 0 ? formatCurrency(budget) : '-'}</TableCell>}
-                                    </TableRow>
-                                ))
-                             ) : (
+
+            {/* Split Expense Column */}
+            <div className="space-y-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-lg">Regular Expense Details</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
                                 <TableRow>
-                                    <TableCell colSpan={isPrimaryReport ? 3 : 2} className="text-center text-muted-foreground">No expenses this month.</TableCell>
+                                    <TableHead>Category</TableHead>
+                                    <TableHead className="text-right">Amount</TableHead>
+                                    {isPrimaryReport && <TableHead className="text-right">Budget</TableHead>}
                                 </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {Object.keys(monthlyReport.regularExpenseByCategory).length > 0 ? (
+                                    Object.entries(monthlyReport.regularExpenseByCategory).sort(([,a],[,b])=> b.total - a.total).map(([category, {total, budget}]) => (
+                                        <TableRow key={category} onClick={() => handleCategoryClick(category, 'regular')} className="cursor-pointer">
+                                            <TableCell className="font-medium">{category}</TableCell>
+                                            <TableCell className="text-right">{formatCurrency(total)}</TableCell>
+                                            {isPrimaryReport && <TableCell className="text-right">{budget > 0 ? formatCurrency(budget) : '-'}</TableCell>}
+                                        </TableRow>
+                                    ))
+                                ) : (
+                                    <TableRow>
+                                        <TableCell colSpan={isPrimaryReport ? 3 : 2} className="text-center text-muted-foreground">No regular expenses.</TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                    <CardFooter className="flex-col items-start gap-2 pt-4">
+                        <div className="w-full">
+                            <Separator />
+                            <div className="w-full flex justify-between font-bold text-sm mt-2">
+                                <span>Subtotal Regular</span>
+                                <span className="font-mono">{formatCurrency(monthlyReport.totalRegularExpense)}</span>
+                            </div>
+                            {isPrimaryReport && (
+                                <div className="w-full flex justify-between font-bold text-sm text-blue-600 mt-1">
+                                    <span>Budget</span>
+                                    <span className="font-mono">{formatCurrency(monthlyReport.totalRegularBudget)}</span>
+                                </div>
                             )}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-                <CardFooter className="flex-col items-start gap-2 pt-4">
-                    <div>
-                        <Separator />
-                        <div className="w-full flex justify-between font-bold text-base mt-2">
-                            <span>Total Expenses</span>
+                        </div>
+                    </CardFooter>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-lg">Occasional Expense Details</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Category</TableHead>
+                                    <TableHead className="text-right">Amount</TableHead>
+                                    {isPrimaryReport && <TableHead className="text-right">Budget</TableHead>}
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {Object.keys(monthlyReport.occasionalExpenseByCategory).length > 0 ? (
+                                    Object.entries(monthlyReport.occasionalExpenseByCategory).sort(([,a],[,b])=> b.total - a.total).map(([category, {total, budget}]) => (
+                                        <TableRow key={category} onClick={() => handleCategoryClick(category, 'occasional')} className="cursor-pointer">
+                                            <TableCell className="font-medium">{category}</TableCell>
+                                            <TableCell className="text-right">{formatCurrency(total)}</TableCell>
+                                            {isPrimaryReport && <TableCell className="text-right">{budget > 0 ? formatCurrency(budget) : '-'}</TableCell>}
+                                        </TableRow>
+                                    ))
+                                ) : (
+                                    <TableRow>
+                                        <TableCell colSpan={isPrimaryReport ? 3 : 2} className="text-center text-muted-foreground">No occasional expenses.</TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                    <CardFooter className="flex-col items-start gap-2 pt-4">
+                        <div className="w-full">
+                            <Separator />
+                            <div className="w-full flex justify-between font-bold text-sm mt-2">
+                                <span>Subtotal Occasional</span>
+                                <span className="font-mono">{formatCurrency(monthlyReport.totalOccasionalExpense)}</span>
+                            </div>
+                            {isPrimaryReport && (
+                                <div className="w-full flex justify-between font-bold text-sm text-blue-600 mt-1">
+                                    <span>Budget</span>
+                                    <span className="font-mono">{formatCurrency(monthlyReport.totalOccasionalBudget)}</span>
+                                </div>
+                            )}
+                        </div>
+                    </CardFooter>
+                </Card>
+
+                {/* Total Expense Summary */}
+                <Card className="bg-muted/30">
+                    <CardContent className="p-4">
+                        <div className="w-full flex justify-between font-bold text-base">
+                            <span>Grand Total Expenses</span>
                             <span className="font-mono">{formatCurrency(monthlyReport.totalExpense)}</span>
                         </div>
                         {isPrimaryReport && (
-                            <div className="w-full flex justify-between font-bold text-base text-blue-600 mt-2">
-                                <span>Total Expense Budget</span>
+                            <div className="w-full flex justify-between font-bold text-sm text-blue-600 mt-1">
+                                <span>Grand Total Budget</span>
                                 <span className="font-mono">{formatCurrency(monthlyReport.totalExpenseBudget)}</span>
                             </div>
                         )}
-                    </div>
-                </CardFooter>
-            </Card>
+                    </CardContent>
+                </Card>
+            </div>
         </div>
+
          <div className="grid gap-6 md:grid-cols-2">
             <Card>
                 <CardHeader><CardTitle>Loan Details (Taken)</CardTitle></CardHeader>
