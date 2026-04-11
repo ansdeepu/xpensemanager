@@ -5,7 +5,7 @@ import React, { useState, useMemo } from "react";
 import type { Transaction, Category, SubCategory, Account, Loan, LoanTransaction } from "@/lib/data";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BookText, TrendingUp, TrendingDown, IndianRupee } from "lucide-react";
+import { BookText, TrendingUp, TrendingDown, IndianRupee, ChevronDown, ChevronUp } from "lucide-react";
 import { format, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import {
   Table,
@@ -25,9 +25,15 @@ import {
   DialogFooter as DialogFooterComponent,
   DialogClose,
 } from "@/components/ui/dialog";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { useReportDate } from "@/context/report-date-context";
 import { FinancialAdvice } from "./financial-advice";
 import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-IN", {
@@ -77,6 +83,11 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
   const [selectedCategoryDetail, setSelectedCategoryDetail] = useState<CategoryDetail | null>(null);
+  
+  const [isInflowOpen, setIsInflowOpen] = useState(false);
+  const [isOutflowOpen, setIsOutflowOpen] = useState(false);
+  const [isNetOpen, setIsNetOpen] = useState(false);
+
   const { currentDate } = useReportDate();
   
   const monthStart = useMemo(() => startOfMonth(currentDate), [currentDate]);
@@ -120,7 +131,6 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                 if (isOverallSummary) {
                     include = true;
                 } else if (isPrimaryReport) {
-                    // Include if using primary bank, wallets, OR any credit card to match the primary ecosystem definition
                     const isCreditCard = tx.accountId ? creditCardIds.has(tx.accountId) : false;
                     include = tx.accountId === accountId || tx.accountId === 'cash-wallet' || tx.accountId === 'digital-wallet' || isCreditCard;
                 } else {
@@ -238,7 +248,6 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                 data.expenseByCategory[categoryName].total += t.amount;
                 data.expenseByCategory[categoryName].subcategories[subCategoryName] = (data.expenseByCategory[categoryName].subcategories[subCategoryName] || 0) + t.amount;
                 
-                // Frequency split
                 const frequency = t.frequency || 'regular';
                 if (frequency === 'occasional') {
                     data.totalOccasionalExpense += t.amount;
@@ -298,7 +307,6 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
         const categoryBudget = regularBudget + occasionalBudget;
 
         if (cat.type === 'expense' || cat.type === 'bank-expense') {
-            // Overall
             if (data.expenseByCategory[cat.name]) {
                 data.expenseByCategory[cat.name].budget = categoryBudget;
             } else if (categoryBudget > 0) {
@@ -306,7 +314,6 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
             }
             data.totalExpenseBudget += categoryBudget;
 
-            // Regular
             if (data.regularExpenseByCategory[cat.name]) {
                 data.regularExpenseByCategory[cat.name].budget = regularBudget;
             } else if (regularBudget > 0) {
@@ -314,7 +321,6 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
             }
             data.totalRegularBudget += regularBudget;
 
-            // Occasional
             if (data.occasionalExpenseByCategory[cat.name]) {
                 data.occasionalExpenseByCategory[cat.name].budget = occasionalBudget;
             } else if (occasionalBudget > 0) {
@@ -373,44 +379,113 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
       ) : (
       <>
         <div className="grid gap-6 md:grid-cols-3">
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Inflow</CardTitle>
-                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold text-green-600">{formatCurrency(grandTotalInflow)}</div>
-                    <p className="text-xs text-muted-foreground">
-                        Income, transfers in, loans taken, repayments received.
-                    </p>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Outflow</CardTitle>
-                    <TrendingDown className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold text-red-600">{formatCurrency(grandTotalOutflow)}</div>
-                    <p className="text-xs text-muted-foreground">
-                        Expenses, transfers out, loans given, repayments made.
-                    </p>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Net Balance</CardTitle>
-                    <IndianRupee className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className={`text-2xl font-bold ${netBalance >= 0 ? 'text-foreground' : 'text-red-600'}`}>
-                        {formatCurrency(netBalance)}
-                    </div>
-                     <p className="text-xs text-muted-foreground">
-                        Total Inflow - Total Outflow
-                    </p>
-                </CardContent>
-            </Card>
+            <Collapsible open={isInflowOpen} onOpenChange={setIsInflowOpen}>
+                <CollapsibleTrigger asChild>
+                    <Card className="cursor-pointer hover:bg-muted/30 transition-colors">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Total Inflow</CardTitle>
+                            <div className="flex items-center gap-1">
+                                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                                {isInflowOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-green-600">{formatCurrency(grandTotalInflow)}</div>
+                            <p className="text-xs text-muted-foreground">
+                                Income, transfers in, loans taken, repayments received.
+                            </p>
+                            <CollapsibleContent className="mt-4 pt-4 border-t space-y-2">
+                                <div className="flex justify-between text-xs">
+                                    <span className="text-muted-foreground">Income:</span>
+                                    <span className="font-semibold">{formatCurrency(monthlyReport.totalIncome)}</span>
+                                </div>
+                                <div className="flex justify-between text-xs">
+                                    <span className="text-muted-foreground">Transfers In:</span>
+                                    <span className="font-semibold">{formatCurrency(monthlyReport.totalTransfersIn)}</span>
+                                </div>
+                                <div className="flex justify-between text-xs">
+                                    <span className="text-muted-foreground">Loans Taken:</span>
+                                    <span className="font-semibold">{formatCurrency(monthlyLoanReport.totalLoanTaken)}</span>
+                                </div>
+                                <div className="flex justify-between text-xs">
+                                    <span className="text-muted-foreground">Repayments Rcvd:</span>
+                                    <span className="font-semibold">{formatCurrency(monthlyLoanReport.totalRepaymentReceived)}</span>
+                                </div>
+                            </CollapsibleContent>
+                        </CardContent>
+                    </Card>
+                </CollapsibleTrigger>
+            </Collapsible>
+
+            <Collapsible open={isOutflowOpen} onOpenChange={setIsOutflowOpen}>
+                <CollapsibleTrigger asChild>
+                    <Card className="cursor-pointer hover:bg-muted/30 transition-colors">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Total Outflow</CardTitle>
+                            <div className="flex items-center gap-1">
+                                <TrendingDown className="h-4 w-4 text-muted-foreground" />
+                                {isOutflowOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-red-600">{formatCurrency(grandTotalOutflow)}</div>
+                            <p className="text-xs text-muted-foreground">
+                                Expenses, transfers out, loans given, repayments made.
+                            </p>
+                            <CollapsibleContent className="mt-4 pt-4 border-t space-y-2">
+                                <div className="flex justify-between text-xs">
+                                    <span className="text-muted-foreground">Expenses:</span>
+                                    <span className="font-semibold">{formatCurrency(monthlyReport.totalExpense)}</span>
+                                </div>
+                                <div className="flex justify-between text-xs">
+                                    <span className="text-muted-foreground">Transfers Out:</span>
+                                    <span className="font-semibold">{formatCurrency(monthlyReport.totalTransfersOut)}</span>
+                                </div>
+                                <div className="flex justify-between text-xs">
+                                    <span className="text-muted-foreground">Loans Given:</span>
+                                    <span className="font-semibold">{formatCurrency(monthlyLoanReport.totalLoanGiven)}</span>
+                                </div>
+                                <div className="flex justify-between text-xs">
+                                    <span className="text-muted-foreground">Repayments Made:</span>
+                                    <span className="font-semibold">{formatCurrency(monthlyLoanReport.totalRepaymentMade)}</span>
+                                </div>
+                            </CollapsibleContent>
+                        </CardContent>
+                    </Card>
+                </CollapsibleTrigger>
+            </Collapsible>
+
+            <Collapsible open={isNetOpen} onOpenChange={setIsNetOpen}>
+                <CollapsibleTrigger asChild>
+                    <Card className="cursor-pointer hover:bg-muted/30 transition-colors">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Net Balance</CardTitle>
+                            <div className="flex items-center gap-1">
+                                <IndianRupee className="h-4 w-4 text-muted-foreground" />
+                                {isNetOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            <div className={cn("text-2xl font-bold", netBalance >= 0 ? 'text-foreground' : 'text-red-600')}>
+                                {formatCurrency(netBalance)}
+                            </div>
+                             <p className="text-xs text-muted-foreground">
+                                Total Inflow - Total Outflow
+                            </p>
+                            <CollapsibleContent className="mt-4 pt-4 border-t space-y-2">
+                                <div className="flex justify-between text-xs">
+                                    <span className="text-muted-foreground">Grand Inflow:</span>
+                                    <span className="font-semibold text-green-600">{formatCurrency(grandTotalInflow)}</span>
+                                </div>
+                                <div className="flex justify-between text-xs">
+                                    <span className="text-muted-foreground">Grand Outflow:</span>
+                                    <span className="font-semibold text-red-600">{formatCurrency(grandTotalOutflow)}</span>
+                                </div>
+                            </CollapsibleContent>
+                        </CardContent>
+                    </Card>
+                </CollapsibleTrigger>
+            </Collapsible>
         </div>
 
         <FinancialAdvice 
@@ -420,7 +495,6 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
         />
         
         <div className="grid gap-6 md:grid-cols-2">
-            {/* Income Column */}
             <Card className="h-fit">
                 <CardHeader>
                     <CardTitle>Income Details</CardTitle>
@@ -481,7 +555,6 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                 )}
             </Card>
 
-            {/* Split Expense Column */}
             <div className="space-y-6">
                 <Card>
                     <CardHeader>
@@ -577,7 +650,6 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                     </CardFooter>
                 </Card>
 
-                {/* Total Expense Summary */}
                 <Card className="bg-muted/30">
                     <CardContent className="p-4">
                         <div className="w-full flex justify-between font-bold text-base">
