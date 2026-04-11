@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useMemo, Fragment } from "react";
@@ -12,6 +11,17 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -487,9 +497,27 @@ export function AddTransactionDialog({
                                 </div>
                                 <div className="col-span-2 sm:col-span-1 flex items-center justify-end gap-1">
                                     {expenseItems.length > 1 && (
-                                        <Button type="button" variant="ghost" size="icon" className="h-9 w-9" onClick={() => removeExpenseItem(index)}>
-                                            <Trash2 className="h-4 w-4 text-destructive" />
-                                        </Button>
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <Button type="button" variant="ghost" size="icon" className="h-9 w-9">
+                                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                                </Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>Remove Item?</AlertDialogTitle>
+                                                    <AlertDialogDescription>
+                                                        Are you sure you want to remove "{item.description || 'this item'}" from the transaction?
+                                                    </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                    <AlertDialogAction onClick={() => removeExpenseItem(index)} className="bg-destructive hover:bg-destructive/90">
+                                                        Remove
+                                                    </AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
                                     )}
                                     {index === expenseItems.length - 1 && (
                                       <Button type="button" variant="ghost" size="icon" onClick={addExpenseItem} className="h-9 w-9">
