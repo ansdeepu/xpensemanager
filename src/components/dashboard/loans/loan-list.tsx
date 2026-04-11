@@ -116,33 +116,47 @@ function LoanAccordionItem({
     endDate?: string;
 }) {
     const { transactionsForPeriod, periodTotals } = useMemo(() => {
-        let transactionsToProcess = loan.transactions || [];
-        if (startDate && endDate) {
-            const interval = { start: startOfDay(new Date(startDate)), end: endOfDay(new Date(endDate)) };
-            transactionsToProcess = transactionsToProcess.filter(t => {
-                const transactionDate = parseISO(t.date);
-                return isValid(transactionDate) && isWithinInterval(transactionDate, interval);
-            });
-        }
-
-        let totalLoan = 0;
-        let totalRepayment = 0;
-
-        const transactionsWithDetails = transactionsToProcess.map(transaction => {
+        const allTransactions = [...(loan.transactions || [])].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        
+        let runningBalance = 0;
+        const processedTransactions = allTransactions.map(transaction => {
             let credit = 0;
             let debit = 0;
+            let effect = 0;
             if (loan.type === 'taken') {
-                if (transaction.type === 'loan') { credit = transaction.amount; totalLoan += transaction.amount; }
-                else { debit = transaction.amount; totalRepayment += transaction.amount; }
+                if (transaction.type === 'loan') { 
+                    credit = transaction.amount; 
+                    effect = transaction.amount;
+                } else { 
+                    debit = transaction.amount; 
+                    effect = -transaction.amount;
+                }
             } else { // 'given'
-                if (transaction.type === 'loan') { debit = transaction.amount; totalLoan += transaction.amount; }
-                else { credit = transaction.amount; totalRepayment += transaction.amount; }
+                if (transaction.type === 'loan') { 
+                    debit = transaction.amount; 
+                    effect = transaction.amount;
+                } else { 
+                    credit = transaction.amount; 
+                    effect = -transaction.amount;
+                }
             }
-            return { ...transaction, credit, debit };
-        }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            runningBalance += effect;
+            return { ...transaction, credit, debit, runningBalance };
+        });
+
+        const interval = startDate && endDate ? { start: startOfDay(new Date(startDate)), end: endOfDay(new Date(endDate)) } : null;
+        
+        const filteredTransactions = processedTransactions.filter(t => {
+            if (!interval) return true;
+            const transactionDate = parseISO(t.date);
+            return isValid(transactionDate) && isWithinInterval(transactionDate, interval);
+        }).reverse();
+
+        const totalLoan = filteredTransactions.reduce((sum, t) => sum + (t.type === 'loan' ? t.amount : 0), 0);
+        const totalRepayment = filteredTransactions.reduce((sum, t) => sum + (t.type === 'repayment' ? t.amount : 0), 0);
 
         return {
-            transactionsForPeriod: transactionsWithDetails,
+            transactionsForPeriod: filteredTransactions,
             periodTotals: { totalLoan, totalRepayment }
         };
     }, [loan, startDate, endDate]);
@@ -222,44 +236,50 @@ function LoanAccordionItem({
                                                 <TableHead className="text-right px-2 py-1">Loan Given</TableHead>
                                             </>
                                             )}
+                                            <TableHead className="text-right px-2 py-1">Balance</TableHead>
                                             <TableHead className="text-right px-2 py-1">Actions</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {transactionsForPeriod.map(t => (
                                             <TableRow key={t.id}>
-                                                <TableCell className="px-2 py-1">{isValid(parseISO(t.date)) ? format(parseISO(t.date), "dd/MM/yyyy") : '-'}</TableCell>
+                                                <TableCell className="px-2 py-1 text-xs">{isValid(parseISO(t.date)) ? format(parseISO(t.date), "dd/MM/yyyy") : '-'}</TableCell>
                                                 <TableCell className="px-2 py-1">
-                                                    <Badge variant={t.type === 'loan' ? 'outline' : 'secondary'} className="capitalize text-xs">{t.type}</Badge>
+                                                    <Badge variant={t.type === 'loan' ? 'outline' : 'secondary'} className="capitalize text-[10px] px-1.5 py-0">{t.type}</Badge>
                                                 </TableCell>
-                                                <TableCell className="px-2 py-1">{getLoanTransactionDescription(loan, t)}</TableCell>
-                                                <TableCell className="text-right font-mono text-green-600 px-2 py-1">
+                                                <TableCell className="px-2 py-1 text-xs">{getLoanTransactionDescription(loan, t)}</TableCell>
+                                                <TableCell className="text-right font-mono text-green-600 px-2 py-1 text-xs">
                                                     {t.credit > 0 ? formatCurrency(t.credit) : null}
                                                 </TableCell>
-                                                <TableCell className="text-right font-mono text-red-600 px-2 py-1">
+                                                <TableCell className="text-right font-mono text-red-600 px-2 py-1 text-xs">
                                                     {t.debit > 0 ? formatCurrency(t.debit) : null}
                                                 </TableCell>
+                                                <TableCell className={cn("text-right font-mono px-2 py-1 text-xs", t.runningBalance > 0 ? "text-red-600" : "text-green-600")}>
+                                                    {formatCurrency(t.runningBalance)}
+                                                </TableCell>
                                                 <TableCell className="text-right px-2 py-1">
-                                                    <Button variant="ghost" size="icon" onClick={() => onEditTransaction(loan, t)} className="h-7 w-7">
-                                                        <Pencil className="h-3 w-3" />
-                                                    </Button>
-                                                    <AlertDialog>
-                                                        <AlertDialogTrigger asChild>
-                                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
-                                                                <Trash2 className="h-3 w-3" />
-                                                            </Button>
-                                                        </AlertDialogTrigger>
-                                                        <AlertDialogContent>
-                                                            <AlertDialogHeader>
-                                                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                                <AlertDialogDescription>This will delete this transaction and cannot be undone.</AlertDialogDescription>
-                                                            </AlertDialogHeader>
-                                                            <AlertDialogFooter>
-                                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                                <AlertDialogAction onClick={() => onDeleteTransaction(loan, t)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                                                            </AlertDialogFooter>
-                                                        </AlertDialogContent>
-                                                    </AlertDialog>
+                                                    <div className="flex items-center justify-end">
+                                                        <Button variant="ghost" size="icon" onClick={() => onEditTransaction(loan, t)} className="h-7 w-7">
+                                                            <Pencil className="h-3 w-3" />
+                                                        </Button>
+                                                        <AlertDialog>
+                                                            <AlertDialogTrigger asChild>
+                                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
+                                                                    <Trash2 className="h-3 w-3" />
+                                                                </Button>
+                                                            </AlertDialogTrigger>
+                                                            <AlertDialogContent>
+                                                                <AlertDialogHeader>
+                                                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                                    <AlertDialogDescription>This will delete this transaction and cannot be undone.</AlertDialogDescription>
+                                                                </AlertDialogHeader>
+                                                                <AlertDialogFooter>
+                                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                                    <AlertDialogAction onClick={() => onDeleteTransaction(loan, t)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                                                </AlertDialogFooter>
+                                                            </AlertDialogContent>
+                                                        </AlertDialog>
+                                                    </div>
                                                 </TableCell>
                                             </TableRow>
                                         ))}
@@ -290,45 +310,48 @@ function CardAccordionItem({
     onDeleteTransaction: (transaction: Transaction) => void;
 }) {
     const { transactionsForPeriod, periodTotals } = useMemo(() => {
-        let relevantTransactions = (transactions || [])
+        const allCardTransactions = (transactions || [])
             .filter(t =>
                 (t.type === 'expense' && t.accountId === card.id) ||
                 (t.type === 'transfer' && (t.toAccountId === card.id || t.fromAccountId === card.id))
-            );
+            )
+            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-        if (startDate && endDate) {
-            const interval = { start: startOfDay(new Date(startDate)), end: endOfDay(new Date(endDate)) };
-            relevantTransactions = relevantTransactions.filter(t => {
-                const transactionDate = parseISO(t.date);
-                return isValid(transactionDate) && isWithinInterval(transactionDate, interval);
-            });
-        }
-        
-        let totalCharges = 0;
-        let totalPayments = 0;
-        
-        const transactionsWithDetails = relevantTransactions.map(t => {
+        let runningBalance = 0;
+        const processedTransactions = allCardTransactions.map(t => {
             let charge = 0;
             let payment = 0;
-            let runningBalance = 0; // This will be tricky without all transactions
+            let effect = 0;
 
             if (t.type === 'expense' && t.accountId === card.id) {
                 charge = t.amount;
-                totalCharges += t.amount;
+                effect = t.amount;
             } else if (t.type === 'transfer') {
                 if (t.toAccountId === card.id) {
                     payment = t.amount;
-                    totalPayments += t.amount;
-                } else if (t.fromAccountId === card.id) { // cash advance or special charges
+                    effect = -t.amount;
+                } else if (t.fromAccountId === card.id) {
                     charge = t.amount;
-                    totalCharges += t.amount;
+                    effect = t.amount;
                 }
             }
-            return { ...t, charge, payment };
-        }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            runningBalance += effect;
+            return { ...t, charge, payment, runningBalance };
+        });
+
+        const interval = startDate && endDate ? { start: startOfDay(new Date(startDate)), end: endOfDay(new Date(endDate)) } : null;
+        
+        const filteredTransactions = processedTransactions.filter(t => {
+            if (!interval) return true;
+            const transactionDate = parseISO(t.date);
+            return isValid(transactionDate) && isWithinInterval(transactionDate, interval);
+        }).reverse();
+        
+        const totalCharges = filteredTransactions.reduce((sum, t) => sum + t.charge, 0);
+        const totalPayments = filteredTransactions.reduce((sum, t) => sum + t.payment, 0);
 
         return {
-            transactionsForPeriod: transactionsWithDetails,
+            transactionsForPeriod: filteredTransactions,
             periodTotals: { totalCharges, totalPayments }
         };
     }, [transactions, card, startDate, endDate]);
@@ -362,25 +385,29 @@ function CardAccordionItem({
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
-                                            <TableHead>Date</TableHead>
-                                            <TableHead>Description</TableHead>
-                                            <TableHead className="text-right">Charges</TableHead>
-                                            <TableHead className="text-right">Payments</TableHead>
-                                            <TableHead className="text-right">Actions</TableHead>
+                                            <TableHead className="px-2 py-1">Date</TableHead>
+                                            <TableHead className="px-2 py-1">Description</TableHead>
+                                            <TableHead className="text-right px-2 py-1">Charges</TableHead>
+                                            <TableHead className="text-right px-2 py-1">Payments</TableHead>
+                                            <TableHead className="text-right px-2 py-1">Balance</TableHead>
+                                            <TableHead className="text-right px-2 py-1">Actions</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {transactionsForPeriod.length > 0 ? transactionsForPeriod.map(t => (
                                             <TableRow key={t.id}>
-                                                <TableCell>{isValid(parseISO(t.date)) ? format(parseISO(t.date), "dd/MM/yyyy") : '-'}</TableCell>
-                                                <TableCell>{t.description}</TableCell>
-                                                <TableCell className="text-right font-mono text-red-600">
+                                                <TableCell className="px-2 py-1 text-xs">{isValid(parseISO(t.date)) ? format(parseISO(t.date), "dd/MM/yyyy") : '-'}</TableCell>
+                                                <TableCell className="px-2 py-1 text-xs">{t.description}</TableCell>
+                                                <TableCell className="text-right font-mono text-red-600 px-2 py-1 text-xs">
                                                     {t.charge > 0 ? formatCurrency(t.charge) : null}
                                                 </TableCell>
-                                                <TableCell className="text-right font-mono text-green-600">
+                                                <TableCell className="text-right font-mono text-green-600 px-2 py-1 text-xs">
                                                     {t.payment > 0 ? formatCurrency(t.payment) : null}
                                                 </TableCell>
-                                                <TableCell className="text-right">
+                                                <TableCell className="text-right font-mono px-2 py-1 text-xs text-red-600">
+                                                    {formatCurrency(t.runningBalance)}
+                                                </TableCell>
+                                                <TableCell className="text-right px-2 py-1">
                                                   <div className="flex items-center justify-end">
                                                     <Button variant="ghost" size="icon" onClick={() => onEditTransaction(t)} className="h-7 w-7">
                                                         <Pencil className="h-3 w-3" />
@@ -407,7 +434,7 @@ function CardAccordionItem({
                                             </TableRow>
                                         )) : (
                                             <TableRow>
-                                                <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
+                                                <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
                                                     No transactions found for this card in the selected period.
                                                 </TableCell>
                                             </TableRow>
@@ -976,7 +1003,7 @@ export function LoanList({ loanType, loans: allLoans, creditCards, transactions:
                 Add Record
               </Button>
             </DialogTrigger>
-            <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-3xl">
+            <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-[425px] md:max-w-3xl">
               <Tabs value={activeAddTab} onValueChange={setActiveAddTab}>
                   <TabsList className="grid w-full grid-cols-2">
                       <TabsTrigger value="loan">Loan / Repayment</TabsTrigger>
