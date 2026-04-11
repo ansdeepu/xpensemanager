@@ -67,6 +67,11 @@ type CategoryDetail = {
   subcategories: { [key: string]: number };
 };
 
+type AggregatedLoanEntry = {
+    personName: string;
+    amount: number;
+};
+
 
 export function ReportView({ transactions, categories, accounts, loans, isOverallSummary, accountId, isPrimaryReport }: { transactions: Transaction[], categories: Category[], accounts: Account[], loans: Loan[], isOverallSummary: boolean, accountId?: string, isPrimaryReport?: boolean }) {
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
@@ -89,13 +94,22 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
         totalLoanGiven: 0,
         totalRepaymentMade: 0,
         totalRepaymentReceived: 0,
-        loanTakenTransactions: [] as (LoanTransaction & { personName: string })[],
-        loanGivenTransactions: [] as (LoanTransaction & { personName: string })[],
-        repaymentMadeTransactions: [] as (LoanTransaction & { personName: string })[],
-        repaymentReceivedTransactions: [] as (LoanTransaction & { personName: string })[],
+        loanTakenMap: {} as Record<string, number>,
+        loanGivenMap: {} as Record<string, number>,
+        repaymentMadeMap: {} as Record<string, number>,
+        repaymentReceivedMap: {} as Record<string, number>,
     };
 
-    if (!loans) return report;
+    if (!loans) return {
+        totalLoanTaken: 0,
+        totalLoanGiven: 0,
+        totalRepaymentMade: 0,
+        totalRepaymentReceived: 0,
+        loanTakenTransactions: [],
+        loanGivenTransactions: [],
+        repaymentMadeTransactions: [],
+        repaymentReceivedTransactions: [],
+    };
 
     loans.forEach(loan => {
         (loan.transactions || []).forEach(tx => {
@@ -110,21 +124,22 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                 }
 
                 if (include) {
+                    const name = loan.personName;
                     if (loan.type === 'taken') {
                         if (tx.type === 'loan') {
                             report.totalLoanTaken += tx.amount;
-                            report.loanTakenTransactions.push({ ...tx, personName: loan.personName });
+                            report.loanTakenMap[name] = (report.loanTakenMap[name] || 0) + tx.amount;
                         } else { // repayment
                             report.totalRepaymentMade += tx.amount;
-                            report.repaymentMadeTransactions.push({ ...tx, personName: loan.personName });
+                            report.repaymentMadeMap[name] = (report.repaymentMadeMap[name] || 0) + tx.amount;
                         }
                     } else { // given
                         if (tx.type === 'loan') {
                             report.totalLoanGiven += tx.amount;
-                            report.loanGivenTransactions.push({ ...tx, personName: loan.personName });
+                            report.loanGivenMap[name] = (report.loanGivenMap[name] || 0) + tx.amount;
                         } else { // repayment
                             report.totalRepaymentReceived += tx.amount;
-                            report.repaymentReceivedTransactions.push({ ...tx, personName: loan.personName });
+                            report.repaymentReceivedMap[name] = (report.repaymentReceivedMap[name] || 0) + tx.amount;
                         }
                     }
                 }
@@ -132,7 +147,22 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
         });
     });
 
-    return report;
+    const convertAndSort = (map: Record<string, number>): AggregatedLoanEntry[] => {
+        return Object.entries(map)
+            .map(([personName, amount]) => ({ personName, amount }))
+            .sort((a, b) => b.amount - a.amount);
+    };
+
+    return {
+        totalLoanTaken: report.totalLoanTaken,
+        totalLoanGiven: report.totalLoanGiven,
+        totalRepaymentMade: report.totalRepaymentMade,
+        totalRepaymentReceived: report.totalRepaymentReceived,
+        loanTakenTransactions: convertAndSort(report.loanTakenMap),
+        loanGivenTransactions: convertAndSort(report.loanGivenMap),
+        repaymentMadeTransactions: convertAndSort(report.repaymentMadeMap),
+        repaymentReceivedTransactions: convertAndSort(report.repaymentReceivedMap),
+    };
   }, [loans, monthStart, monthEnd, isOverallSummary, isPrimaryReport, accountId]);
 
   const monthlyReport = useMemo(() => {
@@ -561,7 +591,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                         <TableHeader><TableRow><TableHead>From</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
                         <TableBody>
                             {monthlyLoanReport.loanTakenTransactions.map(tx => (
-                                <TableRow key={tx.id}><TableCell>{tx.personName}</TableCell><TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell></TableRow>
+                                <TableRow key={tx.personName}><TableCell>{tx.personName}</TableCell><TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell></TableRow>
                             ))}
                         </TableBody>
                         <TableFooter><TableRow><TableHead>Total Loans Taken</TableHead><TableHead className="text-right">{formatCurrency(monthlyLoanReport.totalLoanTaken)}</TableHead></TableRow></TableFooter>
@@ -571,7 +601,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                         <TableHeader><TableRow><TableHead>Repayments To</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
                         <TableBody>
                             {monthlyLoanReport.repaymentMadeTransactions.map(tx => (
-                                <TableRow key={tx.id}><TableCell>{tx.personName}</TableCell><TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell></TableRow>
+                                <TableRow key={tx.personName}><TableCell>{tx.personName}</TableCell><TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell></TableRow>
                             ))}
                         </TableBody>
                         <TableFooter><TableRow><TableHead>Total Repayments Made</TableHead><TableHead className="text-right">{formatCurrency(monthlyLoanReport.totalRepaymentMade)}</TableHead></TableRow></TableFooter>
@@ -585,7 +615,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                         <TableHeader><TableRow><TableHead>To</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
                         <TableBody>
                             {monthlyLoanReport.loanGivenTransactions.map(tx => (
-                                <TableRow key={tx.id}><TableCell>{tx.personName}</TableCell><TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell></TableRow>
+                                <TableRow key={tx.personName}><TableCell>{tx.personName}</TableCell><TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell></TableRow>
                             ))}
                         </TableBody>
                         <TableFooter><TableRow><TableHead>Total Loans Given</TableHead><TableHead className="text-right">{formatCurrency(monthlyLoanReport.totalLoanGiven)}</TableHead></TableRow></TableFooter>
@@ -595,7 +625,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                         <TableHeader><TableRow><TableHead>Repayments From</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
                         <TableBody>
                             {monthlyLoanReport.repaymentReceivedTransactions.map(tx => (
-                                <TableRow key={tx.id}><TableCell>{tx.personName}</TableCell><TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell></TableRow>
+                                <TableRow key={tx.personName}><TableCell>{tx.personName}</TableCell><TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell></TableRow>
                             ))}
                         </TableBody>
                         <TableFooter><TableRow><TableHead>Total Repayments Received</TableHead><TableHead className="text-right">{formatCurrency(monthlyLoanReport.totalRepaymentReceived)}</TableHead></TableRow></TableFooter>
@@ -688,7 +718,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                         <TableHead colSpan={2} className="text-right">{formatCurrency(monthlyReport.totalTransfersIn - monthlyReport.totalTransfersOut)}</TableHead>
                     </TableRow>
                 </TableFooter>
-            </Table>
+            </DialogFooterComponent>
             <DialogFooterComponent>
                 <DialogClose asChild>
                     <Button type="button" variant="secondary">Close</Button>
