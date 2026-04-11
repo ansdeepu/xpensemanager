@@ -4,7 +4,7 @@ import React, { useState, useMemo } from "react";
 import type { Transaction, Category, SubCategory, Account, Loan, LoanTransaction } from "@/lib/data";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BookText, TrendingUp, TrendingDown, IndianRupee, AlertTriangle } from "lucide-react";
+import { BookText, TrendingUp, TrendingDown, IndianRupee } from "lucide-react";
 import { format, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import {
   Table,
@@ -26,8 +26,6 @@ import {
 } from "@/components/ui/dialog";
 import { useReportDate } from "@/context/report-date-context";
 import { FinancialAdvice } from "./financial-advice";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 
 const formatCurrency = (amount: number) => {
@@ -68,7 +66,6 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
   const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
   const [selectedCategoryDetail, setSelectedCategoryDetail] = useState<CategoryDetail | null>(null);
   const { currentDate } = useReportDate();
-  const [specialExpenseThreshold, setSpecialExpenseThreshold] = useState(2000);
   
   const monthStart = useMemo(() => startOfMonth(currentDate), [currentDate]);
   const monthEnd = useMemo(() => endOfMonth(currentDate), [currentDate]);
@@ -79,31 +76,6 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
     [transactions, monthStart, monthEnd]
   );
   
-  const subCategoryMap = useMemo(() => {
-    const expenseCategories = categories.filter(c => c.type === 'expense');
-    const map: { [key: string]: { [key: string]: SubCategory } } = {};
-    expenseCategories.forEach(cat => {
-      map[cat.id] = {};
-      cat.subcategories.forEach(sub => {
-        map[cat.id][sub.name] = sub;
-      });
-    });
-    return map;
-  }, [categories]);
-
-  const specialExpenses = useMemo(() => {
-    return monthlyTransactions.filter(t => {
-      if (t.type === 'expense' && t.amount > specialExpenseThreshold && t.categoryId && t.subcategory) {
-        const sub = subCategoryMap[t.categoryId]?.[t.subcategory];
-        return sub?.frequency === 'occasional';
-      }
-      return false;
-    });
-  }, [monthlyTransactions, subCategoryMap, specialExpenseThreshold]);
-
-  const specialExpenseIds = useMemo(() => new Set(specialExpenses.map(e => e.id)), [specialExpenses]);
-  const totalSpecialExpense = useMemo(() => specialExpenses.reduce((acc, t) => acc + t.amount, 0), [specialExpenses]);
-
   const monthlyLoanReport = useMemo(() => {
     const report = {
         totalLoanTaken: 0,
@@ -210,15 +182,13 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
             }
             
             if(shouldProcessExpense) {
-              if (!specialExpenseIds.has(t.id)) {
-                  data.totalExpense += t.amount;
-                  if (!data.expenseByCategory[categoryName]) {
-                      data.expenseByCategory[categoryName] = { total: 0, budget: 0, subcategories: {} };
-                  }
-                  data.expenseByCategory[categoryName].total += t.amount;
-                  data.expenseByCategory[categoryName].subcategories[subCategoryName] = (data.expenseByCategory[categoryName].subcategories[subCategoryName] || 0) + t.amount;
-              }
-              data.expenseTransactions.push(t);
+                data.totalExpense += t.amount;
+                if (!data.expenseByCategory[categoryName]) {
+                    data.expenseByCategory[categoryName] = { total: 0, budget: 0, subcategories: {} };
+                }
+                data.expenseByCategory[categoryName].total += t.amount;
+                data.expenseByCategory[categoryName].subcategories[subCategoryName] = (data.expenseByCategory[categoryName].subcategories[subCategoryName] || 0) + t.amount;
+                data.expenseTransactions.push(t);
             }
         } else if (t.type === 'transfer') {
              if (isPrimaryReport) {
@@ -267,7 +237,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
 
 
     return data;
-  }, [monthlyTransactions, specialExpenseIds, isOverallSummary, accountId, isPrimaryReport, categories, accounts, currentMonthName]);
+  }, [monthlyTransactions, isOverallSummary, accountId, isPrimaryReport, categories, accounts, currentMonthName]);
 
   const handleCategoryClick = (categoryName: string, type: 'income' | 'expense') => {
     const categoryData = type === 'income' 
@@ -285,10 +255,9 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
   };
   
   const grandTotalInflow = monthlyReport.totalIncome + monthlyReport.totalTransfersIn + monthlyLoanReport.totalLoanTaken + monthlyLoanReport.totalRepaymentReceived;
-  const grandTotalOutflow = monthlyReport.totalExpense + (isPrimaryReport ? totalSpecialExpense : 0) + (!isOverallSummary && !isPrimaryReport ? monthlyReport.totalTransfersOut : 0) + monthlyLoanReport.totalLoanGiven + monthlyLoanReport.totalRepaymentMade;
+  const grandTotalOutflow = monthlyReport.totalExpense + (!isOverallSummary && !isPrimaryReport ? monthlyReport.totalTransfersOut : 0) + monthlyLoanReport.totalLoanGiven + monthlyLoanReport.totalRepaymentMade;
   const netBalance = grandTotalInflow - grandTotalOutflow;
   const hasTransactions = monthlyTransactions.length > 0;
-  const grandTotalExpense = monthlyReport.totalExpense + (isPrimaryReport ? totalSpecialExpense : 0);
 
   return (
     <>
@@ -419,7 +388,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                      <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Regular Expenses</TableHead>
+                                <TableHead>Expenses</TableHead>
                                 <TableHead className="text-right">Amount</TableHead>
                                 {isPrimaryReport && <TableHead className="text-right">Budget</TableHead>}
                             </TableRow>
@@ -435,52 +404,18 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                                 ))
                              ) : (
                                 <TableRow>
-                                    <TableCell colSpan={isPrimaryReport ? 3 : 2} className="text-center text-muted-foreground">No regular expenses this month.</TableCell>
+                                    <TableCell colSpan={isPrimaryReport ? 3 : 2} className="text-center text-muted-foreground">No expenses this month.</TableCell>
                                 </TableRow>
                             )}
                         </TableBody>
                     </Table>
-                    {isPrimaryReport && specialExpenses.length > 0 && (
-                        <>
-                            <Separator className="my-4" />
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="font-bold text-red-600">Special Expenses (Occasional &gt; {formatCurrency(specialExpenseThreshold)})</TableHead>
-                                        <TableHead className="text-right font-bold text-red-600">Amount</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {specialExpenses.map(expense => (
-                                        <TableRow key={expense.id}>
-                                            <TableCell>
-                                                <p className="font-medium">{expense.description}</p>
-                                                <p className="text-xs text-muted-foreground">{expense.category} / {expense.subcategory}</p>
-                                            </TableCell>
-                                            <TableCell className="text-right">{formatCurrency(expense.amount)}</TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </>
-                    )}
                 </CardContent>
                 <CardFooter className="flex-col items-start gap-2 pt-4">
                     <div>
                         <Separator />
-                        <div className="w-full flex justify-between text-sm text-muted-foreground mt-2">
-                            <span>Regular Expenses Total</span>
-                            <span className="font-mono">{formatCurrency(monthlyReport.totalExpense)}</span>
-                        </div>
-                        {isPrimaryReport && specialExpenses.length > 0 && (
-                            <div className="w-full flex justify-between text-sm text-muted-foreground">
-                                <span>Special Expenses Total</span>
-                                <span className="font-mono">{formatCurrency(totalSpecialExpense)}</span>
-                            </div>
-                        )}
                         <div className="w-full flex justify-between font-bold text-base mt-2">
-                            <span>Grand Total Expenses</span>
-                            <span className="font-mono">{formatCurrency(grandTotalExpense)}</span>
+                            <span>Total Expenses</span>
+                            <span className="font-mono">{formatCurrency(monthlyReport.totalExpense)}</span>
                         </div>
                         {isPrimaryReport && (
                             <div className="w-full flex justify-between font-bold text-base text-blue-600 mt-2">
