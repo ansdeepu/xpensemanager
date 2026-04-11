@@ -718,7 +718,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                         <TableHead colSpan={2} className="text-right">{formatCurrency(monthlyReport.totalTransfersIn - monthlyReport.totalTransfersOut)}</TableHead>
                     </TableRow>
                 </TableFooter>
-            </DialogFooterComponent>
+            </Table>
             <DialogFooterComponent>
                 <DialogClose asChild>
                     <Button type="button" variant="secondary">Close</Button>
