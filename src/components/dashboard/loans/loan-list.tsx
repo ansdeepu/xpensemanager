@@ -482,9 +482,12 @@ export function LoanList({ loanType, loans: allLoans, creditCards, transactions:
   useEffect(() => {
     setClientLoaded(true);
     if(allLoans) {
-        setLoans(allLoans.sort((a, b) => b.balance - a.balance));
+        // Filter out loan records that share a name with a credit card account
+        const creditCardNames = new Set(creditCards?.map(c => c.name.toLowerCase()) || []);
+        const filteredLoans = allLoans.filter(l => !creditCardNames.has(l.personName.toLowerCase()));
+        setLoans(filteredLoans.sort((a, b) => b.balance - a.balance));
     }
-  }, [allLoans]);
+  }, [allLoans, creditCards]);
 
   useEffect(() => {
     if (user && db) {
