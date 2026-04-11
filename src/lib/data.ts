@@ -52,6 +52,7 @@ export type Transaction = {
   subcategory?: string;
   loanTransactionId?: string; // Link to the specific transaction in a loan document
   items?: TransactionItem[];
+  frequency?: 'regular' | 'occasional';
 };
 
 export type SubCategory = {
@@ -101,5 +102,3 @@ export const accounts: Account[] = [];
 export const transactions: Transaction[] = [];
 
 export const categories: Category[] = [];
-
-    

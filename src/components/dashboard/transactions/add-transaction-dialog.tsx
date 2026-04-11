@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useMemo, Fragment } from "react";
@@ -105,6 +106,7 @@ export function AddTransactionDialog({
   const primaryAccount = accountData.find(acc => 'isPrimary' in acc && (acc as Account).isPrimary);
   const postBankAccount = useMemo(() => accountData.find(acc => 'name' in acc && acc.name.toLowerCase().includes('post bank')), [accountData]);
   const [expensePaymentMethod, setExpensePaymentMethod] = useState<string | undefined>(primaryAccount?.id);
+  const [expenseFrequency, setExpenseFrequency] = useState<'regular' | 'occasional'>('regular');
   
   // Income State
   const [incomeAmount, setIncomeAmount] = useState("");
@@ -138,6 +140,7 @@ export function AddTransactionDialog({
       // Reset expense state
       setExpenseItems([initialExpenseItem]);
       setExpensePaymentMethod(primaryAccount?.id);
+      setExpenseFrequency('regular');
       
       // Reset income state
       setIncomeAmount("");
@@ -177,6 +180,7 @@ export function AddTransactionDialog({
                 setExpenseItems(items);
                 const paymentAccountId = transactionToEdit.paymentMethod === 'cash' ? 'cash-wallet' : transactionToEdit.paymentMethod === 'digital' ? 'digital-wallet' : transactionToEdit.accountId;
                 setExpensePaymentMethod(paymentAccountId);
+                setExpenseFrequency(transactionToEdit.frequency || 'regular');
             } else if (transactionToEdit.type === 'income') {
                 setIncomeAmount(String(transactionToEdit.amount));
                 setIncomeDescription(transactionToEdit.description);
@@ -193,7 +197,7 @@ export function AddTransactionDialog({
             resetForms();
         }
     }
-  }, [isOpen, transactionToEdit, categories]);
+  }, [isOpen, transactionToEdit, categories, primaryAccount]);
 
 
   // --- Expense Form Handlers ---
@@ -319,14 +323,13 @@ export function AddTransactionDialog({
                 category: categoryDoc?.name || 'Uncategorized',
                 categoryId: firstItem.categoryId || "",
                 subcategory: firstItem.subcategory || "",
+                frequency: expenseFrequency,
             };
         
             if (expensePaymentMethod === 'cash-wallet') {
                 transactionData.paymentMethod = 'cash';
-                // Note: accountId is left off to avoid Firestore 'undefined' validation error
             } else if (expensePaymentMethod === 'digital-wallet') {
                 transactionData.paymentMethod = 'digital';
-                // Note: accountId is left off
             } else {
                 transactionData.paymentMethod = 'online';
                 transactionData.accountId = expensePaymentMethod;
@@ -335,7 +338,6 @@ export function AddTransactionDialog({
             if(isEditMode) {
                 const txRef = doc(db, "transactions", transactionToEdit.id);
                 
-                // For updates, handle explicit removal of accountId if switched to wallet
                 if (expensePaymentMethod === 'cash-wallet' || expensePaymentMethod === 'digital-wallet') {
                     transactionData.accountId = deleteField();
                 }
@@ -447,7 +449,7 @@ export function AddTransactionDialog({
             
             <div className="py-4">
               <TabsContent value="expense" className="mt-0 space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                      <div className="space-y-2">
                         <Label htmlFor="date-expense">Date</Label>
                         <Input id="date-expense" name="date" type="date" value={date} onChange={e => setDate(e.target.value)} required className="bg-white dark:bg-card"/>
@@ -460,6 +462,16 @@ export function AddTransactionDialog({
                                 {accountData.map(acc => (
                                     <SelectItem key={acc.id} value={acc.id}>{acc.name} ({formatCurrency(acc.balance)})</SelectItem>
                                 ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="frequency-expense">Frequency</Label>
+                        <Select name="frequency" required value={expenseFrequency} onValueChange={(v: 'regular' | 'occasional') => setExpenseFrequency(v)}>
+                            <SelectTrigger id="frequency-expense" className="bg-white dark:bg-card"><SelectValue placeholder="Select frequency" /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="regular">Regular</SelectItem>
+                                <SelectItem value="occasional">Occasional</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
