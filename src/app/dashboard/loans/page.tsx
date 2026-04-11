@@ -14,10 +14,12 @@ import { Label } from "@/components/ui/label";
 import { startOfMonth, endOfMonth, format, isWithinInterval, parseISO, isValid, startOfDay, endOfDay } from "date-fns";
 
 const formatCurrency = (amount: number) => {
+  let val = amount;
+  if (Object.is(val, -0)) val = 0;
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
-  }).format(amount);
+  }).format(val);
 };
 
 export default function LoansPage() {
@@ -121,15 +123,6 @@ export default function LoansPage() {
 
   const creditCards = useMemo(() => accountsWithBalance.filter(acc => acc.type === 'card'), [accountsWithBalance]);
   
-  const dateFilteredTransactions = useMemo(() => {
-      if (!startDate || !endDate) return allTransactions;
-      const interval = { start: startOfDay(new Date(startDate)), end: endOfDay(new Date(endDate)) };
-      return allTransactions.filter(t => {
-        const transactionDate = parseISO(t.date);
-        return isValid(transactionDate) && isWithinInterval(transactionDate, interval);
-      });
-  }, [allTransactions, startDate, endDate]);
-
   const {
     totalLoanTakenForPeriod,
     totalRepaymentForTakenForPeriod,
@@ -232,7 +225,7 @@ export default function LoansPage() {
             loanType="taken" 
             loans={allLoans.filter(l => l.type === 'taken')} 
             creditCards={creditCards} 
-            transactions={dateFilteredTransactions} 
+            transactions={allTransactions} 
             startDate={startDate} 
             endDate={endDate}
           />
@@ -241,8 +234,8 @@ export default function LoansPage() {
           <LoanList 
             loanType="given" 
             loans={allLoans.filter(l => l.type === 'given')}
-            transactions={dateFilteredTransactions}
-            startDate={startDate}
+            transactions={allTransactions}
+            startDate={startDate} 
             endDate={endDate}
           />
         </TabsContent>

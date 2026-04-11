@@ -72,10 +72,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 
 const formatCurrency = (amount: number) => {
+  let val = amount;
+  if (Object.is(val, -0)) val = 0;
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
-  }).format(amount);
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(val);
 };
 
 // Function to safely evaluate math expressions
@@ -162,7 +166,7 @@ function LoanAccordionItem({
     }, [loan, startDate, endDate]);
 
     const getLoanTransactionDescription = (loan: Loan, transaction: LoanTransaction) => {
-        if (transaction.description != null) return transaction.description;
+        if (transaction.description != null && transaction.description.trim() !== '') return transaction.description;
 
         if (loan.type === 'given') {
             return transaction.type === 'loan' ? `Loan to ${loan.personName}` : `Repayment from ${loan.personName}`;
@@ -179,7 +183,7 @@ function LoanAccordionItem({
                         <span className="font-semibold text-base">{loan.personName}</span>
                     </div>
                     <div className="text-center">
-                        <Badge variant={loan.balance > 0 ? 'destructive' : 'default'} className="text-sm">{formatCurrency(loan.balance)}</Badge>
+                        <Badge variant={loan.balance > 0 ? (loan.type === 'taken' ? 'destructive' : 'default') : 'outline'} className={cn("text-sm", loan.balance > 0 && loan.type === 'given' && "bg-green-600 hover:bg-green-700")}>{formatCurrency(loan.balance)}</Badge>
                     </div>
                     <div></div>
                 </div>
@@ -254,7 +258,11 @@ function LoanAccordionItem({
                                                 <TableCell className="text-right font-mono text-red-600 px-2 py-1 text-xs">
                                                     {t.debit > 0 ? formatCurrency(t.debit) : null}
                                                 </TableCell>
-                                                <TableCell className={cn("text-right font-mono px-2 py-1 text-xs", t.runningBalance > 0 ? "text-red-600" : "text-green-600")}>
+                                                <TableCell className={cn("text-right font-mono px-2 py-1 text-xs", 
+                                                    loanType === 'taken' 
+                                                        ? (t.runningBalance > 0 ? "text-red-600" : "text-green-600")
+                                                        : (t.runningBalance > 0 ? "text-green-600" : "text-red-600")
+                                                )}>
                                                     {formatCurrency(t.runningBalance)}
                                                 </TableCell>
                                                 <TableCell className="text-right px-2 py-1">
@@ -608,7 +616,6 @@ export function LoanList({ loanType, loans: allLoans, creditCards, transactions:
     let otherPartyName: string | undefined;
     let otherPartyAccountIdForTransfer: string | undefined;
     
-    // We'll use the filtered accounts and loans from the useMemos below to ensure consistency
     const currentPrimaryCreditCard = accounts.find(acc => acc.type === 'card' && acc.name.toLowerCase().includes('sbi'));
     const currentOtherAccounts = accounts.filter(a => (!a.isPrimary && a.type !== 'card') || (currentPrimaryCreditCard && a.id === currentPrimaryCreditCard.id));
     const currentFilteredLoans = loans.filter(l => !currentOtherAccounts.some(a => a.name.toLowerCase() === l.personName.toLowerCase()));
