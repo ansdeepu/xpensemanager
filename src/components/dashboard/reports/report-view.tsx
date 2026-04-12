@@ -2,11 +2,11 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import type { Transaction, Category, SubCategory, Account, Loan, LoanTransaction } from "@/lib/data";
+import type { Transaction, Category, Account, Loan } from "@/lib/data";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BookText, TrendingUp, TrendingDown, IndianRupee, ChevronDown, ChevronUp } from "lucide-react";
-import { format, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
+import { format, startOfMonth, endOfMonth, isWithinInterval, isValid } from "date-fns";
 import {
   Table,
   TableBody,
@@ -97,7 +97,10 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
   const creditCardIds = useMemo(() => new Set(accounts.filter(a => a.type === 'card').map(a => a.id)), [accounts]);
 
   const monthlyTransactions = useMemo(() => 
-    transactions.filter(t => isWithinInterval(new Date(t.date), { start: monthStart, end: monthEnd })),
+    transactions.filter(t => {
+        const d = new Date(t.date);
+        return isValid(d) && isWithinInterval(d, { start: monthStart, end: monthEnd });
+    }),
     [transactions, monthStart, monthEnd]
   );
   
@@ -126,15 +129,16 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
 
     loans.forEach(loan => {
         (loan.transactions || []).forEach(tx => {
-            if (isWithinInterval(new Date(tx.date), { start: monthStart, end: monthEnd })) {
+            const d = new Date(tx.date);
+            if (isValid(d) && isWithinInterval(d, { start: monthStart, end: monthEnd })) {
                 let include = false;
                 if (isOverallSummary) {
                     include = true;
                 } else if (isPrimaryReport) {
                     const isCreditCard = tx.accountId ? creditCardIds.has(tx.accountId) : false;
-                    include = tx.accountId === accountId || tx.accountId === 'cash-wallet' || tx.accountId === 'digital-wallet' || isCreditCard;
+                    include = Boolean(tx.accountId === accountId || tx.accountId === 'cash-wallet' || tx.accountId === 'digital-wallet' || isCreditCard);
                 } else {
-                    include = tx.accountId === accountId;
+                    include = Boolean(tx.accountId === accountId);
                 }
 
                 if (include) {
@@ -206,17 +210,17 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
     monthlyTransactions.forEach(t => {
         const categoryName = t.category || "Uncategorized";
         const subCategoryName = t.subcategory || "Unspecified";
-        const isWalletExpense = t.paymentMethod === 'cash' || t.paymentMethod === 'digital';
+        const isWalletExpense = Boolean(t.paymentMethod === 'cash' || t.paymentMethod === 'digital');
         
         let includeTransaction = false;
         if (isOverallSummary) {
           includeTransaction = true;
         } else if (isPrimaryReport) {
-            const involvesPrimaryOrWallet = t.accountId === accountId || isWalletExpense || t.fromAccountId === accountId || t.toAccountId === accountId || t.fromAccountId === 'cash-wallet' || t.toAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet' || t.toAccountId === 'digital-wallet';
-            const involvesCreditCard = Boolean(t.accountId && creditCardIds.has(t.accountId)) || Boolean(t.fromAccountId && creditCardIds.has(t.fromAccountId)) || Boolean(t.toAccountId && creditCardIds.has(t.toAccountId));
-            includeTransaction = Boolean(involvesPrimaryOrWallet || involvesCreditCard);
+            const involvesPrimaryOrWallet = Boolean(t.accountId === accountId || isWalletExpense || t.fromAccountId === accountId || t.toAccountId === accountId || t.fromAccountId === 'cash-wallet' || t.toAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet' || t.toAccountId === 'digital-wallet');
+            const involvesCreditCard = Boolean((t.accountId && creditCardIds.has(t.accountId)) || (t.fromAccountId && creditCardIds.has(t.fromAccountId)) || (t.toAccountId && creditCardIds.has(t.toAccountId)));
+            includeTransaction = involvesPrimaryOrWallet || involvesCreditCard;
         } else {
-            includeTransaction = t.accountId === accountId || t.fromAccountId === accountId || t.toAccountId === accountId;
+            includeTransaction = Boolean(t.accountId === accountId || t.fromAccountId === accountId || t.toAccountId === accountId);
         }
         
         if (!includeTransaction) return;
@@ -235,9 +239,9 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
             if (isOverallSummary) {
                 shouldProcessExpense = true;
             } else if (isPrimaryReport) {
-                shouldProcessExpense = t.accountId === accountId || isWalletExpense || Boolean(t.accountId && creditCardIds.has(t.accountId));
+                shouldProcessExpense = Boolean(t.accountId === accountId || isWalletExpense || (t.accountId && creditCardIds.has(t.accountId)));
             } else { // Non-primary account view
-                shouldProcessExpense = t.accountId === accountId;
+                shouldProcessExpense = Boolean(t.accountId === accountId);
             }
             
             if(shouldProcessExpense) {
@@ -269,8 +273,8 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
             }
         } else if (t.type === 'transfer') {
              if (isPrimaryReport) {
-                const isToPrimaryEcosystem = t.toAccountId === accountId || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet' || Boolean(t.toAccountId && creditCardIds.has(t.toAccountId));
-                const isFromPrimaryEcosystem = t.fromAccountId === accountId || t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet' || Boolean(t.fromAccountId && creditCardIds.has(t.fromAccountId));
+                const isToPrimaryEcosystem = Boolean(t.toAccountId === accountId || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet' || (t.toAccountId && creditCardIds.has(t.toAccountId)));
+                const isFromPrimaryEcosystem = Boolean(t.fromAccountId === accountId || t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet' || (t.fromAccountId && creditCardIds.has(t.fromAccountId)));
 
                 if (t.fromAccountId && nonPrimaryBankAccountIds.has(t.fromAccountId) && isToPrimaryEcosystem) {
                     data.totalTransfersIn += t.amount;

@@ -82,14 +82,11 @@ const formatCurrency = (amount: number) => {
   }).format(val);
 };
 
-// Function to safely evaluate math expressions
 const evaluateMath = (expression: string): number | null => {
   try {
-    // Basic validation: only allow numbers, operators, and parentheses
     if (/[^0-9+\-*/.() ]/.test(expression)) {
       return null;
     }
-    // eslint-disable-next-line no-eval
     const result = eval(expression);
     if (typeof result === 'number' && isFinite(result)) {
       return result;
@@ -188,7 +185,7 @@ function LoanAccordionItem({
     return (
         <AccordionItem value={loan.id}>
             <AccordionTrigger>
-                <div className="grid grid-cols-3 w-full items-center">
+                <div className="grid grid-cols-3 w-full items-center text-left">
                     <div className="flex items-center gap-4">
                         <span className="font-semibold text-base">{loan.personName}</span>
                     </div>
@@ -389,14 +386,14 @@ function CardAccordionItem({
     return (
         <AccordionItem value={card.id}>
             <AccordionTrigger>
-                <div className="grid grid-cols-3 w-full items-center">
+                <div className="grid grid-cols-3 w-full items-center text-left">
                     <div className="flex items-center gap-4">
                         <span className="font-semibold text-base">{card.name}</span>
                     </div>
                     <div className="text-center">
                         <Badge variant={'destructive'} className="text-sm">{formatCurrency(card.balance)}</Badge>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right pr-4">
                       <Badge variant="secondary">Credit Card</Badge>
                     </div>
                  </div>
@@ -501,14 +498,12 @@ export function LoanList({ loanType, loans: allLoans, creditCards, transactions:
   const [clientLoaded, setClientLoaded] = useState(false);
   const { toast } = useToast();
 
-  // Edit card transaction form state
   const [editAmount, setEditAmount] = useState("");
   const [editDate, setEditDate] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editCategory, setEditCategory] = useState<string | undefined>();
   const [editSubCategory, setEditSubCategory] = useState<string | undefined>();
 
-  // States for the add dialog
   const [personName, setPersonName] = useState("");
   const [isNewPerson, setIsNewPerson] = useState(false);
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
@@ -518,7 +513,6 @@ export function LoanList({ loanType, loans: allLoans, creditCards, transactions:
   useEffect(() => {
     setClientLoaded(true);
     if(allLoans) {
-        // Filter out loan records that share a name with a credit card account
         const creditCardNames = new Set(creditCards?.map(c => c.name.toLowerCase()) || []);
         const filteredLoans = allLoans.filter(l => !creditCardNames.has(l.personName.toLowerCase()));
         setLoans(filteredLoans.sort((a, b) => b.balance - a.balance));
@@ -602,12 +596,12 @@ export function LoanList({ loanType, loans: allLoans, creditCards, transactions:
         description: description || 'Cash back',
         amount,
         type: 'transfer',
-        fromAccountId: 'cashback-source', // Virtual account
+        fromAccountId: 'cashback-source',
         toAccountId: cardAccountId,
         category: 'Cashback',
         paymentMethod: 'online',
       };
-    } else { // charge
+    } else {
       transaction = {
         userId: user.uid,
         date,
@@ -659,10 +653,10 @@ export function LoanList({ loanType, loans: allLoans, creditCards, transactions:
     } else if (selectedPersonId) {
         const existingParty = allLoanParties.find(l => l.id === selectedPersonId);
         if (existingParty) {
-            if ('personName' in existingParty && existingParty.personName) { // It's a Loan
+            if ('personName' in existingParty && existingParty.personName) {
                 otherPartyName = existingParty.personName;
                 otherPartyAccountIdForTransfer = `loan-virtual-account-${otherPartyName.replace(/\s+/g, '-')}`;
-            } else if ('name' in existingParty) { // It's an Account
+            } else if ('name' in existingParty) {
                 otherPartyName = existingParty.name;
                 otherPartyAccountIdForTransfer = existingParty.id;
             }
@@ -679,7 +673,7 @@ export function LoanList({ loanType, loans: allLoans, creditCards, transactions:
       id: new Date().getTime().toString() + Math.random().toString(36).substring(2, 9),
       date,
       amount,
-      accountId: myAccountId, // The user's account involved
+      accountId: myAccountId,
       description,
       type: transactionType,
     };
@@ -688,7 +682,6 @@ export function LoanList({ loanType, loans: allLoans, creditCards, transactions:
       const batch = writeBatch(db);
   
       let loanDocRef;
-      // Find an existing loan record by person's name
       let existingLoan = loans.find(l => l.personName.toLowerCase() === otherPartyName?.toLowerCase() && l.type === loanType);
       
       if (existingLoan) {
@@ -709,10 +702,10 @@ export function LoanList({ loanType, loans: allLoans, creditCards, transactions:
       let fromAccountId: string;
       let toAccountId: string;
 
-      if (loanType === 'taken') { // You are borrowing money
+      if (loanType === 'taken') {
           fromAccountId = transactionType === 'loan' ? otherPartyAccountIdForTransfer! : myAccountId;
           toAccountId = transactionType === 'loan' ? myAccountId : otherPartyAccountIdForTransfer!;
-      } else { // You are lending money
+      } else {
           fromAccountId = transactionType === 'loan' ? myAccountId : otherPartyAccountIdForTransfer!;
           toAccountId = transactionType === 'loan' ? otherPartyAccountIdForTransfer! : myAccountId;
       }
@@ -786,7 +779,7 @@ export function LoanList({ loanType, loans: allLoans, creditCards, transactions:
         if (selectedLoan.type === 'taken') {
             fromAccountId = updatedTransaction.type === 'loan' ? otherPartyAccountIdForTransfer : updatedTransaction.accountId;
             toAccountId = updatedTransaction.type === 'loan' ? updatedTransaction.accountId : otherPartyAccountIdForTransfer;
-        } else { // given
+        } else {
             fromAccountId = updatedTransaction.type === 'loan' ? updatedTransaction.accountId : otherPartyAccountIdForTransfer;
             toAccountId = updatedTransaction.type === 'loan' ? otherPartyAccountIdForTransfer : updatedTransaction.accountId;
         }
@@ -802,7 +795,6 @@ export function LoanList({ loanType, loans: allLoans, creditCards, transactions:
             };
             batch.update(financialTxDoc.ref, updatedFinancialData);
         } else {
-             // Transaction is missing, so create it
             let paymentMethod: 'online' | 'cash' | 'digital' = 'online';
             if (updatedTransaction.accountId === 'cash-wallet') {
                 paymentMethod = 'cash';
@@ -880,10 +872,9 @@ export function LoanList({ loanType, loans: allLoans, creditCards, transactions:
         if (newTransactions.length > 0) {
             batch.update(loanRef, { transactions: newTransactions });
         } else {
-            batch.delete(loanRef); // Delete the loan doc if no transactions left
+            batch.delete(loanRef);
         }
 
-        // Find and delete the corresponding financial transaction
         const financialTxQuery = query(collection(db, "transactions"), where("userId", "==", user.uid), where("loanTransactionId", "==", transactionToDelete.id));
         const querySnapshot = await getDocs(financialTxQuery);
         if (!querySnapshot.empty) {
@@ -916,12 +907,9 @@ export function LoanList({ loanType, loans: allLoans, creditCards, transactions:
     if (!user) return;
     try {
         const batch = writeBatch(db);
-
-        // Delete the loan document
         const loanRef = doc(db, "loans", loan.id);
         batch.delete(loanRef);
         
-        // Find and delete all associated financial transactions
         for (const loanTx of loan.transactions) {
             const financialTxQuery = query(collection(db, "transactions"), where("userId", "==", user.uid), where("loanTransactionId", "==", loanTx.id));
             const querySnapshot = await getDocs(financialTxQuery);
@@ -994,12 +982,10 @@ export function LoanList({ loanType, loans: allLoans, creditCards, transactions:
   const primaryCreditCard = useMemo(() => accounts.find(acc => acc.type === 'card' && acc.name.toLowerCase().includes('sbi')), [accounts]);
 
   const otherAccountsForSelect = useMemo(() => {
-    // Include non-primary bank accounts + SBI credit card
     return accounts.filter(a => (!a.isPrimary && a.type !== 'card') || (primaryCreditCard && a.id === primaryCreditCard.id));
   }, [accounts, primaryCreditCard]);
 
   const filteredLoansForSelect = useMemo(() => {
-    // Exclude loans where the personName matches an account name we're already showing in otherAccountsForSelect
     const accountNames = new Set(otherAccountsForSelect.map(a => a.name.toLowerCase()));
     return loans.filter(l => !accountNames.has(l.personName.toLowerCase()));
   }, [loans, otherAccountsForSelect]);
@@ -1243,7 +1229,6 @@ export function LoanList({ loanType, loans: allLoans, creditCards, transactions:
         </CardContent>
       </Card>
       
-      {/* Edit Loan Transaction Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent onInteractOutside={(e) => e.preventDefault()}>
             <form onSubmit={handleEditLoanTransaction}>
@@ -1285,7 +1270,6 @@ export function LoanList({ loanType, loans: allLoans, creditCards, transactions:
         </DialogContent>
       </Dialog>
       
-      {/* Edit Loan Name Dialog */}
         <Dialog open={isEditLoanNameDialogOpen} onOpenChange={setIsEditLoanNameDialogOpen}>
             <DialogContent onInteractOutside={(e) => e.preventDefault()}>
                 <form onSubmit={handleEditLoanName}>
@@ -1306,7 +1290,6 @@ export function LoanList({ loanType, loans: allLoans, creditCards, transactions:
             </DialogContent>
         </Dialog>
         
-        {/* Edit Card Transaction Dialog */}
         <Dialog open={isEditCardTxDialogOpen} onOpenChange={(open) => {
           if (!open) setSelectedCardTransaction(null);
           setIsEditCardTxDialogOpen(open);
