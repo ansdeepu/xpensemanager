@@ -235,7 +235,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
             if (isOverallSummary) {
                 shouldProcessExpense = true;
             } else if (isPrimaryReport) {
-                shouldProcessExpense = t.accountId === accountId || isWalletExpense || (t.accountId ? creditCardIds.has(t.accountId) : false);
+                shouldProcessExpense = t.accountId === accountId || isWalletExpense || Boolean(t.accountId && creditCardIds.has(t.accountId));
             } else { // Non-primary account view
                 shouldProcessExpense = t.accountId === accountId;
             }
@@ -269,8 +269,8 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
             }
         } else if (t.type === 'transfer') {
              if (isPrimaryReport) {
-                const isToPrimaryEcosystem = t.toAccountId === accountId || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet' || (t.toAccountId ? creditCardIds.has(t.toAccountId) : false);
-                const isFromPrimaryEcosystem = t.fromAccountId === accountId || t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet' || (t.fromAccountId ? creditCardIds.has(t.fromAccountId) : false);
+                const isToPrimaryEcosystem = t.toAccountId === accountId || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet' || Boolean(t.toAccountId && creditCardIds.has(t.toAccountId));
+                const isFromPrimaryEcosystem = t.fromAccountId === accountId || t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet' || Boolean(t.fromAccountId && creditCardIds.has(t.fromAccountId));
 
                 if (t.fromAccountId && nonPrimaryBankAccountIds.has(t.fromAccountId) && isToPrimaryEcosystem) {
                     data.totalTransfersIn += t.amount;

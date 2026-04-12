@@ -103,6 +103,7 @@ const evaluateMath = (expression: string): number | null => {
 function LoanAccordionItem({ 
     loan, 
     loanType,
+    accounts,
     onEditTransaction, 
     onDeleteLoan, 
     onDeleteTransaction,
@@ -112,6 +113,7 @@ function LoanAccordionItem({
 }: { 
     loan: Loan;
     loanType: "taken" | "given";
+    accounts: Omit<Account, 'balance'>[];
     onEditTransaction: (loan: Loan, transaction: LoanTransaction) => void;
     onDeleteLoan: (loan: Loan) => void;
     onDeleteTransaction: (loan: Loan, transaction: LoanTransaction) => void;
@@ -119,6 +121,14 @@ function LoanAccordionItem({
     startDate?: string;
     endDate?: string;
 }) {
+    const getAccountName = (accId?: string) => {
+        if (accId === 'cash-wallet') return "Cash Wallet";
+        if (accId === 'digital-wallet') return "Digital Wallet";
+        if (!accId) return "-";
+        const account = accounts.find((a) => a.id === accId);
+        return account ? account.name : "N/A";
+    };
+
     const { transactionsForPeriod, periodTotals } = useMemo(() => {
         const allTransactions = [...(loan.transactions || [])].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
         
@@ -190,7 +200,7 @@ function LoanAccordionItem({
             </AccordionTrigger>
             <AccordionContent>
                 <div className="flex justify-center px-4 pb-4">
-                    <Card className="bg-muted/50 w-full lg:w-2/3">
+                    <Card className="bg-muted/50 w-full lg:w-3/4">
                         <CardHeader className="pb-2 flex-row justify-between items-center">
                             <div className="flex items-center gap-2">
                                 <CardDescription className="flex gap-4">
@@ -228,6 +238,7 @@ function LoanAccordionItem({
                                         <TableRow>
                                             <TableHead className="px-2 py-1">Date</TableHead>
                                             <TableHead className="px-2 py-1">Type</TableHead>
+                                            <TableHead className="px-2 py-1">Account</TableHead>
                                             <TableHead className="px-2 py-1">Description</TableHead>
                                             {loanType === 'taken' ? (
                                             <>
@@ -251,6 +262,7 @@ function LoanAccordionItem({
                                                 <TableCell className="px-2 py-1">
                                                     <Badge variant={t.type === 'loan' ? 'outline' : 'secondary'} className="capitalize text-[10px] px-1.5 py-0">{t.type}</Badge>
                                                 </TableCell>
+                                                <TableCell className="px-2 py-1 text-xs font-medium">{getAccountName(t.accountId)}</TableCell>
                                                 <TableCell className="px-2 py-1 text-xs">{getLoanTransactionDescription(loan, t)}</TableCell>
                                                 <TableCell className="text-right font-mono text-green-600 px-2 py-1 text-xs">
                                                     {t.credit > 0 ? formatCurrency(t.credit) : null}
@@ -304,6 +316,7 @@ function LoanAccordionItem({
 
 function CardAccordionItem({
     card,
+    accounts,
     transactions,
     startDate,
     endDate,
@@ -311,12 +324,21 @@ function CardAccordionItem({
     onDeleteTransaction,
 }: {
     card: Account;
+    accounts: Omit<Account, 'balance'>[];
     transactions: Transaction[];
     startDate?: string;
     endDate?: string;
     onEditTransaction: (transaction: Transaction) => void;
     onDeleteTransaction: (transaction: Transaction) => void;
 }) {
+    const getAccountName = (accId?: string) => {
+        if (accId === 'cash-wallet') return "Cash Wallet";
+        if (accId === 'digital-wallet') return "Digital Wallet";
+        if (!accId) return "-";
+        const account = accounts.find((a) => a.id === accId);
+        return account ? account.name : "N/A";
+    };
+
     const { transactionsForPeriod, periodTotals } = useMemo(() => {
         const allCardTransactions = (transactions || [])
             .filter(t =>
@@ -381,7 +403,7 @@ function CardAccordionItem({
             </AccordionTrigger>
             <AccordionContent>
                 <div className="flex justify-center px-4 pb-4">
-                    <Card className="bg-muted/50 w-full lg:w-2/3">
+                    <Card className="bg-muted/50 w-full lg:w-3/4">
                         <CardHeader className="pb-2 flex-row justify-between items-center">
                              <CardDescription className="flex gap-4">
                                 <span>Charges (Period): <span className="font-semibold text-red-600">{formatCurrency(periodTotals.totalCharges)}</span></span>
@@ -394,6 +416,7 @@ function CardAccordionItem({
                                     <TableHeader>
                                         <TableRow>
                                             <TableHead className="px-2 py-1">Date</TableHead>
+                                            <TableHead className="px-2 py-1">Account</TableHead>
                                             <TableHead className="px-2 py-1">Description</TableHead>
                                             <TableHead className="text-right px-2 py-1">Charges</TableHead>
                                             <TableHead className="text-right px-2 py-1">Payments</TableHead>
@@ -402,9 +425,14 @@ function CardAccordionItem({
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {transactionsForPeriod.length > 0 ? transactionsForPeriod.map(t => (
+                                        {transactionsForPeriod.length > 0 ? transactionsForPeriod.map(t => {
+                                            const otherAccountName = t.type === 'transfer' 
+                                                ? (t.toAccountId === card.id ? getAccountName(t.fromAccountId) : getAccountName(t.toAccountId))
+                                                : "Self";
+                                            return (
                                             <TableRow key={t.id}>
                                                 <TableCell className="px-2 py-1 text-xs">{isValid(parseISO(t.date)) ? format(parseISO(t.date), "dd/MM/yyyy") : '-'}</TableCell>
+                                                <TableCell className="px-2 py-1 text-xs font-medium">{otherAccountName}</TableCell>
                                                 <TableCell className="px-2 py-1 text-xs">{t.description}</TableCell>
                                                 <TableCell className="text-right font-mono text-red-600 px-2 py-1 text-xs">
                                                     {t.charge > 0 ? formatCurrency(t.charge) : null}
@@ -440,9 +468,9 @@ function CardAccordionItem({
                                                   </div>
                                                 </TableCell>
                                             </TableRow>
-                                        )) : (
+                                        )}) : (
                                             <TableRow>
-                                                <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
+                                                <TableCell colSpan={7} className="text-center h-24 text-muted-foreground">
                                                     No transactions found for this card in the selected period.
                                                 </TableCell>
                                             </TableRow>
@@ -1176,6 +1204,7 @@ export function LoanList({ loanType, loans: allLoans, creditCards, transactions:
                         <CardAccordionItem
                             key={sbiCard.id}
                             card={sbiCard}
+                            accounts={accounts}
                             transactions={allTransactions}
                             startDate={startDate}
                             endDate={endDate}
@@ -1188,6 +1217,7 @@ export function LoanList({ loanType, loans: allLoans, creditCards, transactions:
                         key={loan.id}
                         loan={loan} 
                         loanType={loanType}
+                        accounts={accounts}
                         onEditTransaction={openEditDialog}
                         onDeleteLoan={handleDeleteLoan}
                         onDeleteTransaction={handleDeleteLoanTransaction}
@@ -1200,6 +1230,7 @@ export function LoanList({ loanType, loans: allLoans, creditCards, transactions:
                        <CardAccordionItem
                             key={card.id}
                             card={card}
+                            accounts={accounts}
                             transactions={allTransactions}
                             startDate={startDate}
                             endDate={endDate}
