@@ -398,7 +398,7 @@ function SortableCategoryCard({
                                             )}
                                             {occasionalSubcategories.length > 0 && (
                                                 <div>
-                                                    <h4 className="text-sm font-medium my-2 text-muted-foreground">Occasional</h4>
+                                                    <h4 className="text-sm font-medium my-2 text-muted-foreground">Custom Months</h4>
                                                     <div className="flex flex-col gap-2">
                                                         {occasionalSubcategories.map((sub, index) => (
                                                             <SortableSubCategoryItem 
@@ -744,8 +744,8 @@ export function CategoryList({ categoryType, isEditable = true }: { categoryType
         const data = e.target?.result;
         const workbook = XLSX.read(data, { type: 'array' });
         const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        const workbookWorksheet = workbook.Sheets[sheetName];
+        const json = XLSX.utils.sheet_to_json(workbookWorksheet, { header: 1 });
         
         if (!json || json.length < 1) {
           throw new Error("Excel file is empty or invalid.");

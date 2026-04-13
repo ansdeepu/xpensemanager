@@ -246,7 +246,6 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
             }
             
             if(shouldProcessExpense) {
-                // Count credit card usage as inflow sourced from liability
                 if (t.accountId && creditCardIds.has(t.accountId)) {
                     data.totalCreditCardUsage += t.amount;
                 }
@@ -258,8 +257,8 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                 data.expenseByCategory[categoryName].total += t.amount;
                 data.expenseByCategory[categoryName].subcategories[subCategoryName] = (data.expenseByCategory[categoryName].subcategories[subCategoryName] || 0) + t.amount;
                 
-                const frequency = t.frequency || 'regular';
-                if (frequency === 'occasional') {
+                const txFrequency = t.frequency || 'regular';
+                if (txFrequency === 'occasional') {
                     data.totalOccasionalExpense += t.amount;
                     if (!data.occasionalExpenseByCategory[categoryName]) {
                         data.occasionalExpenseByCategory[categoryName] = { total: 0, budget: 0, subcategories: {} };
@@ -317,27 +316,14 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
         const categoryBudget = regularBudget + occasionalBudget;
 
         if (cat.type === 'expense' || cat.type === 'bank-expense') {
-            if (data.expenseByCategory[cat.name]) {
-                data.expenseByCategory[cat.name].budget = categoryBudget;
-            } else if (categoryBudget > 0) {
-                data.expenseByCategory[cat.name] = { total: 0, budget: categoryBudget, subcategories: {} };
+            if (categoryBudget > 0 || cat.subcategories.length > 0) {
+                if (!data.regularExpenseByCategory[cat.name]) {
+                    data.regularExpenseByCategory[cat.name] = { total: 0, budget: 0, subcategories: {} };
+                }
+                data.regularExpenseByCategory[cat.name].budget = categoryBudget;
+                data.totalRegularBudget += categoryBudget;
             }
             data.totalExpenseBudget += categoryBudget;
-
-            if (data.regularExpenseByCategory[cat.name]) {
-                data.regularExpenseByCategory[cat.name].budget = regularBudget;
-            } else if (regularBudget > 0) {
-                data.regularExpenseByCategory[cat.name] = { total: 0, budget: regularBudget, subcategories: {} };
-            }
-            data.totalRegularBudget += regularBudget;
-
-            if (data.occasionalExpenseByCategory[cat.name]) {
-                data.occasionalExpenseByCategory[cat.name].budget = occasionalBudget;
-            } else if (occasionalBudget > 0) {
-                data.occasionalExpenseByCategory[cat.name] = { total: 0, budget: occasionalBudget, subcategories: {} };
-            }
-            data.totalOccasionalBudget += occasionalBudget;
-
         } else if (cat.type === 'income') {
             if (data.incomeByCategory[cat.name]) {
                 data.incomeByCategory[cat.name].budget = categoryBudget;
