@@ -337,7 +337,8 @@ export function ReportView({
   const sbiNetRepaymentSummary = monthlyLoanReport.totalSBIRepayment + monthlyLoanReport.totalSBICharges + monthlyLoanReport.totalSBICashback;
   const grandTotalOutflow = monthlyReport.totalExpense + monthlyLoanReport.totalLoanGiven + monthlyLoanReport.totalRepaymentMade + sbiNetRepaymentSummary + monthlyTransferSummary.total;
   
-  const netBalance = grandTotalInflow - (monthlyReport.totalExpense + monthlyLoanReport.totalLoanGiven + monthlyLoanReport.totalRepaymentMade + monthlyLoanReport.totalSBIRepayment + monthlyLoanReport.totalSBICharges + monthlyTransferSummary.total);
+  // Net Balance is simple inflow minus outflow to ensure consistency with the summary totals
+  const netBalance = grandTotalInflow - grandTotalOutflow;
 
   return (
     <div className="space-y-6">
@@ -539,7 +540,7 @@ export function ReportView({
             </div>
 
             <div className="space-y-6">
-                <Card className="bg-card">
+                <Card>
                     <CardHeader><CardTitle className="text-lg">Expense Details</CardTitle></CardHeader>
                     <CardContent>
                         <Table>
