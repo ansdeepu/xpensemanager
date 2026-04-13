@@ -117,8 +117,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
         repaymentReceivedMap: {} as Record<string, number>,
     };
 
-    // 1. Process explicit Loans
-    // CRITICAL: Filter out loans where personName matches an existing account name to prevent double counting
+    // Filter out loans where personName matches an existing account name to prevent double counting
     loans.forEach(loan => {
         if (accountNamesLower.has(loan.personName.toLowerCase())) return;
 
@@ -159,7 +158,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
         });
     });
 
-    // 2. Process Credit Card Repayments (Transfers TO credit cards)
+    // Process Credit Card Repayments (Transfers TO credit cards)
     monthlyTransactions.forEach(t => {
         if (t.type === 'transfer' && t.toAccountId && creditCardIds.has(t.toAccountId)) {
             let include = false;
@@ -491,19 +490,51 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
          <div className="grid gap-6 md:grid-cols-2">
             <Card>
                 <CardHeader><CardTitle>Loan Details (Taken)</CardTitle></CardHeader>
-                <CardContent><Table><TableHeader><TableRow><TableHead>From</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader><TableBody>{monthlyLoanReport.loanTakenTransactions.length > 0 ? (monthlyLoanReport.loanTakenTransactions.map(tx => (<TableRow key={tx.personName}><TableCell>{tx.personName}</TableCell><TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell></TableRow>))) : (<TableRow><TableCell colSpan={2} className="text-center text-muted-foreground">No loans taken this month.</TableCell></TableRow>)}</TableBody><TableFooter><TableRow><TableHead>Total Loans Taken</TableHead><TableHead className="text-right">{formatCurrency(monthlyLoanReport.totalLoanTaken)}</TableHead></TableRow></TableFooter></CardContent>
+                <CardContent>
+                    <Table>
+                        <TableHeader><TableRow><TableHead>From</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+                        <TableBody>
+                            {monthlyLoanReport.loanTakenTransactions.length > 0 ? (monthlyLoanReport.loanTakenTransactions.map(tx => (<TableRow key={tx.personName}><TableCell>{tx.personName}</TableCell><TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell></TableRow>))) : (<TableRow><TableCell colSpan={2} className="text-center text-muted-foreground">No loans taken this month.</TableCell></TableRow>)}
+                        </TableBody>
+                        <TableFooter><TableRow><TableHead>Total Loans Taken</TableHead><TableHead className="text-right">{formatCurrency(monthlyLoanReport.totalLoanTaken)}</TableHead></TableRow></TableFooter>
+                    </Table>
+                </CardContent>
             </Card>
             <Card>
                 <CardHeader><CardTitle>Repayment of Loan Given</CardTitle></CardHeader>
-                <CardContent><Table><TableHeader><TableRow><TableHead>Repayments From</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader><TableBody>{monthlyLoanReport.repaymentReceivedTransactions.length > 0 ? (monthlyLoanReport.repaymentReceivedTransactions.map(tx => (<TableRow key={tx.personName}><TableCell>{tx.personName}</TableCell><TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell></TableRow>))) : (<TableRow><TableCell colSpan={2} className="text-center text-muted-foreground">No repayments received this month.</TableCell></TableRow>)}</TableBody><TableFooter><TableRow><TableHead>Total Repayments Received</TableHead><TableHead className="text-right">{formatCurrency(monthlyLoanReport.totalRepaymentReceived)}</TableHead></TableRow></TableFooter></CardContent>
+                <CardContent>
+                    <Table>
+                        <TableHeader><TableRow><TableHead>Repayments From</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+                        <TableBody>
+                            {monthlyLoanReport.repaymentReceivedTransactions.length > 0 ? (monthlyLoanReport.repaymentReceivedTransactions.map(tx => (<TableRow key={tx.personName}><TableCell>{tx.personName}</TableCell><TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell></TableRow>))) : (<TableRow><TableCell colSpan={2} className="text-center text-muted-foreground">No repayments received this month.</TableCell></TableRow>)}
+                        </TableBody>
+                        <TableFooter><TableRow><TableHead>Total Repayments Received</TableHead><TableHead className="text-right">{formatCurrency(monthlyLoanReport.totalRepaymentReceived)}</TableHead></TableRow></TableFooter>
+                    </Table>
+                </CardContent>
             </Card>
             <Card>
                 <CardHeader><CardTitle>Loan Details (Given)</CardTitle></CardHeader>
-                <CardContent><Table><TableHeader><TableRow><TableHead>To</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader><TableBody>{monthlyLoanReport.loanGivenTransactions.length > 0 ? (monthlyLoanReport.loanGivenTransactions.map(tx => (<TableRow key={tx.personName}><TableCell>{tx.personName}</TableCell><TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell></TableRow>))) : (<TableRow><TableCell colSpan={2} className="text-center text-muted-foreground">No loans given this month.</TableCell></TableRow>)}</TableBody><TableFooter><TableRow><TableHead>Total Loans Given</TableHead><TableHead className="text-right">{formatCurrency(monthlyLoanReport.totalLoanGiven)}</TableHead></TableRow></TableFooter></CardContent>
+                <CardContent>
+                    <Table>
+                        <TableHeader><TableRow><TableHead>To</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+                        <TableBody>
+                            {monthlyLoanReport.loanGivenTransactions.length > 0 ? (monthlyLoanReport.loanGivenTransactions.map(tx => (<TableRow key={tx.personName}><TableCell>{tx.personName}</TableCell><TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell></TableRow>))) : (<TableRow><TableCell colSpan={2} className="text-center text-muted-foreground">No loans given this month.</TableCell></TableRow>)}
+                        </TableBody>
+                        <TableFooter><TableRow><TableHead>Total Loans Given</TableHead><TableHead className="text-right">{formatCurrency(monthlyLoanReport.totalLoanGiven)}</TableHead></TableRow></TableFooter>
+                    </Table>
+                </CardContent>
             </Card>
             <Card>
                 <CardHeader><CardTitle>Repayment of Loan Taken</CardTitle></CardHeader>
-                <CardContent><Table><TableHeader><TableRow><TableHead>Repayments To</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader><TableBody>{monthlyLoanReport.repaymentMadeTransactions.length > 0 ? (monthlyLoanReport.repaymentMadeTransactions.map(tx => (<TableRow key={tx.personName}><TableCell>{tx.personName}</TableCell><TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell></TableRow>))) : (<TableRow><TableCell colSpan={2} className="text-center text-muted-foreground">No repayments made this month.</TableCell></TableRow>)}</TableBody><TableFooter><TableRow><TableHead>Total Repayments Made</TableHead><TableHead className="text-right">{formatCurrency(monthlyLoanReport.totalRepaymentMade)}</TableHead></TableRow></TableFooter></CardContent>
+                <CardContent>
+                    <Table>
+                        <TableHeader><TableRow><TableHead>Repayments To</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+                        <TableBody>
+                            {monthlyLoanReport.repaymentMadeTransactions.length > 0 ? (monthlyLoanReport.repaymentMadeTransactions.map(tx => (<TableRow key={tx.personName}><TableCell>{tx.personName}</TableCell><TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell></TableRow>))) : (<TableRow><TableCell colSpan={2} className="text-center text-muted-foreground">No repayments made this month.</TableCell></TableRow>)}
+                        </TableBody>
+                        <TableFooter><TableRow><TableHead>Total Repayments Made</TableHead><TableHead className="text-right">{formatCurrency(monthlyLoanReport.totalRepaymentMade)}</TableHead></TableRow></TableFooter>
+                    </Table>
+                </CardContent>
             </Card>
         </div>
       </>
@@ -512,7 +543,11 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
      <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
         <DialogContent onInteractOutside={(e) => e.preventDefault()}>
             <DialogHeader><DialogTitle>{selectedCategoryDetail?.name} - Sub-category Breakdown</DialogTitle><DialogDescription>Details of your activity in this category for {format(currentDate, "MMMM yyyy")}.</DialogDescription></DialogHeader>
-            <Table><TableHeader><TableRow><TableHead>Sub-category</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader><TableBody>{selectedCategoryDetail && Object.keys(selectedCategoryDetail.subcategories).length > 0 ? (Object.entries(selectedCategoryDetail.subcategories).sort(([,a],[,b]) => b - a).map(([name, amount]) => (<TableRow key={name}><TableCell>{name}</TableCell><TableCell className="text-right">{formatCurrency(amount)}</TableCell></TableRow>))) : (<TableRow><TableCell colSpan={2} className="text-center text-muted-foreground">No sub-category data for this period.</TableCell></TableRow>)}</TableBody><TableFooter><TableRow><TableHead>Total</TableHead><TableHead className="text-right">{formatCurrency(selectedCategoryDetail?.total || 0)}</TableHead></TableRow></TableFooter></Table>
+            <Table>
+                <TableHeader><TableRow><TableHead>Sub-category</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+                <TableBody>{selectedCategoryDetail && Object.keys(selectedCategoryDetail.subcategories).length > 0 ? (Object.entries(selectedCategoryDetail.subcategories).sort(([,a],[,b]) => b - a).map(([name, amount]) => (<TableRow key={name}><TableCell>{name}</TableCell><TableCell className="text-right">{formatCurrency(amount)}</TableCell></TableRow>))) : (<TableRow><TableCell colSpan={2} className="text-center text-muted-foreground">No sub-category data for this period.</TableCell></TableRow>)}</TableBody>
+                <TableFooter><TableRow><TableHead>Total</TableHead><TableHead className="text-right">{formatCurrency(selectedCategoryDetail?.total || 0)}</TableHead></TableRow></TableFooter>
+            </Table>
              <DialogFooterComponent><DialogClose asChild><Button type="button" variant="secondary">Close</Button></DialogClose></DialogFooterComponent>
         </DialogContent>
     </Dialog>
