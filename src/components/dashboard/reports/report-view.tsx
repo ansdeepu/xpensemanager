@@ -252,6 +252,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                 data.expenseByCategory[categoryName].total += t.amount;
                 data.expenseByCategory[categoryName].subcategories[subCategoryName] = (data.expenseByCategory[categoryName].subcategories[subCategoryName] || 0) + t.amount;
                 
+                // Group based ONLY on transaction frequency
                 const frequency = t.frequency || 'regular';
                 if (frequency === 'occasional') {
                     data.totalOccasionalExpense += t.amount;
@@ -787,9 +788,9 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
     <Dialog open={isTransferDialogOpen} onOpenChange={setIsTransferDialogOpen}>
         <DialogContent onInteractOutside={(e) => e.preventDefault()}>
             <DialogHeader>
-                <DialogTitle>Loan taken / Transfer Details</DialogTitle>
+                <DialogTitle>Loan taken Details</DialogTitle>
                 <DialogDescription>
-                    A list of all transfers for this account for {format(currentDate, "MMMM yyyy")}.
+                    A list of all loan-related transfers for this account for {format(currentDate, "MMMM yyyy")}.
                 </DialogDescription>
             </DialogHeader>
             <Table>
@@ -818,7 +819,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                 </TableBody>
                 <TableFooter>
                     <TableRow>
-                        <TableHead>Net Transfer</TableHead>
+                        <TableHead>Net Balance Change</TableHead>
                         <TableCell colSpan={2} className="text-right font-bold">{formatCurrency(monthlyReport.totalTransfersIn - monthlyReport.totalTransfersOut)}</TableCell>
                     </TableRow>
                 </TableFooter>
