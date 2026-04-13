@@ -81,7 +81,8 @@ type AggregatedLoanEntry = {
 
 export function ReportView({ transactions, categories, accounts, loans, isOverallSummary, accountId, isPrimaryReport }: { transactions: Transaction[], categories: Category[], accounts: Account[], loans: Loan[], isOverallSummary: boolean, accountId?: string, isPrimaryReport?: boolean }) {
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
-  const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
+  const [isTransferInDialogOpen, setIsTransferInDialogOpen] = useState(false);
+  const [isTransferOutDialogOpen, setIsTransferOutDialogOpen] = useState(false);
   const [selectedCategoryDetail, setSelectedCategoryDetail] = useState<CategoryDetail | null>(null);
   
   const [isInflowOpen, setIsInflowOpen] = useState(false);
@@ -396,7 +397,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                         <CardContent>
                             <div className="text-2xl font-bold text-green-600">{formatCurrency(grandTotalInflow)}</div>
                             <p className="text-xs text-muted-foreground">
-                                Income, transfers in, loans taken, repayments received.
+                                Income, loan taken, loan from person, repayments received.
                             </p>
                             <CollapsibleContent className="mt-4 pt-4 border-t space-y-2">
                                 <div className="flex justify-between text-xs">
@@ -404,11 +405,11 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                                     <span className="font-semibold">{formatCurrency(monthlyReport.totalIncome)}</span>
                                 </div>
                                 <div className="flex justify-between text-xs">
-                                    <span className="text-muted-foreground">Loan taken (Transfers In):</span>
+                                    <span className="text-muted-foreground">Loan taken (Bank):</span>
                                     <span className="font-semibold">{formatCurrency(monthlyReport.totalTransfersIn)}</span>
                                 </div>
                                 <div className="flex justify-between text-xs">
-                                    <span className="text-muted-foreground">Loans Taken:</span>
+                                    <span className="text-muted-foreground">Loans From Person:</span>
                                     <span className="font-semibold">{formatCurrency(monthlyLoanReport.totalLoanTaken)}</span>
                                 </div>
                                 <div className="flex justify-between text-xs">
@@ -434,7 +435,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                         <CardContent>
                             <div className="text-2xl font-bold text-red-600">{formatCurrency(grandTotalOutflow)}</div>
                             <p className="text-xs text-muted-foreground">
-                                Expenses, transfers out, loans given, repayments made.
+                                Expenses, repayments, loans given, repayments made.
                             </p>
                             <CollapsibleContent className="mt-4 pt-4 border-t space-y-2">
                                 <div className="flex justify-between text-xs">
@@ -442,7 +443,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                                     <span className="font-semibold">{formatCurrency(monthlyReport.totalExpense)}</span>
                                 </div>
                                 <div className="flex justify-between text-xs">
-                                    <span className="text-muted-foreground">Transfers Out:</span>
+                                    <span className="text-muted-foreground">Repayment made (Bank):</span>
                                     <span className="font-semibold">{formatCurrency(monthlyReport.totalTransfersOut)}</span>
                                 </div>
                                 <div className="flex justify-between text-xs">
@@ -527,7 +528,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                                 </TableRow>
                             )}
                             {monthlyReport.totalTransfersIn > 0 && (
-                                 <TableRow onClick={() => setIsTransferDialogOpen(true)} className="cursor-pointer">
+                                 <TableRow onClick={() => setIsTransferInDialogOpen(true)} className="cursor-pointer">
                                     <TableCell>
                                         <p className="font-medium">Loan taken</p>
                                         <p className="text-xs text-muted-foreground">({monthlyReport.transferInTransactions.length} transaction{monthlyReport.transferInTransactions.length === 1 ? '' : 's'})</p>
@@ -587,6 +588,16 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                                         <TableCell colSpan={isPrimaryReport ? 3 : 2} className="text-center text-muted-foreground">No regular expenses.</TableCell>
                                     </TableRow>
                                 )}
+                                {monthlyReport.totalTransfersOut > 0 && (
+                                    <TableRow onClick={() => setIsTransferOutDialogOpen(true)} className="cursor-pointer">
+                                        <TableCell>
+                                            <p className="font-medium">Repayment made</p>
+                                            <p className="text-xs text-muted-foreground">({monthlyReport.transferOutTransactions.length} transactions)</p>
+                                        </TableCell>
+                                        <TableCell className="text-right">{formatCurrency(monthlyReport.totalTransfersOut)}</TableCell>
+                                        {isPrimaryReport && <TableCell />}
+                                    </TableRow>
+                                )}
                             </TableBody>
                         </Table>
                     </CardContent>
@@ -595,7 +606,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                             <Separator />
                             <div className="w-full flex justify-between font-bold text-sm mt-2">
                                 <span>Subtotal Regular</span>
-                                <span className="font-mono">{formatCurrency(monthlyReport.totalRegularExpense)}</span>
+                                <span className="font-mono">{formatCurrency(monthlyReport.totalRegularExpense + monthlyReport.totalTransfersOut)}</span>
                             </div>
                             {isPrimaryReport && (
                                 <div className="w-full flex justify-between font-bold text-sm text-blue-600 mt-1">
@@ -658,7 +669,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                     <CardContent className="p-4">
                         <div className="w-full flex justify-between font-bold text-base">
                             <span>Grand Total Expenses</span>
-                            <span className="font-mono">{formatCurrency(monthlyReport.totalExpense)}</span>
+                            <span className="font-mono">{formatCurrency(monthlyReport.totalExpense + monthlyReport.totalTransfersOut)}</span>
                         </div>
                         {isPrimaryReport && (
                             <div className="w-full flex justify-between font-bold text-sm text-blue-600 mt-1">
@@ -785,12 +796,12 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
         </DialogContent>
     </Dialog>
 
-    <Dialog open={isTransferDialogOpen} onOpenChange={setIsTransferDialogOpen}>
+    <Dialog open={isTransferInDialogOpen} onOpenChange={setIsTransferInDialogOpen}>
         <DialogContent onInteractOutside={(e) => e.preventDefault()}>
             <DialogHeader>
                 <DialogTitle>Loan taken Details</DialogTitle>
                 <DialogDescription>
-                    A list of all loan-related transfers for this account for {format(currentDate, "MMMM yyyy")}.
+                    A list of all loan-related inflows for this account for {format(currentDate, "MMMM yyyy")}.
                 </DialogDescription>
             </DialogHeader>
             <Table>
@@ -809,18 +820,51 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                             <TableCell className="text-right text-green-600">{formatCurrency(t.amount)}</TableCell>
                         </TableRow>
                     ))}
+                </TableBody>
+                <TableFooter>
+                    <TableRow>
+                        <TableHead>Total Loan taken</TableHead>
+                        <TableCell colSpan={2} className="text-right font-bold">{formatCurrency(monthlyReport.totalTransfersIn)}</TableCell>
+                    </TableRow>
+                </TableFooter>
+            </Table>
+            <DialogFooterComponent>
+                <DialogClose asChild>
+                    <Button type="button" variant="secondary">Close</Button>
+                </DialogClose>
+            </DialogFooterComponent>
+        </DialogContent>
+    </Dialog>
+
+    <Dialog open={isTransferOutDialogOpen} onOpenChange={setIsTransferOutDialogOpen}>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
+            <DialogHeader>
+                <DialogTitle>Repayment made Details</DialogTitle>
+                <DialogDescription>
+                    A list of all loan-related repayments leaving this account for {format(currentDate, "MMMM yyyy")}.
+                </DialogDescription>
+            </DialogHeader>
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Description</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
                     {monthlyReport.transferOutTransactions.map(t => (
                         <TableRow key={t.id}>
                             <TableCell>{format(new Date(t.date), 'dd/MM/yyyy')}</TableCell>
                             <TableCell>{t.description} (Out)</TableCell>
-                            <TableCell className="text-right text-red-600">-{formatCurrency(t.amount)}</TableCell>
+                            <TableCell className="text-right text-red-600">{formatCurrency(t.amount)}</TableCell>
                         </TableRow>
                     ))}
                 </TableBody>
                 <TableFooter>
                     <TableRow>
-                        <TableHead>Net Balance Change</TableHead>
-                        <TableCell colSpan={2} className="text-right font-bold">{formatCurrency(monthlyReport.totalTransfersIn - monthlyReport.totalTransfersOut)}</TableCell>
+                        <TableHead>Total Repayment made</TableHead>
+                        <TableCell colSpan={2} className="text-right font-bold">{formatCurrency(monthlyReport.totalTransfersOut)}</TableCell>
                     </TableRow>
                 </TableFooter>
             </Table>
