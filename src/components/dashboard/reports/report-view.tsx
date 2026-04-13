@@ -369,7 +369,6 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
   const hasTransactions = monthlyTransactions.length > 0;
 
   return (
-    <>
     <div className="space-y-6">
       {!hasTransactions ? (
          <Card>
@@ -404,7 +403,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                                     <span className="font-semibold">{formatCurrency(monthlyReport.totalIncome)}</span>
                                 </div>
                                 <div className="flex justify-between text-xs">
-                                    <span className="text-muted-foreground">Transfers In:</span>
+                                    <span className="text-muted-foreground">Loan taken (Transfers In):</span>
                                     <span className="font-semibold">{formatCurrency(monthlyReport.totalTransfersIn)}</span>
                                 </div>
                                 <div className="flex justify-between text-xs">
@@ -529,7 +528,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                             {monthlyReport.totalTransfersIn > 0 && (
                                  <TableRow onClick={() => setIsTransferDialogOpen(true)} className="cursor-pointer">
                                     <TableCell>
-                                        <p className="font-medium">Transfers In</p>
+                                        <p className="font-medium">Loan taken</p>
                                         <p className="text-xs text-muted-foreground">({monthlyReport.transferInTransactions.length} transaction{monthlyReport.transferInTransactions.length === 1 ? '' : 's'})</p>
                                     </TableCell>
                                     <TableCell className="text-right">{formatCurrency(monthlyReport.totalTransfersIn)}</TableCell>
@@ -739,7 +738,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
         </div>
       </>
      )}
-    </div>
+
      <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
         <DialogContent onInteractOutside={(e) => e.preventDefault()}>
             <DialogHeader>
@@ -784,10 +783,11 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
             </DialogFooterComponent>
         </DialogContent>
     </Dialog>
+
     <Dialog open={isTransferDialogOpen} onOpenChange={setIsTransferDialogOpen}>
         <DialogContent onInteractOutside={(e) => e.preventDefault()}>
             <DialogHeader>
-                <DialogTitle>Transfers Details</DialogTitle>
+                <DialogTitle>Loan taken / Transfer Details</DialogTitle>
                 <DialogDescription>
                     A list of all transfers for this account for {format(currentDate, "MMMM yyyy")}.
                 </DialogDescription>
@@ -830,6 +830,6 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
             </DialogFooterComponent>
         </DialogContent>
     </Dialog>
-    </>
+    </div>
   );
 }
