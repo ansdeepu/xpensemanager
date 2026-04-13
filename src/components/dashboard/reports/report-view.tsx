@@ -146,7 +146,7 @@ export function ReportView({
     // Process Loans collection
     loans.forEach(loan => {
         const name = loan.personName;
-        // Skip SBI Credit Card entries to avoid double counting
+        // Skip SBI Credit Card entries to avoid double counting as they are tracked via card logic below
         if (name.toLowerCase().includes('sbi')) return;
 
         (loan.transactions || []).forEach(tx => {
@@ -228,6 +228,8 @@ export function ReportView({
         totalRegularExpense: 0, totalOccasionalExpense: 0, totalIncomeBudget: 0, totalExpenseBudget: 0, totalRegularBudget: 0, totalOccasionalBudget: 0,
     };
     
+    const bankExpenseCategoryNames = new Set(categories.filter(c => c.type === 'bank-expense').map(c => c.name));
+
     monthlyTransactions.forEach(t => {
         const categoryName = t.category || "Uncategorized";
         const subCategoryName = t.subcategory || "Unspecified";
@@ -249,6 +251,9 @@ export function ReportView({
             data.incomeByCategory[categoryName].total += t.amount;
             data.incomeByCategory[categoryName].subcategories[subCategoryName] = (data.incomeByCategory[categoryName].subcategories[subCategoryName] || 0) + t.amount;
         } else if (t.type === 'expense') {
+            // FILTER: Remove Bank Expense Categories from Regular/Occasional details
+            if (bankExpenseCategoryNames.has(categoryName)) return;
+
             data.totalExpense += t.amount;
             if (!data.expenseByCategory[categoryName]) data.expenseByCategory[categoryName] = { total: 0, budget: 0, subcategories: {} };
             data.expenseByCategory[categoryName].total += t.amount;
@@ -273,7 +278,8 @@ export function ReportView({
         const occasionalBudget = cat.subcategories.filter(sub => sub.frequency === 'occasional' && sub.selectedMonths?.includes(currentMonthName)).reduce((sum, sub) => sum + (sub.amount || 0), 0);
         const categoryBudget = regularBudget + occasionalBudget;
 
-        if (cat.type === 'expense' || cat.type === 'bank-expense') {
+        // FILTER: Only include standard 'expense' categories, exclude 'bank-expense'
+        if (cat.type === 'expense') {
             if (categoryBudget > 0 || cat.subcategories.length > 0) {
                 if (!data.regularExpenseByCategory[cat.name]) data.regularExpenseByCategory[cat.name] = { total: 0, budget: 0, subcategories: {} };
                 data.regularExpenseByCategory[cat.name].budget = categoryBudget;
@@ -531,7 +537,7 @@ export function ReportView({
 
             {/* Right Column: Outflow / Expenses */}
             <div className="space-y-6">
-                <Card>
+                <Card className="bg-white">
                     <CardHeader><CardTitle className="text-lg">Expense Details</CardTitle></CardHeader>
                     <CardContent>
                         <Table>
