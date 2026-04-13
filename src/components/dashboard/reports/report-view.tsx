@@ -145,6 +145,10 @@ export function ReportView({
 
     // Process Loans collection
     loans.forEach(loan => {
+        const name = loan.personName;
+        // Skip manual SBI Card entries if they are tracked automatically via transactions
+        const isSbiLoanRecord = name.toLowerCase().includes('sbi credit card');
+
         (loan.transactions || []).forEach(tx => {
             const d = new Date(tx.date);
             if (isValid(d) && isWithinInterval(d, { start: monthStart, end: monthEnd })) {
@@ -154,10 +158,19 @@ export function ReportView({
                 else include = Boolean(tx.accountId === accountId);
 
                 if (include) {
-                    const name = loan.personName;
                     if (loan.type === 'taken') {
-                        if (tx.type === 'loan') { report.totalLoanTaken += tx.amount; report.loanTakenMap[name] = (report.loanTakenMap[name] || 0) + tx.amount; }
-                        else { report.totalRepaymentMade += tx.amount; report.repaymentMadeMap[name] = (report.repaymentMadeMap[name] || 0) + tx.amount; }
+                        if (tx.type === 'loan') { 
+                            if (!isSbiLoanRecord) {
+                                report.totalLoanTaken += tx.amount; 
+                                report.loanTakenMap[name] = (report.loanTakenMap[name] || 0) + tx.amount; 
+                            }
+                        }
+                        else { 
+                            if (!isSbiLoanRecord) {
+                                report.totalRepaymentMade += tx.amount; 
+                                report.repaymentMadeMap[name] = (report.repaymentMadeMap[name] || 0) + tx.amount; 
+                            }
+                        }
                     } else {
                         if (tx.type === 'loan') { report.totalLoanGiven += tx.amount; report.loanGivenMap[name] = (report.loanGivenMap[name] || 0) + tx.amount; }
                         else { report.totalRepaymentReceived += tx.amount; report.repaymentReceivedMap[name] = (report.repaymentReceivedMap[name] || 0) + tx.amount; }
