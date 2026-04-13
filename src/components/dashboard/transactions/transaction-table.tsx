@@ -128,7 +128,7 @@ export function TransactionTable({
 
       if (t.type === 'income') {
           if (isPrimaryView && (t.accountId === accountId || t.accountId === 'cash-wallet' || t.accountId === 'digital-wallet')) credit = t.amount;
-          else if (!isPrimaryReport && t.accountId === accountId) credit = t.amount;
+          else if (!isPrimaryView && t.accountId === accountId) credit = t.amount;
       } else if (t.type === 'expense') {
           if (isPrimaryView && (t.accountId === accountId || t.paymentMethod === 'cash' || t.paymentMethod === 'digital' || (t.accountId && creditCardIds.includes(t.accountId)))) debit = t.amount;
           else if (!isPrimaryView && t.accountId === accountId) debit = t.amount;
