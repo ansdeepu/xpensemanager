@@ -573,15 +573,15 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                     </CardHeader>
                     <CardContent className="space-y-2">
                         <div className="flex justify-between text-sm">
-                            <span>Regular Expense Details</span>
+                            <span>Regular Expenditure</span>
                             <span className="font-semibold">{formatCurrency(totalExpenditureRegular)}</span>
                         </div>
                         <div className="flex justify-between text-sm">
-                            <span>Occasional Expense Details</span>
+                            <span>Occasional Expenditure</span>
                             <span className="font-semibold">{formatCurrency(totalExpenditureOccasional)}</span>
                         </div>
                         <div className="flex justify-between text-sm">
-                            <span>Loan Details (Given)</span>
+                            <span>Loan Given</span>
                             <span className="font-semibold">{formatCurrency(totalExpenditureLoanGiven)}</span>
                         </div>
                         <div className="flex justify-between text-sm">
@@ -617,14 +617,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                                         {isPrimaryReport && <TableCell className="text-right">{budget > 0 ? formatCurrency(budget) : '-'}</TableCell>}
                                     </TableRow>
                                 ))}
-                                {monthlyLoanReport.totalRepaymentMade > 0 && (
-                                    <TableRow className="bg-muted/30">
-                                        <TableCell className="font-medium">Repayment of Loan Taken</TableCell>
-                                        <TableCell className="text-right text-red-600">{formatCurrency(monthlyLoanReport.totalRepaymentMade)}</TableCell>
-                                        {isPrimaryReport && <TableCell className="text-right">-</TableCell>}
-                                    </TableRow>
-                                )}
-                                {Object.keys(monthlyReport.regularExpenseByCategory).length === 0 && monthlyLoanReport.totalRepaymentMade === 0 && (
+                                {Object.keys(monthlyReport.regularExpenseByCategory).length === 0 && (
                                     <TableRow>
                                         <TableCell colSpan={isPrimaryReport ? 3 : 2} className="text-center text-muted-foreground">No regular expenses.</TableCell>
                                     </TableRow>
@@ -636,8 +629,8 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                         <div className="w-full">
                             <Separator />
                             <div className="w-full flex justify-between font-bold text-sm mt-2">
-                                <span>Subtotal Regular</span>
-                                <span className="font-mono">{formatCurrency(totalExpenditureRegular)}</span>
+                                <span>Subtotal Regular (Cats)</span>
+                                <span className="font-mono">{formatCurrency(monthlyReport.totalRegularExpense)}</span>
                             </div>
                             {isPrimaryReport && (
                                 <div className="w-full flex justify-between font-bold text-sm text-blue-600 mt-1">
