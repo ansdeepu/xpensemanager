@@ -210,7 +210,7 @@ export function TransactionTable({
                       <TableRow className={cn("hover:bg-muted/50", isMultiItem && "cursor-pointer", isExpanded && "bg-muted/40")} onClick={() => isMultiItem && toggleRow(t.id)}>
                           <TableCell className="py-2 text-xs">{slNo}</TableCell>
                           <TableCell className="py-2 text-xs">{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
-                          <TableCell className={cn("py-2 text-sm", loanInfo.descriptionClassName)}>{isMultiItem ? t.items!.map(item => item.description).join('; ') : loanInfo.description}</TableCell>
+                          <TableCell className={cn("py-2 text-sm", loanInfo.descriptionClassName)}>{isMultiItem ? t.items!.map(item => item.description).join('; ') : (loanInfo.description || t.description)}</TableCell>
                           <TableCell className="py-2"><Badge variant={getBadgeVariant(t.type)} className="text-[10px] h-5 capitalize">{t.type}</Badge></TableCell>
                           <TableCell className="py-2 text-xs leading-tight">{t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} ➔ ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod)}</TableCell>
                           <TableCell className="py-2 text-xs leading-tight"><div>{isMultiItem ? 'Multiple' : loanInfo.category}</div>{t.subcategory && <div className="text-[10px] text-muted-foreground">{t.subcategory}</div>}</TableCell>
