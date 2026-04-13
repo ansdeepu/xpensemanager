@@ -945,7 +945,7 @@ export function CategoryList({ categoryType, isEditable = true }: { categoryType
                           </div>
                           <div className="flex items-center space-x-2">
                               <RadioGroupItem value="occasional" id="r-occasional" />
-                              <Label htmlFor="r-occasional">Occasional</Label>
+                              <Label htmlFor="r-occasional">Custom Months</Label>
                           </div>
                       </RadioGroup>
                   </div>
@@ -1025,7 +1025,7 @@ export function CategoryList({ categoryType, isEditable = true }: { categoryType
                             </div>
                             <div className="flex items-center space-x-2">
                                 <RadioGroupItem value="occasional" id="er-occasional" />
-                                <Label htmlFor="er-occasional">Occasional</Label>
+                                <Label htmlFor="er-occasional">Custom Months</Label>
                             </div>
                         </RadioGroup>
                     </div>
