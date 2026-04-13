@@ -38,7 +38,8 @@ export default function ReportsPage() {
   useEffect(() => {
     if (user) {
       setDataLoading(true);
-      const accountsQuery = query(collection(db, "accounts"), where("userId", "==", user.uid), orderBy("order", "asc"));
+      // Removed orderBy from query to prevent hidden accounts missing the field
+      const accountsQuery = query(collection(db, "accounts"), where("userId", "==", user.uid));
       const unsubscribeAccounts = onSnapshot(accountsQuery, (snapshot) => {
         const userAccounts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Omit<Account, 'balance'>));
         setRawAccounts(userAccounts);
@@ -85,7 +86,7 @@ export default function ReportsPage() {
     }
   }, [user, userLoading]);
 
-  // Use the same chronological calculation logic as TransactionsPage for consistency
+  // Unified chronological calculation logic
   const { accountBalances, cashWalletBalance, digitalWalletBalance } = useMemo(() => {
     let cashBalance = 0;
     let digitalBalance = 0;
@@ -154,10 +155,12 @@ export default function ReportsPage() {
   }, [rawAccounts, transactions]);
   
   const accounts = useMemo(() => {
-    return rawAccounts.map(acc => ({
-        ...acc,
-        balance: accountBalances[acc.id] ?? 0,
-    }));
+    return rawAccounts
+      .map(acc => ({
+          ...acc,
+          balance: accountBalances[acc.id] ?? 0,
+      }))
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   }, [rawAccounts, accountBalances]);
 
   const primaryAccount = accounts.find(a => a.isPrimary);
@@ -214,11 +217,11 @@ export default function ReportsPage() {
               <span className="font-semibold text-sm">Primary ({primaryAccount.name})</span>
               <div className="w-full text-xs text-muted-foreground mt-1">
                   <div className="flex justify-between items-center">
-                    <span>Bank: {formatCurrency(primaryAccount.balance)}</span>
-                    <span>Cash: {formatCurrency(cashWalletBalance)}</span>
+                    <span>Bank Balance: {formatCurrency(primaryAccount.balance)}</span>
+                    <span>Wallets: {formatCurrency(cashWalletBalance + digitalWalletBalance)}</span>
                   </div>
-                  <div className="flex justify-between items-center mt-1">
-                    <span>Digital: {formatCurrency(digitalWalletBalance)}</span>
+                  <div className="flex justify-between items-center mt-1 border-t pt-1">
+                    <span>Ecosystem Total:</span>
                     <span className="font-bold text-primary">{formatCurrency(primaryAccount.balance + cashWalletBalance + digitalWalletBalance)}</span>
                   </div>
               </div>

@@ -148,7 +148,8 @@ export default function TransactionsPage(props: {
 
   useEffect(() => {
     if (user) {
-      const accountsQuery = query(collection(db, "accounts"), where("userId", "==", user.uid), orderBy("order", "asc"));
+      // Removed orderBy to prevent excluding accounts without 'order' field
+      const accountsQuery = query(collection(db, "accounts"), where("userId", "==", user.uid));
       const unsubscribeAccounts = onSnapshot(accountsQuery, (snapshot) => {
         const userAccounts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Omit<Account, 'balance'>));
         setRawAccounts(userAccounts);
@@ -265,10 +266,12 @@ export default function TransactionsPage(props: {
       }
     });
 
-    const finalAccounts = rawAccounts.map(acc => ({
-        ...acc,
-        balance: accountBalances[acc.id] ?? 0,
-    }));
+    const finalAccounts = rawAccounts
+      .map(acc => ({
+          ...acc,
+          balance: accountBalances[acc.id] ?? 0,
+      }))
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
     
     return { 
       accounts: finalAccounts, 

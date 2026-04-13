@@ -146,8 +146,7 @@ export function ReportView({
     // Process Loans collection
     loans.forEach(loan => {
         const name = loan.personName;
-        // Skip manual SBI Card entries from the loans collection to avoid double counting
-        // because we track SBI specifically from transactions later.
+        // Skip SBI Credit Card entries to avoid double counting
         if (name.toLowerCase().includes('sbi')) return;
 
         (loan.transactions || []).forEach(tx => {
