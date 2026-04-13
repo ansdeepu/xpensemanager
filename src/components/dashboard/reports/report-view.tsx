@@ -95,7 +95,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
   const currentMonthName = useMemo(() => format(currentDate, "MMM"), [currentDate]);
 
   const creditCardIds = useMemo(() => new Set(accounts.filter(a => a.type === 'card').map(a => a.id)), [accounts]);
-  const accountNames = useMemo(() => new Set(accounts.map(a => a.name.toLowerCase())), [accounts]);
+  const accountNamesLower = useMemo(() => new Set(accounts.map(a => a.name.toLowerCase())), [accounts]);
 
   const monthlyTransactions = useMemo(() => 
     transactions.filter(t => {
@@ -117,9 +117,10 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
         repaymentReceivedMap: {} as Record<string, number>,
     };
 
-    // 1. Process explicit Loans (Exclude those that match account names to avoid double counting)
+    // 1. Process explicit Loans
+    // CRITICAL: Filter out loans where personName matches an existing account name to prevent double counting
     loans.forEach(loan => {
-        if (accountNames.has(loan.personName.toLowerCase())) return;
+        if (accountNamesLower.has(loan.personName.toLowerCase())) return;
 
         (loan.transactions || []).forEach(tx => {
             const d = new Date(tx.date);
@@ -194,7 +195,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
         repaymentMadeTransactions: convertAndSort(report.repaymentMadeMap),
         repaymentReceivedTransactions: convertAndSort(report.repaymentReceivedMap),
     };
-  }, [loans, monthStart, monthEnd, isOverallSummary, isPrimaryReport, accountId, creditCardIds, accountNames, monthlyTransactions, accounts]);
+  }, [loans, monthStart, monthEnd, isOverallSummary, isPrimaryReport, accountId, creditCardIds, accountNamesLower, monthlyTransactions, accounts]);
 
   const monthlyReport = useMemo(() => {
     const data: ReportData = {
@@ -347,24 +348,68 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
             <Collapsible open={isInflowOpen} onOpenChange={setIsInflowOpen}>
                 <CollapsibleTrigger asChild>
                     <Card className="cursor-pointer hover:bg-muted/30 transition-colors">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total Inflow</CardTitle><div className="flex items-center gap-1"><TrendingUp className="h-4 w-4 text-muted-foreground" />{isInflowOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}</div></CardHeader>
-                        <CardContent><div className="text-2xl font-bold text-green-600">{formatCurrency(grandTotalInflow)}</div><p className="text-xs text-muted-foreground">Income, loans, repayments received, and card usage.</p><CollapsibleContent className="mt-4 pt-4 border-t space-y-2"><div className="flex justify-between text-xs"><span className="text-muted-foreground">Income Categories:</span><span className="font-semibold">{formatCurrency(monthlyReport.totalIncome)}</span></div><div className="flex justify-between text-xs"><span className="text-muted-foreground">Loan taken:</span><span className="font-semibold">{formatCurrency(monthlyLoanReport.totalLoanTaken)}</span></div><div className="flex justify-between text-xs"><span className="text-muted-foreground">Repayment of Loan Given:</span><span className="font-semibold">{formatCurrency(monthlyLoanReport.totalRepaymentReceived)}</span></div><div className="flex justify-between text-xs"><span className="text-muted-foreground">Credit Card Usage:</span><span className="font-semibold">{formatCurrency(monthlyReport.totalCreditCardUsage)}</span></div><div className="flex justify-between text-xs"><span className="text-muted-foreground">Internal Transfers In:</span><span className="font-semibold">{formatCurrency(monthlyReport.totalTransfersIn)}</span></div></CollapsibleContent></CardContent>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Total Inflow</CardTitle>
+                            <div className="flex items-center gap-1">
+                                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                                {isInflowOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-green-600">{formatCurrency(grandTotalInflow)}</div>
+                            <p className="text-xs text-muted-foreground">Income, loans, repayments received, and card usage.</p>
+                            <CollapsibleContent className="mt-4 pt-4 border-t space-y-2">
+                                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Income Categories:</span><span className="font-semibold">{formatCurrency(monthlyReport.totalIncome)}</span></div>
+                                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Loan taken:</span><span className="font-semibold">{formatCurrency(monthlyLoanReport.totalLoanTaken)}</span></div>
+                                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Repayment of Loan Given:</span><span className="font-semibold">{formatCurrency(monthlyLoanReport.totalRepaymentReceived)}</span></div>
+                                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Credit Card Usage:</span><span className="font-semibold">{formatCurrency(monthlyReport.totalCreditCardUsage)}</span></div>
+                                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Internal Bank Transfer (In):</span><span className="font-semibold">{formatCurrency(monthlyReport.totalTransfersIn)}</span></div>
+                            </CollapsibleContent>
+                        </CardContent>
                     </Card>
                 </CollapsibleTrigger>
             </Collapsible>
             <Collapsible open={isOutflowOpen} onOpenChange={setIsOutflowOpen}>
                 <CollapsibleTrigger asChild>
                     <Card className="cursor-pointer hover:bg-muted/30 transition-colors">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total Outflow</CardTitle><div className="flex items-center gap-1"><TrendingDown className="h-4 w-4 text-muted-foreground" />{isOutflowOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}</div></CardHeader>
-                        <CardContent><div className="text-2xl font-bold text-red-600">{formatCurrency(grandTotalOutflow)}</div><p className="text-xs text-muted-foreground">Expenses, repayments, and loans given.</p><CollapsibleContent className="mt-4 pt-4 border-t space-y-2"><div className="flex justify-between text-xs"><span className="text-muted-foreground">Expense Categories:</span><span className="font-semibold">{formatCurrency(monthlyReport.totalExpense)}</span></div><div className="flex justify-between text-xs"><span className="text-muted-foreground">Repayment of Loan Taken:</span><span className="font-semibold">{formatCurrency(monthlyLoanReport.totalRepaymentMade)}</span></div><div className="flex justify-between text-xs"><span className="text-muted-foreground">Loans Given:</span><span className="font-semibold">{formatCurrency(monthlyLoanReport.totalLoanGiven)}</span></div><div className="flex justify-between text-xs"><span className="text-muted-foreground">Internal Transfers Out:</span><span className="font-semibold">{formatCurrency(monthlyReport.totalTransfersOut)}</span></div></CollapsibleContent></CardContent>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Total Outflow</CardTitle>
+                            <div className="flex items-center gap-1">
+                                <TrendingDown className="h-4 w-4 text-muted-foreground" />
+                                {isOutflowOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-red-600">{formatCurrency(grandTotalOutflow)}</div>
+                            <p className="text-xs text-muted-foreground">Expenses, repayments, and loans given.</p>
+                            <CollapsibleContent className="mt-4 pt-4 border-t space-y-2">
+                                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Expense Categories:</span><span className="font-semibold">{formatCurrency(monthlyReport.totalExpense)}</span></div>
+                                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Repayment of Loan Taken:</span><span className="font-semibold">{formatCurrency(monthlyLoanReport.totalRepaymentMade)}</span></div>
+                                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Loans Given:</span><span className="font-semibold">{formatCurrency(monthlyLoanReport.totalLoanGiven)}</span></div>
+                                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Internal Bank Transfer (Out):</span><span className="font-semibold">{formatCurrency(monthlyReport.totalTransfersOut)}</span></div>
+                            </CollapsibleContent>
+                        </CardContent>
                     </Card>
                 </CollapsibleTrigger>
             </Collapsible>
             <Collapsible open={isNetOpen} onOpenChange={setIsNetOpen}>
                 <CollapsibleTrigger asChild>
                     <Card className="cursor-pointer hover:bg-muted/30 transition-colors">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Net Balance</CardTitle><div className="flex items-center gap-1"><IndianRupee className="h-4 w-4 text-muted-foreground" />{isNetOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}</div></CardHeader>
-                        <CardContent><div className={cn("text-2xl font-bold", netBalance >= 0 ? 'text-foreground' : 'text-red-600')}>{formatCurrency(netBalance)}</div><p className="text-xs text-muted-foreground">Total Inflow - Total Outflow</p><CollapsibleContent className="mt-4 pt-4 border-t space-y-2"><div className="flex justify-between text-xs"><span className="text-muted-foreground">Grand Inflow:</span><span className="font-semibold text-green-600">{formatCurrency(grandTotalInflow)}</span></div><div className="flex justify-between text-xs"><span className="text-muted-foreground">Grand Outflow:</span><span className="font-semibold text-red-600">{formatCurrency(grandTotalOutflow)}</span></div></CollapsibleContent></CardContent>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Net Balance</CardTitle>
+                            <div className="flex items-center gap-1">
+                                <IndianRupee className="h-4 w-4 text-muted-foreground" />
+                                {isNetOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            <div className={cn("text-2xl font-bold", netBalance >= 0 ? 'text-foreground' : 'text-red-600')}>{formatCurrency(netBalance)}</div>
+                            <p className="text-xs text-muted-foreground">Total Inflow - Total Outflow</p>
+                            <CollapsibleContent className="mt-4 pt-4 border-t space-y-2">
+                                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Grand Inflow:</span><span className="font-semibold text-green-600">{formatCurrency(grandTotalInflow)}</span></div>
+                                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Grand Outflow:</span><span className="font-semibold text-red-600">{formatCurrency(grandTotalOutflow)}</span></div>
+                            </CollapsibleContent>
+                        </CardContent>
                     </Card>
                 </CollapsibleTrigger>
             </Collapsible>
@@ -396,8 +441,15 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
 
             <div className="space-y-6">
                 <Card className="border-primary/50 bg-primary/5 shadow-sm">
-                    <CardHeader className="pb-2"><CardTitle className="text-lg">Expenditure Details (Abstract)</CardTitle></CardHeader>
-                    <CardContent className="space-y-2"><div className="flex justify-between text-sm"><span>Regular Expenditure</span><span className="font-semibold">{formatCurrency(totalExpenditureRegular)}</span></div><div className="flex justify-between text-sm"><span>Occasional Expenditure</span><span className="font-semibold">{formatCurrency(totalExpenditureOccasional)}</span></div><div className="flex justify-between text-sm"><span>Loan Given</span><span className="font-semibold">{formatCurrency(totalExpenditureLoanGiven)}</span></div><div className="flex justify-between text-sm"><span>Internal Bank Transfer (Out)</span><span className="font-semibold">{formatCurrency(totalExpenditureTransfersOut)}</span></div><Separator className="my-2" /><div className="flex justify-between font-bold text-base"><span>Grand Total Outflow</span><span className="font-mono">{formatCurrency(grandTotalExpenditure)}</span></div></CardContent>
+                    <CardHeader className="pb-2"><CardTitle className="text-lg">Expense Details</CardTitle></CardHeader>
+                    <CardContent className="space-y-2">
+                        <div className="flex justify-between text-sm"><span>Regular Expenditure</span><span className="font-semibold">{formatCurrency(totalExpenditureRegular)}</span></div>
+                        <div className="flex justify-between text-sm"><span>Occasional Expenditure</span><span className="font-semibold">{formatCurrency(totalExpenditureOccasional)}</span></div>
+                        <div className="flex justify-between text-sm"><span>Loan Given</span><span className="font-semibold">{formatCurrency(totalExpenditureLoanGiven)}</span></div>
+                        <div className="flex justify-between text-sm"><span>Internal Bank Transfer (Out)</span><span className="font-semibold">{formatCurrency(totalExpenditureTransfersOut)}</span></div>
+                        <Separator className="my-2" />
+                        <div className="flex justify-between font-bold text-base"><span>Grand Total Outflow</span><span className="font-mono">{formatCurrency(grandTotalExpenditure)}</span></div>
+                    </CardContent>
                 </Card>
                 <Card>
                     <CardHeader><CardTitle className="text-lg">Regular Expense Details</CardTitle></CardHeader>
@@ -406,7 +458,11 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                             <TableHeader><TableRow><TableHead>Category</TableHead><TableHead className="text-right">Amount</TableHead>{isPrimaryReport && <TableHead className="text-right">Budget</TableHead>}</TableRow></TableHeader>
                             <TableBody>
                                 {Object.entries(monthlyReport.regularExpenseByCategory).sort(([,a],[,b])=> b.total - a.total).map(([category, {total, budget}]) => (
-                                    <TableRow key={category} onClick={() => handleCategoryClick(category, 'regular')} className="cursor-pointer"><TableCell className="font-medium">{category}</TableCell><TableCell className="text-right">{formatCurrency(total)}</TableCell>{isPrimaryReport && <TableCell className="text-right">{budget > 0 ? formatCurrency(budget) : '-'}</TableCell>}</TableRow>
+                                    <TableRow key={category} onClick={() => handleCategoryClick(category, 'regular')} className="cursor-pointer">
+                                        <TableCell className="font-medium">{category}</TableCell>
+                                        <TableCell className="text-right">{formatCurrency(total)}</TableCell>
+                                        {isPrimaryReport && <TableCell className="text-right">{budget > 0 ? formatCurrency(budget) : '-'}</TableCell>}
+                                    </TableRow>
                                 ))}
                                 {Object.keys(monthlyReport.regularExpenseByCategory).length === 0 && (<TableRow><TableCell colSpan={isPrimaryReport ? 3 : 2} className="text-center text-muted-foreground">No regular expenses.</TableCell></TableRow>)}
                             </TableBody>
@@ -435,19 +491,19 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
          <div className="grid gap-6 md:grid-cols-2">
             <Card>
                 <CardHeader><CardTitle>Loan Details (Taken)</CardTitle></CardHeader>
-                <CardContent><Table><TableHeader><TableRow><TableHead>From</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader><TableBody>{monthlyLoanReport.loanTakenTransactions.length > 0 ? (monthlyLoanReport.loanTakenTransactions.map(tx => (<TableRow key={tx.personName}><TableCell>{tx.personName}</TableCell><TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell></TableRow>))) : (<TableRow><TableCell colSpan={2} className="text-center text-muted-foreground">No loans taken this month.</TableCell></TableRow>)}</TableBody><TableFooter><TableRow><TableHead>Total Loans Taken</TableHead><TableHead className="text-right">{formatCurrency(monthlyLoanReport.totalLoanTaken)}</TableHead></TableRow></TableFooter></Table></CardContent>
+                <CardContent><Table><TableHeader><TableRow><TableHead>From</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader><TableBody>{monthlyLoanReport.loanTakenTransactions.length > 0 ? (monthlyLoanReport.loanTakenTransactions.map(tx => (<TableRow key={tx.personName}><TableCell>{tx.personName}</TableCell><TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell></TableRow>))) : (<TableRow><TableCell colSpan={2} className="text-center text-muted-foreground">No loans taken this month.</TableCell></TableRow>)}</TableBody><TableFooter><TableRow><TableHead>Total Loans Taken</TableHead><TableHead className="text-right">{formatCurrency(monthlyLoanReport.totalLoanTaken)}</TableHead></TableRow></TableFooter></CardContent>
             </Card>
             <Card>
                 <CardHeader><CardTitle>Repayment of Loan Given</CardTitle></CardHeader>
-                <CardContent><Table><TableHeader><TableRow><TableHead>Repayments From</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader><TableBody>{monthlyLoanReport.repaymentReceivedTransactions.length > 0 ? (monthlyLoanReport.repaymentReceivedTransactions.map(tx => (<TableRow key={tx.personName}><TableCell>{tx.personName}</TableCell><TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell></TableRow>))) : (<TableRow><TableCell colSpan={2} className="text-center text-muted-foreground">No repayments received this month.</TableCell></TableRow>)}</TableBody><TableFooter><TableRow><TableHead>Total Repayments Received</TableHead><TableHead className="text-right">{formatCurrency(monthlyLoanReport.totalRepaymentReceived)}</TableHead></TableRow></TableFooter></Table></CardContent>
+                <CardContent><Table><TableHeader><TableRow><TableHead>Repayments From</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader><TableBody>{monthlyLoanReport.repaymentReceivedTransactions.length > 0 ? (monthlyLoanReport.repaymentReceivedTransactions.map(tx => (<TableRow key={tx.personName}><TableCell>{tx.personName}</TableCell><TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell></TableRow>))) : (<TableRow><TableCell colSpan={2} className="text-center text-muted-foreground">No repayments received this month.</TableCell></TableRow>)}</TableBody><TableFooter><TableRow><TableHead>Total Repayments Received</TableHead><TableHead className="text-right">{formatCurrency(monthlyLoanReport.totalRepaymentReceived)}</TableHead></TableRow></TableFooter></CardContent>
             </Card>
             <Card>
                 <CardHeader><CardTitle>Loan Details (Given)</CardTitle></CardHeader>
-                <CardContent><Table><TableHeader><TableRow><TableHead>To</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader><TableBody>{monthlyLoanReport.loanGivenTransactions.length > 0 ? (monthlyLoanReport.loanGivenTransactions.map(tx => (<TableRow key={tx.personName}><TableCell>{tx.personName}</TableCell><TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell></TableRow>))) : (<TableRow><TableCell colSpan={2} className="text-center text-muted-foreground">No loans given this month.</TableCell></TableRow>)}</TableBody><TableFooter><TableRow><TableHead>Total Loans Given</TableHead><TableHead className="text-right">{formatCurrency(monthlyLoanReport.totalLoanGiven)}</TableHead></TableRow></TableFooter></Table></CardContent>
+                <CardContent><Table><TableHeader><TableRow><TableHead>To</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader><TableBody>{monthlyLoanReport.loanGivenTransactions.length > 0 ? (monthlyLoanReport.loanGivenTransactions.map(tx => (<TableRow key={tx.personName}><TableCell>{tx.personName}</TableCell><TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell></TableRow>))) : (<TableRow><TableCell colSpan={2} className="text-center text-muted-foreground">No loans given this month.</TableCell></TableRow>)}</TableBody><TableFooter><TableRow><TableHead>Total Loans Given</TableHead><TableHead className="text-right">{formatCurrency(monthlyLoanReport.totalLoanGiven)}</TableHead></TableRow></TableFooter></CardContent>
             </Card>
             <Card>
                 <CardHeader><CardTitle>Repayment of Loan Taken</CardTitle></CardHeader>
-                <CardContent><Table><TableHeader><TableRow><TableHead>Repayments To</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader><TableBody>{monthlyLoanReport.repaymentMadeTransactions.length > 0 ? (monthlyLoanReport.repaymentMadeTransactions.map(tx => (<TableRow key={tx.personName}><TableCell>{tx.personName}</TableCell><TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell></TableRow>))) : (<TableRow><TableCell colSpan={2} className="text-center text-muted-foreground">No repayments made this month.</TableCell></TableRow>)}</TableBody><TableFooter><TableRow><TableHead>Total Repayments Made</TableHead><TableHead className="text-right">{formatCurrency(monthlyLoanReport.totalRepaymentMade)}</TableHead></TableRow></TableFooter></Table></CardContent>
+                <CardContent><Table><TableHeader><TableRow><TableHead>Repayments To</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader><TableBody>{monthlyLoanReport.repaymentMadeTransactions.length > 0 ? (monthlyLoanReport.repaymentMadeTransactions.map(tx => (<TableRow key={tx.personName}><TableCell>{tx.personName}</TableCell><TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell></TableRow>))) : (<TableRow><TableCell colSpan={2} className="text-center text-muted-foreground">No repayments made this month.</TableCell></TableRow>)}</TableBody><TableFooter><TableRow><TableHead>Total Repayments Made</TableHead><TableHead className="text-right">{formatCurrency(monthlyLoanReport.totalRepaymentMade)}</TableHead></TableRow></TableFooter></CardContent>
             </Card>
         </div>
       </>
