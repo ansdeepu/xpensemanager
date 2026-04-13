@@ -148,6 +148,7 @@ export function ReportView({
     // Process Loans collection
     loans.forEach(loan => {
         const name = loan.personName;
+        // Exclude redundant SBI records as they are handled via Transactions below
         if (name.toLowerCase().includes('sbi')) return;
 
         (loan.transactions || []).forEach(tx => {
@@ -268,6 +269,7 @@ export function ReportView({
             data.incomeByCategory[categoryName].total += t.amount;
             data.incomeByCategory[categoryName].subcategories[subCategoryName] = (data.incomeByCategory[categoryName].subcategories[subCategoryName] || 0) + t.amount;
         } else if (t.type === 'expense') {
+            // Exclude bank transfers handled elsewhere
             if (bankExpenseCategoryNames.has(categoryName)) return;
 
             data.totalExpense += t.amount;
@@ -330,9 +332,15 @@ export function ReportView({
     setIsDetailDialogOpen(true);
   };
   
+  // Net inflow includes income, loans, and cashback
   const grandTotalInflow = monthlyReport.totalIncome + monthlyLoanReport.totalLoanTaken + monthlyLoanReport.totalRepaymentReceived + monthlyLoanReport.totalSBILoan + monthlyLoanReport.totalSBICashback;
+  // Net outflow includes expenses, loans given, repayments, and bank charges. 
+  // We subtract cashback from SBI net outflow summary, but add it to grand inflow.
   const grandTotalOutflow = monthlyReport.totalExpense + monthlyLoanReport.totalLoanGiven + monthlyLoanReport.totalRepaymentMade + monthlyLoanReport.totalSBIRepayment + monthlyTransferSummary.total + monthlyLoanReport.totalSBICharges;
   const netBalance = grandTotalInflow - grandTotalOutflow;
+
+  // The SBI Net Outflow summary: (Payments + Charges) - Cashback
+  const sbiNetRepaymentSummary = (monthlyLoanReport.totalSBIRepayment + monthlyLoanReport.totalSBICharges) - monthlyLoanReport.totalSBICashback;
 
   return (
     <div className="space-y-6">
@@ -482,7 +490,7 @@ export function ReportView({
                             <TableFooter>
                                 <TableRow>
                                     <TableHead>Total Inflow</TableHead>
-                                    <TableHead className="text-right">{formatCurrency(grandTotalInflow)}</TableHead>
+                                    <TableHead className="text-right font-mono">{formatCurrency(grandTotalInflow)}</TableHead>
                                     {isPrimaryReport && <TableHead />}
                                 </TableRow>
                             </TableFooter>
@@ -534,6 +542,21 @@ export function ReportView({
                         </Table>
                     </CardContent>
                 </Card>
+
+                <Card>
+                    <CardHeader><CardTitle>SBI Credit Card Cashback</CardTitle></CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader><TableRow><TableHead>Description</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+                            <TableBody>
+                                {monthlyLoanReport.sbiCashbackTransactions.length > 0 ? (
+                                    monthlyLoanReport.sbiCashbackTransactions.map((tx, i) => (<TableRow key={i}><TableCell>{tx.name}</TableCell><TableCell className="text-right text-green-600">{formatCurrency(tx.amount)}</TableCell></TableRow>))
+                                ) : (<TableRow><TableCell colSpan={2} className="text-center text-muted-foreground text-xs italic">No cashback received.</TableCell></TableRow>)}
+                            </TableBody>
+                            <TableFooter><TableRow><TableHead>Total Cashback</TableHead><TableHead className="text-right">{formatCurrency(monthlyLoanReport.totalSBICashback)}</TableHead></TableRow></TableFooter>
+                        </Table>
+                    </CardContent>
+                </Card>
             </div>
 
             {/* Right Column: Outflow / Expenses */}
@@ -558,11 +581,14 @@ export function ReportView({
                                 </TableRow>
                                 <TableRow onClick={() => handleGenericDetailClick('Repayments Made', monthlyLoanReport.repaymentMadeTransactions, monthlyLoanReport.totalRepaymentMade)} className="cursor-pointer hover:bg-muted/50">
                                     <TableCell>Repayment of Loan Taken</TableCell>
-                                    <TableCell className="text-right">{formatCurrency(monthlyLoanReport.totalRepaymentMade)}</TableCell>
+                                    <TableCell className="text-right">{formatCurrency(monthlyReport.totalIncome)}</TableCell>
                                 </TableRow>
-                                <TableRow onClick={() => handleGenericDetailClick('SBI Card Payments & Charges', [...monthlyLoanReport.sbiRepaymentTransactions, ...monthlyLoanReport.sbiCashbackTransactions, ...monthlyLoanReport.sbiChargesTransactions], monthlyLoanReport.totalSBIRepayment + monthlyLoanReport.totalSBICashback + monthlyLoanReport.totalSBICharges)} className="cursor-pointer hover:bg-muted/50">
+                                <TableRow 
+                                    onClick={() => handleGenericDetailClick('SBI Card Repayment & Adjustments', [...monthlyLoanReport.sbiRepaymentTransactions, ...monthlyLoanReport.sbiChargesTransactions, ...monthlyLoanReport.sbiCashbackTransactions.map(c => ({...c, amount: -c.amount}))], sbiNetRepaymentSummary)} 
+                                    className="cursor-pointer hover:bg-muted/50"
+                                >
                                     <TableCell>SBI Credit Card Repayment & Adj.</TableCell>
-                                    <TableCell className="text-right">{formatCurrency(monthlyLoanReport.totalSBIRepayment + monthlyLoanReport.totalSBICashback + monthlyLoanReport.totalSBICharges)}</TableCell>
+                                    <TableCell className="text-right">{formatCurrency(sbiNetRepaymentSummary)}</TableCell>
                                 </TableRow>
                                 <TableRow onClick={() => handleGenericDetailClick('Transfers', monthlyTransferSummary.details, monthlyTransferSummary.total)} className="cursor-pointer hover:bg-muted/50">
                                     <TableCell>Transfer</TableCell>
@@ -640,7 +666,7 @@ export function ReportView({
                 </Card>
 
                 <Card>
-                    <CardHeader><CardTitle>SBI Credit Card Repayment & Adj.</CardTitle></CardHeader>
+                    <CardHeader><CardTitle>SBI Credit Card Repayment & Adjustments</CardTitle></CardHeader>
                     <CardContent>
                         <Table>
                             <TableHeader><TableRow><TableHead>Description</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
@@ -648,17 +674,17 @@ export function ReportView({
                                 {monthlyLoanReport.sbiRepaymentTransactions.map((tx, i) => (
                                     <TableRow key={`rep-${i}`}><TableCell>{tx.name}</TableCell><TableCell className="text-right text-red-600">{formatCurrency(tx.amount)}</TableCell></TableRow>
                                 ))}
-                                {monthlyLoanReport.sbiCashbackTransactions.map((tx, i) => (
-                                    <TableRow key={`cash-${i}`}><TableCell>{tx.name} (Cashback)</TableCell><TableCell className="text-right text-red-600">{formatCurrency(tx.amount)}</TableCell></TableRow>
-                                ))}
                                 {monthlyLoanReport.sbiChargesTransactions.map((tx, i) => (
                                     <TableRow key={`charge-${i}`}><TableCell>{tx.name} (Charge)</TableCell><TableCell className="text-right text-red-600">{formatCurrency(tx.amount)}</TableCell></TableRow>
+                                ))}
+                                {monthlyLoanReport.sbiCashbackTransactions.map((tx, i) => (
+                                    <TableRow key={`cash-${i}`}><TableCell>{tx.name} (Cashback)</TableCell><TableCell className="text-right text-green-600">-{formatCurrency(tx.amount)}</TableCell></TableRow>
                                 ))}
                                 {monthlyLoanReport.sbiRepaymentTransactions.length === 0 && monthlyLoanReport.sbiCashbackTransactions.length === 0 && monthlyLoanReport.sbiChargesTransactions.length === 0 && (
                                     <TableRow><TableCell colSpan={2} className="text-center text-muted-foreground text-xs italic">No repayments or adjustments recorded.</TableCell></TableRow>
                                 )}
                             </TableBody>
-                            <TableFooter><TableRow><TableHead>Total Adjustment</TableHead><TableHead className="text-right">{formatCurrency(monthlyLoanReport.totalSBIRepayment + monthlyLoanReport.totalSBICashback + monthlyLoanReport.totalSBICharges)}</TableHead></TableRow></TableFooter>
+                            <TableFooter><TableRow><TableHead>Net Adjustment</TableHead><TableHead className="text-right font-mono">{formatCurrency(sbiNetRepaymentSummary)}</TableHead></TableRow></TableFooter>
                         </Table>
                     </CardContent>
                 </Card>
@@ -670,7 +696,7 @@ export function ReportView({
                             <TableHeader><TableRow><TableHead>To Secondary Account</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
                             <TableBody>
                                 {monthlyTransferSummary.details.length > 0 ? (
-                                    monthlyTransferSummary.details.map((tx, i) => (<TableRow key={i}><TableCell>{tx.name}</TableCell><TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell></TableRow>))
+                                    monthlyTransferSummary.details.map((tx, i) => (<TableRow key={i}><TableCell>{tx.name}</TableCell><TableCell className="text-right font-mono">{formatCurrency(tx.amount)}</TableCell></TableRow>))
                                 ) : (<TableRow><TableCell colSpan={2} className="text-center text-muted-foreground text-xs italic">No external bank transfers.</TableCell></TableRow>)}
                             </TableBody>
                             <TableFooter><TableRow><TableHead>Total Transfers</TableHead><TableHead className="text-right">{formatCurrency(monthlyTransferSummary.total)}</TableHead></TableRow></TableFooter>
@@ -683,13 +709,13 @@ export function ReportView({
      )}
 
      <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
+        <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-xl">
             <DialogHeader><DialogTitle>{selectedDetail?.name} - Detailed Breakdown</DialogTitle><DialogDescription>Breakdown for {format(currentDate, "MMMM yyyy")}.</DialogDescription></DialogHeader>
             <div className="max-h-[60vh] overflow-y-auto">
                 <Table>
                     <TableHeader><TableRow><TableHead>Detail</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
-                    <TableBody>{selectedDetail && Object.keys(selectedDetail.subcategories).length > 0 ? (Object.entries(selectedDetail.subcategories).sort(([,a],[,b]) => b - a).map(([name, amount]) => (<TableRow key={name}><TableCell>{name}</TableCell><TableCell className="text-right">{formatCurrency(amount)}</TableCell></TableRow>))) : (<TableRow><TableCell colSpan={2} className="text-center text-muted-foreground">No additional breakdown available.</TableCell></TableRow>)}</TableBody>
-                    <TableFooter><TableRow><TableHead>Total</TableHead><TableHead className="text-right font-bold">{formatCurrency(selectedDetail?.total || 0)}</TableHead></TableRow></TableFooter>
+                    <TableBody>{selectedDetail && Object.keys(selectedDetail.subcategories).length > 0 ? (Object.entries(selectedDetail.subcategories).sort(([,a],[,b]) => b - a).map(([name, amount]) => (<TableRow key={name}><TableCell>{name}</TableCell><TableCell className="text-right font-mono">{formatCurrency(amount)}</TableCell></TableRow>))) : (<TableRow><TableCell colSpan={2} className="text-center text-muted-foreground">No additional breakdown available.</TableCell></TableRow>)}</TableBody>
+                    <TableFooter><TableRow><TableHead>Total</TableHead><TableHead className="text-right font-bold font-mono">{formatCurrency(selectedDetail?.total || 0)}</TableHead></TableRow></TableFooter>
                 </Table>
             </div>
              <DialogFooterComponent><DialogClose asChild><Button type="button" variant="secondary">Close</Button></DialogClose></DialogFooterComponent>
