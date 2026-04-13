@@ -116,17 +116,6 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
         repaymentReceivedMap: {} as Record<string, number>,
     };
 
-    if (!loans) return {
-        totalLoanTaken: 0,
-        totalLoanGiven: 0,
-        totalRepaymentMade: 0,
-        totalRepaymentReceived: 0,
-        loanTakenTransactions: [],
-        loanGivenTransactions: [],
-        repaymentMadeTransactions: [],
-        repaymentReceivedTransactions: [],
-    };
-
     loans.forEach(loan => {
         (loan.transactions || []).forEach(tx => {
             const d = new Date(tx.date);
@@ -360,6 +349,11 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
   const netBalance = grandTotalInflow - grandTotalOutflow;
   const hasTransactions = monthlyTransactions.length > 0;
 
+  const totalExpenditureRegular = monthlyReport.totalRegularExpense + monthlyLoanReport.totalRepaymentMade;
+  const totalExpenditureOccasional = monthlyReport.totalOccasionalExpense;
+  const totalExpenditureLoanGiven = monthlyLoanReport.totalLoanGiven;
+  const grandTotalExpenditure = totalExpenditureRegular + totalExpenditureOccasional + totalExpenditureLoanGiven;
+
   return (
     <div className="space-y-6">
       {!hasTransactions ? (
@@ -557,6 +551,31 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
             </Card>
 
             <div className="space-y-6">
+                <Card className="border-primary/50 bg-primary/5 shadow-sm">
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-lg">Expenditure Details (Abstract)</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                            <span>Regular Expense Details</span>
+                            <span className="font-semibold">{formatCurrency(totalExpenditureRegular)}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                            <span>Occasional Expense Details</span>
+                            <span className="font-semibold">{formatCurrency(totalExpenditureOccasional)}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                            <span>Loan Details (Given)</span>
+                            <span className="font-semibold">{formatCurrency(totalExpenditureLoanGiven)}</span>
+                        </div>
+                        <Separator className="my-2" />
+                        <div className="flex justify-between font-bold text-base">
+                            <span>Grand Total Expenditure</span>
+                            <span className="font-mono">{formatCurrency(grandTotalExpenditure)}</span>
+                        </div>
+                    </CardContent>
+                </Card>
+
                 <Card>
                     <CardHeader>
                         <CardTitle className="text-lg">Regular Expense Details</CardTitle>
