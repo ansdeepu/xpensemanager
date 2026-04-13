@@ -107,7 +107,6 @@ export function ReportView({
   const primaryAccount = useMemo(() => accounts.find(a => a.isPrimary), [accounts]);
   const creditCardIds = useMemo(() => new Set(accounts.filter(a => a.type === 'card').map(a => a.id)), [accounts]);
   const sbiCardId = useMemo(() => accounts.find(a => a.type === 'card' && a.name.toLowerCase().includes('sbi'))?.id, [accounts]);
-  const bankAccountNames = useMemo(() => new Set(accounts.map(a => a.name.toLowerCase())), [accounts]);
 
   const monthlyTransactions = useMemo(() => {
     const seenIds = new Set<string>();
@@ -144,8 +143,6 @@ export function ReportView({
         Boolean(accId === primaryAccount?.id || accId === 'cash-wallet' || accId === 'digital-wallet' || (accId && creditCardIds.has(accId)));
 
     loans.forEach(loan => {
-        if (bankAccountNames.has(loan.personName.toLowerCase())) return;
-
         (loan.transactions || []).forEach(tx => {
             const d = new Date(tx.date);
             if (isValid(d) && isWithinInterval(d, { start: monthStart, end: monthEnd })) {
@@ -209,7 +206,7 @@ export function ReportView({
         },
         monthlyTransferSummary: { total: totalTransferOut, details: transferOutDetails }
     };
-  }, [loans, monthStart, monthEnd, isOverallSummary, isPrimaryReport, accountId, creditCardIds, monthlyTransactions, sbiCardId, bankAccountNames, primaryAccount, accounts]);
+  }, [loans, monthStart, monthEnd, isOverallSummary, isPrimaryReport, accountId, creditCardIds, monthlyTransactions, sbiCardId, accounts, primaryAccount]);
 
   const monthlyReport = useMemo(() => {
     const data: ReportData = {
