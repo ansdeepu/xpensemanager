@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo, Fragment } from "react";
@@ -204,17 +205,18 @@ export function TransactionTable({
               const isMultiItem = Boolean(t.items && t.items.length > 0);
               const slNo = (currentPage - 1) * itemsPerPage + index + 1;
 
-              const rowContent = isMultiItem ? (
+              return (
                   <Fragment key={t.id}>
-                      <TableRow className={cn("border-b-0 cursor-pointer hover:bg-muted/50", isExpanded && "bg-muted/40")} onClick={() => toggleRow(t.id)}>
-                          <TableCell className="py-2">{slNo}</TableCell>
-                          <TableCell className="py-2">{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
-                          <TableCell className="py-2 font-medium">{t.items!.map(item => item.description).join('; ')}</TableCell>
-                          <TableCell className="py-2"><Badge variant={getBadgeVariant(t.type)} className="text-[10px] h-5">{t.type}</Badge></TableCell>
-                          <TableCell className="py-2 text-xs">{getAccountName(t.accountId, t.paymentMethod)}</TableCell>
-                          <TableCell className="py-2"><Badge variant="outline" className="text-[10px] h-5">Multiple</Badge></TableCell>
-                          <TableCell className="text-right font-mono text-red-600 text-xs">{formatCurrency(t.amount)}</TableCell>
-                          <TableCell className="py-2"/><TableCell className="py-2"/>
+                      <TableRow className={cn("hover:bg-muted/50", isMultiItem && "cursor-pointer", isExpanded && "bg-muted/40")} onClick={() => isMultiItem && toggleRow(t.id)}>
+                          <TableCell className="py-2 text-xs">{slNo}</TableCell>
+                          <TableCell className="py-2 text-xs">{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
+                          <TableCell className={cn("py-2 text-sm", loanInfo.descriptionClassName)}>{isMultiItem ? t.items!.map(item => item.description).join('; ') : loanInfo.description}</TableCell>
+                          <TableCell className="py-2"><Badge variant={getBadgeVariant(t.type)} className="text-[10px] h-5 capitalize">{t.type}</Badge></TableCell>
+                          <TableCell className="py-2 text-xs leading-tight">{t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} ➔ ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod)}</TableCell>
+                          <TableCell className="py-2 text-xs leading-tight"><div>{isMultiItem ? 'Multiple' : loanInfo.category}</div>{t.subcategory && <div className="text-[10px] text-muted-foreground">{t.subcategory}</div>}</TableCell>
+                          <TableCell className="text-right font-mono text-red-600 text-xs">{t.debit !== null ? formatCurrency(t.debit) : null}</TableCell>
+                          <TableCell className="text-right font-mono text-blue-600 text-xs">{t.transfer !== null ? formatCurrency(t.transfer) : null}</TableCell>
+                          <TableCell className="text-right font-mono text-green-600 text-xs">{t.credit !== null ? formatCurrency(t.credit) : null}</TableCell>
                           <TableCell className={cn("text-right font-mono text-xs", t.balance < 0 ? 'text-red-600' : '')}>{formatCurrency(t.balance)}</TableCell>
                           <TableCell className="text-right print-hide py-2" onClick={(e) => e.stopPropagation()}>
                               <div className="flex items-center justify-end gap-1">
@@ -224,7 +226,7 @@ export function TransactionTable({
                                       <AlertDialogContent>
                                           <AlertDialogHeader>
                                               <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                              <AlertDialogDescription>This will delete all items in this transaction.</AlertDialogDescription>
+                                              <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
                                           </AlertDialogHeader>
                                           <AlertDialogFooter>
                                               <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -235,7 +237,7 @@ export function TransactionTable({
                               </div>
                           </TableCell>
                       </TableRow>
-                      {isExpanded && (
+                      {isExpanded && isMultiItem && (
                           <TableRow className="bg-muted/20 border-b">
                               <TableCell colSpan={11} className="p-0">
                                   <div className="px-12 py-3 bg-muted/10 border-l-4 border-primary/20">
@@ -256,39 +258,7 @@ export function TransactionTable({
                           </TableRow>
                       )}
                   </Fragment>
-              ) : (
-                  <TableRow key={t.id} className="hover:bg-muted/50">
-                      <TableCell className="py-2 text-xs">{slNo}</TableCell>
-                      <TableCell className="py-2 text-xs">{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
-                      <TableCell className={cn("py-2 text-sm", loanInfo.descriptionClassName)}>{loanInfo.description}</TableCell>
-                      <TableCell className="py-2"><Badge variant={getBadgeVariant(loanInfo.type)} className="text-[10px] h-5 capitalize">{loanInfo.type}</Badge></TableCell>
-                      <TableCell className="py-2 text-xs leading-tight">{t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} ➔ ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod)}</TableCell>
-                      <TableCell className="py-2 text-xs leading-tight"><div>{loanInfo.category}</div>{t.subcategory && <div className="text-[10px] text-muted-foreground">{t.subcategory}</div>}</TableCell>
-                      <TableCell className="text-right font-mono text-red-600 text-xs">{t.debit !== null ? formatCurrency(t.debit) : null}</TableCell>
-                      <TableCell className="text-right font-mono text-blue-600 text-xs">{t.transfer !== null ? formatCurrency(t.transfer) : null}</TableCell>
-                      <TableCell className="text-right font-mono text-green-600 text-xs">{t.credit !== null ? formatCurrency(t.credit) : null}</TableCell>
-                      <TableCell className={cn("text-right font-mono text-xs", t.balance < 0 ? 'text-red-600' : '')}>{formatCurrency(t.balance)}</TableCell>
-                      <TableCell className="text-right print-hide py-2">
-                          <div className="flex items-center justify-end gap-1">
-                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEditTransaction(t)}><Pencil className="h-3.5 w-3.5" /></Button>
-                              <AlertDialog>
-                                  <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-destructive h-7 w-7"><Trash2 className="h-3.5 w-3.5" /></Button></AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                      <AlertDialogHeader>
-                                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                          <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                          <AlertDialogAction onClick={() => handleDeleteTransaction(t)} className="bg-destructive">Delete</AlertDialogAction>
-                                      </AlertDialogFooter>
-                                  </AlertDialogContent>
-                              </AlertDialog>
-                          </div>
-                      </TableCell>
-                  </TableRow>
               );
-              return rowContent;
             })}
         </TableBody>
       </Table>
