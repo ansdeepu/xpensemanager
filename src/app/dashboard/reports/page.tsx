@@ -32,7 +32,6 @@ export default function ReportsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loans, setLoans] = useState<Loan[]>([]);
-  const [walletPreferences, setWalletPreferences] = useState<{ cash?: { balance?: number, date?: string }, digital?: { balance?: number, date?: string } }>({});
   const [dataLoading, setDataLoading] = useState(true);
   const { currentDate, goToPreviousMonth, goToNextMonth } = useReportDate();
 
@@ -53,13 +52,6 @@ export default function ReportsPage() {
       const categoriesQuery = query(collection(db, "categories"), where("userId", "==", user.uid));
       const unsubscribeCategories = onSnapshot(categoriesQuery, (snapshot) => {
         setCategories(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category)));
-      });
-
-      const preferencesDocRef = doc(db, "user_preferences", user.uid);
-      const unsubscribePreferences = onSnapshot(preferencesDocRef, (doc) => {
-        if (doc.exists()) {
-          setWalletPreferences(doc.data().wallets || {});
-        }
       });
       
       const loansQuery = query(collection(db, "loans"), where("userId", "==", user.uid));
@@ -86,7 +78,6 @@ export default function ReportsPage() {
         unsubscribeAccounts();
         unsubscribeTransactions();
         unsubscribeCategories();
-        unsubscribePreferences();
         unsubscribeLoans();
       };
     } else if (!userLoading) {
@@ -94,92 +85,78 @@ export default function ReportsPage() {
     }
   }, [user, userLoading]);
 
+  // Use the same chronological calculation logic as TransactionsPage for consistency
   const { accountBalances, cashWalletBalance, digitalWalletBalance } = useMemo(() => {
-    const calculatedAccountBalances: { [key: string]: number } = {};
+    let cashBalance = 0;
+    let digitalBalance = 0;
+    const balances: { [key: string]: number } = {};
+    const accountMap = new Map(rawAccounts.map(acc => [acc.id, acc]));
+
     rawAccounts.forEach(acc => {
-      calculatedAccountBalances[acc.id] = acc.actualBalance ?? 0;
+        balances[acc.id] = 0;
     });
 
-    let calculatedCashBalance = walletPreferences.cash?.balance ?? 0;
-    let calculatedDigitalBalance = walletPreferences.digital?.balance ?? 0;
-
-    const cashReconDate = walletPreferences.cash?.date ? parseISO(walletPreferences.cash.date) : new Date(0);
-    const digitalReconDate = walletPreferences.digital?.date ? parseISO(walletPreferences.digital.date) : new Date(0);
+    const chronologicalTransactions = [...transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     
-    transactions.forEach(t => {
-      const transactionDate = parseISO(t.date);
-
-      if (t.type === 'income' && t.accountId && calculatedAccountBalances[t.accountId] !== undefined) {
-        const account = rawAccounts.find(a => a.id === t.accountId);
-        if (account?.type !== 'card') {
-            const accountReconDate = account?.actualBalanceDate ? parseISO(account.actualBalanceDate) : new Date(0);
-            if (isAfter(transactionDate, accountReconDate)) {
-                calculatedAccountBalances[t.accountId] += t.amount;
-            }
-        }
+    chronologicalTransactions.forEach(t => {
+      if (t.type === 'income' && t.accountId && balances[t.accountId] !== undefined) {
+          const account = accountMap.get(t.accountId);
+          if (account?.type !== 'card') {
+            balances[t.accountId] += t.amount;
+          }
       } else if (t.type === 'expense') {
-        if (t.paymentMethod === 'online' && t.accountId && calculatedAccountBalances[t.accountId] !== undefined) {
-            const account = rawAccounts.find(a => a.id === t.accountId);
-            const accountReconDate = account?.actualBalanceDate ? parseISO(account.actualBalanceDate) : new Date(0);
-            if (isAfter(transactionDate, accountReconDate)) {
-                if (account?.type === 'card') {
-                    calculatedAccountBalances[t.accountId] += t.amount; // Due increases
-                } else {
-                    calculatedAccountBalances[t.accountId] -= t.amount; // Balance decreases
-                }
+        if (t.paymentMethod === 'online' && t.accountId && balances[t.accountId] !== undefined) {
+            const account = accountMap.get(t.accountId);
+            if (account?.type === 'card') {
+              balances[t.accountId] += t.amount; 
+            } else {
+              balances[t.accountId] -= t.amount;
             }
-        } else if (t.paymentMethod === 'cash' && isAfter(transactionDate, cashReconDate)) {
-          calculatedCashBalance -= t.amount;
-        } else if (t.paymentMethod === 'digital' && isAfter(transactionDate, digitalReconDate)) {
-          calculatedDigitalBalance -= t.amount;
+        } else if (t.paymentMethod === 'cash') {
+          cashBalance -= t.amount;
+        } else if (t.paymentMethod === 'digital') {
+          digitalBalance -= t.amount;
         }
       } else if (t.type === 'transfer') {
-        // From Account
-        if (t.fromAccountId && calculatedAccountBalances[t.fromAccountId] !== undefined) {
-            const account = rawAccounts.find(a => a.id === t.fromAccountId);
-            const fromAccountReconDate = account?.actualBalanceDate ? parseISO(account.actualBalanceDate) : new Date(0);
-            if (isAfter(transactionDate, fromAccountReconDate)) {
-                if (account?.type === 'card') {
-                    calculatedAccountBalances[t.fromAccountId] += t.amount; // cash advance increases due
-                } else {
-                    calculatedAccountBalances[t.fromAccountId] -= t.amount;
-                }
-            }
-        } else if (t.fromAccountId === 'cash-wallet' && isAfter(transactionDate, cashReconDate)) {
-          calculatedCashBalance -= t.amount;
-        } else if (t.fromAccountId === 'digital-wallet' && isAfter(transactionDate, digitalReconDate)) {
-          calculatedDigitalBalance -= t.amount;
-        }
-        // To Account
-        if (t.toAccountId && calculatedAccountBalances[t.toAccountId] !== undefined) {
-          const account = rawAccounts.find(a => a.id === t.toAccountId);
-          const toAccountReconDate = account?.actualBalanceDate ? parseISO(account.actualBalanceDate) : new Date(0);
-          if (isAfter(transactionDate, toAccountReconDate)) {
-            if (account?.type === 'card') {
-                calculatedAccountBalances[t.toAccountId] -= t.amount; // payment to card decreases due
-            } else {
-                calculatedAccountBalances[t.toAccountId] += t.amount;
-            }
+        if (t.fromAccountId && balances[t.fromAccountId] !== undefined) {
+          const fromAccount = accountMap.get(t.fromAccountId);
+          if (fromAccount?.type === 'card') {
+            balances[t.fromAccountId] += t.amount;
+          } else {
+            balances[t.fromAccountId] -= t.amount;
           }
-        } else if (t.toAccountId === 'cash-wallet' && isAfter(transactionDate, cashReconDate)) {
-          calculatedCashBalance += t.amount;
-        } else if (t.toAccountId === 'digital-wallet' && isAfter(transactionDate, digitalReconDate)) {
-          calculatedDigitalBalance += t.amount;
+        } else if (t.fromAccountId === 'cash-wallet') {
+          cashBalance -= t.amount;
+        } else if (t.fromAccountId === 'digital-wallet') {
+          digitalBalance -= t.amount;
+        }
+
+        if (t.toAccountId && balances[t.toAccountId] !== undefined) {
+           const toAccount = accountMap.get(t.toAccountId);
+           if (toAccount?.type === 'card') {
+             balances[t.toAccountId] -= t.amount;
+           } else {
+             balances[t.toAccountId] += t.amount;
+           }
+        } else if (t.toAccountId === 'cash-wallet') {
+          cashBalance += t.amount;
+        } else if (t.toAccountId === 'digital-wallet') {
+          digitalBalance += t.amount;
         }
       }
     });
 
     return { 
-      accountBalances: calculatedAccountBalances, 
-      cashWalletBalance: calculatedCashBalance,
-      digitalWalletBalance: calculatedDigitalBalance 
+      accountBalances: balances, 
+      cashWalletBalance: cashBalance,
+      digitalWalletBalance: digitalBalance 
     };
-  }, [rawAccounts, transactions, walletPreferences]);
+  }, [rawAccounts, transactions]);
   
   const accounts = useMemo(() => {
     return rawAccounts.map(acc => ({
         ...acc,
-        balance: accountBalances[acc.id] ?? (acc.actualBalance ?? 0),
+        balance: accountBalances[acc.id] ?? 0,
     }));
   }, [rawAccounts, accountBalances]);
 
@@ -202,7 +179,6 @@ export default function ReportsPage() {
     );
   }
   
-  // Calculate Net Worth: Sum(Bank Assets + Wallets) - Sum(Card Dues)
   const allBalance = accounts.reduce((sum, acc) => {
       if (acc.type === 'card') return sum - acc.balance;
       return sum + acc.balance;

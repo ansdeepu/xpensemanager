@@ -202,7 +202,7 @@ export function TransactionTable({
             {transactionsWithColumns.map((t, index) => {
               const loanInfo = getLoanDisplayInfo(t);
               const isExpanded = expandedRows.has(t.id);
-              const isMultiItem = t.items && t.items.length > 0;
+              const isMultiItem = Boolean(t.items && t.items.length > 0);
               const rowContent = isMultiItem ? (
                   <Fragment key={t.id}>
                       <TableRow className={cn("border-b-0 cursor-pointer hover:bg-muted/50", isExpanded && "bg-muted/40")} onClick={() => toggleRow(t.id)}>

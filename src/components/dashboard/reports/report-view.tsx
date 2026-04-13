@@ -652,7 +652,6 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                             )}
                         </div>
                     </CardFooter>
-                </Card>
 
                 <Card className="bg-muted/30">
                     <CardContent className="p-4">
@@ -819,7 +818,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                 <TableFooter>
                     <TableRow>
                         <TableHead>Net Transfer</TableHead>
-                        <TableHead colSpan={2} className="text-right">{formatCurrency(monthlyReport.totalTransfersIn - monthlyReport.totalTransfersOut)}</TableHead>
+                        <TableCell colSpan={2} className="text-right font-bold">{formatCurrency(monthlyReport.totalTransfersIn - monthlyReport.totalTransfersOut)}</TableCell>
                     </TableRow>
                 </TableFooter>
             </Table>
