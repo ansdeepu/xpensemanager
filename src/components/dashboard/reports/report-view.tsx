@@ -652,6 +652,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                             )}
                         </div>
                     </CardFooter>
+                </Card>
 
                 <Card className="bg-muted/30">
                     <CardContent className="p-4">
