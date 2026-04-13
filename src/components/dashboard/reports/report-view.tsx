@@ -5,7 +5,7 @@ import React, { useState, useMemo } from "react";
 import type { Transaction, Category, Account, Loan } from "@/lib/data";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BookText, TrendingUp, TrendingDown, IndianRupee, ChevronDown, ChevronUp, Tag } from "lucide-react";
+import { BookText, TrendingUp, TrendingDown, IndianRupee, ChevronDown, ChevronUp } from "lucide-react";
 import { format, startOfMonth, endOfMonth, isWithinInterval, isValid } from "date-fns";
 import {
   Table,
@@ -185,7 +185,6 @@ export function ReportView({
         const isSBIRepayment = t.type === 'transfer' && t.toAccountId === sbiCardId && t.fromAccountId !== 'cashback-source' && !creditCardIds.has(t.fromAccountId!);
         const isSBICharge = t.type === 'expense' && t.accountId === sbiCardId && (t.category?.toLowerCase().includes('charge') || t.category?.toLowerCase().includes('bank charge'));
         
-        // Include spending ON the card as "Card Loan"
         const isSBILoanSpending = (t.type === 'expense' && t.accountId === sbiCardId && !isSBICharge) || (t.type === 'transfer' && t.fromAccountId === sbiCardId);
 
         let includeInSbi = false;
@@ -335,11 +334,9 @@ export function ReportView({
   
   const grandTotalInflow = monthlyReport.totalIncome + monthlyLoanReport.totalLoanTaken + monthlyLoanReport.totalRepaymentReceived + monthlyLoanReport.totalSBILoan + monthlyLoanReport.totalSBICashback;
   
-  // Per user request: SBI Net Repayment summary includes Cashback as a POSITIVE value (no minus mark)
   const sbiNetRepaymentSummary = monthlyLoanReport.totalSBIRepayment + monthlyLoanReport.totalSBICharges + monthlyLoanReport.totalSBICashback;
   const grandTotalOutflow = monthlyReport.totalExpense + monthlyLoanReport.totalLoanGiven + monthlyLoanReport.totalRepaymentMade + sbiNetRepaymentSummary + monthlyTransferSummary.total;
   
-  // Net balance remains correct mathematically: Inflow - (Expenses + Loans Given + Repayments Made + SBI Payments + Transfers)
   const netBalance = grandTotalInflow - (monthlyReport.totalExpense + monthlyLoanReport.totalLoanGiven + monthlyLoanReport.totalRepaymentMade + monthlyLoanReport.totalSBIRepayment + monthlyLoanReport.totalSBICharges + monthlyTransferSummary.total);
 
   return (
