@@ -178,7 +178,8 @@ export function ReportView({
 
     // Process Transactions collection specifically for Card and Transfer logic
     monthlyTransactions.forEach(t => {
-        const isSBISpending = t.type === 'expense' && t.accountId === sbiCardId;
+        // Updated logic: Loan usage includes expenses ON the card AND transfers FROM the card
+        const isSBILoanSpending = (t.type === 'expense' && t.accountId === sbiCardId) || (t.type === 'transfer' && t.fromAccountId === sbiCardId);
         const isSBIRepayment = t.type === 'transfer' && t.toAccountId === sbiCardId && t.fromAccountId !== 'cashback-source';
         const isSBICashback = t.type === 'transfer' && t.toAccountId === sbiCardId && t.fromAccountId === 'cashback-source';
 
@@ -188,9 +189,19 @@ export function ReportView({
         else includeInSbi = Boolean(t.accountId === accountId || t.fromAccountId === accountId || t.toAccountId === accountId);
 
         if (includeInSbi && !seenTxIds.has(t.id)) {
-            if (isSBISpending) { report.totalSBILoan += t.amount; report.sbiLoanTransactions.push({ name: t.description, amount: t.amount }); seenTxIds.add(t.id); }
-            if (isSBIRepayment) { report.totalSBIRepayment += t.amount; report.sbiRepaymentTransactions.push({ name: t.description, amount: t.amount }); seenTxIds.add(t.id); }
-            if (isSBICashback) { report.totalSBICashback += t.amount; report.sbiCashbackTransactions.push({ name: t.description, amount: t.amount }); seenTxIds.add(t.id); }
+            if (isSBILoanSpending) { 
+                report.totalSBILoan += t.amount; 
+                report.sbiLoanTransactions.push({ name: t.description || 'Card Usage', amount: t.amount }); 
+                seenTxIds.add(t.id); 
+            } else if (isSBIRepayment) { 
+                report.totalSBIRepayment += t.amount; 
+                report.sbiRepaymentTransactions.push({ name: t.description || 'Repayment', amount: t.amount }); 
+                seenTxIds.add(t.id); 
+            } else if (isSBICashback) { 
+                report.totalSBICashback += t.amount; 
+                report.sbiCashbackTransactions.push({ name: t.description || 'Cashback', amount: t.amount }); 
+                seenTxIds.add(t.id); 
+            }
         }
 
         if (t.type === 'transfer') {
@@ -537,7 +548,7 @@ export function ReportView({
 
             {/* Right Column: Outflow / Expenses */}
             <div className="space-y-6">
-                <Card className="bg-white">
+                <Card className="bg-background">
                     <CardHeader><CardTitle className="text-lg">Expense Details</CardTitle></CardHeader>
                     <CardContent>
                         <Table>
