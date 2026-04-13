@@ -51,6 +51,7 @@ type ReportData = {
   totalTransfersIn: number;
   totalExpense: number; 
   totalTransfersOut: number;
+  totalCreditCardUsage: number;
   incomeByCategory: CategoryBreakdown;
   expenseByCategory: CategoryBreakdown; 
   regularExpenseByCategory: CategoryBreakdown;
@@ -188,6 +189,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
         totalTransfersIn: 0,
         totalExpense: 0,
         totalTransfersOut: 0,
+        totalCreditCardUsage: 0,
         incomeByCategory: {},
         expenseByCategory: {},
         regularExpenseByCategory: {},
@@ -244,6 +246,11 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
             }
             
             if(shouldProcessExpense) {
+                // Count credit card usage as inflow sourced from liability
+                if (t.accountId && creditCardIds.has(t.accountId)) {
+                    data.totalCreditCardUsage += t.amount;
+                }
+
                 data.totalExpense += t.amount;
                 if (!data.expenseByCategory[categoryName]) {
                     data.expenseByCategory[categoryName] = { total: 0, budget: 0, subcategories: {} };
@@ -362,7 +369,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
     }
   };
   
-  const grandTotalInflow = monthlyReport.totalIncome + monthlyReport.totalTransfersIn + monthlyLoanReport.totalLoanTaken + monthlyLoanReport.totalRepaymentReceived;
+  const grandTotalInflow = monthlyReport.totalIncome + monthlyReport.totalTransfersIn + monthlyLoanReport.totalLoanTaken + monthlyLoanReport.totalRepaymentReceived + monthlyReport.totalCreditCardUsage;
   const grandTotalOutflow = monthlyReport.totalExpense + monthlyReport.totalTransfersOut + monthlyLoanReport.totalLoanGiven + monthlyLoanReport.totalRepaymentMade;
   const netBalance = grandTotalInflow - grandTotalOutflow;
   const hasTransactions = monthlyTransactions.length > 0;
@@ -394,7 +401,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                         <CardContent>
                             <div className="text-2xl font-bold text-green-600">{formatCurrency(grandTotalInflow)}</div>
                             <p className="text-xs text-muted-foreground">
-                                Income, loan taken, loan from person, repayments received.
+                                Income, loans, repayments received, and card usage.
                             </p>
                             <CollapsibleContent className="mt-4 pt-4 border-t space-y-2">
                                 <div className="flex justify-between text-xs">
@@ -402,16 +409,16 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                                     <span className="font-semibold">{formatCurrency(monthlyReport.totalIncome)}</span>
                                 </div>
                                 <div className="flex justify-between text-xs">
-                                    <span className="text-muted-foreground">Loan taken (Bank):</span>
-                                    <span className="font-semibold">{formatCurrency(monthlyReport.totalTransfersIn)}</span>
-                                </div>
-                                <div className="flex justify-between text-xs">
-                                    <span className="text-muted-foreground">Loans From Person:</span>
+                                    <span className="text-muted-foreground">Loan taken (from Person):</span>
                                     <span className="font-semibold">{formatCurrency(monthlyLoanReport.totalLoanTaken)}</span>
                                 </div>
                                 <div className="flex justify-between text-xs">
-                                    <span className="text-muted-foreground">Repayments Rcvd:</span>
+                                    <span className="text-muted-foreground">Repayment received (from Person):</span>
                                     <span className="font-semibold">{formatCurrency(monthlyLoanReport.totalRepaymentReceived)}</span>
+                                </div>
+                                <div className="flex justify-between text-xs">
+                                    <span className="text-muted-foreground">Credit Card Usage:</span>
+                                    <span className="font-semibold">{formatCurrency(monthlyReport.totalCreditCardUsage)}</span>
                                 </div>
                             </CollapsibleContent>
                         </CardContent>
@@ -432,7 +439,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                         <CardContent>
                             <div className="text-2xl font-bold text-red-600">{formatCurrency(grandTotalOutflow)}</div>
                             <p className="text-xs text-muted-foreground">
-                                Expenses, repayments, loans given, repayments made.
+                                Expenses, repayments, and loans given.
                             </p>
                             <CollapsibleContent className="mt-4 pt-4 border-t space-y-2">
                                 <div className="flex justify-between text-xs">
@@ -440,16 +447,12 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                                     <span className="font-semibold">{formatCurrency(monthlyReport.totalExpense)}</span>
                                 </div>
                                 <div className="flex justify-between text-xs">
-                                    <span className="text-muted-foreground">Repayment made (Bank):</span>
-                                    <span className="font-semibold">{formatCurrency(monthlyReport.totalTransfersOut)}</span>
+                                    <span className="text-muted-foreground">Repayment made (to Person):</span>
+                                    <span className="font-semibold">{formatCurrency(monthlyLoanReport.totalRepaymentMade)}</span>
                                 </div>
                                 <div className="flex justify-between text-xs">
                                     <span className="text-muted-foreground">Loans Given:</span>
                                     <span className="font-semibold">{formatCurrency(monthlyLoanReport.totalLoanGiven)}</span>
-                                </div>
-                                <div className="flex justify-between text-xs">
-                                    <span className="text-muted-foreground">Repayments Made:</span>
-                                    <span className="font-semibold">{formatCurrency(monthlyLoanReport.totalRepaymentMade)}</span>
                                 </div>
                             </CollapsibleContent>
                         </CardContent>
@@ -511,24 +514,44 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {Object.keys(monthlyReport.incomeByCategory).length > 0 ? (
-                                Object.entries(monthlyReport.incomeByCategory).map(([category, { total, budget }]) => (
-                                    <TableRow key={category} onClick={() => handleCategoryClick(category, 'income')} className="cursor-pointer">
-                                        <TableCell className="font-medium">{category}</TableCell>
-                                        <TableCell className="text-right">{formatCurrency(total)}</TableCell>
-                                        {isPrimaryReport && <TableCell className="text-right">{budget > 0 ? formatCurrency(budget) : '-'}</TableCell>}
-                                    </TableRow>
-                                ))
-                            ) : (
+                            {Object.entries(monthlyReport.incomeByCategory).map(([category, { total, budget }]) => (
+                                <TableRow key={category} onClick={() => handleCategoryClick(category, 'income')} className="cursor-pointer">
+                                    <TableCell className="font-medium">{category}</TableCell>
+                                    <TableCell className="text-right">{formatCurrency(total)}</TableCell>
+                                    {isPrimaryReport && <TableCell className="text-right">{budget > 0 ? formatCurrency(budget) : '-'}</TableCell>}
+                                </TableRow>
+                            ))}
+                            {monthlyLoanReport.totalLoanTaken > 0 && (
+                                <TableRow className="bg-muted/30">
+                                    <TableCell className="font-medium">Loan taken (from Person)</TableCell>
+                                    <TableCell className="text-right text-green-600">{formatCurrency(monthlyLoanReport.totalLoanTaken)}</TableCell>
+                                    {isPrimaryReport && <TableCell className="text-right">-</TableCell>}
+                                </TableRow>
+                            )}
+                            {monthlyLoanReport.totalRepaymentReceived > 0 && (
+                                <TableRow className="bg-muted/30">
+                                    <TableCell className="font-medium">Repayment received (from Person)</TableCell>
+                                    <TableCell className="text-right text-green-600">{formatCurrency(monthlyLoanReport.totalRepaymentReceived)}</TableCell>
+                                    {isPrimaryReport && <TableCell className="text-right">-</TableCell>}
+                                </TableRow>
+                            )}
+                            {monthlyReport.totalCreditCardUsage > 0 && (
+                                <TableRow className="bg-muted/30">
+                                    <TableCell className="font-medium">Credit Card Usage (SBI)</TableCell>
+                                    <TableCell className="text-right text-green-600">{formatCurrency(monthlyReport.totalCreditCardUsage)}</TableCell>
+                                    {isPrimaryReport && <TableCell className="text-right">-</TableCell>}
+                                </TableRow>
+                            )}
+                            {Object.keys(monthlyReport.incomeByCategory).length === 0 && monthlyLoanReport.totalLoanTaken === 0 && monthlyLoanReport.totalRepaymentReceived === 0 && monthlyReport.totalCreditCardUsage === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={isPrimaryReport ? 3 : 2} className="text-center text-muted-foreground">No income categories recorded.</TableCell>
+                                    <TableCell colSpan={isPrimaryReport ? 3 : 2} className="text-center text-muted-foreground">No inflow recorded.</TableCell>
                                 </TableRow>
                             )}
                         </TableBody>
                          <TableFooter>
                             <TableRow>
-                                <TableHead>Total Income</TableHead>
-                                <TableHead className="text-right">{formatCurrency(monthlyReport.totalIncome)}</TableHead>
+                                <TableHead>Total Inflow</TableHead>
+                                <TableHead className="text-right">{formatCurrency(grandTotalInflow)}</TableHead>
                                 {isPrimaryReport && <TableHead />}
                             </TableRow>
                         </TableFooter>
@@ -562,15 +585,21 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {Object.keys(monthlyReport.regularExpenseByCategory).length > 0 ? (
-                                    Object.entries(monthlyReport.regularExpenseByCategory).sort(([,a],[,b])=> b.total - a.total).map(([category, {total, budget}]) => (
-                                        <TableRow key={category} onClick={() => handleCategoryClick(category, 'regular')} className="cursor-pointer">
-                                            <TableCell className="font-medium">{category}</TableCell>
-                                            <TableCell className="text-right">{formatCurrency(total)}</TableCell>
-                                            {isPrimaryReport && <TableCell className="text-right">{budget > 0 ? formatCurrency(budget) : '-'}</TableCell>}
-                                        </TableRow>
-                                    ))
-                                ) : (
+                                {Object.entries(monthlyReport.regularExpenseByCategory).sort(([,a],[,b])=> b.total - a.total).map(([category, {total, budget}]) => (
+                                    <TableRow key={category} onClick={() => handleCategoryClick(category, 'regular')} className="cursor-pointer">
+                                        <TableCell className="font-medium">{category}</TableCell>
+                                        <TableCell className="text-right">{formatCurrency(total)}</TableCell>
+                                        {isPrimaryReport && <TableCell className="text-right">{budget > 0 ? formatCurrency(budget) : '-'}</TableCell>}
+                                    </TableRow>
+                                ))}
+                                {monthlyLoanReport.totalRepaymentMade > 0 && (
+                                    <TableRow className="bg-muted/30">
+                                        <TableCell className="font-medium">Repayment made (to Person)</TableCell>
+                                        <TableCell className="text-right text-red-600">{formatCurrency(monthlyLoanReport.totalRepaymentMade)}</TableCell>
+                                        {isPrimaryReport && <TableCell className="text-right">-</TableCell>}
+                                    </TableRow>
+                                )}
+                                {Object.keys(monthlyReport.regularExpenseByCategory).length === 0 && monthlyLoanReport.totalRepaymentMade === 0 && (
                                     <TableRow>
                                         <TableCell colSpan={isPrimaryReport ? 3 : 2} className="text-center text-muted-foreground">No regular expenses.</TableCell>
                                     </TableRow>
@@ -583,7 +612,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                             <Separator />
                             <div className="w-full flex justify-between font-bold text-sm mt-2">
                                 <span>Subtotal Regular</span>
-                                <span className="font-mono">{formatCurrency(monthlyReport.totalRegularExpense)}</span>
+                                <span className="font-mono">{formatCurrency(monthlyReport.totalRegularExpense + monthlyLoanReport.totalRepaymentMade)}</span>
                             </div>
                             {isPrimaryReport && (
                                 <div className="w-full flex justify-between font-bold text-sm text-blue-600 mt-1">
