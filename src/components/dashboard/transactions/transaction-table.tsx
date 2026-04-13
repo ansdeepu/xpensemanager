@@ -203,10 +203,12 @@ export function TransactionTable({
               const loanInfo = getLoanDisplayInfo(t);
               const isExpanded = expandedRows.has(t.id);
               const isMultiItem = Boolean(t.items && t.items.length > 0);
+              const slNo = (currentPage - 1) * itemsPerPage + index + 1;
+
               const rowContent = isMultiItem ? (
                   <Fragment key={t.id}>
                       <TableRow className={cn("border-b-0 cursor-pointer hover:bg-muted/50", isExpanded && "bg-muted/40")} onClick={() => toggleRow(t.id)}>
-                          <TableCell className="py-2">{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
+                          <TableCell className="py-2">{slNo}</TableCell>
                           <TableCell className="py-2">{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
                           <TableCell className="py-2 font-medium">{t.items!.map(item => item.description).join('; ')}</TableCell>
                           <TableCell className="py-2"><Badge variant={getBadgeVariant(t.type)} className="text-[10px] h-5">{t.type}</Badge></TableCell>
@@ -257,7 +259,7 @@ export function TransactionTable({
                   </Fragment>
               ) : (
                   <TableRow key={t.id} className="hover:bg-muted/50">
-                      <TableCell className="py-2 text-xs">{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
+                      <TableCell className="py-2 text-xs">{slNo}</TableCell>
                       <TableCell className="py-2 text-xs">{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
                       <TableCell className={cn("py-2 text-sm", loanInfo.descriptionClassName)}>{loanInfo.description}</TableCell>
                       <TableCell className="py-2"><Badge variant={getBadgeVariant(loanInfo.type)} className="text-[10px] h-5 capitalize">{loanInfo.type}</Badge></TableCell>

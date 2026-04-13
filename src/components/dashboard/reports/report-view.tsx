@@ -352,7 +352,8 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
   const totalExpenditureRegular = monthlyReport.totalRegularExpense + monthlyLoanReport.totalRepaymentMade;
   const totalExpenditureOccasional = monthlyReport.totalOccasionalExpense;
   const totalExpenditureLoanGiven = monthlyLoanReport.totalLoanGiven;
-  const grandTotalExpenditure = totalExpenditureRegular + totalExpenditureOccasional + totalExpenditureLoanGiven;
+  const totalExpenditureTransfersOut = monthlyReport.totalTransfersOut;
+  const grandTotalExpenditure = totalExpenditureRegular + totalExpenditureOccasional + totalExpenditureLoanGiven + totalExpenditureTransfersOut;
 
   return (
     <div className="space-y-6">
@@ -400,6 +401,10 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                                     <span className="text-muted-foreground">Credit Card Usage:</span>
                                     <span className="font-semibold">{formatCurrency(monthlyReport.totalCreditCardUsage)}</span>
                                 </div>
+                                <div className="flex justify-between text-xs">
+                                    <span className="text-muted-foreground">Internal Transfers In:</span>
+                                    <span className="font-semibold">{formatCurrency(monthlyReport.totalTransfersIn)}</span>
+                                </div>
                             </CollapsibleContent>
                         </CardContent>
                     </Card>
@@ -433,6 +438,10 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                                 <div className="flex justify-between text-xs">
                                     <span className="text-muted-foreground">Loans Given:</span>
                                     <span className="font-semibold">{formatCurrency(monthlyLoanReport.totalLoanGiven)}</span>
+                                </div>
+                                <div className="flex justify-between text-xs">
+                                    <span className="text-muted-foreground">Internal Transfers Out:</span>
+                                    <span className="font-semibold">{formatCurrency(monthlyReport.totalTransfersOut)}</span>
                                 </div>
                             </CollapsibleContent>
                         </CardContent>
@@ -522,7 +531,14 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                                     {isPrimaryReport && <TableCell className="text-right">-</TableCell>}
                                 </TableRow>
                             )}
-                            {Object.keys(monthlyReport.incomeByCategory).length === 0 && monthlyLoanReport.totalLoanTaken === 0 && monthlyLoanReport.totalRepaymentReceived === 0 && monthlyReport.totalCreditCardUsage === 0 && (
+                            {monthlyReport.totalTransfersIn > 0 && (
+                                <TableRow className="bg-muted/30">
+                                    <TableCell className="font-medium">Internal Bank Transfer (In)</TableCell>
+                                    <TableCell className="text-right text-green-600">{formatCurrency(monthlyReport.totalTransfersIn)}</TableCell>
+                                    {isPrimaryReport && <TableCell className="text-right">-</TableCell>}
+                                </TableRow>
+                            )}
+                            {Object.keys(monthlyReport.incomeByCategory).length === 0 && monthlyLoanReport.totalLoanTaken === 0 && monthlyLoanReport.totalRepaymentReceived === 0 && monthlyReport.totalCreditCardUsage === 0 && monthlyReport.totalTransfersIn === 0 && (
                                 <TableRow>
                                     <TableCell colSpan={isPrimaryReport ? 3 : 2} className="text-center text-muted-foreground">No inflow recorded.</TableCell>
                                 </TableRow>
@@ -568,9 +584,13 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                             <span>Loan Details (Given)</span>
                             <span className="font-semibold">{formatCurrency(totalExpenditureLoanGiven)}</span>
                         </div>
+                        <div className="flex justify-between text-sm">
+                            <span>Internal Bank Transfer (Out)</span>
+                            <span className="font-semibold">{formatCurrency(totalExpenditureTransfersOut)}</span>
+                        </div>
                         <Separator className="my-2" />
                         <div className="flex justify-between font-bold text-base">
-                            <span>Grand Total Expenditure</span>
+                            <span>Grand Total Outflow</span>
                             <span className="font-mono">{formatCurrency(grandTotalExpenditure)}</span>
                         </div>
                     </CardContent>
@@ -617,7 +637,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                             <Separator />
                             <div className="w-full flex justify-between font-bold text-sm mt-2">
                                 <span>Subtotal Regular</span>
-                                <span className="font-mono">{formatCurrency(monthlyReport.totalRegularExpense + monthlyLoanReport.totalRepaymentMade)}</span>
+                                <span className="font-mono">{formatCurrency(totalExpenditureRegular)}</span>
                             </div>
                             {isPrimaryReport && (
                                 <div className="w-full flex justify-between font-bold text-sm text-blue-600 mt-1">
@@ -679,7 +699,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                 <Card className="bg-muted/30">
                     <CardContent className="p-4">
                         <div className="w-full flex justify-between font-bold text-base">
-                            <span>Grand Total Expenses</span>
+                            <span>Grand Total Categories</span>
                             <span className="font-mono">{formatCurrency(monthlyReport.totalExpense)}</span>
                         </div>
                         {isPrimaryReport && (
