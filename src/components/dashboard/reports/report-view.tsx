@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo } from "react";
@@ -118,6 +117,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
     };
 
     loans.forEach(loan => {
+        // Filter out redundant loan records that share names with bank/card accounts
         if (accountNamesLower.has(loan.personName.toLowerCase())) return;
 
         (loan.transactions || []).forEach(tx => {
@@ -156,6 +156,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
         });
     });
 
+    // Credit Card Repayments from Transfers
     monthlyTransactions.forEach(t => {
         if (t.type === 'transfer' && t.toAccountId && creditCardIds.has(t.toAccountId)) {
             let include = false;
@@ -257,6 +258,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                 data.expenseByCategory[categoryName].total += t.amount;
                 data.expenseByCategory[categoryName].subcategories[subCategoryName] = (data.expenseByCategory[categoryName].subcategories[subCategoryName] || 0) + t.amount;
                 
+                // Group actual spending by transaction frequency
                 if (t.frequency === 'occasional') {
                     data.totalOccasionalExpense += t.amount;
                     if (!data.occasionalExpenseByCategory[categoryName]) data.occasionalExpenseByCategory[categoryName] = { total: 0, budget: 0, subcategories: {} };
@@ -296,6 +298,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
 
         if (cat.type === 'expense' || cat.type === 'bank-expense') {
             if (categoryBudget > 0 || cat.subcategories.length > 0) {
+                // If a category has a budget (regular or custom months), ensure it appears in the regular table if it has any activity or budget
                 if (!data.regularExpenseByCategory[cat.name]) data.regularExpenseByCategory[cat.name] = { total: 0, budget: 0, subcategories: {} };
                 data.regularExpenseByCategory[cat.name].budget = categoryBudget;
                 data.totalRegularBudget += categoryBudget;
@@ -489,11 +492,32 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                 <CardHeader><CardTitle>Loan Taken</CardTitle></CardHeader>
                 <CardContent>
                     <Table>
-                        <TableHeader><TableRow><TableHead>From</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>From</TableHead>
+                                <TableHead className="text-right">Amount</TableHead>
+                            </TableRow>
+                        </TableHeader>
                         <TableBody>
-                            {monthlyLoanReport.loanTakenTransactions.length > 0 ? (monthlyLoanReport.loanTakenTransactions.map(tx => (<TableRow key={tx.personName}><TableCell>{tx.personName}</TableCell><TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell></TableRow>))) : (<TableRow><TableCell colSpan={2} className="text-center text-muted-foreground">No loans taken this month.</TableCell></TableRow>)}
+                            {monthlyLoanReport.loanTakenTransactions.length > 0 ? (
+                                monthlyLoanReport.loanTakenTransactions.map(tx => (
+                                    <TableRow key={tx.personName}>
+                                        <TableCell>{tx.personName}</TableCell>
+                                        <TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell>
+                                    </TableRow>
+                                ))
+                            ) : (
+                                <TableRow>
+                                    <TableCell colSpan={2} className="text-center text-muted-foreground">No loans taken this month.</TableCell>
+                                </TableRow>
+                            )}
                         </TableBody>
-                        <TableFooter><TableRow><TableHead>Total Loans Taken</TableHead><TableHead className="text-right">{formatCurrency(monthlyLoanReport.totalLoanTaken)}</TableHead></TableRow></TableFooter>
+                        <TableFooter>
+                            <TableRow>
+                                <TableHead>Total Loans Taken</TableHead>
+                                <TableHead className="text-right">{formatCurrency(monthlyLoanReport.totalLoanTaken)}</TableHead>
+                            </TableRow>
+                        </TableFooter>
                     </Table>
                 </CardContent>
             </Card>
@@ -501,23 +525,65 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                 <CardHeader><CardTitle>Repayment of Loan Given</CardTitle></CardHeader>
                 <CardContent>
                     <Table>
-                        <TableHeader><TableRow><TableHead>Repayments From</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Repayments From</TableHead>
+                                <TableHead className="text-right">Amount</TableHead>
+                            </TableRow>
+                        </TableHeader>
                         <TableBody>
-                            {monthlyLoanReport.repaymentReceivedTransactions.length > 0 ? (monthlyLoanReport.repaymentReceivedTransactions.map(tx => (<TableRow key={tx.personName}><TableCell>{tx.personName}</TableCell><TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell></TableRow>))) : (<TableRow><TableCell colSpan={2} className="text-center text-muted-foreground">No repayments received this month.</TableCell></TableRow>)}
+                            {monthlyLoanReport.repaymentReceivedTransactions.length > 0 ? (
+                                monthlyLoanReport.repaymentReceivedTransactions.map(tx => (
+                                    <TableRow key={tx.personName}>
+                                        <TableCell>{tx.personName}</TableCell>
+                                        <TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell>
+                                    </TableRow>
+                                ))
+                            ) : (
+                                <TableRow>
+                                    <TableCell colSpan={2} className="text-center text-muted-foreground">No repayments received this month.</TableCell>
+                                </TableRow>
+                            )}
                         </TableBody>
-                        <TableFooter><TableRow><TableHead>Total Repayments Received</TableHead><TableHead className="text-right">{formatCurrency(monthlyLoanReport.totalRepaymentReceived)}</TableHead></TableRow></TableFooter>
+                        <TableFooter>
+                            <TableRow>
+                                <TableHead>Total Repayments Received</TableHead>
+                                <TableHead className="text-right">{formatCurrency(monthlyLoanReport.totalRepaymentReceived)}</TableHead>
+                            </TableRow>
+                        </TableFooter>
                     </Table>
                 </CardContent>
             </Card>
             <Card>
-                <CardHeader><CardTitle>Loan Details (Given)</CardTitle></CardHeader>
+                <CardHeader><CardTitle>Loan Given</CardTitle></CardHeader>
                 <CardContent>
                     <Table>
-                        <TableHeader><TableRow><TableHead>To</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>To</TableHead>
+                                <TableHead className="text-right">Amount</TableHead>
+                            </TableRow>
+                        </TableHeader>
                         <TableBody>
-                            {monthlyLoanReport.loanGivenTransactions.length > 0 ? (monthlyLoanReport.loanGivenTransactions.map(tx => (<TableRow key={tx.personName}><TableCell>{tx.personName}</TableCell><TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell></TableRow>))) : (<TableRow><TableCell colSpan={2} className="text-center text-muted-foreground">No loans given this month.</TableCell></TableRow>)}
+                            {monthlyLoanReport.loanGivenTransactions.length > 0 ? (
+                                monthlyLoanReport.loanGivenTransactions.map(tx => (
+                                    <TableRow key={tx.personName}>
+                                        <TableCell>{tx.personName}</TableCell>
+                                        <TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell>
+                                    </TableRow>
+                                ))
+                            ) : (
+                                <TableRow>
+                                    <TableCell colSpan={2} className="text-center text-muted-foreground">No loans given this month.</TableCell>
+                                </TableRow>
+                            )}
                         </TableBody>
-                        <TableFooter><TableRow><TableHead>Total Loans Given</TableHead><TableHead className="text-right">{formatCurrency(monthlyLoanReport.totalLoanGiven)}</TableHead></TableRow></TableFooter>
+                        <TableFooter>
+                            <TableRow>
+                                <TableHead>Total Loans Given</TableHead>
+                                <TableHead className="text-right">{formatCurrency(monthlyLoanReport.totalLoanGiven)}</TableHead>
+                            </TableRow>
+                        </TableFooter>
                     </Table>
                 </CardContent>
             </Card>
@@ -525,11 +591,32 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                 <CardHeader><CardTitle>Repayment of Loan Taken</CardTitle></CardHeader>
                 <CardContent>
                     <Table>
-                        <TableHeader><TableRow><TableHead>Repayments To</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Repayments To</TableHead>
+                                <TableHead className="text-right">Amount</TableHead>
+                            </TableRow>
+                        </TableHeader>
                         <TableBody>
-                            {monthlyLoanReport.repaymentMadeTransactions.length > 0 ? (monthlyLoanReport.repaymentMadeTransactions.map(tx => (<TableRow key={tx.personName}><TableCell>{tx.personName}</TableCell><TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell></TableRow>))) : (<TableRow><TableCell colSpan={2} className="text-center text-muted-foreground">No repayments made this month.</TableCell></TableRow>)}
+                            {monthlyLoanReport.repaymentMadeTransactions.length > 0 ? (
+                                monthlyLoanReport.repaymentMadeTransactions.map(tx => (
+                                    <TableRow key={tx.personName}>
+                                        <TableCell>{tx.personName}</TableCell>
+                                        <TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell>
+                                    </TableRow>
+                                ))
+                            ) : (
+                                <TableRow>
+                                    <TableCell colSpan={2} className="text-center text-muted-foreground">No repayments made this month.</TableCell>
+                                </TableRow>
+                            )}
                         </TableBody>
-                        <TableFooter><TableRow><TableHead>Total Repayments Made</TableHead><TableHead className="text-right">{formatCurrency(monthlyLoanReport.totalRepaymentMade)}</TableHead></TableRow></TableFooter>
+                        <TableFooter>
+                            <TableRow>
+                                <TableHead>Total Repayments Made</TableHead>
+                                <TableHead className="text-right">{formatCurrency(monthlyLoanReport.totalRepaymentMade)}</TableHead>
+                            </TableRow>
+                        </TableFooter>
                     </Table>
                 </CardContent>
             </Card>

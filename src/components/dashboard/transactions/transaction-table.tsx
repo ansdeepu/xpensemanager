@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo, Fragment } from "react";
@@ -84,7 +83,7 @@ export function TransactionTable({
     if (!accId) return "-";
     const account = accounts.find((a) => a.id === accId);
     if (!account) {
-         const loan = loans.find(l => l.id === accId);
+         const loan = loans.find(l => l.id === accountId);
          return loan ? loan.personName : "N/A";
     }
     return account.name;
