@@ -14,13 +14,16 @@ import { isAfter, parseISO, format } from "date-fns";
 import { useReportDate } from "@/context/report-date-context";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 
 const formatCurrency = (amount: number) => {
+  let val = amount;
+  if (Object.is(val, -0)) val = 0;
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
-  }).format(amount);
+  }).format(val);
 };
 
 export default function ReportsPage() {
@@ -107,15 +110,23 @@ export default function ReportsPage() {
       const transactionDate = parseISO(t.date);
 
       if (t.type === 'income' && t.accountId && calculatedAccountBalances[t.accountId] !== undefined) {
-        const accountReconDate = rawAccounts.find(a => a.id === t.accountId)?.actualBalanceDate ? parseISO(rawAccounts.find(a => a.id === t.accountId)!.actualBalanceDate!) : new Date(0);
-        if (isAfter(transactionDate, accountReconDate)) {
-            calculatedAccountBalances[t.accountId] += t.amount;
+        const account = rawAccounts.find(a => a.id === t.accountId);
+        if (account?.type !== 'card') {
+            const accountReconDate = account?.actualBalanceDate ? parseISO(account.actualBalanceDate) : new Date(0);
+            if (isAfter(transactionDate, accountReconDate)) {
+                calculatedAccountBalances[t.accountId] += t.amount;
+            }
         }
       } else if (t.type === 'expense') {
         if (t.paymentMethod === 'online' && t.accountId && calculatedAccountBalances[t.accountId] !== undefined) {
-            const accountReconDate = rawAccounts.find(a => a.id === t.accountId)?.actualBalanceDate ? parseISO(rawAccounts.find(a => a.id === t.accountId)!.actualBalanceDate!) : new Date(0);
+            const account = rawAccounts.find(a => a.id === t.accountId);
+            const accountReconDate = account?.actualBalanceDate ? parseISO(account.actualBalanceDate) : new Date(0);
             if (isAfter(transactionDate, accountReconDate)) {
-              calculatedAccountBalances[t.accountId] -= t.amount;
+                if (account?.type === 'card') {
+                    calculatedAccountBalances[t.accountId] += t.amount; // Due increases
+                } else {
+                    calculatedAccountBalances[t.accountId] -= t.amount; // Balance decreases
+                }
             }
         } else if (t.paymentMethod === 'cash' && isAfter(transactionDate, cashReconDate)) {
           calculatedCashBalance -= t.amount;
@@ -125,9 +136,14 @@ export default function ReportsPage() {
       } else if (t.type === 'transfer') {
         // From Account
         if (t.fromAccountId && calculatedAccountBalances[t.fromAccountId] !== undefined) {
-            const fromAccountReconDate = rawAccounts.find(a => a.id === t.fromAccountId)?.actualBalanceDate ? parseISO(rawAccounts.find(a => a.id === t.fromAccountId)!.actualBalanceDate!) : new Date(0);
+            const account = rawAccounts.find(a => a.id === t.fromAccountId);
+            const fromAccountReconDate = account?.actualBalanceDate ? parseISO(account.actualBalanceDate) : new Date(0);
             if (isAfter(transactionDate, fromAccountReconDate)) {
-              calculatedAccountBalances[t.fromAccountId] -= t.amount;
+                if (account?.type === 'card') {
+                    calculatedAccountBalances[t.fromAccountId] += t.amount; // cash advance increases due
+                } else {
+                    calculatedAccountBalances[t.fromAccountId] -= t.amount;
+                }
             }
         } else if (t.fromAccountId === 'cash-wallet' && isAfter(transactionDate, cashReconDate)) {
           calculatedCashBalance -= t.amount;
@@ -136,9 +152,14 @@ export default function ReportsPage() {
         }
         // To Account
         if (t.toAccountId && calculatedAccountBalances[t.toAccountId] !== undefined) {
-          const toAccountReconDate = rawAccounts.find(a => a.id === t.toAccountId)?.actualBalanceDate ? parseISO(rawAccounts.find(a => a.id === t.toAccountId)!.actualBalanceDate!) : new Date(0);
+          const account = rawAccounts.find(a => a.id === t.toAccountId);
+          const toAccountReconDate = account?.actualBalanceDate ? parseISO(account.actualBalanceDate) : new Date(0);
           if (isAfter(transactionDate, toAccountReconDate)) {
-            calculatedAccountBalances[t.toAccountId] += t.amount;
+            if (account?.type === 'card') {
+                calculatedAccountBalances[t.toAccountId] -= t.amount; // payment to card decreases due
+            } else {
+                calculatedAccountBalances[t.toAccountId] += t.amount;
+            }
           }
         } else if (t.toAccountId === 'cash-wallet' && isAfter(transactionDate, cashReconDate)) {
           calculatedCashBalance += t.amount;
@@ -181,7 +202,11 @@ export default function ReportsPage() {
     );
   }
   
-  const allBalance = accounts.reduce((sum, acc) => sum + acc.balance, 0) + cashWalletBalance + digitalWalletBalance;
+  // Calculate Net Worth: Sum(Bank Assets + Wallets) - Sum(Card Dues)
+  const allBalance = accounts.reduce((sum, acc) => {
+      if (acc.type === 'card') return sum - acc.balance;
+      return sum + acc.balance;
+  }, 0) + cashWalletBalance + digitalWalletBalance;
 
   return (
     <div className="space-y-6">
@@ -206,7 +231,7 @@ export default function ReportsPage() {
         <TabsList className="flex w-full overflow-x-auto h-auto p-1">
           <TabsTrigger value="all" className="flex-shrink-0 flex flex-col h-auto p-2">
             <span>Overall Summary</span>
-            <span className="font-bold text-primary">{formatCurrency(allBalance)}</span>
+            <span className={cn("font-bold", allBalance >= 0 ? 'text-primary' : 'text-red-600')}>{formatCurrency(allBalance)}</span>
           </TabsTrigger>
           {primaryAccount && (
             <TabsTrigger value={primaryAccount.id} className="flex-shrink-0 flex flex-col h-auto p-2 items-start text-left min-w-64">
@@ -226,7 +251,9 @@ export default function ReportsPage() {
           {accounts.filter(account => !account.isPrimary).map(account => (
             <TabsTrigger key={account.id} value={account.id} className="flex-shrink-0 flex flex-col h-auto p-2">
               <span>{account.name}</span>
-              <span className="font-bold text-primary">{formatCurrency(account.balance)}</span>
+              <span className={cn("font-bold", (account.type === 'card' && account.balance > 0) ? 'text-red-600' : 'text-primary')}>
+                  {account.type === 'card' ? `Due: ${formatCurrency(account.balance)}` : formatCurrency(account.balance)}
+              </span>
             </TabsTrigger>
           ))}
         </TabsList>
