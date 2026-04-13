@@ -117,7 +117,6 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
         repaymentReceivedMap: {} as Record<string, number>,
     };
 
-    // Filter out loans where personName matches an existing account name to prevent double counting
     loans.forEach(loan => {
         if (accountNamesLower.has(loan.personName.toLowerCase())) return;
 
@@ -128,8 +127,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                 if (isOverallSummary) {
                     include = true;
                 } else if (isPrimaryReport) {
-                    const involvesPrimary = Boolean(tx.accountId === accountId || tx.accountId === 'cash-wallet' || tx.accountId === 'digital-wallet' || (tx.accountId && creditCardIds.has(tx.accountId)));
-                    include = involvesPrimary;
+                    include = Boolean(tx.accountId === accountId || tx.accountId === 'cash-wallet' || tx.accountId === 'digital-wallet' || (tx.accountId && creditCardIds.has(tx.accountId)));
                 } else {
                     include = Boolean(tx.accountId === accountId);
                 }
@@ -140,15 +138,15 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
                         if (tx.type === 'loan') {
                             report.totalLoanTaken += tx.amount;
                             report.loanTakenMap[name] = (report.loanTakenMap[name] || 0) + tx.amount;
-                        } else { // repayment
+                        } else {
                             report.totalRepaymentMade += tx.amount;
                             report.repaymentMadeMap[name] = (report.repaymentMadeMap[name] || 0) + tx.amount;
                         }
-                    } else { // given
+                    } else {
                         if (tx.type === 'loan') {
                             report.totalLoanGiven += tx.amount;
                             report.loanGivenMap[name] = (report.loanGivenMap[name] || 0) + tx.amount;
-                        } else { // repayment
+                        } else {
                             report.totalRepaymentReceived += tx.amount;
                             report.repaymentReceivedMap[name] = (report.repaymentReceivedMap[name] || 0) + tx.amount;
                         }
@@ -158,7 +156,6 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
         });
     });
 
-    // Process Credit Card Repayments (Transfers TO credit cards)
     monthlyTransactions.forEach(t => {
         if (t.type === 'transfer' && t.toAccountId && creditCardIds.has(t.toAccountId)) {
             let include = false;
@@ -489,7 +486,7 @@ export function ReportView({ transactions, categories, accounts, loans, isOveral
 
          <div className="grid gap-6 md:grid-cols-2">
             <Card>
-                <CardHeader><CardTitle>Loan Details (Taken)</CardTitle></CardHeader>
+                <CardHeader><CardTitle>Loan Taken</CardTitle></CardHeader>
                 <CardContent>
                     <Table>
                         <TableHeader><TableRow><TableHead>From</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>

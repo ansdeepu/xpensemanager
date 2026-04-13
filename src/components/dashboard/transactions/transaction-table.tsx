@@ -82,7 +82,7 @@ export function TransactionTable({
         return loan ? loan.personName : personName;
     }
     if (!accId) return "-";
-    const account = accounts.find((a) => a.id === accountId);
+    const account = accounts.find((a) => a.id === accId);
     if (!account) {
          const loan = loans.find(l => l.id === accId);
          return loan ? loan.personName : "N/A";
