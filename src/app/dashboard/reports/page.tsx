@@ -38,7 +38,6 @@ export default function ReportsPage() {
   useEffect(() => {
     if (user) {
       setDataLoading(true);
-      // Removed orderBy from query to prevent hidden accounts missing the field
       const accountsQuery = query(collection(db, "accounts"), where("userId", "==", user.uid));
       const unsubscribeAccounts = onSnapshot(accountsQuery, (snapshot) => {
         const userAccounts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Omit<Account, 'balance'>));
@@ -86,7 +85,6 @@ export default function ReportsPage() {
     }
   }, [user, userLoading]);
 
-  // Unified chronological calculation logic
   const { accountBalances, cashWalletBalance, digitalWalletBalance } = useMemo(() => {
     let cashBalance = 0;
     let digitalBalance = 0;
@@ -163,6 +161,16 @@ export default function ReportsPage() {
       .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   }, [rawAccounts, accountBalances]);
 
+  // Remove SBI Credit Card from tabs as requested
+  const filteredDisplayAccounts = useMemo(() => {
+    return accounts.filter(acc => {
+        const name = acc.name.toLowerCase();
+        // If it's a card and contains "SBI", filter it out
+        if (acc.type === 'card' && name.includes('sbi')) return false;
+        return true;
+    });
+  }, [accounts]);
+
   const primaryAccount = accounts.find(a => a.isPrimary);
 
   if (userLoading || dataLoading) {
@@ -227,7 +235,7 @@ export default function ReportsPage() {
               </div>
             </TabsTrigger>
           )}
-          {accounts.filter(account => !account.isPrimary).map(account => (
+          {filteredDisplayAccounts.filter(account => !account.isPrimary).map(account => (
             <TabsTrigger key={account.id} value={account.id} className="flex-shrink-0 flex flex-col h-auto p-2">
               <span>{account.name}</span>
               <span className={cn("font-bold", (account.type === 'card' && account.balance > 0) ? 'text-red-600' : 'text-primary')}>
@@ -241,7 +249,7 @@ export default function ReportsPage() {
           <ReportView transactions={transactions} categories={categories} accounts={accounts} loans={loans} isOverallSummary={true} />
         </TabsContent>
         
-        {accounts.map(account => (
+        {filteredDisplayAccounts.map(account => (
           <TabsContent key={account.id} value={account.id} className="mt-6">
             <ReportView 
                 transactions={transactions} 

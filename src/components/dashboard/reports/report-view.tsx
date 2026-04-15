@@ -3,10 +3,10 @@
 
 import React, { useState, useMemo } from "react";
 import type { Transaction, Category, Account, Loan } from "@/lib/data";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BookText, TrendingUp, TrendingDown, IndianRupee, ChevronDown, ChevronUp } from "lucide-react";
-import { format, startOfMonth, endOfMonth, isWithinInterval, isValid } from "date-fns";
+import { BookText, TrendingUp, TrendingDown, IndianRupee, ChevronDown, ChevronUp, Landmark, ArrowRightLeft } from "lucide-react";
+import { format, startOfMonth, endOfMonth, isWithinInterval, isValid, isBefore } from "date-fns";
 import {
   Table,
   TableBody,
@@ -33,6 +33,7 @@ import {
 import { useReportDate } from "@/context/report-date-context";
 import { FinancialAdvice } from "./financial-advice";
 import { cn } from "@/lib/utils";
+import { PostCategoryAccordion } from "@/components/dashboard/post-bank/post-category-accordion";
 
 const formatCurrency = (amount: number) => {
   let val = amount;
@@ -73,6 +74,18 @@ type AggregatedEntry = {
     amount: number;
 };
 
+// Specialized categories for Post Bank tab
+const postBankCategories: Category[] = [
+  { id: 'pb_cat_1', name: 'Diesel Collection', icon: 'fuel', subcategories: [], order: 0, type: 'bank-expense', userId: '' },
+  { id: 'pb_cat_2', name: 'Staff Club Accounts', icon: 'users', subcategories: [], order: 1, type: 'bank-expense', userId: '' },
+  { id: 'pb_cat_3', name: 'Ente Keralam Accounts', icon: 'map', subcategories: [], order: 2, type: 'bank-expense', userId: '' },
+  { id: 'pb_cat_4', name: 'Seminar Accounts', icon: 'presentation', subcategories: [], order: 3, type: 'bank-expense', userId: '' },
+  { id: 'pb_cat_5', name: 'Jayaram Treatment', icon: 'heart', subcategories: [], order: 4, type: 'bank-expense', userId: '' },
+  { id: 'pb_cat_6', name: 'SLR Retirement - Jan 2026', icon: 'calendar', subcategories: [], order: 5, type: 'bank-expense', userId: '' },
+  { id: 'pb_cat_15', name: 'Bank Charges', icon: 'landmark', subcategories: [], order: 6, type: 'bank-expense', userId: '' },
+  { id: 'pb_cat_16', name: 'Deepa Car Accounts', icon: 'car', subcategories: [], order: 7, type: 'bank-expense', userId: '' },
+];
+
 export function ReportView({ 
   transactions, 
   categories, 
@@ -103,9 +116,43 @@ export function ReportView({
   const monthEnd = useMemo(() => endOfMonth(currentDate), [currentDate]);
   const currentMonthName = useMemo(() => format(currentDate, "MMM"), [currentDate]);
 
-  const primaryAccount = useMemo(() => accounts.find(a => a.isPrimary), [accounts]);
-  const creditCardIds = useMemo(() => new Set(accounts.filter(a => a.type === 'card').map(a => a.id)), [accounts]);
-  const sbiCardId = useMemo(() => accounts.find(a => a.type === 'card' && a.name.toLowerCase().includes('sbi'))?.id, [accounts]);
+  const accountInfo = useMemo(() => accounts.find(a => a.id === accountId), [accounts, accountId]);
+  const isPostBankTab = useMemo(() => accountInfo?.name.toLowerCase().includes('post bank'), [accountInfo]);
+
+  // Previous Balance Calculation (Balance before current month start)
+  const previousBalance = useMemo(() => {
+    if (isOverallSummary) return 0; // Summaries don't have a singular opening balance
+    
+    let balance = 0;
+    const pastTransactions = transactions.filter(t => isBefore(new Date(t.date), monthStart));
+    const sortedPast = pastTransactions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    sortedPast.forEach(t => {
+        const involvesPrimaryEcosystem = isPrimaryReport && (t.accountId === accountId || t.paymentMethod === 'cash' || t.paymentMethod === 'digital' || t.fromAccountId === 'cash-wallet' || t.toAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet' || t.toAccountId === 'digital-wallet');
+        
+        if (isPrimaryReport) {
+            // Include primary bank account + wallets
+            if (t.type === 'income' && (t.accountId === accountId || t.paymentMethod === 'cash' || t.paymentMethod === 'digital')) balance += t.amount;
+            else if (t.type === 'expense' && (t.accountId === accountId || t.paymentMethod === 'cash' || t.paymentMethod === 'digital')) balance -= t.amount;
+            else if (t.type === 'transfer') {
+                const isFromEcosystem = t.fromAccountId === accountId || t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
+                const isToEcosystem = t.toAccountId === accountId || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
+                
+                if (isFromEcosystem && !isToEcosystem) balance -= t.amount;
+                else if (!isFromEcosystem && isToEcosystem) balance += t.amount;
+            }
+        } else {
+            // Individual account specific
+            if (t.type === 'income' && t.accountId === accountId) balance += t.amount;
+            else if (t.type === 'expense' && t.accountId === accountId && t.paymentMethod === 'online') balance -= t.amount;
+            else if (t.type === 'transfer') {
+                if (t.fromAccountId === accountId) balance -= t.amount;
+                if (t.toAccountId === accountId) balance += t.amount;
+            }
+        }
+    });
+    return balance;
+  }, [transactions, monthStart, accountId, isPrimaryReport, isOverallSummary]);
 
   const monthlyTransactions = useMemo(() => {
     const seenIds = new Set<string>();
@@ -139,7 +186,10 @@ export function ReportView({
 
     let totalTransferOut = 0;
     const transferOutDetails: { name: string, amount: number }[] = [];
-    const seenTxIds = new Set<string>();
+    
+    const primaryAccount = accounts.find(a => a.isPrimary);
+    const creditCardIds = new Set(accounts.filter(a => a.type === 'card').map(a => a.id));
+    const sbiCardId = accounts.find(a => a.type === 'card' && a.name.toLowerCase().includes('sbi'))?.id;
 
     const isInEcosystem = (accId?: string) => 
         Boolean(accId === primaryAccount?.id || accId === 'cash-wallet' || accId === 'digital-wallet' || (accId && creditCardIds.has(accId)));
@@ -192,32 +242,38 @@ export function ReportView({
         else if (isPrimaryReport) includeInSbi = isSBIAccount;
         else includeInSbi = Boolean(t.accountId === accountId || t.fromAccountId === accountId || t.toAccountId === accountId);
 
-        if (includeInSbi && !seenTxIds.has(t.id)) {
+        if (includeInSbi) {
             if (isSBILoanSpending) { 
                 report.totalSBILoan += t.amount; 
                 report.sbiLoanTransactions.push({ name: t.description || 'Card Usage', amount: t.amount }); 
-                seenTxIds.add(t.id); 
             } else if (isSBIRepayment) { 
                 report.totalSBIRepayment += t.amount; 
                 report.sbiRepaymentTransactions.push({ name: t.description || 'Repayment', amount: t.amount }); 
-                seenTxIds.add(t.id); 
             } else if (isSBICashback) { 
                 report.totalSBICashback += t.amount; 
                 report.sbiCashbackTransactions.push({ name: t.description || 'Cashback', amount: t.amount }); 
-                seenTxIds.add(t.id); 
             } else if (isSBICharge) {
                 report.totalSBICharges += t.amount;
                 report.sbiChargesTransactions.push({ name: t.description || 'Bank Charge', amount: t.amount });
-                seenTxIds.add(t.id);
             }
         }
 
         if (t.type === 'transfer') {
-            const isFromEcosystem = isInEcosystem(t.fromAccountId);
-            const isToEcosystem = isInEcosystem(t.toAccountId);
-            if (isFromEcosystem && !isToEcosystem && !t.loanTransactionId) {
-                const targetAccount = accounts.find(a => a.id === t.toAccountId);
-                if (targetAccount) {
+            if (isOverallSummary) {
+                // For overall, transfers LEAVING the tracked ecosystem
+                const isFromEcosystem = isInEcosystem(t.fromAccountId);
+                const isToEcosystem = isInEcosystem(t.toAccountId);
+                if (isFromEcosystem && !isToEcosystem && !t.loanTransactionId) {
+                    const targetAccount = accounts.find(a => a.id === t.toAccountId);
+                    if (targetAccount) {
+                        totalTransferOut += t.amount;
+                        transferOutDetails.push({ name: targetAccount.name, amount: t.amount });
+                    }
+                }
+            } else {
+                // For specific account, any transfer OUT
+                if (t.fromAccountId === accountId && !t.loanTransactionId) {
+                    const targetAccount = accounts.find(a => a.id === t.toAccountId) || { name: t.toAccountId?.replace('-', ' ') || 'Unknown' };
                     totalTransferOut += t.amount;
                     transferOutDetails.push({ name: targetAccount.name, amount: t.amount });
                 }
@@ -238,7 +294,7 @@ export function ReportView({
         },
         monthlyTransferSummary: { total: totalTransferOut, details: transferOutDetails }
     };
-  }, [loans, monthStart, monthEnd, isOverallSummary, isPrimaryReport, accountId, creditCardIds, monthlyTransactions, sbiCardId, accounts, primaryAccount]);
+  }, [loans, monthStart, monthEnd, isOverallSummary, isPrimaryReport, accountId, monthlyTransactions, accounts]);
 
   const monthlyReport = useMemo(() => {
     const data: ReportData = {
@@ -248,6 +304,7 @@ export function ReportView({
     };
     
     const bankExpenseCategoryNames = new Set(categories.filter(c => c.type === 'bank-expense').map(c => c.name));
+    const creditCardIds = new Set(accounts.filter(a => a.type === 'card').map(a => a.id));
 
     monthlyTransactions.forEach(t => {
         const categoryName = t.category || "Uncategorized";
@@ -310,7 +367,7 @@ export function ReportView({
     });
 
     return data;
-  }, [monthlyTransactions, isOverallSummary, accountId, isPrimaryReport, categories, currentMonthName, creditCardIds]);
+  }, [monthlyTransactions, isOverallSummary, accountId, isPrimaryReport, categories, currentMonthName, accounts]);
 
   const handleCategoryClick = (categoryName: string, type: 'income' | 'expense' | 'regular' | 'occasional') => {
     let categoryData;
@@ -337,15 +394,55 @@ export function ReportView({
   const sbiNetRepaymentSummary = monthlyLoanReport.totalSBIRepayment + monthlyLoanReport.totalSBICharges + monthlyLoanReport.totalSBICashback;
   const grandTotalOutflow = monthlyReport.totalExpense + monthlyLoanReport.totalLoanGiven + monthlyLoanReport.totalRepaymentMade + sbiNetRepaymentSummary + monthlyTransferSummary.total;
   
-  // Net Balance is simple inflow minus outflow to ensure consistency with the summary totals
   const netBalance = grandTotalInflow - grandTotalOutflow;
+  const closingBalance = previousBalance + netBalance;
+
+  const postBankTransactionsForAccordion = useMemo(() => {
+    if (!isPostBankTab) return [];
+    return monthlyTransactions
+        .filter(t => t.accountId === accountId || t.fromAccountId === accountId || t.toAccountId === accountId)
+        .map(t => ({ ...t, balance: 0 })); // Actual running balance is computed in PostCategoryAccordion
+  }, [isPostBankTab, monthlyTransactions, accountId]);
 
   return (
     <div className="space-y-6">
-      {!monthlyTransactions.length ? (
+      {!monthlyTransactions.length && isOverallSummary ? (
          <Card><CardContent className="pt-6"><div className="flex flex-col items-center justify-center text-center text-muted-foreground h-40"><BookText className="h-10 w-10 mb-2"/><p>No transactions found for {format(currentDate, "MMMM yyyy")}.</p></div></CardContent></Card>
       ) : (
       <>
+        {/* Account Summary Card (Only for specific accounts) */}
+        {!isOverallSummary && (
+            <Card className="bg-lime-50/50 dark:bg-lime-900/10 border-lime-200">
+                <CardHeader className="pb-2">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                        <Landmark className="h-5 w-5 text-primary" />
+                        Monthly Statement Summary: {accountInfo?.name}
+                    </CardTitle>
+                    <CardDescription>Reconciliation from previous month to current end.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wider">Previous Balance</p>
+                            <p className={cn("text-xl font-bold", previousBalance >= 0 ? "text-foreground" : "text-red-600")}>{formatCurrency(previousBalance)}</p>
+                        </div>
+                        <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wider">Month Inflow (+)</p>
+                            <p className="text-xl font-bold text-green-600">{formatCurrency(grandTotalInflow)}</p>
+                        </div>
+                        <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wider">Month Outflow (-)</p>
+                            <p className="text-xl font-bold text-red-600">{formatCurrency(grandTotalOutflow)}</p>
+                        </div>
+                        <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wider">Closing Balance</p>
+                            <p className={cn("text-xl font-bold", closingBalance >= 0 ? "text-primary" : "text-red-600")}>{formatCurrency(closingBalance)}</p>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+        )}
+
         <div className="grid gap-6 md:grid-cols-3">
             <Collapsible open={isInflowOpen} onOpenChange={setIsInflowOpen}>
                 <CollapsibleTrigger asChild>
@@ -397,7 +494,7 @@ export function ReportView({
                 <CollapsibleTrigger asChild>
                     <Card className="cursor-pointer hover:bg-muted/30 transition-colors">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Net Balance</CardTitle>
+                            <CardTitle className="text-sm font-medium">Month Net Change</CardTitle>
                             <div className="flex items-center gap-1">
                                 <IndianRupee className="h-4 w-4 text-muted-foreground" />
                                 {isNetOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
@@ -415,12 +512,12 @@ export function ReportView({
             </Collapsible>
         </div>
 
-        <FinancialAdvice totalIncome={grandTotalInflow} totalExpense={grandTotalOutflow} expenseByCategory={Object.fromEntries(Object.entries(monthlyReport.expenseByCategory).map(([k, v]) => [k, v.total]))} />
+        {isOverallSummary && <FinancialAdvice totalIncome={grandTotalInflow} totalExpense={grandTotalOutflow} expenseByCategory={Object.fromEntries(Object.entries(monthlyReport.expenseByCategory).map(([k, v]) => [k, v.total]))} />}
         
         <div className="grid gap-6 lg:grid-cols-2 items-start">
             <div className="space-y-6">
                 <Card>
-                    <CardHeader><CardTitle>Income Details</CardTitle></CardHeader>
+                    <CardHeader><CardTitle>Inflow Details</CardTitle></CardHeader>
                     <CardContent>
                         <Table>
                             <TableHeader>
@@ -447,21 +544,21 @@ export function ReportView({
                                 )}
                                 {monthlyLoanReport.totalRepaymentReceived > 0 && (
                                     <TableRow onClick={() => handleGenericDetailClick('Repayment of Loan Given', monthlyLoanReport.repaymentReceivedTransactions, monthlyLoanReport.totalRepaymentReceived)} className="cursor-pointer hover:bg-muted/50 font-medium text-green-600">
-                                        <TableCell>Repayment of Loan Given</TableCell>
+                                        <TableCell>Repayment Received</TableCell>
                                         <TableCell className="text-right">{formatCurrency(monthlyLoanReport.totalRepaymentReceived)}</TableCell>
                                         {isPrimaryReport && <TableCell className="text-right">-</TableCell>}
                                     </TableRow>
                                 )}
-                                {monthlyLoanReport.totalSBILoan > 0 && (
-                                    <TableRow onClick={() => handleGenericDetailClick('SBI Credit Card Loan', monthlyLoanReport.sbiLoanTransactions, monthlyLoanReport.totalSBILoan)} className="cursor-pointer hover:bg-muted/50 font-medium text-green-600">
-                                        <TableCell>SBI Credit Card Loan</TableCell>
+                                {(monthlyLoanReport.totalSBILoan > 0 || isPrimaryReport || isOverallSummary) && (
+                                    <TableRow onClick={() => handleGenericDetailClick('Credit Card Funding', monthlyLoanReport.sbiLoanTransactions, monthlyLoanReport.totalSBILoan)} className="cursor-pointer hover:bg-muted/50 font-medium text-green-600">
+                                        <TableCell>SBI Card Usage (Loan)</TableCell>
                                         <TableCell className="text-right">{formatCurrency(monthlyLoanReport.totalSBILoan)}</TableCell>
                                         {isPrimaryReport && <TableCell className="text-right">-</TableCell>}
                                     </TableRow>
                                 )}
                                 {monthlyLoanReport.totalSBICashback > 0 && (
                                     <TableRow onClick={() => handleGenericDetailClick('SBI Credit Card Cashback', monthlyLoanReport.sbiCashbackTransactions, monthlyLoanReport.totalSBICashback)} className="cursor-pointer hover:bg-muted/50 font-medium text-green-600">
-                                        <TableCell>SBI Credit Card Cashback</TableCell>
+                                        <TableCell>SBI Card Cashback</TableCell>
                                         <TableCell className="text-right">{formatCurrency(monthlyLoanReport.totalSBICashback)}</TableCell>
                                         {isPrimaryReport && <TableCell className="text-right">-</TableCell>}
                                     </TableRow>
@@ -479,69 +576,37 @@ export function ReportView({
                 </Card>
 
                 <Card>
-                    <CardHeader><CardTitle>Loan Taken</CardTitle></CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader><TableRow><TableHead>From</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
-                            <TableBody>
-                                {monthlyLoanReport.loanTakenTransactions.length > 0 ? (
-                                    monthlyLoanReport.loanTakenTransactions.map(tx => (<TableRow key={tx.name}><TableCell>{tx.name}</TableCell><TableCell className="text-right text-green-600">{formatCurrency(tx.amount)}</TableCell></TableRow>))
-                                ) : (<TableRow><TableCell colSpan={2} className="text-center text-muted-foreground text-xs italic">No loans taken this month.</TableCell></TableRow>)}
-                            </TableBody>
-                            <TableFooter><TableRow><TableHead>Total</TableHead><TableHead className="text-right">{formatCurrency(monthlyLoanReport.totalLoanTaken)}</TableHead></TableRow></TableFooter>
-                        </Table>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader><CardTitle>Repayment of Loan Given</CardTitle></CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader><TableRow><TableHead>From Person</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
-                            <TableBody>
-                                {monthlyLoanReport.repaymentReceivedTransactions.length > 0 ? (
-                                    monthlyLoanReport.repaymentReceivedTransactions.map(tx => (<TableRow key={tx.name}><TableCell>{tx.name}</TableCell><TableCell className="text-right text-green-600">{formatCurrency(tx.amount)}</TableCell></TableRow>))
-                                ) : (<TableRow><TableCell colSpan={2} className="text-center text-muted-foreground text-xs italic">No repayments received.</TableCell></TableRow>)}
-                            </TableBody>
-                            <TableFooter><TableRow><TableHead>Total</TableHead><TableHead className="text-right">{formatCurrency(monthlyLoanReport.totalRepaymentReceived)}</TableHead></TableRow></TableFooter>
-                        </Table>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader><CardTitle>SBI Credit Card Loan</CardTitle></CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader><TableRow><TableHead>Description</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
-                            <TableBody>
-                                {monthlyLoanReport.sbiLoanTransactions.length > 0 ? (
-                                    monthlyLoanReport.sbiLoanTransactions.map((tx, i) => (<TableRow key={i}><TableCell>{tx.name}</TableCell><TableCell className="text-right text-green-600">{formatCurrency(tx.amount)}</TableCell></TableRow>))
-                                ) : (<TableRow><TableCell colSpan={2} className="text-center text-muted-foreground text-xs italic">No card usage recorded.</TableCell></TableRow>)}
-                            </TableBody>
-                            <TableFooter><TableRow><TableHead>Total Usage</TableHead><TableHead className="text-right">{formatCurrency(monthlyLoanReport.totalSBILoan)}</TableHead></TableRow></TableFooter>
-                        </Table>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader><CardTitle>SBI Credit Card Cashback</CardTitle></CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader><TableRow><TableHead>Description</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
-                            <TableBody>
-                                {monthlyLoanReport.sbiCashbackTransactions.length > 0 ? (
-                                    monthlyLoanReport.sbiCashbackTransactions.map((tx, i) => (<TableRow key={i}><TableCell>{tx.name}</TableCell><TableCell className="text-right text-green-600">{formatCurrency(tx.amount)}</TableCell></TableRow>))
-                                ) : (<TableRow><TableCell colSpan={2} className="text-center text-muted-foreground text-xs italic">No cashback received.</TableCell></TableRow>)}
-                            </TableBody>
-                            <TableFooter><TableRow><TableHead>Total Cashback</TableHead><TableHead className="text-right">{formatCurrency(monthlyLoanReport.totalSBICashback)}</TableHead></TableRow></TableFooter>
-                        </Table>
+                    <CardHeader><CardTitle>Inflow Detail Tables</CardTitle></CardHeader>
+                    <CardContent className="space-y-6">
+                        <div>
+                            <h4 className="text-sm font-semibold mb-2">Loans Taken</h4>
+                            <Table>
+                                <TableHeader><TableRow><TableHead>From</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+                                <TableBody>
+                                    {monthlyLoanReport.loanTakenTransactions.length > 0 ? (
+                                        monthlyLoanReport.loanTakenTransactions.map(tx => (<TableRow key={tx.name}><TableCell>{tx.name}</TableCell><TableCell className="text-right text-green-600">{formatCurrency(tx.amount)}</TableCell></TableRow>))
+                                    ) : (<TableRow><TableCell colSpan={2} className="text-center text-muted-foreground text-xs italic">No loans taken.</TableCell></TableRow>)}
+                                </TableBody>
+                            </Table>
+                        </div>
+                        <div>
+                            <h4 className="text-sm font-semibold mb-2">Repayments Received</h4>
+                            <Table>
+                                <TableHeader><TableRow><TableHead>From Person</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+                                <TableBody>
+                                    {monthlyLoanReport.repaymentReceivedTransactions.length > 0 ? (
+                                        monthlyLoanReport.repaymentReceivedTransactions.map(tx => (<TableRow key={tx.name}><TableCell>{tx.name}</TableCell><TableCell className="text-right text-green-600">{formatCurrency(tx.amount)}</TableCell></TableRow>))
+                                    ) : (<TableRow><TableCell colSpan={2} className="text-center text-muted-foreground text-xs italic">No repayments received.</TableCell></TableRow>)}
+                                </TableBody>
+                            </Table>
+                        </div>
                     </CardContent>
                 </Card>
             </div>
 
             <div className="space-y-6">
-                <Card>
-                    <CardHeader><CardTitle className="text-lg">Expense Details</CardTitle></CardHeader>
+                <Card className="bg-card">
+                    <CardHeader><CardTitle className="text-lg">Outflow Details</CardTitle></CardHeader>
                     <CardContent>
                         <Table>
                             <TableHeader><TableRow><TableHead>Outflow Type</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
@@ -559,18 +624,18 @@ export function ReportView({
                                     <TableCell className="text-right">{formatCurrency(monthlyLoanReport.totalLoanGiven)}</TableCell>
                                 </TableRow>
                                 <TableRow onClick={() => handleGenericDetailClick('Repayments Made', monthlyLoanReport.repaymentMadeTransactions, monthlyLoanReport.totalRepaymentMade)} className="cursor-pointer hover:bg-muted/50">
-                                    <TableCell>Repayment of Loan Taken</TableCell>
+                                    <TableCell>Repayment Made</TableCell>
                                     <TableCell className="text-right">{formatCurrency(monthlyLoanReport.totalRepaymentMade)}</TableCell>
                                 </TableRow>
                                 <TableRow 
                                     onClick={() => handleGenericDetailClick('SBI Card Repayment & Adjustments', [...monthlyLoanReport.sbiRepaymentTransactions, ...monthlyLoanReport.sbiChargesTransactions, ...monthlyLoanReport.sbiCashbackTransactions], sbiNetRepaymentSummary)} 
                                     className="cursor-pointer hover:bg-muted/50"
                                 >
-                                    <TableCell>SBI Credit Card Repayment & Adj.</TableCell>
+                                    <TableCell>SBI Card Repay & Adj.</TableCell>
                                     <TableCell className="text-right">{formatCurrency(sbiNetRepaymentSummary)}</TableCell>
                                 </TableRow>
-                                <TableRow onClick={() => handleGenericDetailClick('Transfers', monthlyTransferSummary.details, monthlyTransferSummary.total)} className="cursor-pointer hover:bg-muted/50">
-                                    <TableCell>Transfer</TableCell>
+                                <TableRow onClick={() => handleGenericDetailClick('External Transfers', monthlyTransferSummary.details, monthlyTransferSummary.total)} className="cursor-pointer hover:bg-muted/50">
+                                    <TableCell>External Transfers</TableCell>
                                     <TableCell className="text-right">{formatCurrency(monthlyTransferSummary.total)}</TableCell>
                                 </TableRow>
                             </TableBody>
@@ -579,107 +644,76 @@ export function ReportView({
                     </CardContent>
                 </Card>
 
-                <Card>
-                    <CardHeader><CardTitle>Regular Expense Details</CardTitle></CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader><TableRow><TableHead>Category</TableHead><TableHead className="text-right">Amount</TableHead>{isPrimaryReport && <TableHead className="text-right">Budget</TableHead>}</TableRow></TableHeader>
-                            <TableBody>
-                                {Object.entries(monthlyReport.regularExpenseByCategory).sort(([,a],[,b])=> b.total - a.total).map(([category, {total, budget}]) => (
-                                    <TableRow key={category} onClick={() => handleCategoryClick(category, 'regular')} className="cursor-pointer hover:bg-muted/50">
-                                        <TableCell className="font-medium">{category}</TableCell>
-                                        <TableCell className="text-right">{formatCurrency(total)}</TableCell>
-                                        {isPrimaryReport && <TableCell className="text-right">{budget > 0 ? formatCurrency(budget) : '-'}</TableCell>}
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
+                {isPostBankTab ? (
+                    <PostCategoryAccordion
+                        categories={postBankCategories}
+                        transactions={postBankTransactionsForAccordion}
+                        postBankAccountId={accountId}
+                    />
+                ) : (
+                    <>
+                        <Card>
+                            <CardHeader><CardTitle>Regular Expense Details</CardTitle></CardHeader>
+                            <CardContent>
+                                <Table>
+                                    <TableHeader><TableRow><TableHead>Category</TableHead><TableHead className="text-right">Amount</TableHead>{isPrimaryReport && <TableHead className="text-right">Budget</TableHead>}</TableRow></TableHeader>
+                                    <TableBody>
+                                        {Object.entries(monthlyReport.regularExpenseByCategory).sort(([,a],[,b])=> b.total - a.total).map(([category, {total, budget}]) => (
+                                            <TableRow key={category} onClick={() => handleCategoryClick(category, 'regular')} className="cursor-pointer hover:bg-muted/50">
+                                                <TableCell className="font-medium">{category}</TableCell>
+                                                <TableCell className="text-right">{formatCurrency(total)}</TableCell>
+                                                {isPrimaryReport && <TableCell className="text-right">{budget > 0 ? formatCurrency(budget) : '-'}</TableCell>}
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader><CardTitle>Occasional Expense Details</CardTitle></CardHeader>
+                            <CardContent>
+                                <Table>
+                                    <TableHeader><TableRow><TableHead>Category</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+                                    <TableBody>
+                                        {Object.entries(monthlyReport.occasionalExpenseByCategory).sort(([,a],[,b])=> b.total - a.total).map(([category, {total}]) => (
+                                            <TableRow key={category} onClick={() => handleCategoryClick(category, 'occasional')} className="cursor-pointer hover:bg-muted/50">
+                                                <TableCell className="font-medium">{category}</TableCell>
+                                                <TableCell className="text-right">{formatCurrency(total)}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </CardContent>
+                        </Card>
+                    </>
+                )}
 
                 <Card>
-                    <CardHeader><CardTitle>Occasional Expense Details</CardTitle></CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader><TableRow><TableHead>Category</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
-                            <TableBody>
-                                {Object.entries(monthlyReport.occasionalExpenseByCategory).sort(([,a],[,b])=> b.total - a.total).map(([category, {total}]) => (
-                                    <TableRow key={category} onClick={() => handleCategoryClick(category, 'occasional')} className="cursor-pointer hover:bg-muted/50">
-                                        <TableCell className="font-medium">{category}</TableCell>
-                                        <TableCell className="text-right">{formatCurrency(total)}</TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader><CardTitle>Loan Given</CardTitle></CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader><TableRow><TableHead>To Person</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
-                            <TableBody>
-                                {monthlyLoanReport.loanGivenTransactions.length > 0 ? (
-                                    monthlyLoanReport.loanGivenTransactions.map(tx => (<TableRow key={tx.name}><TableCell>{tx.name}</TableCell><TableCell className="text-right text-red-600">{formatCurrency(tx.amount)}</TableCell></TableRow>))
-                                ) : (<TableRow><TableCell colSpan={2} className="text-center text-muted-foreground text-xs italic">No loans given.</TableCell></TableRow>)}
-                            </TableBody>
-                            <TableFooter><TableRow><TableHead>Total</TableHead><TableHead className="text-right">{formatCurrency(monthlyLoanReport.totalLoanGiven)}</TableHead></TableRow></TableFooter>
-                        </Table>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader><CardTitle>Repayment of Loan Taken</CardTitle></CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader><TableRow><TableHead>To Person/Entity</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
-                            <TableBody>
-                                {monthlyLoanReport.repaymentMadeTransactions.length > 0 ? (
-                                    monthlyLoanReport.repaymentMadeTransactions.map(tx => (<TableRow key={tx.name}><TableCell>{tx.name}</TableCell><TableCell className="text-right text-red-600">{formatCurrency(tx.amount)}</TableCell></TableRow>))
-                                ) : (<TableRow><TableCell colSpan={2} className="text-center text-muted-foreground text-xs italic">No repayments made.</TableCell></TableRow>)}
-                            </TableBody>
-                            <TableFooter><TableRow><TableHead>Total</TableHead><TableHead className="text-right">{formatCurrency(monthlyLoanReport.totalRepaymentMade)}</TableHead></TableRow></TableFooter>
-                        </Table>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader><CardTitle>SBI Credit Card Repayment & Adjustments</CardTitle></CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader><TableRow><TableHead>Description</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
-                            <TableBody>
-                                {monthlyLoanReport.sbiRepaymentTransactions.map((tx, i) => (
-                                    <TableRow key={`rep-${i}`}><TableCell>{tx.name}</TableCell><TableCell className="text-right text-red-600">{formatCurrency(tx.amount)}</TableCell></TableRow>
-                                ))}
-                                {monthlyLoanReport.sbiChargesTransactions.map((tx, i) => (
-                                    <TableRow key={`charge-${i}`}><TableCell>{tx.name} (Charge)</TableCell><TableCell className="text-right text-red-600">{formatCurrency(tx.amount)}</TableCell></TableRow>
-                                ))}
-                                {monthlyLoanReport.sbiCashbackTransactions.map((tx, i) => (
-                                    <TableRow key={`cash-${i}`}><TableCell>{tx.name} (Cashback)</TableCell><TableCell className="text-right text-green-600">{formatCurrency(tx.amount)}</TableCell></TableRow>
-                                ))}
-                                {monthlyLoanReport.sbiRepaymentTransactions.length === 0 && monthlyLoanReport.sbiCashbackTransactions.length === 0 && monthlyLoanReport.sbiChargesTransactions.length === 0 && (
-                                    <TableRow><TableCell colSpan={2} className="text-center text-muted-foreground text-xs italic">No repayments or adjustments recorded.</TableCell></TableRow>
-                                )}
-                            </TableBody>
-                            <TableFooter><TableRow><TableHead>Net Adjustment</TableHead><TableHead className="text-right font-mono">{formatCurrency(sbiNetRepaymentSummary)}</TableHead></TableRow></TableFooter>
-                        </Table>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader><CardTitle>Transfer</CardTitle></CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader><TableRow><TableHead>To Secondary Account</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
-                            <TableBody>
-                                {monthlyTransferSummary.details.length > 0 ? (
-                                    monthlyTransferSummary.details.map((tx, i) => (<TableRow key={i}><TableCell>{tx.name}</TableCell><TableCell className="text-right font-mono">{formatCurrency(tx.amount)}</TableCell></TableRow>))
-                                ) : (<TableRow><TableCell colSpan={2} className="text-center text-muted-foreground text-xs italic">No external bank transfers.</TableCell></TableRow>)}
-                            </TableBody>
-                            <TableFooter><TableRow><TableHead>Total Transfers</TableHead><TableHead className="text-right">{formatCurrency(monthlyTransferSummary.total)}</TableHead></TableRow></TableFooter>
-                        </Table>
+                    <CardHeader><CardTitle>Outflow Detail Tables</CardTitle></CardHeader>
+                    <CardContent className="space-y-6">
+                        <div>
+                            <h4 className="text-sm font-semibold mb-2">Loans Given</h4>
+                            <Table>
+                                <TableHeader><TableRow><TableHead>To Person</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+                                <TableBody>
+                                    {monthlyLoanReport.loanGivenTransactions.length > 0 ? (
+                                        monthlyLoanReport.loanGivenTransactions.map(tx => (<TableRow key={tx.name}><TableCell>{tx.name}</TableCell><TableCell className="text-right text-red-600">{formatCurrency(tx.amount)}</TableCell></TableRow>))
+                                    ) : (<TableRow><TableCell colSpan={2} className="text-center text-muted-foreground text-xs italic">No loans given.</TableCell></TableRow>)}
+                                </TableBody>
+                            </Table>
+                        </div>
+                        <div>
+                            <h4 className="text-sm font-semibold mb-2">Transfers to Other Banks</h4>
+                            <Table>
+                                <TableHeader><TableRow><TableHead>To Account</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+                                <TableBody>
+                                    {monthlyTransferSummary.details.length > 0 ? (
+                                        monthlyTransferSummary.details.map((tx, i) => (<TableRow key={i}><TableCell>{tx.name}</TableCell><TableCell className="text-right font-mono">{formatCurrency(tx.amount)}</TableCell></TableRow>))
+                                    ) : (<TableRow><TableCell colSpan={2} className="text-center text-muted-foreground text-xs italic">No external bank transfers.</TableCell></TableRow>)}
+                                </TableBody>
+                            </Table>
+                        </div>
                     </CardContent>
                 </Card>
             </div>
