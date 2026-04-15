@@ -1,19 +1,20 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { db } from "@/lib/firebase";
-import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
+import { collection, query, where, onSnapshot, orderBy, doc } from "firebase/firestore";
 import type { Account, Transaction, Category, Loan } from "@/lib/data";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReportView } from "@/components/dashboard/reports/report-view";
 import { useAuthState } from "@/hooks/use-auth-state";
-import { format } from "date-fns";
+import { isAfter, parseISO, format } from "date-fns";
 import { useReportDate } from "@/context/report-date-context";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+
 
 const formatCurrency = (amount: number) => {
   let val = amount;
@@ -38,7 +39,8 @@ export default function ReportsPage() {
       setDataLoading(true);
       const accountsQuery = query(collection(db, "accounts"), where("userId", "==", user.uid));
       const unsubscribeAccounts = onSnapshot(accountsQuery, (snapshot) => {
-        setRawAccounts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Omit<Account, 'balance'>)));
+        const userAccounts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Omit<Account, 'balance'>));
+        setRawAccounts(userAccounts);
       });
 
       const transactionsQuery = query(collection(db, "transactions"), where("userId", "==", user.uid));
@@ -88,49 +90,77 @@ export default function ReportsPage() {
     const balances: { [key: string]: number } = {};
     const accountMap = new Map(rawAccounts.map(acc => [acc.id, acc]));
 
-    rawAccounts.forEach(acc => { balances[acc.id] = 0; });
+    rawAccounts.forEach(acc => {
+        balances[acc.id] = 0;
+    });
 
     const chronologicalTransactions = [...transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     
     chronologicalTransactions.forEach(t => {
       if (t.type === 'income' && t.accountId && balances[t.accountId] !== undefined) {
           const account = accountMap.get(t.accountId);
-          if (account?.type !== 'card') balances[t.accountId] += t.amount;
+          if (account?.type !== 'card') {
+            balances[t.accountId] += t.amount;
+          }
       } else if (t.type === 'expense') {
         if (t.paymentMethod === 'online' && t.accountId && balances[t.accountId] !== undefined) {
             const account = accountMap.get(t.accountId);
-            if (account?.type === 'card') balances[t.accountId] += t.amount; 
-            else balances[t.accountId] -= t.amount;
-        } else if (t.paymentMethod === 'cash') cashBalance -= t.amount;
-        else if (t.paymentMethod === 'digital') digitalBalance -= t.amount;
+            if (account?.type === 'card') {
+              balances[t.accountId] += t.amount; 
+            } else {
+              balances[t.accountId] -= t.amount;
+            }
+        } else if (t.paymentMethod === 'cash') {
+          cashBalance -= t.amount;
+        } else if (t.paymentMethod === 'digital') {
+          digitalBalance -= t.amount;
+        }
       } else if (t.type === 'transfer') {
         if (t.fromAccountId && balances[t.fromAccountId] !== undefined) {
           const fromAccount = accountMap.get(t.fromAccountId);
-          if (fromAccount?.type === 'card') balances[t.fromAccountId] += t.amount;
-          else balances[t.fromAccountId] -= t.amount;
-        } else if (t.fromAccountId === 'cash-wallet') cashBalance -= t.amount;
-        else if (t.fromAccountId === 'digital-wallet') digitalBalance -= t.amount;
+          if (fromAccount?.type === 'card') {
+            balances[t.fromAccountId] += t.amount;
+          } else {
+            balances[t.fromAccountId] -= t.amount;
+          }
+        } else if (t.fromAccountId === 'cash-wallet') {
+          cashBalance -= t.amount;
+        } else if (t.fromAccountId === 'digital-wallet') {
+          digitalBalance -= t.amount;
+        }
 
         if (t.toAccountId && balances[t.toAccountId] !== undefined) {
            const toAccount = accountMap.get(t.toAccountId);
-           if (toAccount?.type === 'card') balances[t.toAccountId] -= t.amount;
-           else balances[t.toAccountId] += t.amount;
-        } else if (t.toAccountId === 'cash-wallet') cashBalance += t.amount;
-        else if (t.toAccountId === 'digital-wallet') digitalBalance += t.amount;
+           if (toAccount?.type === 'card') {
+             balances[t.toAccountId] -= t.amount;
+           } else {
+             balances[t.toAccountId] += t.amount;
+           }
+        } else if (t.toAccountId === 'cash-wallet') {
+          cashBalance += t.amount;
+        } else if (t.toAccountId === 'digital-wallet') {
+          digitalBalance += t.amount;
+        }
       }
     });
 
-    return { accountBalances: balances, cashWalletBalance: cashBalance, digitalWalletBalance: digitalBalance };
+    return { 
+      accountBalances: balances, 
+      cashWalletBalance: cashBalance,
+      digitalWalletBalance: digitalBalance 
+    };
   }, [rawAccounts, transactions]);
   
   const accounts = useMemo(() => {
     return rawAccounts
-      .map(acc => ({ ...acc, balance: accountBalances[acc.id] ?? 0 }))
+      .map(acc => ({
+          ...acc,
+          balance: accountBalances[acc.id] ?? 0,
+      }))
       .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   }, [rawAccounts, accountBalances]);
 
   const primaryAccount = accounts.find(a => a.isPrimary);
-  const filteredAccounts = accounts.filter(a => a.type !== 'card');
 
   if (userLoading || dataLoading) {
     return (
@@ -140,6 +170,10 @@ export default function ReportsPage() {
             <Skeleton className="h-8 w-1/3" />
             <Skeleton className="h-4 w-2/3" />
           </CardHeader>
+          <CardTitle>
+            <Skeleton className="h-10 w-full mb-6" />
+            <Skeleton className="h-96 w-full" />
+          </CardTitle>
         </Card>
       </div>
     );
@@ -149,6 +183,9 @@ export default function ReportsPage() {
       if (acc.type === 'card') return sum - acc.balance;
       return sum + acc.balance;
   }, 0) + cashWalletBalance + digitalWalletBalance;
+
+  // Filter out Credit Card tab as requested
+  const filteredAccounts = accounts.filter(acc => acc.type !== 'card');
 
   return (
     <div className="space-y-6">
@@ -170,13 +207,13 @@ export default function ReportsPage() {
             </CardHeader>
         </Card>
       <Tabs defaultValue={primaryAccount?.id || 'all'} className="w-full">
-        <TabsList className="flex w-full overflow-x-auto h-auto p-1 bg-transparent gap-2">
-          <TabsTrigger value="all" className="flex-shrink-0 flex flex-col h-auto p-3 border rounded-lg data-[state=active]:bg-muted">
+        <TabsList className="flex w-full overflow-x-auto h-auto p-1">
+          <TabsTrigger value="all" className="flex-shrink-0 flex flex-col h-auto p-2">
             <span>Overall Summary</span>
             <span className={cn("font-bold", allBalance >= 0 ? 'text-primary' : 'text-red-600')}>{formatCurrency(allBalance)}</span>
           </TabsTrigger>
           {primaryAccount && (
-            <TabsTrigger value={primaryAccount.id} className="flex-shrink-0 flex flex-col h-auto p-3 border rounded-lg items-start text-left min-w-64 data-[state=active]:bg-muted">
+            <TabsTrigger value={primaryAccount.id} className="flex-shrink-0 flex flex-col h-auto p-2 items-start text-left min-w-64">
               <span className="font-semibold text-sm">Primary ({primaryAccount.name})</span>
               <div className="w-full text-xs text-muted-foreground mt-1">
                   <div className="flex justify-between items-center">
@@ -191,7 +228,7 @@ export default function ReportsPage() {
             </TabsTrigger>
           )}
           {filteredAccounts.filter(account => !account.isPrimary).map(account => (
-            <TabsTrigger key={account.id} value={account.id} className="flex-shrink-0 flex flex-col h-auto p-3 border rounded-lg data-[state=active]:bg-muted">
+            <TabsTrigger key={account.id} value={account.id} className="flex-shrink-0 flex flex-col h-auto p-2">
               <span>{account.name}</span>
               <span className="font-bold text-primary">{formatCurrency(account.balance)}</span>
             </TabsTrigger>
