@@ -62,16 +62,8 @@ export function TransactionTable({
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loans, setLoans] = useState<Loan[]>([]);
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [user] = useAuthState();
   const { toast } = useToast();
-
-  const toggleRow = (id: string) => {
-    const newSet = new Set(expandedRows);
-    if (newSet.has(id)) newSet.delete(id);
-    else newSet.add(id);
-    setExpandedRows(newSet);
-  };
 
   const getAccountName = (accId?: string, paymentMethod?: Transaction['paymentMethod']) => {
     if (accId === 'cash-wallet' || paymentMethod === 'cash') return "Cash Wallet";
@@ -203,153 +195,129 @@ export function TransactionTable({
         <TableBody>
             {transactionsWithColumns.map((t, index) => {
               const loanInfo = getLoanDisplayInfo(t);
-              const isExpanded = expandedRows.has(t.id);
               const isMultiItem = Boolean(t.items && t.items.length > 0);
               const slNo = (currentPage - 1) * itemsPerPage + index + 1;
 
               return (
-                  <Fragment key={t.id}>
-                      <TableRow className={cn("hover:bg-muted/50", isMultiItem && "cursor-pointer", isExpanded && "bg-muted/40")} onClick={() => isMultiItem && toggleRow(t.id)}>
-                          <TableCell className="py-2 text-xs">{slNo}</TableCell>
-                          <TableCell className="py-2 text-xs">{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
-                          <TableCell className="py-2">
-                              {isMultiItem ? (
-                                  <div className="flex flex-col gap-1">
-                                      {/* Spacer to align with "Multiple" / "Total" row */}
-                                      <div className="h-5" />
-                                      <div className="flex flex-col gap-0.5">
-                                          {t.items!.map((item, i) => (
-                                              <div key={i} className="text-sm leading-tight border-b border-muted/30 last:border-0 pb-1 mb-1 last:pb-0 last:mb-0">
-                                                  {item.description}
-                                              </div>
-                                          ))}
-                                      </div>
+                  <TableRow key={t.id} className="hover:bg-muted/50">
+                      <TableCell className="py-2 text-xs">{slNo}</TableCell>
+                      <TableCell className="py-2 text-xs">{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
+                      <TableCell className="py-2">
+                          {isMultiItem ? (
+                              <div className="flex flex-col gap-1">
+                                  <div className="h-5" />
+                                  <div className="flex flex-col gap-0.5">
+                                      {t.items!.map((item, i) => (
+                                          <div key={i} className="text-sm leading-tight border-b border-muted/30 last:border-0 pb-1 mb-1 last:pb-0 last:mb-0">
+                                              {item.description}
+                                          </div>
+                                      ))}
                                   </div>
-                              ) : (
-                                  <div className={cn("text-sm leading-tight", loanInfo.descriptionClassName)}>
-                                      {loanInfo.description || t.description}
-                                  </div>
-                              )}
-                          </TableCell>
-                          <TableCell className="py-2"><Badge variant={getBadgeVariant(t.type)} className="text-[10px] h-5 capitalize">{t.type}</Badge></TableCell>
-                          <TableCell className="py-2 text-xs leading-tight">{t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} ➔ ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod)}</TableCell>
-                          <TableCell className="py-2 text-xs leading-tight">
-                              {isMultiItem ? (
-                                  <div className="flex flex-col gap-1">
-                                      <span className="font-medium text-blue-600 h-5 flex items-center">Multiple</span>
-                                      <div className="text-[10px] text-muted-foreground leading-tight space-y-0.5">
-                                          {Array.from(new Set(t.items?.map(item => {
-                                              const catName = categories.find(c => c.id === item.categoryId || c.name === item.category)?.name || item.category;
-                                              return `${catName}${item.subcategory ? ` / ${item.subcategory}` : ''}`;
-                                          }))).map((combined, i) => (
-                                              <div key={i}>{combined}</div>
-                                          ))}
-                                      </div>
-                                  </div>
-                              ) : (
-                                  <div className="flex flex-col">
-                                      <div>{loanInfo.category}</div>
-                                      {t.subcategory && <div className="text-[10px] text-muted-foreground">{t.subcategory}</div>}
-                                  </div>
-                              )}
-                          </TableCell>
-                          <TableCell className="text-right font-mono text-red-600 text-xs">
-                              {isMultiItem && t.debit !== null ? (
-                                  <div className="flex flex-col gap-1">
-                                      <span className="font-bold h-5 flex items-center justify-end">{formatCurrency(t.debit)}</span>
-                                      <div className="flex flex-col gap-0.5 text-muted-foreground opacity-70">
-                                          {t.items!.map((item, i) => (
-                                              <div key={i} className="leading-tight border-b border-muted/30 last:border-0 pb-1 mb-1 last:pb-0 last:mb-0">
-                                                  {formatCurrency(item.amount)}
-                                              </div>
-                                          ))}
-                                      </div>
-                                  </div>
-                              ) : (
-                                  t.debit !== null ? formatCurrency(t.debit) : null
-                              )}
-                          </TableCell>
-                          <TableCell className="text-right font-mono text-blue-600 text-xs">
-                              {isMultiItem && t.transfer !== null ? (
-                                  <div className="flex flex-col gap-1">
-                                      <span className="font-bold h-5 flex items-center justify-end">{formatCurrency(t.transfer)}</span>
-                                      <div className="flex flex-col gap-0.5 text-muted-foreground opacity-70">
-                                          {t.items!.map((item, i) => (
-                                              <div key={i} className="leading-tight border-b border-muted/30 last:border-0 pb-1 mb-1 last:pb-0 last:mb-0">
-                                                  {formatCurrency(item.amount)}
-                                              </div>
-                                          ))}
-                                      </div>
-                                  </div>
-                              ) : (
-                                  t.transfer !== null ? formatCurrency(t.transfer) : null
-                              )}
-                          </TableCell>
-                          <TableCell className="text-right font-mono text-green-600 text-xs">
-                              {isMultiItem && t.credit !== null ? (
-                                  <div className="flex flex-col gap-1">
-                                      <span className="font-bold h-5 flex items-center justify-end">{formatCurrency(t.credit)}</span>
-                                      <div className="flex flex-col gap-0.5 text-muted-foreground opacity-70">
-                                          {t.items!.map((item, i) => (
-                                              <div key={i} className="leading-tight border-b border-muted/30 last:border-0 pb-1 mb-1 last:pb-0 last:mb-0">
-                                                  {formatCurrency(item.amount)}
-                                              </div>
-                                          ))}
-                                      </div>
-                                  </div>
-                              ) : (
-                                  t.credit !== null ? formatCurrency(t.credit) : null
-                              )}
-                          </TableCell>
-                          <TableCell 
-                            className={cn("text-right font-mono text-xs cursor-pointer hover:underline underline-offset-4 decoration-primary/30", t.balance < 0 ? 'text-red-600' : '')}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onBalanceClick?.(t);
-                            }}
-                          >
-                              {formatCurrency(t.balance)}
-                          </TableCell>
-                          <TableCell className="text-right print-hide py-2" onClick={(e) => e.stopPropagation()}>
-                              <div className="flex items-center justify-end gap-1">
-                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEditTransaction(t)}><Pencil className="h-3.5 w-3.5" /></Button>
-                                  <AlertDialog>
-                                      <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-destructive h-7 w-7"><Trash2 className="h-3.5 w-3.5" /></Button></AlertDialogTrigger>
-                                      <AlertDialogContent>
-                                          <AlertDialogHeader>
-                                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                              <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
-                                          </AlertDialogHeader>
-                                          <AlertDialogFooter>
-                                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                              <AlertDialogAction onClick={() => handleDeleteTransaction(t)} className="bg-destructive">Delete</AlertDialogAction>
-                                          </AlertDialogFooter>
-                                      </AlertDialogContent>
-                                  </AlertDialog>
                               </div>
-                          </TableCell>
-                      </TableRow>
-                      {isExpanded && isMultiItem && (
-                          <TableRow className="bg-muted/20 border-b">
-                              <TableCell colSpan={11} className="p-0">
-                                  <div className="px-12 py-3 bg-muted/10 border-l-4 border-primary/20">
-                                      <Table className="min-w-0">
-                                          <TableHeader><TableRow className="border-none hover:bg-transparent"><TableHead className="h-8 text-[10px]">Item Description</TableHead><TableHead className="h-8 text-[10px]">Category</TableHead><TableHead className="h-8 text-right text-[10px]">Amount</TableHead></TableRow></TableHeader>
-                                          <TableBody>
-                                              {t.items!.map((item, i) => (
-                                                  <TableRow key={i} className="border-none hover:bg-transparent">
-                                                      <TableCell className="py-1 text-xs">{item.description}</TableCell>
-                                                      <TableCell className="py-1 text-xs">{categories.find(c => c.id === item.categoryId || c.name === item.category)?.name || item.category}{item.subcategory && ` / ${item.subcategory}`}</TableCell>
-                                                      <TableCell className="text-right font-mono text-xs py-1">{formatCurrency(item.amount)}</TableCell>
-                                                  </TableRow>
-                                              ))}
-                                          </TableBody>
-                                      </Table>
+                          ) : (
+                              <div className={cn("text-sm leading-tight", loanInfo.descriptionClassName)}>
+                                  {loanInfo.description || t.description}
+                              </div>
+                          )}
+                      </TableCell>
+                      <TableCell className="py-2"><Badge variant={getBadgeVariant(t.type)} className="text-[10px] h-5 capitalize">{t.type}</Badge></TableCell>
+                      <TableCell className="py-2 text-xs leading-tight">{t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} ➔ ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod)}</TableCell>
+                      <TableCell className="py-2 text-xs leading-tight">
+                          {isMultiItem ? (
+                              <div className="flex flex-col gap-1">
+                                  <span className="font-medium text-blue-600 h-5 flex items-center">Multiple</span>
+                                  <div className="text-[10px] text-muted-foreground leading-tight space-y-0.5">
+                                      {Array.from(new Set(t.items?.map(item => {
+                                          const catName = categories.find(c => c.id === item.categoryId || c.name === item.category)?.name || item.category;
+                                          return `${catName}${item.subcategory ? ` / ${item.subcategory}` : ''}`;
+                                      }))).map((combined, i) => (
+                                          <div key={i}>{combined}</div>
+                                      ))}
                                   </div>
-                              </TableCell>
-                          </TableRow>
-                      )}
-                  </Fragment>
+                              </div>
+                          ) : (
+                              <div className="flex flex-col">
+                                  <div>{loanInfo.category}</div>
+                                  {t.subcategory && <div className="text-[10px] text-muted-foreground">{t.subcategory}</div>}
+                              </div>
+                          )}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-red-600 text-xs">
+                          {isMultiItem && t.debit !== null ? (
+                              <div className="flex flex-col gap-1">
+                                  <span className="font-bold h-5 flex items-center justify-end">{formatCurrency(t.debit)}</span>
+                                  <div className="flex flex-col gap-0.5 text-muted-foreground opacity-70">
+                                      {t.items!.map((item, i) => (
+                                          <div key={i} className="leading-tight border-b border-muted/30 last:border-0 pb-1 mb-1 last:pb-0 last:mb-0">
+                                              {formatCurrency(item.amount)}
+                                          </div>
+                                      ))}
+                                  </div>
+                              </div>
+                          ) : (
+                              t.debit !== null ? formatCurrency(t.debit) : null
+                          )}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-blue-600 text-xs">
+                          {isMultiItem && t.transfer !== null ? (
+                              <div className="flex flex-col gap-1">
+                                  <span className="font-bold h-5 flex items-center justify-end">{formatCurrency(t.transfer)}</span>
+                                  <div className="flex flex-col gap-0.5 text-muted-foreground opacity-70">
+                                      {t.items!.map((item, i) => (
+                                          <div key={i} className="leading-tight border-b border-muted/30 last:border-0 pb-1 mb-1 last:pb-0 last:mb-0">
+                                              {formatCurrency(item.amount)}
+                                          </div>
+                                      ))}
+                                  </div>
+                              </div>
+                          ) : (
+                              t.transfer !== null ? formatCurrency(t.transfer) : null
+                          )}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-green-600 text-xs">
+                          {isMultiItem && t.credit !== null ? (
+                              <div className="flex flex-col gap-1">
+                                  <span className="font-bold h-5 flex items-center justify-end">{formatCurrency(t.credit)}</span>
+                                  <div className="flex flex-col gap-0.5 text-muted-foreground opacity-70">
+                                      {t.items!.map((item, i) => (
+                                          <div key={i} className="leading-tight border-b border-muted/30 last:border-0 pb-1 mb-1 last:pb-0 last:mb-0">
+                                              {formatCurrency(item.amount)}
+                                          </div>
+                                      ))}
+                                  </div>
+                              </div>
+                          ) : (
+                              t.credit !== null ? formatCurrency(t.credit) : null
+                          )}
+                      </TableCell>
+                      <TableCell 
+                        className={cn("text-right font-mono text-xs cursor-pointer hover:underline underline-offset-4 decoration-primary/30", t.balance < 0 ? 'text-red-600' : '')}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onBalanceClick?.(t);
+                        }}
+                      >
+                          {formatCurrency(t.balance)}
+                      </TableCell>
+                      <TableCell className="text-right print-hide py-2" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-end gap-1">
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEditTransaction(t)}><Pencil className="h-3.5 w-3.5" /></Button>
+                              <AlertDialog>
+                                  <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-destructive h-7 w-7"><Trash2 className="h-3.5 w-3.5" /></Button></AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                          <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                          <AlertDialogAction onClick={() => handleDeleteTransaction(t)} className="bg-destructive">Delete</AlertDialogAction>
+                                      </AlertDialogFooter>
+                                  </AlertDialog>
+                              </AlertDialog>
+                          </div>
+                      </TableCell>
+                  </TableRow>
               );
             })}
         </TableBody>
