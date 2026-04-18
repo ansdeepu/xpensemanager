@@ -224,7 +224,20 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
     const expenseCategories = useMemo(() => {
         return categories
             .filter(c => c.type === 'expense' || c.type === 'bank-expense')
-            .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+            .sort((a, b) => {
+                const aName = a.name.toLowerCase();
+                const bName = b.name.toLowerCase();
+                const aIsSpecial = aName.includes('hdfc bank') || aName.includes('post bank');
+                const bIsSpecial = bName.includes('hdfc bank') || bName.includes('post bank');
+
+                // If a is special and b is not, a should go later (return 1)
+                if (aIsSpecial && !bIsSpecial) return 1;
+                // If b is special and a is not, b should go later (return -1)
+                if (!aIsSpecial && bIsSpecial) return -1;
+                
+                // Otherwise, use the user's custom order
+                return (a.order ?? 0) - (b.order ?? 0);
+            });
     }, [categories]);
 
     const addSubcategories = useMemo(() => {
@@ -376,7 +389,7 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
             t.type === 'expense' &&
             (t.categoryId === bill.categoryId || t.category === bill.category) &&
             t.subcategory === bill.subcategory
-        ).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
         if (matchingTransactions.length > 0) {
             return parseISO(matchingTransactions[0].date);
@@ -574,7 +587,7 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                                 const lastPaymentDate = getLastPaymentDate(bill);
                                 const celebrationDate = bill.type === 'special_day' ? getCelebrationDate(bill) : null;
                                 return (
-                                <TableRow key={bill.id} className={cn(bill.type === 'bill' && lastPaymentDate && isAfter(lastPaymentDate, startOfMonth(new Date())) && "text-muted-foreground")}>
+                                <TableRow key={bill.id} className={cn(bill.type === 'bill' && lastPaymentDate && isAfter(lastPaymentDate, startOfToday()) && "text-muted-foreground")}>
                                     <TableCell>{index + 1}</TableCell>
                                     <TableCell className="font-medium">
                                         <div className="flex items-center gap-2">
