@@ -214,8 +214,24 @@ export function TransactionTable({
                           <TableCell className="py-2"><Badge variant={getBadgeVariant(t.type)} className="text-[10px] h-5 capitalize">{t.type}</Badge></TableCell>
                           <TableCell className="py-2 text-xs leading-tight">{t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} ➔ ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod)}</TableCell>
                           <TableCell className="py-2 text-xs leading-tight">
-                              <div>{isMultiItem ? <span className="font-medium text-blue-600">Multiple</span> : loanInfo.category}</div>
-                              {!isMultiItem && t.subcategory && <div className="text-[10px] text-muted-foreground">{t.subcategory}</div>}
+                              {isMultiItem ? (
+                                  <div className="flex flex-col gap-1">
+                                      <span className="font-medium text-blue-600">Multiple</span>
+                                      <div className="text-[10px] text-muted-foreground leading-tight space-y-0.5">
+                                          {Array.from(new Set(t.items?.map(item => {
+                                              const catName = categories.find(c => c.id === item.categoryId || c.name === item.category)?.name || item.category;
+                                              return `${catName}${item.subcategory ? ` / ${item.subcategory}` : ''}`;
+                                          }))).map((combined, i) => (
+                                              <div key={i}>{combined}</div>
+                                          ))}
+                                      </div>
+                                  </div>
+                              ) : (
+                                  <div className="flex flex-col">
+                                      <div>{loanInfo.category}</div>
+                                      {t.subcategory && <div className="text-[10px] text-muted-foreground">{t.subcategory}</div>}
+                                  </div>
+                              )}
                           </TableCell>
                           <TableCell className="text-right font-mono text-red-600 text-xs">{t.debit !== null ? formatCurrency(t.debit) : null}</TableCell>
                           <TableCell className="text-right font-mono text-blue-600 text-xs">{t.transfer !== null ? formatCurrency(t.transfer) : null}</TableCell>
