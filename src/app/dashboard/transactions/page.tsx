@@ -18,6 +18,7 @@ import { Card, CardFooter, CardHeader, CardContent, CardTitle } from "@/componen
 import { Button } from "@/components/ui/button";
 import { AddTransactionDialog } from "@/components/dashboard/transactions/add-transaction-dialog";
 import { AccountDetailsDialog } from "@/components/dashboard/account-details-dialog";
+import { BalanceBreakdownDialog } from "@/components/dashboard/transactions/balance-breakdown-dialog";
 
 type WalletType = 'cash-wallet' | 'digital-wallet';
 type AccountForDetails = (Account) | { id: WalletType, name: string, balance: number, walletPreferences?: any };
@@ -109,8 +110,10 @@ export default function TransactionsPage(props: {
   const itemsPerPage = 100;
   
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const [isBreakdownDialogOpen, setIsBreakdownDialogOpen] = useState(false);
   const [isDetailsEcosystem, setIsDetailsEcosystem] = useState(false);
   const [selectedAccountForDetails, setSelectedAccountForDetails] = useState<AccountForDetails | null>(null);
+  const [selectedBreakdown, setSelectedBreakdown] = useState<any>(null);
 
   const [isAddOrEditDialogOpen, setIsAddOrEditDialogOpen] = useState(false);
   const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null);
@@ -378,14 +381,13 @@ export default function TransactionsPage(props: {
     return 99;
   }, [getLoanDisplayInfo, loans]);
 
- const { filteredTransactions, transactionBalanceMap } = useMemo(() => {
-    if (!activeTab) return { filteredTransactions: [], transactionBalanceMap: new Map() };
+ const { filteredTransactions, transactionBalanceMap, transactionBreakdownMap } = useMemo(() => {
+    if (!activeTab) return { filteredTransactions: [], transactionBalanceMap: new Map(), transactionBreakdownMap: new Map() };
 
     const isPrimaryView = activeTab === primaryAccount?.id;
     const creditCardIds = accounts.filter(acc => acc.type === 'card').map(acc => acc.id);
     
-    // 1. Get ALL transactions that affect the current view (unfiltered by date/search)
-    // This ensures we can calculate a stable running balance.
+    // 1. Get ALL transactions that affect the current view
     const viewTransactions = allTransactions.filter(t => {
         const fromAccountIsWallet = t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
         const toAccountIsWallet = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
@@ -411,7 +413,6 @@ export default function TransactionsPage(props: {
         return fromCurrentView || toCurrentView || accountIsInView;
     });
 
-    // 2. Sort them newest to oldest for the backwards calculation from the current final balance
     viewTransactions.sort((a, b) => {
       const dateA = new Date(a.date).getTime();
       const dateB = new Date(b.date).getTime();
@@ -422,50 +423,61 @@ export default function TransactionsPage(props: {
       return b.amount - a.amount;
     });
 
-    // 3. Calculate running balances for EVERY transaction in the account's history (unfiltered)
+    // 2. Calculate running balances for constituents
     const balances = new Map<string, number>();
-    let finalBalance = 0;
+    const breakdowns = new Map<string, any>();
+    
     const activeAccountInfo = accounts.find(a => a.id === activeTab);
 
-    if (isPrimaryView) {
-        const primaryBalance = accounts.find(a => a.id === primaryAccount?.id)?.balance ?? 0;
-        finalBalance = primaryBalance + cashWalletBalance + digitalWalletBalance;
-    } else if (activeAccountInfo) {
-        finalBalance = activeAccountInfo.balance;
-    }
+    // Initial running state (final state)
+    let runningBank = accounts.find(a => a.id === primaryAccount?.id)?.balance ?? 0;
+    let runningCash = cashWalletBalance;
+    let runningDigital = digitalWalletBalance;
+    const runningCards: Record<string, number> = {};
+    accounts.filter(a => a.type === 'card').forEach(a => {
+        runningCards[a.id] = a.balance;
+    });
 
-    let runningBalance = finalBalance;
     for (const t of viewTransactions) {
-      balances.set(t.id, runningBalance);
-      let effect = 0;
+      const currentEcosystemBalance = runningBank + runningCash + runningDigital - Object.values(runningCards).reduce((s, v) => s + v, 0);
+      
       if (isPrimaryView) {
-          const fromIsInEco = t.fromAccountId === activeTab || t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet' || (t.fromAccountId ? creditCardIds.includes(t.fromAccountId) : false);
-          const toIsInEco = t.toAccountId === activeTab || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet' || (t.toAccountId ? creditCardIds.includes(t.toAccountId) : false);
-          const mainInEco = t.accountId === activeTab || t.paymentMethod === 'cash' || t.paymentMethod === 'digital' || (t.accountId ? creditCardIds.includes(t.accountId) : false);
-
-          if (t.type === 'income' && mainInEco) effect = t.amount;
-          else if (t.type === 'expense' && mainInEco) effect = -t.amount;
-          else if (t.type === 'transfer') {
-              if (fromIsInEco && toIsInEco) effect = 0;
-              else if (fromIsInEco) effect = -t.amount;
-              else if (toIsInEco) effect = t.amount;
-          }
-      } else if (activeAccountInfo?.type === 'card') {
-          if (t.type === 'expense' && t.accountId === activeTab) effect = t.amount;
-          else if (t.type === 'transfer' && t.fromAccountId === activeTab) effect = t.amount;
-          else if (t.type === 'transfer' && t.toAccountId === activeTab) effect = -t.amount;
-      } else {
-          if (t.type === 'income' && t.accountId === activeTab) effect = t.amount;
-          else if (t.type === 'expense' && t.accountId === activeTab) effect = -t.amount;
-          else if (t.type === 'transfer') {
-              if (t.fromAccountId === activeTab) effect = -t.amount;
-              else if (t.toAccountId === activeTab) effect = t.amount;
-          }
+          balances.set(t.id, currentEcosystemBalance);
+          breakdowns.set(t.id, {
+              bank: runningBank,
+              cash: runningCash,
+              digital: runningDigital,
+              cards: { ...runningCards },
+              total: currentEcosystemBalance
+          });
+      } else if (activeAccountInfo) {
+          balances.set(t.id, activeAccountInfo.type === 'card' ? runningCards[activeTab] : (activeTab === primaryAccount?.id ? runningBank : 0));
       }
-      runningBalance -= effect;
+
+      // UNDO the effect of t (moving backwards in time)
+      if (t.type === 'income') {
+          if (t.accountId === primaryAccount?.id) runningBank -= t.amount;
+          else if (t.accountId === 'cash-wallet' || t.paymentMethod === 'cash') runningCash -= t.amount;
+          else if (t.accountId === 'digital-wallet' || t.paymentMethod === 'digital') runningDigital -= t.amount;
+      } else if (t.type === 'expense') {
+          if (t.accountId === primaryAccount?.id) runningBank += t.amount;
+          else if (t.accountId === 'cash-wallet' || t.paymentMethod === 'cash') runningCash += t.amount;
+          else if (t.accountId === 'digital-wallet' || t.paymentMethod === 'digital') runningDigital += t.amount;
+          else if (t.accountId && runningCards[t.accountId] !== undefined) runningCards[t.accountId] -= t.amount;
+      } else if (t.type === 'transfer') {
+          // From
+          if (t.fromAccountId === primaryAccount?.id) runningBank += t.amount;
+          else if (t.fromAccountId === 'cash-wallet') runningCash += t.amount;
+          else if (t.fromAccountId === 'digital-wallet') runningDigital += t.amount;
+          else if (t.fromAccountId && runningCards[t.fromAccountId] !== undefined) runningCards[t.fromAccountId] -= t.amount;
+          // To
+          if (t.toAccountId === primaryAccount?.id) runningBank -= t.amount;
+          else if (t.toAccountId === 'cash-wallet') runningCash -= t.amount;
+          else if (t.toAccountId === 'digital-wallet') runningDigital -= t.amount;
+          else if (t.toAccountId && runningCards[t.toAccountId] !== undefined) runningCards[t.toAccountId] += t.amount;
+      }
     }
 
-    // 4. Apply user filters (date range, search) to the list for final display
     let displayTransactions = [...viewTransactions];
     if (startDate && endDate) {
         const interval = { start: startOfDay(new Date(startDate)), end: endOfDay(new Date(endDate)) };
@@ -497,15 +509,16 @@ export default function TransactionsPage(props: {
       });
     }
 
-    return { filteredTransactions: displayTransactions, transactionBalanceMap: balances };
+    return { filteredTransactions: displayTransactions, transactionBalanceMap: balances, transactionBreakdownMap: breakdowns };
   }, [allTransactions, accounts, activeTab, startDate, endDate, searchQuery, getLoanDisplayInfo, getAccountName, primaryAccount, loans, cashWalletBalance, digitalWalletBalance, getTransactionSortOrder]);
 
   const transactionsWithRunningBalance = useMemo(() => {
     return filteredTransactions.map(transaction => ({
         ...transaction,
         balance: transactionBalanceMap.get(transaction.id) ?? 0,
+        breakdown: transactionBreakdownMap.get(transaction.id)
     }));
-  }, [filteredTransactions, transactionBalanceMap]);
+  }, [filteredTransactions, transactionBalanceMap, transactionBreakdownMap]);
 
   const totalPages = Math.ceil(transactionsWithRunningBalance.length / itemsPerPage);
   const pagedTransactions = useMemo(() => {
@@ -765,11 +778,16 @@ export default function TransactionsPage(props: {
               currentPage={currentPage}
               itemsPerPage={itemsPerPage}
               onEditTransaction={handleEditClick}
-              onBalanceClick={() => {
-                const activeAccount = accountDataForDialog.find(a => a.id === activeTab);
-                if (activeAccount) {
-                    handleAccountClick(activeAccount as Account, activeAccount.name, activeTab === primaryAccount?.id);
-                }
+              onBalanceClick={(transaction) => {
+                  if (activeTab === primaryAccount?.id && transaction.breakdown) {
+                      setSelectedBreakdown(transaction.breakdown);
+                      setIsBreakdownDialogOpen(true);
+                  } else {
+                      const activeAccount = accountDataForDialog.find(a => a.id === activeTab);
+                      if (activeAccount) {
+                          handleAccountClick(activeAccount as Account, activeAccount.name);
+                      }
+                  }
               }}
           />
         </div>
@@ -788,6 +806,16 @@ export default function TransactionsPage(props: {
         isEcosystem={isDetailsEcosystem}
         accounts={accounts}
       />
+      
+      <BalanceBreakdownDialog
+          isOpen={isBreakdownDialogOpen}
+          onOpenChange={setIsBreakdownDialogOpen}
+          breakdown={selectedBreakdown}
+          primaryAccount={primaryAccount}
+          primaryCreditCard={primaryCreditCard}
+          onAccountClick={handleAccountClick}
+      />
+
       <AddTransactionDialog isOpen={isAddOrEditDialogOpen} onOpenChange={setIsAddOrEditDialogOpen} accounts={accountDataForDialog} transactionToEdit={transactionToEdit} />
     </div>
   );

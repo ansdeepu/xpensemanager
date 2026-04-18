@@ -51,13 +51,13 @@ export function TransactionTable({
   onEditTransaction,
   onBalanceClick
 }: {
-  transactions: (Transaction & { balance: number })[];
+  transactions: (Transaction & { balance: number, breakdown?: any })[];
   accountId: string;
   primaryAccount: Account | undefined;
   currentPage: number;
   itemsPerPage: number;
   onEditTransaction: (transaction: Transaction) => void;
-  onBalanceClick?: () => void;
+  onBalanceClick?: (transaction: any) => void;
 }) {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -256,7 +256,7 @@ export function TransactionTable({
                             className={cn("text-right font-mono text-xs cursor-pointer hover:underline underline-offset-4 decoration-primary/30", t.balance < 0 ? 'text-red-600' : '')}
                             onClick={(e) => {
                                 e.stopPropagation();
-                                onBalanceClick?.();
+                                onBalanceClick?.(t);
                             }}
                           >
                               {formatCurrency(t.balance)}
