@@ -214,12 +214,16 @@ export function TransactionTable({
                           <TableCell className="py-2 text-xs">{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
                           <TableCell className="py-2">
                               {isMultiItem ? (
-                                  <div className="flex flex-col gap-0.5">
-                                      {t.items!.map((item, i) => (
-                                          <div key={i} className="text-sm leading-tight border-b border-muted/30 last:border-0 pb-1 mb-1 last:pb-0 last:mb-0">
-                                              {item.description}
-                                          </div>
-                                      ))}
+                                  <div className="flex flex-col gap-1">
+                                      {/* Spacer to align with "Multiple" / "Total" row */}
+                                      <div className="h-5" />
+                                      <div className="flex flex-col gap-0.5">
+                                          {t.items!.map((item, i) => (
+                                              <div key={i} className="text-sm leading-tight border-b border-muted/30 last:border-0 pb-1 mb-1 last:pb-0 last:mb-0">
+                                                  {item.description}
+                                              </div>
+                                          ))}
+                                      </div>
                                   </div>
                               ) : (
                                   <div className={cn("text-sm leading-tight", loanInfo.descriptionClassName)}>
@@ -232,7 +236,7 @@ export function TransactionTable({
                           <TableCell className="py-2 text-xs leading-tight">
                               {isMultiItem ? (
                                   <div className="flex flex-col gap-1">
-                                      <span className="font-medium text-blue-600">Multiple</span>
+                                      <span className="font-medium text-blue-600 h-5 flex items-center">Multiple</span>
                                       <div className="text-[10px] text-muted-foreground leading-tight space-y-0.5">
                                           {Array.from(new Set(t.items?.map(item => {
                                               const catName = categories.find(c => c.id === item.categoryId || c.name === item.category)?.name || item.category;
@@ -251,12 +255,15 @@ export function TransactionTable({
                           </TableCell>
                           <TableCell className="text-right font-mono text-red-600 text-xs">
                               {isMultiItem && t.debit !== null ? (
-                                  <div className="flex flex-col gap-0.5">
-                                      {t.items!.map((item, i) => (
-                                          <div key={i} className="leading-tight border-b border-muted/30 last:border-0 pb-1 mb-1 last:pb-0 last:mb-0">
-                                              {formatCurrency(item.amount)}
-                                          </div>
-                                      ))}
+                                  <div className="flex flex-col gap-1">
+                                      <span className="font-bold h-5 flex items-center justify-end">{formatCurrency(t.debit)}</span>
+                                      <div className="flex flex-col gap-0.5 text-muted-foreground opacity-70">
+                                          {t.items!.map((item, i) => (
+                                              <div key={i} className="leading-tight border-b border-muted/30 last:border-0 pb-1 mb-1 last:pb-0 last:mb-0">
+                                                  {formatCurrency(item.amount)}
+                                              </div>
+                                          ))}
+                                      </div>
                                   </div>
                               ) : (
                                   t.debit !== null ? formatCurrency(t.debit) : null
@@ -264,12 +271,15 @@ export function TransactionTable({
                           </TableCell>
                           <TableCell className="text-right font-mono text-blue-600 text-xs">
                               {isMultiItem && t.transfer !== null ? (
-                                  <div className="flex flex-col gap-0.5">
-                                      {t.items!.map((item, i) => (
-                                          <div key={i} className="leading-tight border-b border-muted/30 last:border-0 pb-1 mb-1 last:pb-0 last:mb-0">
-                                              {formatCurrency(item.amount)}
-                                          </div>
-                                      ))}
+                                  <div className="flex flex-col gap-1">
+                                      <span className="font-bold h-5 flex items-center justify-end">{formatCurrency(t.transfer)}</span>
+                                      <div className="flex flex-col gap-0.5 text-muted-foreground opacity-70">
+                                          {t.items!.map((item, i) => (
+                                              <div key={i} className="leading-tight border-b border-muted/30 last:border-0 pb-1 mb-1 last:pb-0 last:mb-0">
+                                                  {formatCurrency(item.amount)}
+                                              </div>
+                                          ))}
+                                      </div>
                                   </div>
                               ) : (
                                   t.transfer !== null ? formatCurrency(t.transfer) : null
@@ -277,12 +287,15 @@ export function TransactionTable({
                           </TableCell>
                           <TableCell className="text-right font-mono text-green-600 text-xs">
                               {isMultiItem && t.credit !== null ? (
-                                  <div className="flex flex-col gap-0.5">
-                                      {t.items!.map((item, i) => (
-                                          <div key={i} className="leading-tight border-b border-muted/30 last:border-0 pb-1 mb-1 last:pb-0 last:mb-0">
-                                              {formatCurrency(item.amount)}
-                                          </div>
-                                      ))}
+                                  <div className="flex flex-col gap-1">
+                                      <span className="font-bold h-5 flex items-center justify-end">{formatCurrency(t.credit)}</span>
+                                      <div className="flex flex-col gap-0.5 text-muted-foreground opacity-70">
+                                          {t.items!.map((item, i) => (
+                                              <div key={i} className="leading-tight border-b border-muted/30 last:border-0 pb-1 mb-1 last:pb-0 last:mb-0">
+                                                  {formatCurrency(item.amount)}
+                                              </div>
+                                          ))}
+                                      </div>
                                   </div>
                               ) : (
                                   t.credit !== null ? formatCurrency(t.credit) : null
