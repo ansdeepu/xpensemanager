@@ -213,7 +213,10 @@ export function TransactionTable({
                           <TableCell className={cn("py-2 text-sm", loanInfo.descriptionClassName)}>{isMultiItem ? t.items!.map(item => item.description).join('; ') : (loanInfo.description || t.description)}</TableCell>
                           <TableCell className="py-2"><Badge variant={getBadgeVariant(t.type)} className="text-[10px] h-5 capitalize">{t.type}</Badge></TableCell>
                           <TableCell className="py-2 text-xs leading-tight">{t.type === 'transfer' ? `${getAccountName(t.fromAccountId)} ➔ ${getAccountName(t.toAccountId)}` : getAccountName(t.accountId, t.paymentMethod)}</TableCell>
-                          <TableCell className="py-2 text-xs leading-tight"><div>{isMultiItem ? 'Multiple' : loanInfo.category}</div>{t.subcategory && <div className="text-[10px] text-muted-foreground">{t.subcategory}</div>}</TableCell>
+                          <TableCell className="py-2 text-xs leading-tight">
+                              <div>{isMultiItem ? <span className="font-medium text-blue-600">Multiple</span> : loanInfo.category}</div>
+                              {!isMultiItem && t.subcategory && <div className="text-[10px] text-muted-foreground">{t.subcategory}</div>}
+                          </TableCell>
                           <TableCell className="text-right font-mono text-red-600 text-xs">{t.debit !== null ? formatCurrency(t.debit) : null}</TableCell>
                           <TableCell className="text-right font-mono text-blue-600 text-xs">{t.transfer !== null ? formatCurrency(t.transfer) : null}</TableCell>
                           <TableCell className="text-right font-mono text-green-600 text-xs">{t.credit !== null ? formatCurrency(t.credit) : null}</TableCell>
