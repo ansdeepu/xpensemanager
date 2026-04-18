@@ -205,7 +205,9 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
     }, [allEvents, eventType]);
 
     const expenseCategories = useMemo(() => {
-        return categories.filter(c => c.type === 'expense' || c.type === 'bank-expense');
+        return categories
+            .filter(c => c.type === 'expense' || c.type === 'bank-expense')
+            .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
     }, [categories]);
 
     const addSubcategories = useMemo(() => {
@@ -355,7 +357,7 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
             t.type === 'expense' &&
             (t.categoryId === bill.categoryId || t.category === bill.category) &&
             t.subcategory === bill.subcategory
-        ).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
         if (matchingTransactions.length > 0) {
             return parseISO(matchingTransactions[0].date);
@@ -553,7 +555,7 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                                 const lastPaymentDate = getLastPaymentDate(bill);
                                 const celebrationDate = bill.type === 'special_day' ? getCelebrationDate(bill) : null;
                                 return (
-                                <TableRow key={bill.id} className={cn(bill.type === 'bill' && lastPaymentDate && isAfter(lastPaymentDate, startOfMonth(new Date())) && "text-muted-foreground")}>
+                                <TableRow key={bill.id} className={cn(bill.type === 'bill' && lastPaymentDate && isAfter(lastPaymentDate, startOfToday()) && "text-muted-foreground")}>
                                     <TableCell>{index + 1}</TableCell>
                                     <TableCell className="font-medium">
                                         <div className="flex items-center gap-2">
