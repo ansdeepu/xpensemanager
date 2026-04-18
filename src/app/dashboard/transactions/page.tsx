@@ -148,7 +148,6 @@ export default function TransactionsPage(props: {
 
   useEffect(() => {
     if (user) {
-      // Removed orderBy to prevent excluding accounts without 'order' field
       const accountsQuery = query(collection(db, "accounts"), where("userId", "==", user.uid));
       const unsubscribeAccounts = onSnapshot(accountsQuery, (snapshot) => {
         const userAccounts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Omit<Account, 'balance'>));
@@ -384,7 +383,9 @@ export default function TransactionsPage(props: {
     const isPrimaryView = activeTab === primaryAccount?.id;
     const creditCardIds = accounts.filter(acc => acc.type === 'card').map(acc => acc.id);
     
-    const sourceTransactions = allTransactions.filter(t => {
+    // 1. Get ALL transactions that affect the current view (unfiltered by date/search)
+    // This ensures we can calculate a stable running balance.
+    const viewTransactions = allTransactions.filter(t => {
         const fromAccountIsWallet = t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
         const toAccountIsWallet = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
         
@@ -408,8 +409,63 @@ export default function TransactionsPage(props: {
         
         return fromCurrentView || toCurrentView || accountIsInView;
     });
-    
-    let displayTransactions = [...sourceTransactions];
+
+    // 2. Sort them newest to oldest for the backwards calculation from the current final balance
+    viewTransactions.sort((a, b) => {
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      if (dateA !== dateB) return dateB - dateA;
+      const orderA = getTransactionSortOrder(a);
+      const orderB = getTransactionSortOrder(b);
+      if (orderA !== orderB) return orderA - orderB;
+      return b.amount - a.amount;
+    });
+
+    // 3. Calculate running balances for EVERY transaction in the account's history (unfiltered)
+    const balances = new Map<string, number>();
+    let finalBalance = 0;
+    const activeAccountInfo = accounts.find(a => a.id === activeTab);
+
+    if (isPrimaryView) {
+        const primaryBalance = accounts.find(a => a.id === primaryAccount?.id)?.balance ?? 0;
+        finalBalance = primaryBalance + cashWalletBalance + digitalWalletBalance;
+    } else if (activeAccountInfo) {
+        finalBalance = activeAccountInfo.balance;
+    }
+
+    let runningBalance = finalBalance;
+    for (const t of viewTransactions) {
+      balances.set(t.id, runningBalance);
+      let effect = 0;
+      if (isPrimaryView) {
+          const fromIsInEco = t.fromAccountId === activeTab || t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet' || (t.fromAccountId ? creditCardIds.includes(t.fromAccountId) : false);
+          const toIsInEco = t.toAccountId === activeTab || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet' || (t.toAccountId ? creditCardIds.includes(t.toAccountId) : false);
+          const mainInEco = t.accountId === activeTab || t.paymentMethod === 'cash' || t.paymentMethod === 'digital' || (t.accountId ? creditCardIds.includes(t.accountId) : false);
+
+          if (t.type === 'income' && mainInEco) effect = t.amount;
+          else if (t.type === 'expense' && mainInEco) effect = -t.amount;
+          else if (t.type === 'transfer') {
+              if (fromIsInEco && toIsInEco) effect = 0;
+              else if (fromIsInEco) effect = -t.amount;
+              else if (toIsInEco) effect = t.amount;
+          }
+      } else if (activeAccountInfo?.type === 'card') {
+          if (t.type === 'expense' && t.accountId === activeTab) effect = t.amount;
+          else if (t.type === 'transfer' && t.fromAccountId === activeTab) effect = t.amount;
+          else if (t.type === 'transfer' && t.toAccountId === activeTab) effect = -t.amount;
+      } else {
+          if (t.type === 'income' && t.accountId === activeTab) effect = t.amount;
+          else if (t.type === 'expense' && t.accountId === activeTab) effect = -t.amount;
+          else if (t.type === 'transfer') {
+              if (t.fromAccountId === activeTab) effect = -t.amount;
+              else if (t.toAccountId === activeTab) effect = t.amount;
+          }
+      }
+      runningBalance -= effect;
+    }
+
+    // 4. Apply user filters (date range, search) to the list for final display
+    let displayTransactions = [...viewTransactions];
     if (startDate && endDate) {
         const interval = { start: startOfDay(new Date(startDate)), end: endOfDay(new Date(endDate)) };
         displayTransactions = displayTransactions.filter(t => {
@@ -439,62 +495,7 @@ export default function TransactionsPage(props: {
         );
       });
     }
-    
-    displayTransactions.sort((a, b) => {
-      const dateA = new Date(a.date).getTime();
-      const dateB = new Date(b.date).getTime();
-      if (dateA !== dateB) return dateB - dateA;
-      const orderA = getTransactionSortOrder(a);
-      const orderB = getTransactionSortOrder(b);
-      if (orderA !== orderB) return orderA - orderB;
-      return b.amount - a.amount;
-    });
-    
-    const balances = new Map<string, number>();
-    let finalBalance = 0;
-    const activeAccountInfo = accounts.find(a => a.id === activeTab);
 
-    if (isPrimaryView) {
-        const primaryBalance = accounts.find(a => a.id === primaryAccount?.id)?.balance ?? 0;
-        finalBalance = primaryBalance + cashWalletBalance + digitalWalletBalance;
-    } else if (activeAccountInfo) {
-        finalBalance = activeAccountInfo.balance;
-    }
-
-    let runningBalance = finalBalance;
-    for (const t of displayTransactions) {
-      balances.set(t.id, runningBalance);
-      let effect = 0;
-      if (isPrimaryView) {
-          const accountIsInEcosystem = t.accountId === activeTab || t.paymentMethod === 'cash' || t.paymentMethod === 'digital';
-          const fromAccountIsInEcosystem = t.fromAccountId === activeTab || t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
-          const toAccountIsInEcosystem = t.toAccountId === activeTab || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
-          const creditCardIsInEcosystem = t.accountId ? creditCardIds.includes(t.accountId) : false;
-          const fromCreditCardInEcosystem = t.fromAccountId ? creditCardIds.includes(t.fromAccountId) : false;
-          const toCreditCardInEcosystem = t.toAccountId ? creditCardIds.includes(t.toAccountId) : false;
-
-          if (t.type === 'income' && accountIsInEcosystem) effect = t.amount;
-          else if (t.type === 'expense' && accountIsInEcosystem) effect = -t.amount;
-          else if (t.type === 'expense' && creditCardIsInEcosystem) effect = 0;
-          else if (t.type === 'transfer') {
-              if ((fromAccountIsInEcosystem || fromCreditCardInEcosystem) && (toAccountIsInEcosystem || toCreditCardInEcosystem)) effect = 0;
-              else if (fromAccountIsInEcosystem || fromCreditCardInEcosystem) effect = -t.amount;
-              else if (toAccountIsInEcosystem || toCreditCardInEcosystem) effect = t.amount;
-          }
-      } else if (activeAccountInfo?.type === 'card') {
-          if (t.type === 'expense' && t.accountId === activeTab) effect = t.amount;
-          else if (t.type === 'transfer' && t.fromAccountId === activeTab) effect = t.amount;
-          else if (t.type === 'transfer' && t.toAccountId === activeTab) effect = -t.amount;
-      } else {
-          if (t.type === 'income' && t.accountId === activeTab) effect = t.amount;
-          else if (t.type === 'expense' && t.accountId === activeTab) effect = -t.amount;
-          else if (t.type === 'transfer') {
-              if (t.fromAccountId === activeTab) effect = -t.amount;
-              else if (t.toAccountId === activeTab) effect = t.amount;
-          }
-      }
-      runningBalance -= effect;
-    }
     return { filteredTransactions: displayTransactions, transactionBalanceMap: balances };
   }, [allTransactions, accounts, activeTab, startDate, endDate, searchQuery, getLoanDisplayInfo, getAccountName, primaryAccount, loans, cashWalletBalance, digitalWalletBalance, getTransactionSortOrder]);
 
