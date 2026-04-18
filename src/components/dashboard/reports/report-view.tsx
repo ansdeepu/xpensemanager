@@ -80,6 +80,12 @@ type AggregatedEntry = {
     amount: number;
 };
 
+// Specialized categories for POST Bank
+const postBankCategoryNames = [
+  'Diesel Collection', 'Staff Club Accounts', 'Ente Keralam Accounts', 'Seminar Accounts',
+  'Jayaram Treatment', 'SLR Retirement - Jan 2026', 'Bank Charges', 'Deepa Car Accounts'
+];
+
 export function ReportView({ 
   transactions, 
   categories, 
@@ -349,46 +355,6 @@ export function ReportView({
     return data;
   }, [monthlyTransactions, isOverallSummary, accountId, isPrimaryReport, categories, currentMonthName, creditCardIds]);
 
-  // Specialized categories for POST Bank
-  const postBankCategories = useMemo(() => {
-    const isPostBank = accountId && accounts.find(a => a.id === accountId)?.name.toLowerCase().includes('post bank');
-    if (!isPostBank) return [];
-    
-    return [
-      'Diesel Collection', 'Staff Club Accounts', 'Ente Keralam Accounts', 'Seminar Accounts',
-      'Jayaram Treatment', 'SLR Retirement - Jan 2026', 'Bank Charges', 'Deepa Car Accounts'
-    ];
-  }, [accountId, accounts]);
-
-  const postBankReportData = useMemo(() => {
-    if (postBankCategories.length === 0) return null;
-    
-    const results: Record<string, { credit: number, debit: number, transactions: Transaction[] }> = {};
-    postBankCategories.forEach(cat => { results[cat] = { credit: 0, debit: 0, transactions: [] }; });
-
-    monthlyTransactions.forEach(t => {
-        if (t.accountId !== accountId && t.fromAccountId !== accountId && t.toAccountId !== accountId) return;
-        
-        const matchedCat = postBankCategories.find(cat => 
-            t.subcategory === cat || t.category === cat || (t.description && t.description.toLowerCase().includes(cat.toLowerCase()))
-        );
-        
-        if (matchedCat) {
-            let credit = 0, debit = 0;
-            if (t.type === 'income' && t.accountId === accountId) credit = t.amount;
-            else if (t.type === 'expense' && t.accountId === accountId) debit = t.amount;
-            else if (t.type === 'transfer') {
-                if (t.toAccountId === accountId) credit = t.amount;
-                if (t.fromAccountId === accountId) debit = t.amount;
-            }
-            results[matchedCat].credit += credit;
-            results[matchedCat].debit += debit;
-            results[matchedCat].transactions.push(t);
-        }
-    });
-    return results;
-  }, [postBankCategories, monthlyTransactions, accountId]);
-
   const handleCategoryClick = (categoryName: string, type: 'income' | 'expense' | 'regular' | 'occasional') => {
     let categoryData;
     if (type === 'income') categoryData = monthlyReport.incomeByCategory[categoryName];
@@ -429,54 +395,61 @@ export function ReportView({
 
   const closingBalance = previousBalance + currentInflow - currentOutflow;
 
-  // NEW: Passbook style for non-primary accounts (FED, HDFC, POST, Money Box)
+  // NEW: PASSBOOK STYLE for non-primary accounts
   if (!isOverallSummary && !isPrimaryReport && accountId) {
     const accountName = accounts.find(a => a.id === accountId)?.name || 'Account';
     const isPostBank = accountName.toLowerCase().includes('post bank');
 
-    // Aggregate Monthly Inflow/Outflow for the top reconciliation card and category lists
-    const accountIncomeDetails: Record<string, number> = {};
-    const accountExpenseDetails: Record<string, number> = {};
-
-    monthlyTransactions.forEach(t => {
+    // ALL DATA for Inflow/Outflow/Loans/Transfers (Non-Monthly)
+    const allAccountIncomeDetails: Record<string, number> = {};
+    const allAccountExpenseDetails: Record<string, number> = {};
+    
+    transactions.forEach(t => {
         if (t.accountId === accountId) {
-            if (t.type === 'income') accountIncomeDetails[t.category || 'Other'] = (accountIncomeDetails[t.category || 'Other'] || 0) + t.amount;
-            if (t.type === 'expense') accountExpenseDetails[t.category || 'Other'] = (accountExpenseDetails[t.category || 'Other'] || 0) + t.amount;
+            if (t.type === 'income') allAccountIncomeDetails[t.category || 'Other'] = (allAccountIncomeDetails[t.category || 'Other'] || 0) + t.amount;
+            if (t.type === 'expense') allAccountExpenseDetails[t.category || 'Other'] = (allAccountExpenseDetails[t.category || 'Other'] || 0) + t.amount;
         }
     });
 
-    if (isPostBank && postBankReportData) {
-        Object.entries(postBankReportData).forEach(([cat, data]) => {
-            if (data.credit > 0) accountIncomeDetails[cat] = (accountIncomeDetails[cat] || 0) + data.credit;
-            if (data.debit > 0) accountExpenseDetails[cat] = (accountExpenseDetails[cat] || 0) + data.debit;
-        });
-    }
-
-    // FULL DATA (All-Time) for Loan Details and Transfer Details
-    const fullLoanDetails = loans.map(l => {
-        // Filter transactions for THIS person linked to THIS account (All-time)
+    const allAccountLoanDetails = loans.map(l => {
         const txs = (l.transactions || []).filter(tx => tx.accountId === accountId);
-        if (txs.length === 0 || l.type === 'taken') return null; // Only show loans given from this account
-        
+        if (txs.length === 0 || l.type === 'taken') return null;
         const totalGiven = txs.filter(tx => tx.type === 'loan').reduce((s, tx) => s + tx.amount, 0);
         const totalRepay = txs.filter(tx => tx.type === 'repayment').reduce((s, tx) => s + tx.amount, 0);
-
         return {
-            id: l.id,
-            name: l.personName,
-            given: totalGiven,
-            repayment: totalRepay,
-            balance: totalGiven - totalRepay,
+            id: l.id, name: l.personName, given: totalGiven, repayment: totalRepay, balance: totalGiven - totalRepay,
             transactions: txs.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
         };
     }).filter(Boolean);
 
-    const fullTransferDetails = transactions.filter(t => 
+    const allAccountTransferDetails = transactions.filter(t => 
         t.type === 'transfer' && (t.fromAccountId === accountId || t.toAccountId === accountId)
     ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-    const totalIncomeSummary = Object.values(accountIncomeDetails).reduce((s, a) => s + a, 0);
-    const totalExpenseSummary = Object.values(accountExpenseDetails).reduce((s, a) => s + a, 0);
+    // Specialized Logic for POST Bank: Accordion UI mimicking the POST Bank page
+    const postBankAccordionData = isPostBank ? postBankCategoryNames.map(cat => {
+        const catTxs = transactions.filter(t => 
+            (t.accountId === accountId || t.fromAccountId === accountId || t.toAccountId === accountId) &&
+            (t.subcategory === cat || t.category === cat || (t.description && t.description.toLowerCase().includes(cat.toLowerCase())))
+        ).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+        let runningBal = 0, creditTotal = 0, debitTotal = 0;
+        const txsWithBal = catTxs.map(t => {
+            let credit = 0, debit = 0, effect = 0;
+            if (t.type === 'income' && t.accountId === accountId) { credit = t.amount; effect = t.amount; }
+            else if (t.type === 'expense' && t.accountId === accountId) { debit = t.amount; effect = -t.amount; }
+            else if (t.type === 'transfer') {
+                if (t.toAccountId === accountId) { credit = t.amount; effect = t.amount; }
+                if (t.fromAccountId === accountId) { debit = t.amount; effect = -t.amount; }
+            }
+            creditTotal += credit; debitTotal += debit; runningBal += effect;
+            return { ...t, credit: credit || null, debit: debit || null, balance: runningBal };
+        });
+        return { name: cat, credit: creditTotal, debit: debitTotal, balance: creditTotal - debitTotal, transactions: txsWithBal.reverse() };
+    }) : [];
+
+    const totalIncomeSummary = Object.values(allAccountIncomeDetails).reduce((s, a) => s + a, 0);
+    const totalExpenseSummary = Object.values(allAccountExpenseDetails).reduce((s, a) => s + a, 0);
 
     return (
       <div className="space-y-6">
@@ -484,170 +457,149 @@ export function ReportView({
           <CardHeader className="pb-2">
             <CardTitle className="text-lg flex items-center gap-2">
               <Landmark className="h-5 w-5" />
-              {accountName} - Monthly Statement Summary
+              {accountName} - PASSBOOK SUMMARY
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="space-y-1">
-                <p className="text-xs text-muted-foreground uppercase">Previous Balance</p>
+                <p className="text-xs text-muted-foreground uppercase">Opening (Pre-month)</p>
                 <p className="text-xl font-bold">{formatCurrency(previousBalance)}</p>
               </div>
               <div className="space-y-1">
-                <p className="text-xs text-muted-foreground uppercase">Monthly Inflow</p>
+                <p className="text-xs text-muted-foreground uppercase">Current Month In</p>
                 <p className="text-xl font-bold text-green-600">+{formatCurrency(currentInflow)}</p>
               </div>
               <div className="space-y-1">
-                <p className="text-xs text-muted-foreground uppercase">Monthly Outflow</p>
+                <p className="text-xs text-muted-foreground uppercase">Current Month Out</p>
                 <p className="text-xl font-bold text-red-600">-{formatCurrency(currentOutflow)}</p>
               </div>
               <div className="space-y-1">
-                <p className="text-xs text-muted-foreground uppercase font-semibold">Closing Balance</p>
+                <p className="text-xs text-muted-foreground uppercase font-semibold">Current Balance</p>
                 <p className={cn("text-xl font-bold", closingBalance >= 0 ? "text-primary" : "text-red-600")}>{formatCurrency(closingBalance)}</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <div className="grid gap-6 lg:grid-cols-2 items-start">
-            {/* LEFT COLUMN: INCOME (Monthly) & LOANS (Full Data) */}
+        {isPostBank ? (
+            /* SPECIALIZED POST BANK UI */
             <div className="space-y-6">
                 <Card>
-                    <CardHeader><CardTitle>Income Details (This Month)</CardTitle></CardHeader>
+                    <CardHeader><CardTitle>Post Bank Category Breakdown (All Time)</CardTitle></CardHeader>
                     <CardContent>
-                        <Table>
-                            <TableHeader><TableRow><TableHead>Source</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
-                            <TableBody>
-                                {Object.entries(accountIncomeDetails).map(([cat, amt]) => (
-                                    <TableRow key={cat} onClick={() => handleGenericDetailClick(cat, [], amt)} className="cursor-pointer hover:bg-muted/50">
-                                        <TableCell>{cat}</TableCell>
-                                        <TableCell className="text-right text-green-600">{formatCurrency(amt)}</TableCell>
-                                    </TableRow>
-                                ))}
-                                {totalIncomeSummary === 0 && (
-                                    <TableRow><TableCell colSpan={2} className="text-center text-muted-foreground py-4">No income recorded for this month.</TableCell></TableRow>
-                                )}
-                            </TableBody>
-                            <TableFooter><TableRow><TableHead>Total Inflow</TableHead><TableHead className="text-right font-bold">{formatCurrency(totalIncomeSummary)}</TableHead></TableRow></TableFooter>
-                        </Table>
+                        <Accordion type="single" collapsible className="w-full">
+                            {postBankAccordionData.map((cat, idx) => (
+                                <AccordionItem key={idx} value={`post-${idx}`}>
+                                    <AccordionTrigger className="hover:no-underline py-3">
+                                        <div className="flex justify-between w-full pr-4 items-center">
+                                            <span className="font-semibold">{cat.name}</span>
+                                            <span className={cn("font-bold", cat.balance >= 0 ? "text-green-600" : "text-red-600")}>{formatCurrency(cat.balance)}</span>
+                                        </div>
+                                    </AccordionTrigger>
+                                    <AccordionContent>
+                                        <div className="p-4 bg-muted/30 rounded-lg">
+                                            <div className="flex gap-4 mb-4 text-xs">
+                                                <span>Total Credit: <span className="text-green-600 font-bold">{formatCurrency(cat.credit)}</span></span>
+                                                <span>Total Debit: <span className="text-red-600 font-bold">{formatCurrency(cat.debit)}</span></span>
+                                            </div>
+                                            <Table className="text-xs">
+                                                <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Description</TableHead><TableHead className="text-right">Credit</TableHead><TableHead className="text-right">Debit</TableHead><TableHead className="text-right">Balance</TableHead></TableRow></TableHeader>
+                                                <TableBody>
+                                                    {cat.transactions.map((tx, tIdx) => (
+                                                        <TableRow key={tIdx}>
+                                                            <TableCell className="py-1">{format(new Date(tx.date), 'dd/MM/yy')}</TableCell>
+                                                            <TableCell className="py-1">{tx.description}</TableCell>
+                                                            <TableCell className="text-right py-1 text-green-600">{tx.credit ? formatCurrency(tx.credit) : ''}</TableCell>
+                                                            <TableCell className="text-right py-1 text-red-600">{tx.debit ? formatCurrency(tx.debit) : ''}</TableCell>
+                                                            <TableCell className="text-right py-1 font-mono">{formatCurrency(tx.balance)}</TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                    </AccordionContent>
+                                </AccordionItem>
+                            ))}
+                        </Accordion>
                     </CardContent>
                 </Card>
-
-                <Card>
-                    <CardHeader><CardTitle className="flex items-center gap-2"><HandCoins className="h-5 w-5" /> Loan Details (All Time)</CardTitle></CardHeader>
-                    <CardContent>
-                        {fullLoanDetails.length > 0 ? (
-                            <Accordion type="single" collapsible className="w-full">
-                                {fullLoanDetails.map(l => (
-                                    <AccordionItem key={l!.id} value={l!.id}>
-                                        <AccordionTrigger className="hover:no-underline py-2">
-                                            <div className="flex justify-between w-full pr-4 items-center">
-                                                <span className="font-medium">{l!.name}</span>
-                                                <Badge variant={l!.balance > 0 ? "default" : "outline"} className={cn(l!.balance > 0 && "bg-green-600")}>{formatCurrency(l!.balance)}</Badge>
-                                            </div>
-                                        </AccordionTrigger>
-                                        <AccordionContent>
-                                            <div className="pt-2">
-                                                <Table className="text-xs">
-                                                    <TableHeader>
-                                                        <TableRow className="h-8">
-                                                            <TableHead>Date</TableHead>
-                                                            <TableHead>Type</TableHead>
-                                                            <TableHead className="text-right">Given</TableHead>
-                                                            <TableHead className="text-right">Repay</TableHead>
-                                                        </TableRow>
-                                                    </TableHeader>
-                                                    <TableBody>
-                                                        {l!.transactions.map(tx => (
-                                                            <TableRow key={tx.id} className="h-8">
-                                                                <TableCell className="py-1">{format(parseISO(tx.date), 'dd/MM/yy')}</TableCell>
-                                                                <TableCell className="py-1 capitalize">{tx.type}</TableCell>
-                                                                <TableCell className="text-right py-1 text-red-600">{tx.type === 'loan' ? formatCurrency(tx.amount) : ''}</TableCell>
-                                                                <TableCell className="text-right py-1 text-green-600">{tx.type === 'repayment' ? formatCurrency(tx.amount) : ''}</TableCell>
-                                                            </TableRow>
-                                                        ))}
-                                                    </TableBody>
-                                                    <TableFooter>
-                                                        <TableRow className="h-8">
-                                                            <TableCell colSpan={2}>Net</TableCell>
-                                                            <TableCell colSpan={2} className="text-right font-bold">{formatCurrency(l!.balance)}</TableCell>
-                                                        </TableRow>
-                                                    </TableFooter>
-                                                </Table>
-                                            </div>
-                                        </AccordionContent>
-                                    </AccordionItem>
-                                ))}
-                            </Accordion>
-                        ) : (
-                            <p className="text-center text-muted-foreground py-10 text-sm">No loan transactions linked to this account.</p>
-                        )}
-                    </CardContent>
-                </Card>
+                {/* Secondary data for POST Bank */}
+                <div className="grid gap-6 lg:grid-cols-2">
+                    <Card><CardHeader><CardTitle>Loan Details (All Time)</CardTitle></CardHeader><CardContent>
+                        {allAccountLoanDetails.length > 0 ? <Accordion type="single" collapsible>{allAccountLoanDetails.map(l => (
+                            <AccordionItem key={l!.id} value={l!.id}><AccordionTrigger className="py-2"><div className="flex justify-between w-full pr-4"><span>{l!.name}</span><Badge variant="outline">{formatCurrency(l!.balance)}</Badge></div></AccordionTrigger><AccordionContent>
+                                <Table className="text-xs"><TableBody>{l!.transactions.map(tx => (<TableRow key={tx.id}><TableCell>{format(parseISO(tx.date), 'dd/MM/yy')}</TableCell><TableCell className="text-right text-red-600">{tx.type === 'loan' ? formatCurrency(tx.amount) : ''}</TableCell><TableCell className="text-right text-green-600">{tx.type === 'repayment' ? formatCurrency(tx.amount) : ''}</TableCell></TableRow>))}</TableBody></Table>
+                            </AccordionContent></AccordionItem>
+                        ))}</Accordion> : <p className="text-center py-10 text-muted-foreground text-sm">No loan data.</p>}</CardContent></Card>
+                    <Card><CardHeader><CardTitle>Transfer Details (All Time)</CardTitle></CardHeader><CardContent><ScrollArea className="h-[200px]"><Table>{allAccountTransferDetails.map(t => {
+                        const isOut = t.fromAccountId === accountId;
+                        const otherName = accounts.find(a => a.id === (isOut ? t.toAccountId : t.fromAccountId))?.name || 'Other';
+                        return <TableRow key={t.id}><TableCell className="text-xs">{format(new Date(t.date), 'dd/MM/yy')}</TableCell><TableCell className="text-xs">{isOut ? `➔ ${otherName}` : `← ${otherName}`}</TableCell><TableCell className={cn("text-right text-xs", isOut ? "text-red-600" : "text-green-600")}>{formatCurrency(t.amount)}</TableCell></TableRow>
+                    })}</Table></ScrollArea></CardContent></Card>
+                </div>
             </div>
-
-            {/* RIGHT COLUMN: EXPENSES (Monthly) & TRANSFERS (Full Data) */}
-            <div className="space-y-6">
-                <Card>
-                    <CardHeader><CardTitle>Expense Details (This Month)</CardTitle></CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader><TableRow><TableHead>Category</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
-                            <TableBody>
-                                {Object.entries(accountExpenseDetails).sort(([,a],[,b]) => b - a).map(([cat, amt]) => (
-                                    <TableRow key={cat} onClick={() => handleGenericDetailClick(cat, [], amt)} className="cursor-pointer hover:bg-muted/50">
-                                        <TableCell>{cat}</TableCell>
-                                        <TableCell className="text-right text-red-600">{formatCurrency(amt)}</TableCell>
-                                    </TableRow>
-                                ))}
-                                {totalExpenseSummary === 0 && (
-                                    <TableRow><TableCell colSpan={2} className="text-center text-muted-foreground py-4">No expenses recorded for this month.</TableCell></TableRow>
-                                )}
-                            </TableBody>
-                            <TableFooter><TableRow><TableHead>Total Expense</TableHead><TableHead className="text-right font-bold">{formatCurrency(totalExpenseSummary)}</TableHead></TableRow></TableFooter>
-                        </Table>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader><CardTitle className="flex items-center gap-2"><ArrowRightLeft className="h-5 w-5" /> Transfer Details (All Time)</CardTitle></CardHeader>
-                    <CardContent>
-                        <div className="max-h-[300px] overflow-y-auto">
+        ) : (
+            /* GENERIC BANK TAB UI (FED, HDFC, MONEY BOX) */
+            <div className="grid gap-6 lg:grid-cols-2 items-start">
+                <div className="space-y-6">
+                    <Card>
+                        <CardHeader><CardTitle>Income Details (All Time)</CardTitle></CardHeader>
+                        <CardContent>
                             <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Date</TableHead>
-                                        <TableHead>Account</TableHead>
-                                        <TableHead className="text-right">Amount</TableHead>
-                                    </TableRow>
-                                </TableHeader>
+                                <TableHeader><TableRow><TableHead>Source</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
                                 <TableBody>
-                                    {fullTransferDetails.map(t => {
-                                        const isOut = t.fromAccountId === accountId;
-                                        const otherAccId = isOut ? t.toAccountId : t.fromAccountId;
-                                        const otherAccName = accounts.find(a => a.id === otherAccId)?.name || (otherAccId?.includes('wallet') ? otherAccId.replace('-', ' ') : 'Other');
-                                        return (
-                                            <TableRow key={t.id}>
-                                                <TableCell className="text-xs">{format(new Date(t.date), 'dd/MM/yy')}</TableCell>
-                                                <TableCell className="text-xs">
-                                                    {isOut ? `➔ ${otherAccName}` : `← ${otherAccName}`}
-                                                </TableCell>
-                                                <TableCell className={cn("text-right font-mono text-xs", isOut ? "text-red-600" : "text-green-600")}>
-                                                    {formatCurrency(t.amount)}
-                                                </TableCell>
-                                            </TableRow>
-                                        );
-                                    })}
-                                    {fullTransferDetails.length === 0 && (
-                                        <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-10">No transfers found.</TableCell></TableRow>
-                                    )}
+                                    {Object.entries(allAccountIncomeDetails).sort(([,a],[,b]) => b - a).map(([cat, amt]) => (
+                                        <TableRow key={cat} onClick={() => handleGenericDetailClick(cat, [], amt)} className="cursor-pointer hover:bg-muted/50">
+                                            <TableCell>{cat}</TableCell><TableCell className="text-right text-green-600">{formatCurrency(amt)}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                    {totalIncomeSummary === 0 && <TableRow><TableCell colSpan={2} className="text-center py-4 text-muted-foreground">No income recorded.</TableCell></TableRow>}
                                 </TableBody>
+                                <TableFooter><TableRow><TableHead>Total Inflow</TableHead><TableHead className="text-right font-bold">{formatCurrency(totalIncomeSummary)}</TableHead></TableRow></TableFooter>
                             </Table>
-                        </div>
-                    </CardContent>
-                </Card>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader><CardTitle>Loan Details (All Time)</CardTitle></CardHeader>
+                        <CardContent>
+                            {allAccountLoanDetails.length > 0 ? <Accordion type="single" collapsible>{allAccountLoanDetails.map(l => (
+                                <AccordionItem key={l!.id} value={l!.id}><AccordionTrigger className="py-2"><div className="flex justify-between w-full pr-4"><span>{l!.name}</span><Badge variant="outline">{formatCurrency(l!.balance)}</Badge></div></AccordionTrigger><AccordionContent>
+                                    <Table className="text-xs"><TableBody>{l!.transactions.map(tx => (<TableRow key={tx.id}><TableCell>{format(parseISO(tx.date), 'dd/MM/yy')}</TableCell><TableCell className="text-right text-red-600">{tx.type === 'loan' ? formatCurrency(tx.amount) : ''}</TableCell><TableCell className="text-right text-green-600">{tx.type === 'repayment' ? formatCurrency(tx.amount) : ''}</TableCell></TableRow>))}</TableBody></Table>
+                                </AccordionContent></AccordionItem>
+                            ))}</Accordion> : <p className="text-center py-10 text-muted-foreground text-sm">No loan data.</p>}
+                        </CardContent>
+                    </Card>
+                </div>
+                <div className="space-y-6">
+                    <Card>
+                        <CardHeader><CardTitle>Expense Details (All Time)</CardTitle></CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader><TableRow><TableHead>Category</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+                                <TableBody>
+                                    {Object.entries(allAccountExpenseDetails).sort(([,a],[,b]) => b - a).map(([cat, amt]) => (
+                                        <TableRow key={cat} onClick={() => handleGenericDetailClick(cat, [], amt)} className="cursor-pointer hover:bg-muted/50">
+                                            <TableCell>{cat}</TableCell><TableCell className="text-right text-red-600">{formatCurrency(amt)}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                    {totalExpenseSummary === 0 && <TableRow><TableCell colSpan={2} className="text-center py-4 text-muted-foreground">No expenses recorded.</TableCell></TableRow>}
+                                </TableBody>
+                                <TableFooter><TableRow><TableHead>Total Outflow</TableHead><TableHead className="text-right font-bold">{formatCurrency(totalExpenseSummary)}</TableHead></TableRow></TableFooter>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader><CardTitle>Transfer Details (All Time)</CardTitle></CardHeader>
+                        <CardContent><ScrollArea className="h-[300px]"><Table>{allAccountTransferDetails.map(t => {
+                            const isOut = t.fromAccountId === accountId;
+                            const otherName = accounts.find(a => a.id === (isOut ? t.toAccountId : t.fromAccountId))?.name || 'Other';
+                            return <TableRow key={t.id}><TableCell className="text-xs">{format(new Date(t.date), 'dd/MM/yy')}</TableCell><TableCell className="text-xs">{isOut ? `➔ ${otherName}` : `← ${otherName}`}</TableCell><TableCell className={cn("text-right text-xs", isOut ? "text-red-600" : "text-green-600")}>{formatCurrency(t.amount)}</TableCell></TableRow>
+                        })}</Table></ScrollArea></CardContent>
+                    </Card>
+                </div>
             </div>
-        </div>
+        )}
 
         <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
             <DialogContent className="sm:max-w-xl">
@@ -661,7 +613,7 @@ export function ReportView({
                                     <TableRow key={n}><TableCell>{n}</TableCell><TableCell className="text-right font-mono">{formatCurrency(a)}</TableCell></TableRow>
                                 ))
                             ) : (
-                                <TableRow><TableCell colSpan={2} className="text-center text-muted-foreground py-10">Monthly aggregation summary.</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={2} className="text-center text-muted-foreground py-10">Aggregation summary.</TableCell></TableRow>
                             )}
                         </TableBody>
                         <TableFooter><TableRow><TableHead>Total</TableHead><TableHead className="text-right font-bold font-mono">{formatCurrency(selectedDetail?.total || 0)}</TableHead></TableRow></TableFooter>
@@ -674,7 +626,7 @@ export function ReportView({
     );
   }
 
-  // Render Summary style for Primary/Overall (Untouched UI/Logic)
+  // --- UNTOUCHED PRIMARY / SUMMARY UI ---
   return (
     <div className="space-y-6">
       {!monthlyTransactions.length ? (
