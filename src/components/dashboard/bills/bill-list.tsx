@@ -44,10 +44,10 @@ import { Label } from "@/components/ui/label";
 import { PlusCircle, Pencil, Trash2, CalendarIcon as Calendar, FileText, Repeat, Gift } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
 import { collection, addDoc, query, where, onSnapshot, doc, deleteDoc, updateDoc, orderBy } from "firebase/firestore";
-import { format, differenceInDays, isPast, addMonths, addQuarters, addYears, setDate as setDayOfMonth, getDate, parseISO, isBefore, isValid, getYear, setYear } from "date-fns";
+import { format, differenceInDays, isPast, addMonths, addQuarters, addYears, setDate as setDayOfMonth, getDate, parseISO, isBefore, isValid, getYear, setYear, isAfter } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { Bill } from "@/lib/data";
+import type { Bill, Category, Transaction } from "@/lib/data";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useAuthState } from "@/hooks/use-auth-state";
@@ -136,18 +136,22 @@ const formatDueDate = (bill: Bill) => {
 
 export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
     const [allEvents, setAllEvents] = useState<Bill[]>([]);
+    const [categories, setCategories] = useState<Category[]>([]);
+    const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
     const [user, loading] = useAuthState();
     const [clientLoaded, setClientLoaded] = useState(false);
     
-    // Add dialog state - default to the current tab's event type
+    // Add dialog state
     const [addEventType, setAddEventType] = useState<Bill['type']>(eventType);
     const [addDay, setAddDay] = useState<number>(getDate(new Date()));
     const [addDate, setAddDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
     const [addRecurrence, setAddRecurrence] = useState<Bill['recurrence']>('occasional');
     const [addSelectedMonths, setAddSelectedMonths] = useState<string[]>([]);
+    const [addCategoryId, setAddCategoryId] = useState<string>('');
+    const [addSubcategory, setAddSubcategory] = useState<string>('');
 
     // Edit dialog state
     const [editDay, setEditDay] = useState<number | undefined>();
@@ -155,8 +159,9 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
     const [editEventType, setEditEventType] = useState<Bill['type']>('bill');
     const [editRecurrence, setEditRecurrence] = useState<Bill['recurrence']>('occasional');
     const [editSelectedMonths, setEditSelectedMonths] = useState<string[]>([]);
+    const [editCategoryId, setEditCategoryId] = useState<string>('');
+    const [editSubcategory, setEditSubcategory] = useState<string>('');
 
-    // When the component mounts or the eventType prop changes, update the default for the add dialog
     useEffect(() => {
         setAddEventType(eventType);
     }, [eventType]);
@@ -177,8 +182,22 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                 });
                 setAllEvents(userBills);
             });
+
+            const categoriesQuery = query(collection(db, "categories"), where("userId", "==", user.uid));
+            const unsubscribeCategories = onSnapshot(categoriesQuery, (snapshot) => {
+                setCategories(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category)));
+            });
+
+            const transactionsQuery = query(collection(db, "transactions"), where("userId", "==", user.uid));
+            const unsubscribeTransactions = onSnapshot(transactionsQuery, (snapshot) => {
+                setTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction)));
+            });
             
-            return () => unsubscribeBills();
+            return () => {
+                unsubscribeBills();
+                unsubscribeCategories();
+                unsubscribeTransactions();
+            }
         }
     }, [user, db]);
 
@@ -186,12 +205,28 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
         return allEvents.filter(event => event.type === eventType);
     }, [allEvents, eventType]);
 
+    const expenseCategories = useMemo(() => {
+        return categories.filter(c => c.type === 'expense' || c.type === 'bank-expense');
+    }, [categories]);
+
+    const addSubcategories = useMemo(() => {
+        if (!addCategoryId) return [];
+        return categories.find(c => c.id === addCategoryId)?.subcategories || [];
+    }, [addCategoryId, categories]);
+
+    const editSubcategories = useMemo(() => {
+        if (!editCategoryId) return [];
+        return categories.find(c => c.id === editCategoryId)?.subcategories || [];
+    }, [editCategoryId, categories]);
+
 
     useEffect(() => {
         if (selectedBill) {
             setEditEventType(selectedBill.type || 'bill');
             setEditRecurrence(selectedBill.recurrence || 'occasional');
             setEditSelectedMonths(selectedBill.selectedMonths || []);
+            setEditCategoryId(selectedBill.categoryId || '');
+            setEditSubcategory(selectedBill.subcategory || '');
             const dueDate = parseISO(selectedBill.dueDate);
             if (isValid(dueDate)) {
                 setEditDay(getDate(dueDate));
@@ -200,15 +235,8 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                 setEditDay(undefined);
                 setEditDate('');
             }
-        } else {
-            // Reset state when there's no selected bill
-            setEditDay(undefined);
-            setEditDate('');
-            setEditEventType(eventType); // default to current tab
-            setEditRecurrence('occasional');
-            setEditSelectedMonths([]);
         }
-    }, [selectedBill, eventType]);
+    }, [selectedBill]);
 
 
     const handleMonthToggle = (month: string, setMonths: React.Dispatch<React.SetStateAction<string[]>>) => {
@@ -234,9 +262,11 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
             determinedDueDate = setDayOfMonth(new Date(), addDay);
         }
 
+        const categoryDoc = categories.find(c => c.id === addCategoryId);
+
         const newBill: Partial<Bill> & { userId: string } = {
             userId: user.uid,
-            title: title,
+            title: addEventType === 'special_day' ? title : (categoryDoc?.name && addSubcategory ? `${categoryDoc.name} / ${addSubcategory}` : title),
             dueDate: determinedDueDate.toISOString(),
             type: addEventType,
         };
@@ -245,16 +275,17 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
             newBill.amount = parseFloat(formData.get("amount") as string);
             newBill.recurrence = addRecurrence;
             newBill.selectedMonths = addSelectedMonths;
+            newBill.categoryId = addCategoryId;
+            newBill.category = categoryDoc?.name || '';
+            newBill.subcategory = addSubcategory;
+            newBill.title = `${newBill.category} / ${newBill.subcategory}`;
         }
 
         try {
             await addDoc(collection(db, "bills"), newBill);
             setIsAddDialogOpen(false);
-            // Reset form states
-            setAddDay(getDate(new Date()));
-            setAddDate(format(new Date(), 'yyyy-MM-dd'));
-            setAddEventType(eventType);
-            setAddRecurrence('occasional');
+            setAddCategoryId('');
+            setAddSubcategory('');
             setAddSelectedMonths([]);
         } catch (error) {
         }
@@ -277,8 +308,10 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
             determinedDueDate = setDayOfMonth(new Date(selectedBill.dueDate), editDay || 1);
         }
 
+        const categoryDoc = categories.find(c => c.id === editCategoryId);
+
         const updatedData: Partial<Bill> = {
-            title: title,
+            title: editEventType === 'special_day' ? title : (categoryDoc?.name && editSubcategory ? `${categoryDoc.name} / ${editSubcategory}` : title),
             dueDate: determinedDueDate.toISOString(),
             type: editEventType,
         };
@@ -287,10 +320,10 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
             updatedData.amount = parseFloat(formData.get("amount") as string);
             updatedData.recurrence = editRecurrence;
             updatedData.selectedMonths = editSelectedMonths;
-        } else {
-            updatedData.amount = 0;
-            updatedData.recurrence = 'occasional'; // Reset for special days
-            updatedData.selectedMonths = [];
+            updatedData.categoryId = editCategoryId;
+            updatedData.category = categoryDoc?.name || '';
+            updatedData.subcategory = editSubcategory;
+            updatedData.title = `${updatedData.category} / ${updatedData.subcategory}`;
         }
 
         try {
@@ -313,6 +346,24 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
     const openEditDialog = (bill: Bill) => {
         setSelectedBill(bill);
         setIsEditDialogOpen(true);
+    };
+
+    const getLastPaymentDate = (bill: Bill) => {
+        if (bill.type !== 'bill') return null;
+        
+        // Match transactions by category and subcategory
+        const matchingTransactions = transactions.filter(t => 
+            t.type === 'expense' &&
+            (t.categoryId === bill.categoryId || t.category === bill.category) &&
+            t.subcategory === bill.subcategory
+        ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+        if (matchingTransactions.length > 0) {
+            return parseISO(matchingTransactions[0].date);
+        }
+        
+        // Fallback to manually entered paidOn if no transaction matches
+        return bill.paidOn ? parseISO(bill.paidOn) : null;
     };
 
     const getNextPaymentDate = (bill: Bill) => {
@@ -360,7 +411,7 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
     }
 
     const title = eventType === 'bill' ? 'Bills' : 'Special Days';
-    const description = eventType === 'bill' ? 'Keep track of your upcoming payments.' : 'Keep track of your special days.';
+    const description = eventType === 'bill' ? 'Keep track of your upcoming payments based on category and subcategory.' : 'Keep track of your special days.';
 
     return (
         <>
@@ -370,15 +421,7 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                         <CardTitle>Manage Your {title}</CardTitle>
                         <CardDescription>{description}</CardDescription>
                     </div>
-                    <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
-                        setIsAddDialogOpen(open);
-                        if (!open) {
-                            // Reset state on close
-                            setAddEventType(eventType);
-                            setAddRecurrence('occasional');
-                            setAddSelectedMonths([]);
-                        }
-                    }}>
+                    <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
                         <DialogTrigger asChild>
                             <Button>
                                 <PlusCircle className="mr-2 h-4 w-4" />
@@ -406,13 +449,33 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                                             </SelectContent>
                                         </Select>
                                     </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="title">Title</Label>
-                                        <Input id="title" name="title" placeholder={addEventType === 'bill' ? "e.g. Credit Card" : "e.g. Birthday"} required />
-                                    </div>
 
                                     {addEventType === 'bill' ? (
                                       <>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <Label>Category</Label>
+                                                <Select value={addCategoryId} onValueChange={setAddCategoryId} required>
+                                                    <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
+                                                    <SelectContent>
+                                                        {expenseCategories.map(cat => (
+                                                            <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label>Sub-category</Label>
+                                                <Select value={addSubcategory} onValueChange={setAddSubcategory} disabled={!addCategoryId} required>
+                                                    <SelectTrigger><SelectValue placeholder="Select sub-category" /></SelectTrigger>
+                                                    <SelectContent>
+                                                        {addSubcategories.map(sub => (
+                                                            <SelectItem key={sub.id} value={sub.name}>{sub.name}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        </div>
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="space-y-2">
                                                 <Label htmlFor="amount">Amount</Label>
@@ -435,39 +498,25 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                                         </div>
                                         <div className="space-y-2">
                                             <Label htmlFor="day">Due Day of Month</Label>
-                                            <Input 
-                                                id="day" 
-                                                name="day" 
-                                                type="number" 
-                                                min="1" 
-                                                max="31"
-                                                value={addDay} 
-                                                onChange={(e) => setAddDay(parseInt(e.target.value, 10))} 
-                                                placeholder="e.g. 26" 
-                                                required 
-                                            />
+                                            <Input id="day" name="day" type="number" min="1" max="31" value={addDay} onChange={(e) => setAddDay(parseInt(e.target.value, 10))} placeholder="e.g. 26" required />
                                         </div>
                                         <MonthSelector selectedMonths={addSelectedMonths} onMonthToggle={(month) => handleMonthToggle(month, setAddSelectedMonths)} />
                                       </>
                                     ) : (
+                                      <>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="title">Title</Label>
+                                            <Input id="title" name="title" placeholder="e.g. Birthday" required />
+                                        </div>
                                         <div className="space-y-2">
                                             <Label htmlFor="special-date">Special Date</Label>
-                                            <Input
-                                                id="special-date"
-                                                name="special-date"
-                                                type="date"
-                                                value={addDate}
-                                                onChange={(e) => setAddDate(e.target.value)}
-                                                className="w-full"
-                                                required
-                                            />
+                                            <Input id="special-date" name="special-date" type="date" value={addDate} onChange={(e) => setAddDate(e.target.value)} className="w-full" required />
                                         </div>
+                                      </>
                                     )}
                                 </div>
                                 <DialogFooter>
-                                    <DialogClose asChild>
-                                        <Button type="button" variant="secondary">Cancel</Button>
-                                    </DialogClose>
+                                    <DialogClose asChild><Button type="button" variant="secondary">Cancel</Button></DialogClose>
                                     <Button type="submit">Add Event</Button>
                                 </DialogFooter>
                             </form>
@@ -479,13 +528,13 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Sl. No.</TableHead>
-                                <TableHead>Title</TableHead>
+                                <TableHead>{eventType === 'bill' ? 'Category / Sub-category' : 'Title'}</TableHead>
                                 {eventType === 'bill' ? (
                                     <>
                                         <TableHead className="text-right">Amount</TableHead>
                                         <TableHead>Due Date</TableHead>
-                                        <TableHead>Payment Date</TableHead>
-                                        <TableHead>Next Payment date</TableHead>
+                                        <TableHead>Last Payment Date</TableHead>
+                                        <TableHead>Next Due Date</TableHead>
                                     </>
                                 ) : (
                                     <>
@@ -502,9 +551,10 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                                 const daysUntilDue = isValid(dueDate) ? differenceInDays(dueDate, new Date()) : 0;
                                 const isOverdue = bill.type === 'bill' && daysUntilDue < 0 && !bill.paidOn;
                                 const nextPaymentDate = getNextPaymentDate(bill);
+                                const lastPaymentDate = getLastPaymentDate(bill);
                                 const celebrationDate = bill.type === 'special_day' ? getCelebrationDate(bill) : null;
                                 return (
-                                <TableRow key={bill.id} className={cn(bill.type === 'bill' && bill.paidOn && "text-muted-foreground")}>
+                                <TableRow key={bill.id} className={cn(bill.type === 'bill' && lastPaymentDate && isAfter(lastPaymentDate, startOfMonth(new Date())) && "text-muted-foreground")}>
                                     <TableCell>{index + 1}</TableCell>
                                     <TableCell className="font-medium">
                                         <div className="flex items-center gap-2">
@@ -524,10 +574,10 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                                             <TableCell>
                                                 <div>{formatDueDate(bill)}</div>
                                                 <div className={cn("text-xs", isOverdue ? "text-red-500" : "text-muted-foreground")}>
-                                                    {bill.paidOn ? " " : isOverdue ? `Overdue by ${-daysUntilDue} days` : `Due in ${daysUntilDue} days`}
+                                                    {lastPaymentDate && isAfter(lastPaymentDate, startOfMonth(new Date())) ? "Paid this month" : isOverdue ? `Overdue by ${-daysUntilDue} days` : `Due in ${daysUntilDue} days`}
                                                 </div>
                                             </TableCell>
-                                            <TableCell>{bill.paidOn ? format(parseISO(bill.paidOn), 'dd/MM/yyyy') : '-'}</TableCell>
+                                            <TableCell>{lastPaymentDate ? format(lastPaymentDate, 'dd/MM/yyyy') : '-'}</TableCell>
                                             <TableCell>{nextPaymentDate ? format(nextPaymentDate, 'dd/MM/yyyy') : '-'}</TableCell>
                                         </>
                                     ) : (
@@ -549,9 +599,7 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                                             <AlertDialogContent>
                                                 <AlertDialogHeader>
                                                     <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                    <AlertDialogDescription>
-                                                        This will permanently delete this event. This action cannot be undone.
-                                                    </AlertDialogDescription>
+                                                    <AlertDialogDescription>This will permanently delete this event.</AlertDialogDescription>
                                                 </AlertDialogHeader>
                                                 <AlertDialogFooter>
                                                     <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -564,45 +612,54 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                             )})}
                         </TableBody>
                     </Table>
-                     {bills.length === 0 && (
-                        <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-40">
-                            <FileText className="h-10 w-10 mb-2"/>
-                            <p>No upcoming {eventType === 'bill' ? 'bills' : 'special days'}. Click "Add Event" to get started.</p>
-                        </div>
-                    )}
                 </CardContent>
             </Card>
 
-            {/* Edit Bill Dialog */}
             <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
                 <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-md">
                     <form onSubmit={handleEditBill}>
                         <DialogHeader>
                             <DialogTitle>Edit Event</DialogTitle>
-                            <DialogDescription>
-                                Update the details for your event.
-                            </DialogDescription>
+                            <DialogDescription>Update the details for your event.</DialogDescription>
                         </DialogHeader>
                         <div className="grid gap-4 py-4">
                              <div className="space-y-2">
                                 <Label htmlFor="edit-type">Event Type</Label>
                                 <Select name="type" value={editEventType} onValueChange={(value) => setEditEventType(value as Bill['type'])}>
-                                    <SelectTrigger id="edit-type">
-                                        <SelectValue placeholder="Select type" />
-                                    </SelectTrigger>
+                                    <SelectTrigger id="edit-type"><SelectValue placeholder="Select type" /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="bill">Bill</SelectItem>
                                         <SelectItem value="special_day">Special Day</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="edit-title">Title</Label>
-                                <Input id="edit-title" name="title" defaultValue={selectedBill?.title} required />
-                            </div>
 
                             {editEventType === 'bill' ? (
                                 <>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label>Category</Label>
+                                            <Select value={editCategoryId} onValueChange={setEditCategoryId} required>
+                                                <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
+                                                <SelectContent>
+                                                    {expenseCategories.map(cat => (
+                                                        <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Sub-category</Label>
+                                            <Select value={editSubcategory} onValueChange={setEditSubcategory} disabled={!editCategoryId} required>
+                                                <SelectTrigger><SelectValue placeholder="Select sub-category" /></SelectTrigger>
+                                                <SelectContent>
+                                                    {editSubcategories.map(sub => (
+                                                        <SelectItem key={sub.id} value={sub.name}>{sub.name}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
                                             <Label htmlFor="edit-amount">Amount</Label>
@@ -611,9 +668,7 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                                         <div className="space-y-2">
                                             <Label htmlFor="edit-recurrence">Recurrence</Label>
                                             <Select name="recurrence" value={editRecurrence} onValueChange={(value) => setEditRecurrence(value as Bill['recurrence'])}>
-                                                <SelectTrigger id="edit-recurrence">
-                                                    <SelectValue placeholder="Select recurrence" />
-                                                </SelectTrigger>
+                                                <SelectTrigger id="edit-recurrence"><SelectValue placeholder="Select recurrence" /></SelectTrigger>
                                                 <SelectContent>
                                                     <SelectItem value="occasional">Occasional</SelectItem>
                                                     <SelectItem value="yearly">Yearly</SelectItem>
@@ -625,40 +680,25 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                                     </div>
                                     <div className="space-y-2">
                                         <Label htmlFor="edit-day">Due Day of Month</Label>
-                                        <Input 
-                                            id="edit-day" 
-                                            name="edit-day" 
-                                            type="number" 
-                                            min="1" 
-                                            max="31"
-                                            value={editDay ?? ''} 
-                                            onChange={(e) => {
-                                                const val = e.target.value;
-                                                setEditDay(val === '' ? undefined : parseInt(val, 10));
-                                            }} 
-                                            placeholder="e.g. 26" 
-                                            required 
-                                        />
+                                        <Input id="edit-day" name="edit-day" type="number" min="1" max="31" value={editDay ?? ''} onChange={(e) => setEditDay(e.target.value === '' ? undefined : parseInt(e.target.value, 10))} required />
                                     </div>
                                     <MonthSelector selectedMonths={editSelectedMonths} onMonthToggle={(month) => handleMonthToggle(month, setEditSelectedMonths)} />
                                 </>
                             ) : (
-                                <div className="space-y-2">
-                                     <Label htmlFor="special-date">Special Date</Label>
-                                     <Input
-                                        id="special-date"
-                                        name="special-date"
-                                        type="date"
-                                        value={editDate}
-                                        onChange={(e) => setEditDate(e.target.value)}
-                                        className="w-full"
-                                        required
-                                    />
-                                </div>
+                                <>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="edit-title">Title</Label>
+                                        <Input id="edit-title" name="title" defaultValue={selectedBill?.title} required />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="special-date">Special Date</Label>
+                                        <Input id="special-date" name="special-date" type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} className="w-full" required />
+                                    </div>
+                                </>
                             )}
                         </div>
                         <DialogFooter>
-                            <DialogClose asChild><Button type="button" variant="secondary" onClick={() => setSelectedBill(null)}>Cancel</Button></DialogClose>
+                            <DialogClose asChild><Button type="button" variant="secondary">Cancel</Button></DialogClose>
                             <Button type="submit">Save Changes</Button>
                         </DialogFooter>
                     </form>

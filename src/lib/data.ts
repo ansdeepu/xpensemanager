@@ -34,6 +34,9 @@ export type Bill = {
   type: 'bill' | 'special_day';
   recurrence: 'none' | 'monthly' | 'quarterly' | 'yearly' | 'occasional';
   selectedMonths?: string[];
+  categoryId?: string;
+  category?: string;
+  subcategory?: string;
 }
 
 export type Transaction = {
