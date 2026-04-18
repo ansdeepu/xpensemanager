@@ -814,7 +814,6 @@ export default function TransactionsPage(props: {
           breakdown={selectedBreakdown}
           primaryAccount={primaryAccount}
           primaryCreditCard={primaryCreditCard}
-          onAccountClick={handleAccountClick}
       />
 
       <AddTransactionDialog isOpen={isAddOrEditDialogOpen} onOpenChange={setIsAddOrEditDialogOpen} accounts={accountDataForDialog} transactionToEdit={transactionToEdit} />

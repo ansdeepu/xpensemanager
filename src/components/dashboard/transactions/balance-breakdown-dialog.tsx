@@ -12,7 +12,6 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Landmark, Wallet, Coins, CreditCard } from "lucide-react";
 import type { Account } from "@/lib/data";
@@ -32,21 +31,14 @@ export function BalanceBreakdownDialog({
   breakdown,
   primaryAccount,
   primaryCreditCard,
-  onAccountClick
 }: {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   breakdown: any;
   primaryAccount: Account | undefined;
   primaryCreditCard: Account | undefined;
-  onAccountClick: (account: any, name?: string) => void;
 }) {
   if (!breakdown) return null;
-
-  const handleSubClick = (id: string, name: string) => {
-      onAccountClick(id, name);
-      onOpenChange(false);
-  }
 
   const sbiCardDue = primaryCreditCard ? (breakdown.cards[primaryCreditCard.id] || 0) : 0;
   const sbiCardAvailable = primaryCreditCard ? (primaryCreditCard.limit || 0) - sbiCardDue : 0;
@@ -63,7 +55,7 @@ export function BalanceBreakdownDialog({
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
             {/* Primary Bank */}
-            <Card className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSubClick(primaryAccount!.id, primaryAccount!.name)}>
+            <Card>
                 <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
                     <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Bank Balance</CardTitle>
                     <Landmark className="h-4 w-4 text-primary" />
@@ -75,7 +67,7 @@ export function BalanceBreakdownDialog({
             </Card>
 
             {/* Digital Wallet */}
-            <Card className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSubClick('digital-wallet', 'Digital Wallet')}>
+            <Card>
                 <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
                     <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Digital Wallet</CardTitle>
                     <Wallet className="h-4 w-4 text-blue-500" />
@@ -87,7 +79,7 @@ export function BalanceBreakdownDialog({
             </Card>
 
             {/* Cash Wallet */}
-            <Card className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSubClick('cash-wallet', 'Cash Wallet')}>
+            <Card>
                 <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
                     <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Cash Wallet</CardTitle>
                     <Coins className="h-4 w-4 text-amber-500" />
@@ -100,7 +92,7 @@ export function BalanceBreakdownDialog({
 
             {/* SBI Credit Card */}
             {primaryCreditCard && (
-                <Card className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSubClick(primaryCreditCard.id, primaryCreditCard.name)}>
+                <Card>
                     <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
                         <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">SBI Credit Card</CardTitle>
                         <CreditCard className="h-4 w-4 text-red-500" />
