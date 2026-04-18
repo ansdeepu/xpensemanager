@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -44,7 +43,7 @@ import { Label } from "@/components/ui/label";
 import { PlusCircle, Pencil, Trash2, CalendarIcon as Calendar, FileText, Repeat, Gift } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
 import { collection, addDoc, query, where, onSnapshot, doc, deleteDoc, updateDoc, orderBy } from "firebase/firestore";
-import { format, differenceInDays, isPast, addMonths, addQuarters, addYears, setDate as setDayOfMonth, getDate, parseISO, isBefore, isValid, getYear, setYear, isAfter } from "date-fns";
+import { format, differenceInDays, isPast, addMonths, addQuarters, addYears, setDate as setDayOfMonth, getDate, parseISO, isBefore, isValid, getYear, setYear, isAfter, startOfMonth } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Bill, Category, Transaction } from "@/lib/data";
@@ -356,7 +355,7 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
             t.type === 'expense' &&
             (t.categoryId === bill.categoryId || t.category === bill.category) &&
             t.subcategory === bill.subcategory
-        ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        ).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
         if (matchingTransactions.length > 0) {
             return parseISO(matchingTransactions[0].date);
