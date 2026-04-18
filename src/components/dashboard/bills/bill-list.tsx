@@ -43,7 +43,24 @@ import { Label } from "@/components/ui/label";
 import { PlusCircle, Pencil, Trash2, CalendarIcon as Calendar, FileText, Repeat, Gift } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
 import { collection, addDoc, query, where, onSnapshot, doc, deleteDoc, updateDoc, orderBy } from "firebase/firestore";
-import { format, differenceInDays, isPast, addMonths, addQuarters, addYears, setDate as setDayOfMonth, getDate, parseISO, isBefore, isValid, getYear, setYear, isAfter, startOfMonth } from "date-fns";
+import { 
+    format, 
+    differenceInDays, 
+    isPast, 
+    addMonths, 
+    addQuarters, 
+    addYears, 
+    setDate as setDayOfMonth, 
+    getDate, 
+    parseISO, 
+    isBefore, 
+    isValid, 
+    getYear, 
+    setYear, 
+    isAfter, 
+    startOfMonth,
+    startOfToday
+} from "date-fns";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Bill, Category, Transaction } from "@/lib/data";
@@ -182,7 +199,7 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                 setAllEvents(userBills);
             });
 
-            const categoriesQuery = query(collection(db, "categories"), where("userId", "==", user.uid));
+            const categoriesQuery = query(collection(db, "categories"), where("userId", "==", user.uid), orderBy("order", "asc"));
             const unsubscribeCategories = onSnapshot(categoriesQuery, (snapshot) => {
                 setCategories(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category)));
             });
@@ -270,6 +287,8 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
             title: addEventType === 'special_day' ? title : (categoryDoc?.name && addSubcategory ? `${categoryDoc.name} / ${addSubcategory}` : title),
             dueDate: determinedDueDate.toISOString(),
             type: addEventType,
+            amount: 0,
+            recurrence: 'occasional',
         };
         
         if (addEventType === 'bill') {
@@ -357,7 +376,7 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
             t.type === 'expense' &&
             (t.categoryId === bill.categoryId || t.category === bill.category) &&
             t.subcategory === bill.subcategory
-        ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        ).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
         if (matchingTransactions.length > 0) {
             return parseISO(matchingTransactions[0].date);
@@ -555,7 +574,7 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                                 const lastPaymentDate = getLastPaymentDate(bill);
                                 const celebrationDate = bill.type === 'special_day' ? getCelebrationDate(bill) : null;
                                 return (
-                                <TableRow key={bill.id} className={cn(bill.type === 'bill' && lastPaymentDate && isAfter(lastPaymentDate, startOfToday()) && "text-muted-foreground")}>
+                                <TableRow key={bill.id} className={cn(bill.type === 'bill' && lastPaymentDate && isAfter(lastPaymentDate, startOfMonth(new Date())) && "text-muted-foreground")}>
                                     <TableCell>{index + 1}</TableCell>
                                     <TableCell className="font-medium">
                                         <div className="flex items-center gap-2">
