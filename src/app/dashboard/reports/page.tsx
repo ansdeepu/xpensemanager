@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
@@ -179,8 +180,9 @@ export default function ReportsPage() {
     );
   }
   
+  // Ecosystem Total = Sum of all non-card assets + wallets (excludes credit card debt)
   const allBalance = accounts.reduce((sum, acc) => {
-      if (acc.type === 'card') return sum - acc.balance;
+      if (acc.type === 'card') return sum; 
       return sum + acc.balance;
   }, 0) + cashWalletBalance + digitalWalletBalance;
 

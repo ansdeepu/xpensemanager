@@ -119,7 +119,7 @@ export function BalanceBreakdownDialog({
                 <span className="font-bold text-xl text-primary">{formatCurrency(breakdown.total)}</span>
             </div>
             <p className="text-[10px] text-muted-foreground text-center mt-2 italic">
-                * Ecosystem Total = (Bank + Digital + Cash) - Credit Card Dues
+                * Ecosystem Total = Bank Balance + Digital Wallet + Cash Wallet
             </p>
         </div>
 

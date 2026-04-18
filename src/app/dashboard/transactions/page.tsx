@@ -439,7 +439,8 @@ export default function TransactionsPage(props: {
     });
 
     for (const t of viewTransactions) {
-      const currentEcosystemBalance = runningBank + runningCash + runningDigital - Object.values(runningCards).reduce((s, v) => s + v, 0);
+      // Ecosystem Total = Bank + Digital + Cash (Excludes Credit Card debt based on user request)
+      const currentEcosystemBalance = runningBank + runningCash + runningDigital;
       
       if (isPrimaryView) {
           balances.set(t.id, currentEcosystemBalance);
