@@ -249,9 +249,45 @@ export function TransactionTable({
                                   </div>
                               )}
                           </TableCell>
-                          <TableCell className="text-right font-mono text-red-600 text-xs">{t.debit !== null ? formatCurrency(t.debit) : null}</TableCell>
-                          <TableCell className="text-right font-mono text-blue-600 text-xs">{t.transfer !== null ? formatCurrency(t.transfer) : null}</TableCell>
-                          <TableCell className="text-right font-mono text-green-600 text-xs">{t.credit !== null ? formatCurrency(t.credit) : null}</TableCell>
+                          <TableCell className="text-right font-mono text-red-600 text-xs">
+                              {isMultiItem && t.debit !== null ? (
+                                  <div className="flex flex-col gap-0.5">
+                                      {t.items!.map((item, i) => (
+                                          <div key={i} className="leading-tight border-b border-muted/30 last:border-0 pb-1 mb-1 last:pb-0 last:mb-0">
+                                              {formatCurrency(item.amount)}
+                                          </div>
+                                      ))}
+                                  </div>
+                              ) : (
+                                  t.debit !== null ? formatCurrency(t.debit) : null
+                              )}
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-blue-600 text-xs">
+                              {isMultiItem && t.transfer !== null ? (
+                                  <div className="flex flex-col gap-0.5">
+                                      {t.items!.map((item, i) => (
+                                          <div key={i} className="leading-tight border-b border-muted/30 last:border-0 pb-1 mb-1 last:pb-0 last:mb-0">
+                                              {formatCurrency(item.amount)}
+                                          </div>
+                                      ))}
+                                  </div>
+                              ) : (
+                                  t.transfer !== null ? formatCurrency(t.transfer) : null
+                              )}
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-green-600 text-xs">
+                              {isMultiItem && t.credit !== null ? (
+                                  <div className="flex flex-col gap-0.5">
+                                      {t.items!.map((item, i) => (
+                                          <div key={i} className="leading-tight border-b border-muted/30 last:border-0 pb-1 mb-1 last:pb-0 last:mb-0">
+                                              {formatCurrency(item.amount)}
+                                          </div>
+                                      ))}
+                                  </div>
+                              ) : (
+                                  t.credit !== null ? formatCurrency(t.credit) : null
+                              )}
+                          </TableCell>
                           <TableCell 
                             className={cn("text-right font-mono text-xs cursor-pointer hover:underline underline-offset-4 decoration-primary/30", t.balance < 0 ? 'text-red-600' : '')}
                             onClick={(e) => {
