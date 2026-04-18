@@ -48,7 +48,8 @@ export function TransactionTable({
   primaryAccount,
   currentPage,
   itemsPerPage,
-  onEditTransaction
+  onEditTransaction,
+  onBalanceClick
 }: {
   transactions: (Transaction & { balance: number })[];
   accountId: string;
@@ -56,6 +57,7 @@ export function TransactionTable({
   currentPage: number;
   itemsPerPage: number;
   onEditTransaction: (transaction: Transaction) => void;
+  onBalanceClick?: () => void;
 }) {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -250,7 +252,15 @@ export function TransactionTable({
                           <TableCell className="text-right font-mono text-red-600 text-xs">{t.debit !== null ? formatCurrency(t.debit) : null}</TableCell>
                           <TableCell className="text-right font-mono text-blue-600 text-xs">{t.transfer !== null ? formatCurrency(t.transfer) : null}</TableCell>
                           <TableCell className="text-right font-mono text-green-600 text-xs">{t.credit !== null ? formatCurrency(t.credit) : null}</TableCell>
-                          <TableCell className={cn("text-right font-mono text-xs", t.balance < 0 ? 'text-red-600' : '')}>{formatCurrency(t.balance)}</TableCell>
+                          <TableCell 
+                            className={cn("text-right font-mono text-xs cursor-pointer hover:underline underline-offset-4 decoration-primary/30", t.balance < 0 ? 'text-red-600' : '')}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onBalanceClick?.();
+                            }}
+                          >
+                              {formatCurrency(t.balance)}
+                          </TableCell>
                           <TableCell className="text-right print-hide py-2" onClick={(e) => e.stopPropagation()}>
                               <div className="flex items-center justify-end gap-1">
                                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEditTransaction(t)}><Pencil className="h-3.5 w-3.5" /></Button>

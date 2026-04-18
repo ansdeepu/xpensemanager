@@ -48,7 +48,21 @@ interface WalletAccountForDetails extends AccountForDetailsBase {
 type AccountForDetails = RegularAccountForDetails | WalletAccountForDetails;
 
 
-export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChange }: { account: AccountForDetails | null, transactions: Transaction[], isOpen: boolean, onOpenChange: (open: boolean) => void }) {
+export function AccountDetailsDialog({ 
+    account, 
+    transactions, 
+    isOpen, 
+    onOpenChange,
+    isEcosystem,
+    accounts
+}: { 
+    account: AccountForDetails | null, 
+    transactions: Transaction[], 
+    isOpen: boolean, 
+    onOpenChange: (open: boolean) => void,
+    isEcosystem?: boolean,
+    accounts?: Account[]
+}) {
 
     const calculationResults = useMemo(() => {
         if (!account) return { breakdown: [], finalBalance: 0 };
@@ -57,6 +71,7 @@ export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChan
             .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
         
         let runningBalance = 0;
+        const creditCardIds = accounts?.filter(acc => acc.type === 'card').map(acc => acc.id) || [];
         
         const openingBalanceTx = chronologicalTransactions.find(t => t.category === 'Previous balance' && t.accountId === account.id);
         if (openingBalanceTx) {
@@ -67,6 +82,17 @@ export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChan
             .filter(t => {
                 if (openingBalanceTx && t.id === openingBalanceTx.id) return true; // Always include opening balance
                 
+                if (isEcosystem) {
+                    const fromAccountIsWallet = t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
+                    const toAccountIsWallet = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
+                    
+                    const fromIsInEco = t.fromAccountId === account.id || fromAccountIsWallet || (t.fromAccountId ? creditCardIds.includes(t.fromAccountId) : false);
+                    const toIsInEco = t.toAccountId === account.id || toAccountIsWallet || (t.toAccountId ? creditCardIds.includes(t.toAccountId) : false);
+                    const mainInEco = t.accountId === account.id || t.paymentMethod === 'cash' || t.paymentMethod === 'digital' || (t.accountId ? creditCardIds.includes(t.accountId) : false);
+
+                    return (fromIsInEco || toIsInEco || mainInEco) && t.category !== 'Previous balance';
+                }
+
                 let belongsToAccount = false;
                 if (account.id === 'cash-wallet') {
                     belongsToAccount = t.paymentMethod === 'cash' || t.fromAccountId === 'cash-wallet' || t.toAccountId === 'cash-wallet';
@@ -83,11 +109,27 @@ export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChan
                 let credit = 0;
                 let debit = 0;
                 let effect = 0;
-                const isCard = 'type' in account && account.type === 'card';
+                const isCard = !isEcosystem && 'type' in account && account.type === 'card';
 
                 if (t.id === openingBalanceTx?.id) {
                     credit = t.amount;
                     effect = 0; // The effect is already in the initial runningBalance
+                } else if (isEcosystem) {
+                    const fromIsInEco = t.fromAccountId === account.id || t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet' || (t.fromAccountId ? creditCardIds.includes(t.fromAccountId) : false);
+                    const toIsInEco = t.toAccountId === account.id || t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet' || (t.toAccountId ? creditCardIds.includes(t.toAccountId) : false);
+                    const mainInEco = t.accountId === account.id || t.paymentMethod === 'cash' || t.paymentMethod === 'digital' || (t.accountId ? creditCardIds.includes(t.accountId) : false);
+
+                    if (t.type === 'income' && mainInEco) effect = t.amount;
+                    else if (t.type === 'expense' && mainInEco) effect = -t.amount;
+                    else if (t.type === 'transfer') {
+                        if (fromIsInEco && toIsInEco) effect = 0;
+                        else if (fromIsInEco) effect = -t.amount;
+                        else if (toIsInEco) effect = t.amount;
+                    }
+
+                    if (effect > 0) credit = effect;
+                    else if (effect < 0) debit = Math.abs(effect);
+
                 } else {
                     if (account.id === 'cash-wallet') {
                         if(t.type === 'transfer' && t.toAccountId === 'cash-wallet') { credit = t.amount; effect = t.amount; }
@@ -140,21 +182,21 @@ export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChan
         
         return { breakdown: breakdown.reverse(), finalBalance: runningBalance };
 
-    }, [account, transactions]);
+    }, [account, transactions, isEcosystem, accounts]);
 
 
     if (!account) return null;
 
-    const isCard = 'type' in account && account.type === 'card';
+    const isCard = !isEcosystem && 'type' in account && account.type === 'card';
     const cardLimit = isCard && 'limit' in account ? (account as RegularAccountForDetails).limit : undefined;
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
             <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-3xl">
                 <DialogHeader>
-                    <DialogTitle>{account.name} - Full Transaction History</DialogTitle>
+                    <DialogTitle>{isEcosystem ? `Primary Ecosystem (${account.name})` : account.name} - Full Transaction History</DialogTitle>
                     <DialogDescription>
-                       A detailed, all-time breakdown of transactions affecting this account's balance. 
+                       A detailed, all-time breakdown of transactions affecting this {isEcosystem ? "ecosystem's" : "account's"} balance. 
                        The final calculated {isCard ? "due amount" : "balance"} is {formatCurrency(calculationResults.finalBalance)}.
                        {isCard && cardLimit != null && ` The credit limit is ${formatCurrency(cardLimit)}.`}
                     </DialogDescription>
@@ -190,7 +232,7 @@ export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChan
                             ) : (
                                 <TableRow>
                                     <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
-                                        No transactions found for this account.
+                                        No transactions found for this {isEcosystem ? 'ecosystem' : 'account'}.
                                     </TableCell>
                                 </TableRow>
                             )}
@@ -206,5 +248,3 @@ export function AccountDetailsDialog({ account, transactions, isOpen, onOpenChan
         </Dialog>
     )
 }
-
-    

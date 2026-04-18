@@ -109,6 +109,7 @@ export default function TransactionsPage(props: {
   const itemsPerPage = 100;
   
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const [isDetailsEcosystem, setIsDetailsEcosystem] = useState(false);
   const [selectedAccountForDetails, setSelectedAccountForDetails] = useState<AccountForDetails | null>(null);
 
   const [isAddOrEditDialogOpen, setIsAddOrEditDialogOpen] = useState(false);
@@ -549,7 +550,8 @@ export default function TransactionsPage(props: {
     ...accounts,
   ];
 
-  const handleAccountClick = (accountOrWallet: Account | WalletType, name?: string) => {
+  const handleAccountClick = (accountOrWallet: Account | WalletType, name?: string, forceEcosystem?: boolean) => {
+    setIsDetailsEcosystem(!!forceEcosystem);
     let accountDetails: AccountForDetails | null = null;
     if (typeof accountOrWallet === 'string') {
         accountDetails = {
@@ -763,6 +765,12 @@ export default function TransactionsPage(props: {
               currentPage={currentPage}
               itemsPerPage={itemsPerPage}
               onEditTransaction={handleEditClick}
+              onBalanceClick={() => {
+                const activeAccount = accountDataForDialog.find(a => a.id === activeTab);
+                if (activeAccount) {
+                    handleAccountClick(activeAccount as Account, activeAccount.name, activeTab === primaryAccount?.id);
+                }
+              }}
           />
         </div>
           {totalPages > 1 && (
@@ -772,7 +780,14 @@ export default function TransactionsPage(props: {
           )}
       </Card>
       
-      <AccountDetailsDialog account={selectedAccountForDetails} transactions={allTransactions} isOpen={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen} />
+      <AccountDetailsDialog 
+        account={selectedAccountForDetails} 
+        transactions={allTransactions} 
+        isOpen={isDetailsDialogOpen} 
+        onOpenChange={setIsDetailsDialogOpen}
+        isEcosystem={isDetailsEcosystem}
+        accounts={accounts}
+      />
       <AddTransactionDialog isOpen={isAddOrEditDialogOpen} onOpenChange={setIsAddOrEditDialogOpen} accounts={accountDataForDialog} transactionToEdit={transactionToEdit} />
     </div>
   );
