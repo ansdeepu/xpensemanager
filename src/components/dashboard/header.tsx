@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -16,7 +15,6 @@ import {
   HandCoins,
   LogOut,
   ArrowUpRight,
-  Building2,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -39,7 +37,6 @@ const menuItems = [
   { href: "/dashboard/transactions", label: "Transactions", icon: ArrowRightLeft },
   { href: "/dashboard/loans", label: "Loans", icon: HandCoins },
   { href: "/dashboard/bank-accounts", label: "Accounts", icon: Landmark },
-  { href: "/dashboard/post-bank", label: "Post Bank", icon: Building2 },
   { href: "/dashboard/categories", label: "Categories", icon: Shapes },
   { href: "/dashboard/bills-and-events", label: "Bills & Events", icon: FileText },
   { href: "/dashboard/reports", label: "Reports", icon: BookText },
