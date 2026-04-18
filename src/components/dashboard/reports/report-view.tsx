@@ -193,7 +193,8 @@ export function ReportView({
         
         return {
             id: l.id,
-            personName: l.personName,
+            // If the loan personName matches the current bank tab name, display it as "SBI Bank"
+            personName: isMatchByName ? "SBI Bank" : l.personName,
             totalGiven,
             totalRepayment,
             balance: totalGiven - totalRepayment,
@@ -354,7 +355,7 @@ export function ReportView({
                     <Card>
                         <CardHeader><CardTitle>Expense Details (All Time)</CardTitle></CardHeader>
                         <CardContent><Table><TableHeader><TableRow><TableHead>Category</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader><TableBody>{Object.entries(allAccountExpenseDetails).sort(([,a],[,b]) => b - a).map(([name, amount]) => (
-                            <TableRow key={name} onClick={() => handleLocalClick(name, amount, {})} className="cursor-pointer hover:bg-muted/50"><TableCell className="font-medium">{name}</TableCell><TableCell className="text-right text-red-600">{formatCurrency(amount)}</TableCell></TableRow>
+                            <TableRow key={name} onClick={() => handleLocalClick(name, amount, {})} className="cursor-pointer hover:bg-muted/50"><TableCell className="font-medium">{name}</TableCell><TableCell className="text-right text-green-600">{formatCurrency(amount)}</TableCell></TableRow>
                         ))}{Object.keys(allAccountExpenseDetails).length === 0 && <TableRow><TableCell colSpan={2} className="text-center py-4 text-muted-foreground text-xs italic">No expense records.</TableCell></TableRow>}</TableBody></Table></CardContent>
                     </Card>
                     <Card>
