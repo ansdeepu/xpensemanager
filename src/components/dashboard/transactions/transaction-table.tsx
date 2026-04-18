@@ -303,7 +303,11 @@ export function TransactionTable({
                           <div className="flex items-center justify-end gap-1">
                               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEditTransaction(t)}><Pencil className="h-3.5 w-3.5" /></Button>
                               <AlertDialog>
-                                  <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-destructive h-7 w-7"><Trash2 className="h-3.5 w-3.5" /></Button></AlertDialogTrigger>
+                                  <AlertDialogTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="text-destructive h-7 w-7">
+                                          <Trash2 className="h-3.5 w-3.5" />
+                                      </Button>
+                                  </AlertDialogTrigger>
                                   <AlertDialogContent>
                                       <AlertDialogHeader>
                                           <AlertDialogTitle>Are you sure?</AlertDialogTitle>
@@ -313,7 +317,7 @@ export function TransactionTable({
                                           <AlertDialogCancel>Cancel</AlertDialogCancel>
                                           <AlertDialogAction onClick={() => handleDeleteTransaction(t)} className="bg-destructive">Delete</AlertDialogAction>
                                       </AlertDialogFooter>
-                                  </AlertDialog>
+                                  </AlertDialogContent>
                               </AlertDialog>
                           </div>
                       </TableCell>
