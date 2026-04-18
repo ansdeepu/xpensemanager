@@ -385,13 +385,28 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
         if (bill.type !== 'bill') return null;
         
         // Match transactions by category and subcategory
-        const matchingTransactions = transactions.filter(t => 
-            t.type === 'expense' &&
-            (t.categoryId === bill.categoryId || t.category === bill.category) &&
-            t.subcategory === bill.subcategory
-        ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        const matchingTransactions = transactions.filter(t => {
+            if (t.type !== 'expense') return false;
+
+            // Check top-level fields
+            const matchesTopLevel = (t.categoryId === bill.categoryId || t.category === bill.category) &&
+                                     t.subcategory === bill.subcategory;
+            
+            if (matchesTopLevel) return true;
+
+            // Check sub-items (multiple entry/split transactions)
+            if (t.items && t.items.length > 0) {
+                return t.items.some(item => 
+                    (item.categoryId === bill.categoryId || item.category === bill.category) &&
+                    item.subcategory === bill.subcategory
+                );
+            }
+
+            return false;
+        }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
         if (matchingTransactions.length > 0) {
+            // Because we sorted descending (b - a), the first item is the most recent.
             return parseISO(matchingTransactions[0].date);
         }
         
