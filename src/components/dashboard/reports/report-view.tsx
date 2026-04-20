@@ -1,10 +1,8 @@
-
 "use client";
 
 import React, { useState, useMemo } from "react";
 import type { Transaction, Category, Account, Loan } from "@/lib/data";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { BookText, TrendingUp, TrendingDown, IndianRupee, ChevronDown, ChevronUp, Landmark } from "lucide-react";
 import { format, startOfMonth, endOfMonth, isWithinInterval, isValid, isBefore, parseISO } from "date-fns";
 import {
@@ -16,14 +14,6 @@ import {
   TableRow,
   TableFooter,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter as DialogFooterComponent,
-  DialogClose,
-} from "@/components/ui/dialog";
 import {
   Collapsible,
   CollapsibleContent,
@@ -98,6 +88,11 @@ export function ReportView({
  }) {
   const { currentDate } = useReportDate();
   
+  // State for summary collapsibles
+  const [isInflowOpen, setIsInflowOpen] = useState(false);
+  const [isOutflowOpen, setIsOutflowOpen] = useState(false);
+  const [isNetOpen, setIsNetOpen] = useState(false);
+
   const monthStart = useMemo(() => startOfMonth(currentDate), [currentDate]);
   const monthEnd = useMemo(() => endOfMonth(currentDate), [currentDate]);
   const currentMonthName = useMemo(() => format(currentDate, "MMM"), [currentDate]);
@@ -171,6 +166,7 @@ export function ReportView({
     const monthClosingBalance = prevBal + currentInflow - currentOutflow;
 
     const allAccountLoanDetails = loans.map(l => {
+        // Renaming logic for internal bank tabs
         const isMatchByName = l.personName.toLowerCase() === accountName.toLowerCase();
         const accountSpecificTransactions = (l.transactions || []).filter(tx => tx.accountId === accountId || isMatchByName);
         if (accountSpecificTransactions.length === 0) return null;
@@ -180,6 +176,7 @@ export function ReportView({
         
         return {
             id: l.id,
+            // Replace the bank's own name with "SBI Bank" in its tab
             personName: isMatchByName ? "SBI Bank" : l.personName,
             totalGiven,
             totalRepayment,
@@ -481,9 +478,72 @@ export function ReportView({
   return (
     <div className="space-y-6">
         <div className="grid gap-6 md:grid-cols-3">
-            <Collapsible open={isInflowOpen} onOpenChange={setIsInflowOpen}><CollapsibleTrigger asChild><Card className="cursor-pointer hover:bg-muted/30 transition-colors"><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total Inflow</CardTitle><div className="flex items-center gap-1"><TrendingUp className="h-4 w-4 text-muted-foreground" />{isInflowOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}</div></CardHeader><CardContent><div className="text-2xl font-bold text-green-600">{formatCurrency(grandTotalInflow)}</div><CollapsibleContent className="mt-4 pt-4 border-t space-y-2"><div className="flex justify-between text-xs"><span>Income:</span><span>{formatCurrency(monthlyReport.totalIncome)}</span></div><div className="flex justify-between text-xs"><span>Loan Taken:</span><span>{formatCurrency(monthlyLoanReport.totalLoanTaken)}</span></div><div className="flex justify-between text-xs"><span>Repay. Received:</span><span>{formatCurrency(monthlyLoanReport.totalRepaymentReceived)}</span></div><div className="flex justify-between text-xs"><span>SBI Usage:</span><span>{formatCurrency(monthlyLoanReport.totalSBILoan)}</span></div></CollapsibleContent></CardContent></Card></CollapsibleTrigger></Collapsible>
-            <Collapsible open={isOutflowOpen} onOpenChange={setIsOutflowOpen}><CollapsibleTrigger asChild><Card className="cursor-pointer hover:bg-muted/30 transition-colors"><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total Outflow</CardTitle><div className="flex items-center gap-1"><TrendingDown className="h-4 w-4 text-muted-foreground" />{isOutflowOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}</div></CardHeader><CardContent><div className="text-2xl font-bold text-red-600">{formatCurrency(grandTotalOutflow)}</div><CollapsibleContent className="mt-4 pt-4 border-t space-y-2"><div className="flex justify-between text-xs"><span>Expenses:</span><span>{formatCurrency(monthlyReport.totalExpense)}</span></div><div className="flex justify-between text-xs"><span>Loan Given:</span><span>{formatCurrency(monthlyLoanReport.totalLoanGiven)}</span></div><div className="flex justify-between text-xs"><span>Repay. Made:</span><span>{formatCurrency(monthlyLoanReport.totalRepaymentMade)}</span></div><div className="flex justify-between text-xs"><span>SBI CC Repay & Adj:</span><span>{formatCurrency(sbiNetAdjustmentOutflow)}</span></div></CollapsibleContent></CardContent></Card></CollapsibleTrigger></Collapsible>
-            <Collapsible open={isNetOpen} onOpenChange={setIsNetOpen}><CollapsibleTrigger asChild><Card className="cursor-pointer hover:bg-muted/30 transition-colors"><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Net Balance</CardTitle><div className="flex items-center gap-1"><IndianRupee className="h-4 w-4 text-muted-foreground" />{isNetOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}</div></CardHeader><CardContent><div className={cn("text-2xl font-bold", netBalance >= 0 ? 'text-foreground' : 'text-red-600')}>{formatCurrency(netBalance)}</div><CollapsibleContent className="mt-4 pt-4 border-t space-y-2"><div className="flex justify-between text-xs"><span>Inflow:</span><span className="text-green-600">{formatCurrency(grandTotalInflow)}</span></div><div className="flex justify-between text-xs"><span>Outflow:</span><span className="text-red-600">{formatCurrency(grandTotalOutflow)}</span></div></CollapsibleContent></CardContent></Card></CollapsibleTrigger></Collapsible>
+            <Collapsible open={isInflowOpen} onOpenChange={setIsInflowOpen}>
+              <CollapsibleTrigger asChild>
+                <Card className="cursor-pointer hover:bg-muted/30 transition-colors">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Inflow</CardTitle>
+                    <div className="flex items-center gap-1">
+                      <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                      {isInflowOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-green-600">{formatCurrency(grandTotalInflow)}</div>
+                    <CollapsibleContent className="mt-4 pt-4 border-t space-y-2">
+                      <div className="flex justify-between text-xs"><span>Income:</span><span>{formatCurrency(monthlyReport.totalIncome)}</span></div>
+                      <div className="flex justify-between text-xs"><span>Loan Taken:</span><span>{formatCurrency(monthlyLoanReport.totalLoanTaken)}</span></div>
+                      <div className="flex justify-between text-xs"><span>Repay. Received:</span><span>{formatCurrency(monthlyLoanReport.totalRepaymentReceived)}</span></div>
+                      <div className="flex justify-between text-xs"><span>SBI Usage:</span><span>{formatCurrency(monthlyLoanReport.totalSBILoan)}</span></div>
+                    </CollapsibleContent>
+                  </CardContent>
+                </Card>
+              </CollapsibleTrigger>
+            </Collapsible>
+
+            <Collapsible open={isOutflowOpen} onOpenChange={setIsOutflowOpen}>
+              <CollapsibleTrigger asChild>
+                <Card className="cursor-pointer hover:bg-muted/30 transition-colors">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Outflow</CardTitle>
+                    <div className="flex items-center gap-1">
+                      <TrendingDown className="h-4 w-4 text-muted-foreground" />
+                      {isOutflowOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-red-600">{formatCurrency(grandTotalOutflow)}</div>
+                    <CollapsibleContent className="mt-4 pt-4 border-t space-y-2">
+                      <div className="flex justify-between text-xs"><span>Expenses:</span><span>{formatCurrency(monthlyReport.totalExpense)}</span></div>
+                      <div className="flex justify-between text-xs"><span>Loan Given:</span><span>{formatCurrency(monthlyLoanReport.totalLoanGiven)}</span></div>
+                      <div className="flex justify-between text-xs"><span>Repay. Made:</span><span>{formatCurrency(monthlyLoanReport.totalRepaymentMade)}</span></div>
+                      <div className="flex justify-between text-xs"><span>SBI CC Repay & Adj:</span><span>{formatCurrency(sbiNetAdjustmentOutflow)}</span></div>
+                    </CollapsibleContent>
+                  </CardContent>
+                </Card>
+              </CollapsibleTrigger>
+            </Collapsible>
+
+            <Collapsible open={isNetOpen} onOpenChange={setIsNetOpen}>
+              <CollapsibleTrigger asChild>
+                <Card className="cursor-pointer hover:bg-muted/30 transition-colors">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Net Balance</CardTitle>
+                    <div className="flex items-center gap-1">
+                      <IndianRupee className="h-4 w-4 text-muted-foreground" />
+                      {isNetOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className={cn("text-2xl font-bold", netBalance >= 0 ? 'text-foreground' : 'text-red-600')}>{formatCurrency(netBalance)}</div>
+                    <CollapsibleContent className="mt-4 pt-4 border-t space-y-2">
+                      <div className="flex justify-between text-xs"><span>Inflow:</span><span className="text-green-600">{formatCurrency(grandTotalInflow)}</span></div>
+                      <div className="flex justify-between text-xs"><span>Outflow:</span><span className="text-red-600">{formatCurrency(grandTotalOutflow)}</span></div>
+                    </CollapsibleContent>
+                  </CardContent>
+                </Card>
+              </CollapsibleTrigger>
+            </Collapsible>
         </div>
 
         <FinancialAdvice totalIncome={grandTotalInflow} totalExpense={grandTotalOutflow} expenseByCategory={Object.fromEntries(Object.entries(monthlyReport.expenseByCategory).map(([k,v]) => [k, v.total]))} />
@@ -670,4 +730,3 @@ export function ReportView({
     </div>
   );
 }
-
