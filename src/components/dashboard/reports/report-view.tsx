@@ -563,7 +563,7 @@ export function ReportView({
                                 {monthlyLoanReport.totalSBILoan > 0 && (<TableRow className="font-medium text-green-600"><TableCell>SBI Credit Card Usage</TableCell><TableCell className="text-right">{formatCurrency(monthlyLoanReport.totalSBILoan)}</TableCell></TableRow>)}
                                 {monthlyLoanReport.totalSBICashback > 0 && (<TableRow className="font-medium text-green-600"><TableCell>SBI Credit Card Cashback</TableCell><TableCell className="text-right">{formatCurrency(monthlyLoanReport.totalSBICashback)}</TableCell></TableRow>)}
                             </TableBody>
-                            <TableFooter><TableRow><TableHead>Total Inflow</TableHead><TableHead className="text-right font-mono text-green-600">{formatCurrency(grandTotalInflow)}</TableHead></TableRow></TableFooter>
+                            <TableFooter><TableRow><TableCell className="font-bold">Total Inflow</TableCell><TableCell className="text-right font-mono text-green-600 font-bold">{formatCurrency(grandTotalInflow)}</TableCell></TableRow></TableFooter>
                         </Table>
                     </CardContent>
                 </Card>
@@ -587,8 +587,15 @@ export function ReportView({
                             ))}
                             {Object.keys(monthlyReport.incomeByCategory).length === 0 && <div className="text-center py-4 text-muted-foreground text-xs italic">No regular income categories.</div>}
                         </div>
+                        <Table className="mt-4 border-t">
+                            <TableFooter>
+                                <TableRow>
+                                    <TableCell className="font-bold text-sm">Grand Total Income</TableCell>
+                                    <TableCell className="text-right font-mono font-bold text-green-600">{formatCurrency(monthlyReport.totalIncome)}</TableCell>
+                                </TableRow>
+                            </TableFooter>
+                        </Table>
                     </CardContent>
-                    <TableFooter><TableRow className="bg-transparent border-t"><TableCell className="font-bold text-sm">Grand Total Income</TableCell><TableCell className="text-right font-mono font-bold text-green-600">{formatCurrency(monthlyReport.totalIncome)}</TableCell></TableRow></TableFooter>
                 </Card>
 
                 {/* DETAILED SBI USAGE (IF ANY) */}
@@ -601,7 +608,7 @@ export function ReportView({
                                 <TableBody>
                                     {monthlyLoanReport.sbiLoanTransactions.map((tx, idx) => (<TableRow key={idx}><TableCell>{tx.name}</TableCell><TableCell className="text-right text-green-600">{formatCurrency(tx.amount)}</TableCell></TableRow>))}
                                 </TableBody>
-                                <TableFooter><TableRow><TableHead>Total Usage</TableHead><TableHead className="text-right text-green-600">{formatCurrency(monthlyLoanReport.totalSBILoan)}</TableHead></TableRow></TableFooter>
+                                <TableFooter><TableRow><TableCell className="font-bold">Total Usage</TableCell><TableCell className="text-right text-green-600 font-bold">{formatCurrency(monthlyLoanReport.totalSBILoan)}</TableCell></TableRow></TableFooter>
                             </Table>
                         </CardContent>
                     </Card>
@@ -617,7 +624,7 @@ export function ReportView({
                                 <TableBody>
                                     {monthlyLoanReport.sbiCashbackTransactions.map((tx, idx) => (<TableRow key={idx}><TableCell>{tx.name}</TableCell><TableCell className="text-right text-green-600">{formatCurrency(tx.amount)}</TableCell></TableRow>))}
                                 </TableBody>
-                                <TableFooter><TableRow><TableHead>Total Cashback</TableHead><TableHead className="text-right text-green-600">{formatCurrency(monthlyLoanReport.totalSBICashback)}</TableHead></TableRow></TableFooter>
+                                <TableFooter><TableRow><TableCell className="font-bold">Total Cashback</TableCell><TableCell className="text-right text-green-600 font-bold">{formatCurrency(monthlyLoanReport.totalSBICashback)}</TableCell></TableRow></TableFooter>
                             </Table>
                         </CardContent>
                     </Card>
@@ -633,7 +640,7 @@ export function ReportView({
                                 {monthlyLoanReport.loanTakenTransactions.map(tx => (<TableRow key={tx.name}><TableCell>{tx.name}</TableCell><TableCell className="text-right text-green-600">{formatCurrency(tx.amount)}</TableCell></TableRow>))}
                                 {monthlyLoanReport.loanTakenTransactions.length === 0 && <TableRow><TableCell colSpan={2} className="text-center py-4 text-muted-foreground italic">No loans taken.</TableCell></TableRow>}
                             </TableBody>
-                            <TableFooter><TableRow><TableHead>Total Taken</TableHead><TableHead className="text-right text-green-600">{formatCurrency(monthlyLoanReport.totalLoanTaken)}</TableHead></TableRow></TableFooter>
+                            <TableFooter><TableRow><TableCell className="font-bold">Total Taken</TableCell><TableCell className="text-right text-green-600 font-bold">{formatCurrency(monthlyLoanReport.totalLoanTaken)}</TableCell></TableRow></TableFooter>
                         </Table>
                     </CardContent>
                 </Card>
@@ -648,7 +655,7 @@ export function ReportView({
                                 {monthlyLoanReport.repaymentReceivedTransactions.map(tx => (<TableRow key={tx.name}><TableCell>{tx.name}</TableCell><TableCell className="text-right text-green-600">{formatCurrency(tx.amount)}</TableCell></TableRow>))}
                                 {monthlyLoanReport.repaymentReceivedTransactions.length === 0 && <TableRow><TableCell colSpan={2} className="text-center py-4 text-muted-foreground italic">No repayments received.</TableCell></TableRow>}
                             </TableBody>
-                            <TableFooter><TableRow><TableHead>Total Received</TableHead><TableHead className="text-right text-green-600">{formatCurrency(monthlyLoanReport.totalRepaymentReceived)}</TableHead></TableRow></TableFooter>
+                            <TableFooter><TableRow><TableCell className="font-bold">Total Received</TableCell><TableCell className="text-right text-green-600 font-bold">{formatCurrency(monthlyLoanReport.totalRepaymentReceived)}</TableCell></TableRow></TableFooter>
                         </Table>
                     </CardContent>
                 </Card>
@@ -667,9 +674,10 @@ export function ReportView({
                                 {monthlyLoanReport.totalLoanGiven > 0 && (<TableRow className="font-medium text-red-600"><TableCell>Loan Given</TableCell><TableCell className="text-right">{formatCurrency(monthlyLoanReport.totalLoanGiven)}</TableCell></TableRow>)}
                                 {monthlyLoanReport.totalRepaymentMade > 0 && (<TableRow className="font-medium text-red-600"><TableCell>Repayment Made</TableCell><TableCell className="text-right">{formatCurrency(monthlyLoanReport.totalRepaymentMade)}</TableCell></TableRow>)}
                                 {(sbiOut > 0 || monthlyLoanReport.totalSBICashback > 0) && (<TableRow className="font-medium text-red-600"><TableCell>SBI Credit Card Repayment</TableCell><TableCell className="text-right">{formatCurrency(sbiOut + monthlyLoanReport.totalSBICashback)}</TableCell></TableRow>)}
+                                {monthlyLoanReport.totalSBICashback > 0 && (<TableRow className="font-medium text-red-600"><TableCell>SBI Credit Card Cashback</TableCell><TableCell className="text-right">{formatCurrency(monthlyLoanReport.totalSBICashback)}</TableCell></TableRow>)}
                                 {monthlyTransferSummary.total > 0 && (<TableRow className="font-medium text-red-600"><TableCell>Transfer Out</TableCell><TableCell className="text-right">{formatCurrency(monthlyTransferSummary.total)}</TableCell></TableRow>)}
                             </TableBody>
-                            <TableFooter><TableRow><TableHead>Total Outflow</TableHead><TableHead className="text-right font-mono text-red-600">{formatCurrency(grandTotalOutflow)}</TableHead></TableRow></TableFooter>
+                            <TableFooter><TableRow><TableCell className="font-bold">Total Outflow</TableCell><TableCell className="text-right font-mono text-red-600 font-bold">{formatCurrency(grandTotalOutflow)}</TableCell></TableRow></TableFooter>
                         </Table>
                     </CardContent>
                 </Card>
@@ -692,8 +700,15 @@ export function ReportView({
                                 </div>
                             ))}
                         </div>
+                        <Table className="mt-4 border-t">
+                            <TableFooter>
+                                <TableRow>
+                                    <TableCell className="font-bold text-sm">Total Regular Expenses</TableCell>
+                                    <TableCell className="text-right font-mono font-bold text-red-600">{formatCurrency(monthlyReport.totalRegularExpense)}</TableCell>
+                                </TableRow>
+                            </TableFooter>
+                        </Table>
                     </CardContent>
-                    <TableFooter><TableRow className="bg-transparent border-t"><TableCell className="font-bold text-sm">Total Regular Expenses</TableCell><TableCell className="text-right font-mono font-bold text-red-600">{formatCurrency(monthlyReport.totalRegularExpense)}</TableCell></TableRow></TableFooter>
                 </Card>
 
                 {/* DETAILED OCCASIONAL EXPENSES */}
@@ -715,11 +730,18 @@ export function ReportView({
                             ))}
                             {Object.keys(monthlyReport.occasionalExpenseByCategory).length === 0 && <div className="text-center py-4 text-muted-foreground text-xs italic">No occasional expenses.</div>}
                         </div>
+                        <Table className="mt-4 border-t">
+                            <TableFooter>
+                                <TableRow>
+                                    <TableCell className="font-bold text-sm">Total Occasional Expenses</TableCell>
+                                    <TableCell className="text-right font-mono font-bold text-red-600">{formatCurrency(monthlyReport.totalOccasionalExpense)}</TableCell>
+                                </TableRow>
+                            </TableFooter>
+                        </Table>
                     </CardContent>
-                    <TableFooter><TableRow className="bg-transparent border-t"><TableCell className="font-bold text-sm">Total Occasional Expenses</TableCell><TableCell className="text-right font-mono font-bold text-red-600">{formatCurrency(monthlyReport.totalOccasionalExpense)}</TableCell></TableRow></TableFooter>
                 </Card>
 
-                {/* DETAILED SBI REPAYMENTS & ADJUSTMENTS */}
+                {/* DETAILED SBI REPAYMENTS & ADJUSTMENTS (RENAMED TO SBI Credit Card Repayment) */}
                 {(monthlyLoanReport.sbiRepaymentTransactions.length > 0 || monthlyLoanReport.sbiChargesTransactions.length > 0 || monthlyLoanReport.sbiCashbackTransactions.length > 0) && (
                     <Card>
                         <CardHeader><CardTitle>SBI Credit Card Repayment</CardTitle></CardHeader>
@@ -731,7 +753,7 @@ export function ReportView({
                                     {monthlyLoanReport.sbiChargesTransactions.map((tx, idx) => (<TableRow key={`chg-${idx}`}><TableCell>{tx.name}</TableCell><TableCell className="text-right text-red-600">{formatCurrency(tx.amount)}</TableCell></TableRow>))}
                                     {monthlyLoanReport.sbiCashbackTransactions.map((tx, idx) => (<TableRow key={`cb-${idx}`}><TableCell>{tx.name} (Cashback)</TableCell><TableCell className="text-right text-red-600">{formatCurrency(tx.amount)}</TableCell></TableRow>))}
                                 </TableBody>
-                                <TableFooter><TableRow><TableHead>Total Repayment</TableHead><TableHead className="text-right text-red-600">{formatCurrency(sbiOut + monthlyLoanReport.totalSBICashback)}</TableHead></TableRow></TableFooter>
+                                <TableFooter><TableRow><TableCell className="font-bold">Total Repayment & Adj.</TableCell><TableCell className="text-right text-red-600 font-bold">{formatCurrency(sbiOut + monthlyLoanReport.totalSBICashback)}</TableCell></TableRow></TableFooter>
                             </Table>
                         </CardContent>
                     </Card>
@@ -747,7 +769,7 @@ export function ReportView({
                                 {monthlyLoanReport.loanGivenTransactions.map(tx => (<TableRow key={tx.name}><TableCell>{tx.name}</TableCell><TableCell className="text-right text-red-600">{formatCurrency(tx.amount)}</TableCell></TableRow>))}
                                 {monthlyLoanReport.loanGivenTransactions.length === 0 && <TableRow><TableCell colSpan={2} className="text-center py-4 text-muted-foreground italic">No loans given.</TableCell></TableRow>}
                             </TableBody>
-                            <TableFooter><TableRow><TableHead>Total Given</TableHead><TableHead className="text-right text-red-600">{formatCurrency(monthlyLoanReport.totalLoanGiven)}</TableHead></TableRow></TableFooter>
+                            <TableFooter><TableRow><TableCell className="font-bold">Total Given</TableCell><TableCell className="text-right text-red-600 font-bold">{formatCurrency(monthlyLoanReport.totalLoanGiven)}</TableCell></TableRow></TableFooter>
                         </Table>
                     </CardContent>
                 </Card>
@@ -762,7 +784,7 @@ export function ReportView({
                                 {monthlyLoanReport.repaymentMadeTransactions.map(tx => (<TableRow key={tx.name}><TableCell>{tx.name}</TableCell><TableCell className="text-right text-red-600">{formatCurrency(tx.amount)}</TableCell></TableRow>))}
                                 {monthlyLoanReport.repaymentMadeTransactions.length === 0 && <TableRow><TableCell colSpan={2} className="text-center py-4 text-muted-foreground italic">No repayments made.</TableCell></TableRow>}
                             </TableBody>
-                            <TableFooter><TableRow><TableHead>Total Repayment</TableHead><TableHead className="text-right text-red-600">{formatCurrency(monthlyLoanReport.totalRepaymentMade)}</TableHead></TableRow></TableFooter>
+                            <TableFooter><TableRow><TableCell className="font-bold">Total Made</TableCell><TableCell className="text-right text-red-600 font-bold">{formatCurrency(monthlyLoanReport.totalRepaymentMade)}</TableCell></TableRow></TableFooter>
                         </Table>
                     </CardContent>
                 </Card>
@@ -777,7 +799,7 @@ export function ReportView({
                                 {monthlyTransferSummary.details.map((t, idx) => (<TableRow key={idx}><TableCell>{t.name}</TableCell><TableCell className="text-right text-red-600">{formatCurrency(t.amount)}</TableCell></TableRow>))}
                                 {monthlyTransferSummary.details.length === 0 && <TableRow><TableCell colSpan={2} className="text-center py-4 text-muted-foreground italic">No external transfers.</TableCell></TableRow>}
                             </TableBody>
-                            <TableFooter><TableRow><TableHead>Total Transfer Out</TableHead><TableHead className="text-right text-red-600">{formatCurrency(monthlyTransferSummary.total)}</TableHead></TableRow></TableFooter>
+                            <TableFooter><TableRow><TableCell className="font-bold">Total Transfer Out</TableCell><TableCell className="text-right text-red-600 font-bold">{formatCurrency(monthlyTransferSummary.total)}</TableCell></TableRow></TableFooter>
                         </Table>
                     </CardContent>
                 </Card>
