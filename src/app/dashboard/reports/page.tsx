@@ -180,12 +180,6 @@ export default function ReportsPage() {
     );
   }
   
-  // Ecosystem Total = Sum of all non-card assets + wallets (excludes credit card debt)
-  const allBalance = accounts.reduce((sum, acc) => {
-      if (acc.type === 'card') return sum; 
-      return sum + acc.balance;
-  }, 0) + cashWalletBalance + digitalWalletBalance;
-
   // Filter out Credit Card tab as requested
   const filteredAccounts = accounts.filter(acc => acc.type !== 'card');
 
@@ -208,12 +202,8 @@ export default function ReportsPage() {
                 </div>
             </CardHeader>
         </Card>
-      <Tabs defaultValue={primaryAccount?.id || 'all'} className="w-full">
+      <Tabs defaultValue={primaryAccount?.id} className="w-full">
         <TabsList className="flex w-full overflow-x-auto h-auto p-1">
-          <TabsTrigger value="all" className="flex-shrink-0 flex flex-col h-auto p-2">
-            <span>Overall Summary</span>
-            <span className={cn("font-bold", allBalance >= 0 ? 'text-primary' : 'text-red-600')}>{formatCurrency(allBalance)}</span>
-          </TabsTrigger>
           {primaryAccount && (
             <TabsTrigger value={primaryAccount.id} className="flex-shrink-0 flex flex-col h-auto p-2 items-start text-left min-w-64">
               <span className="font-semibold text-sm">Primary ({primaryAccount.name})</span>
@@ -236,10 +226,6 @@ export default function ReportsPage() {
             </TabsTrigger>
           ))}
         </TabsList>
-
-        <TabsContent value="all" className="mt-6">
-          <ReportView transactions={transactions} categories={categories} accounts={accounts} loans={loans} isOverallSummary={true} />
-        </TabsContent>
         
         {accounts.map(account => (
           <TabsContent key={account.id} value={account.id} className="mt-6">
