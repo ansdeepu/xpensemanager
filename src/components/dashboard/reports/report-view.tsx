@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo } from "react";
@@ -88,7 +89,6 @@ export function ReportView({
  }) {
   const { currentDate } = useReportDate();
   
-  // State for summary collapsibles
   const [isInflowOpen, setIsInflowOpen] = useState(false);
   const [isOutflowOpen, setIsOutflowOpen] = useState(false);
   const [isNetOpen, setIsNetOpen] = useState(false);
@@ -106,7 +106,6 @@ export function ReportView({
     const accountName = accounts.find(a => a.id === accountId)?.name || 'Account';
     const isPostBank = accountName.toLowerCase().includes('post bank');
     
-    // Calculate ALL-TIME reconciliation
     let allTimeInflow = 0;
     let allTimeOutflow = 0;
     const allAccountIncomeDetails: Record<string, number> = {};
@@ -138,7 +137,6 @@ export function ReportView({
 
     const closingBalance = allTimeInflow - allTimeOutflow;
 
-    // Monthly Reconciliation
     let prevBal = 0;
     transactions.forEach(t => {
       const d = new Date(t.date);
@@ -166,7 +164,6 @@ export function ReportView({
     const monthClosingBalance = prevBal + currentInflow - currentOutflow;
 
     const allAccountLoanDetails = loans.map(l => {
-        // Renaming logic for internal bank tabs
         const isMatchByName = l.personName.toLowerCase() === accountName.toLowerCase();
         const accountSpecificTransactions = (l.transactions || []).filter(tx => tx.accountId === accountId || isMatchByName);
         if (accountSpecificTransactions.length === 0) return null;
@@ -176,7 +173,6 @@ export function ReportView({
         
         return {
             id: l.id,
-            // Replace the bank's own name with "SBI Bank" in its tab
             personName: isMatchByName ? "SBI Bank" : l.personName,
             totalGiven,
             totalRepayment,
@@ -471,8 +467,8 @@ export function ReportView({
   }, [monthlyTransactions, isOverallSummary, isPrimaryReport, accountId, creditCardIds, categories, currentMonthName]);
 
   const grandTotalInflow = monthlyReport.totalIncome + monthlyLoanReport.totalLoanTaken + monthlyLoanReport.totalRepaymentReceived + monthlyLoanReport.totalSBILoan + monthlyLoanReport.totalSBICashback;
-  const sbiNetAdjustmentOutflow = monthlyLoanReport.totalSBIRepayment + monthlyLoanReport.totalSBICharges - monthlyLoanReport.totalSBICashback;
-  const grandTotalOutflow = monthlyReport.totalExpense + monthlyLoanReport.totalLoanGiven + monthlyLoanReport.totalRepaymentMade + Math.max(0, sbiNetAdjustmentOutflow) + monthlyTransferSummary.total;
+  const sbiOut = monthlyLoanReport.totalSBIRepayment + monthlyLoanReport.totalSBICharges;
+  const grandTotalOutflow = monthlyReport.totalExpense + monthlyLoanReport.totalLoanGiven + monthlyLoanReport.totalRepaymentMade + sbiOut + monthlyTransferSummary.total;
   const netBalance = grandTotalInflow - grandTotalOutflow;
 
   return (
@@ -495,6 +491,7 @@ export function ReportView({
                       <div className="flex justify-between text-xs"><span>Loan Taken:</span><span>{formatCurrency(monthlyLoanReport.totalLoanTaken)}</span></div>
                       <div className="flex justify-between text-xs"><span>Repay. Received:</span><span>{formatCurrency(monthlyLoanReport.totalRepaymentReceived)}</span></div>
                       <div className="flex justify-between text-xs"><span>SBI Usage:</span><span>{formatCurrency(monthlyLoanReport.totalSBILoan)}</span></div>
+                      <div className="flex justify-between text-xs"><span>SBI Cashback:</span><span>{formatCurrency(monthlyLoanReport.totalSBICashback)}</span></div>
                     </CollapsibleContent>
                   </CardContent>
                 </Card>
@@ -517,7 +514,8 @@ export function ReportView({
                       <div className="flex justify-between text-xs"><span>Expenses:</span><span>{formatCurrency(monthlyReport.totalExpense)}</span></div>
                       <div className="flex justify-between text-xs"><span>Loan Given:</span><span>{formatCurrency(monthlyLoanReport.totalLoanGiven)}</span></div>
                       <div className="flex justify-between text-xs"><span>Repay. Made:</span><span>{formatCurrency(monthlyLoanReport.totalRepaymentMade)}</span></div>
-                      <div className="flex justify-between text-xs"><span>SBI CC Repay & Adj:</span><span>{formatCurrency(sbiNetAdjustmentOutflow)}</span></div>
+                      <div className="flex justify-between text-xs"><span>SBI CC Repay & Adj:</span><span>{formatCurrency(sbiOut)}</span></div>
+                      <div className="flex justify-between text-xs"><span>Transfer Out:</span><span>{formatCurrency(monthlyTransferSummary.total)}</span></div>
                     </CollapsibleContent>
                   </CardContent>
                 </Card>
@@ -552,7 +550,7 @@ export function ReportView({
             {/* LEFT COLUMN: INFLOWS */}
             <div className="space-y-6">
                 <Card>
-                    <CardHeader><CardTitle>Income Summary</CardTitle></CardHeader>
+                    <CardHeader><CardTitle>Income Details</CardTitle></CardHeader>
                     <CardContent>
                         <Table>
                             <TableHeader><TableRow><TableHead>Source</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
@@ -561,7 +559,7 @@ export function ReportView({
                                     <TableRow key={cat}><TableCell className="font-medium">{cat}</TableCell><TableCell className="text-right text-green-600">{formatCurrency(total)}</TableCell></TableRow>
                                 ))}
                                 {monthlyLoanReport.totalLoanTaken > 0 && (<TableRow className="font-medium text-green-600"><TableCell>Total Loan Taken</TableCell><TableCell className="text-right">{formatCurrency(monthlyLoanReport.totalLoanTaken)}</TableCell></TableRow>)}
-                                {monthlyLoanReport.totalRepaymentReceived > 0 && (<TableRow className="font-medium text-green-600"><TableCell>Repayment of Loan Given</TableCell><TableCell className="text-right">{formatCurrency(monthlyLoanReport.totalRepaymentReceived)}</TableCell></TableRow>)}
+                                {monthlyLoanReport.totalRepaymentReceived > 0 && (<TableRow className="font-medium text-green-600"><TableCell>Repayment Received</TableCell><TableCell className="text-right">{formatCurrency(monthlyLoanReport.totalRepaymentReceived)}</TableCell></TableRow>)}
                                 {monthlyLoanReport.totalSBILoan > 0 && (<TableRow className="font-medium text-green-600"><TableCell>SBI Credit Card Usage</TableCell><TableCell className="text-right">{formatCurrency(monthlyLoanReport.totalSBILoan)}</TableCell></TableRow>)}
                                 {monthlyLoanReport.totalSBICashback > 0 && (<TableRow className="font-medium text-green-600"><TableCell>SBI Credit Card Cashback</TableCell><TableCell className="text-right">{formatCurrency(monthlyLoanReport.totalSBICashback)}</TableCell></TableRow>)}
                             </TableBody>
@@ -570,7 +568,7 @@ export function ReportView({
                     </CardContent>
                 </Card>
 
-                {/* DETAILED INCOME SECTION */}
+                {/* DETAILED INCOME BREAKDOWN */}
                 <Card>
                     <CardHeader><CardTitle>Detailed Income Breakdown</CardTitle><CardDescription>Itemized sources for each income category.</CardDescription></CardHeader>
                     <CardContent>
@@ -591,6 +589,36 @@ export function ReportView({
                         </div>
                     </CardContent>
                 </Card>
+
+                {/* DETAILED SBI USAGE (IF ANY) */}
+                {monthlyLoanReport.sbiLoanTransactions.length > 0 && (
+                    <Card>
+                        <CardHeader><CardTitle>SBI Credit Card Usage Details</CardTitle></CardHeader>
+                        <CardContent>
+                            <Table className="text-xs">
+                                <TableHeader><TableRow><TableHead>Description</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+                                <TableBody>
+                                    {monthlyLoanReport.sbiLoanTransactions.map((tx, idx) => (<TableRow key={idx}><TableCell>{tx.name}</TableCell><TableCell className="text-right text-green-600">{formatCurrency(tx.amount)}</TableCell></TableRow>))}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {/* DETAILED SBI CASHBACK (IF ANY) */}
+                {monthlyLoanReport.sbiCashbackTransactions.length > 0 && (
+                    <Card>
+                        <CardHeader><CardTitle>SBI Credit Card Cashback Details</CardTitle></CardHeader>
+                        <CardContent>
+                            <Table className="text-xs">
+                                <TableHeader><TableRow><TableHead>Description</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+                                <TableBody>
+                                    {monthlyLoanReport.sbiCashbackTransactions.map((tx, idx) => (<TableRow key={idx}><TableCell>{tx.name}</TableCell><TableCell className="text-right text-green-600">{formatCurrency(tx.amount)}</TableCell></TableRow>))}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                )}
 
                 {/* LOAN TAKEN DETAILS */}
                 <Card>
@@ -624,24 +652,24 @@ export function ReportView({
             {/* RIGHT COLUMN: OUTFLOWS */}
             <div className="space-y-6">
                 <Card>
-                    <CardHeader><CardTitle>Expense Summary</CardTitle></CardHeader>
+                    <CardHeader><CardTitle>Expense Details</CardTitle></CardHeader>
                     <CardContent>
                         <Table>
                             <TableHeader><TableRow><TableHead>Outflow Type</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
                             <TableBody>
                                 <TableRow><TableCell>Regular Expenses</TableCell><TableCell className="text-right text-red-600">{formatCurrency(monthlyReport.totalRegularExpense)}</TableCell></TableRow>
                                 <TableRow><TableCell>Occasional Expenses</TableCell><TableCell className="text-right text-red-600">{formatCurrency(monthlyReport.totalOccasionalExpense)}</TableCell></TableRow>
-                                {monthlyLoanReport.totalLoanGiven > 0 && (<TableRow className="font-medium text-red-600"><TableCell>Total Loan Given</TableCell><TableCell className="text-right">{formatCurrency(monthlyLoanReport.totalLoanGiven)}</TableCell></TableRow>)}
-                                {monthlyLoanReport.totalRepaymentMade > 0 && (<TableRow className="font-medium text-red-600"><TableCell>Repayment of Loan Taken</TableCell><TableCell className="text-right">{formatCurrency(monthlyLoanReport.totalRepaymentMade)}</TableCell></TableRow>)}
-                                {sbiNetAdjustmentOutflow !== 0 && (<TableRow className="font-medium text-red-600"><TableCell>SBI CC Repay & Adj.</TableCell><TableCell className="text-right">{formatCurrency(sbiNetAdjustmentOutflow)}</TableCell></TableRow>)}
-                                {monthlyTransferSummary.total > 0 && (<TableRow className="font-medium text-red-600"><TableCell>External Transfers</TableCell><TableCell className="text-right">{formatCurrency(monthlyTransferSummary.total)}</TableCell></TableRow>)}
+                                {monthlyLoanReport.totalLoanGiven > 0 && (<TableRow className="font-medium text-red-600"><TableCell>Loan Given</TableCell><TableCell className="text-right">{formatCurrency(monthlyLoanReport.totalLoanGiven)}</TableCell></TableRow>)}
+                                {monthlyLoanReport.totalRepaymentMade > 0 && (<TableRow className="font-medium text-red-600"><TableCell>Repayment Made</TableCell><TableCell className="text-right">{formatCurrency(monthlyLoanReport.totalRepaymentMade)}</TableCell></TableRow>)}
+                                {sbiOut > 0 && (<TableRow className="font-medium text-red-600"><TableCell>SBI CC Repay & Adj.</TableCell><TableCell className="text-right">{formatCurrency(sbiOut)}</TableCell></TableRow>)}
+                                {monthlyTransferSummary.total > 0 && (<TableRow className="font-medium text-red-600"><TableCell>Transfer Out</TableCell><TableCell className="text-right">{formatCurrency(monthlyTransferSummary.total)}</TableCell></TableRow>)}
                             </TableBody>
                             <TableFooter><TableRow><TableHead>Total Outflow</TableHead><TableHead className="text-right font-mono text-red-600">{formatCurrency(grandTotalOutflow)}</TableHead></TableRow></TableFooter>
                         </Table>
                     </CardContent>
                 </Card>
 
-                {/* DETAILED REGULAR EXPENSES SECTION */}
+                {/* DETAILED REGULAR EXPENSES */}
                 <Card>
                     <CardHeader><CardTitle>Detailed Regular Expenses</CardTitle><CardDescription>Breakdown by category and sub-category.</CardDescription></CardHeader>
                     <CardContent>
@@ -662,7 +690,7 @@ export function ReportView({
                     </CardContent>
                 </Card>
 
-                {/* DETAILED OCCASIONAL EXPENSES SECTION */}
+                {/* DETAILED OCCASIONAL EXPENSES */}
                 <Card>
                     <CardHeader><CardTitle>Detailed Occasional Expenses</CardTitle><CardDescription>Non-recurring or special-month items.</CardDescription></CardHeader>
                     <CardContent>
@@ -683,6 +711,22 @@ export function ReportView({
                         </div>
                     </CardContent>
                 </Card>
+
+                {/* DETAILED SBI REPAYMENTS & ADJUSTMENTS */}
+                {(monthlyLoanReport.sbiRepaymentTransactions.length > 0 || monthlyLoanReport.sbiChargesTransactions.length > 0) && (
+                    <Card>
+                        <CardHeader><CardTitle>SBI CC Repayment & Adjustment Details</CardTitle></CardHeader>
+                        <CardContent>
+                            <Table className="text-xs">
+                                <TableHeader><TableRow><TableHead>Description</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+                                <TableBody>
+                                    {monthlyLoanReport.sbiRepaymentTransactions.map((tx, idx) => (<TableRow key={`rep-${idx}`}><TableCell>{tx.name}</TableCell><TableCell className="text-right text-red-600">{formatCurrency(tx.amount)}</TableCell></TableRow>))}
+                                    {monthlyLoanReport.sbiChargesTransactions.map((tx, idx) => (<TableRow key={`chg-${idx}`}><TableCell>{tx.name}</TableCell><TableCell className="text-right text-red-600">{formatCurrency(tx.amount)}</TableCell></TableRow>))}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                )}
 
                 {/* LOAN GIVEN DETAILS */}
                 <Card>
