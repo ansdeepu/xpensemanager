@@ -695,8 +695,7 @@ export function ReportView({
                                 <TableRow><TableCell>Occasional Expenses</TableCell><TableCell className="text-right text-red-600">{formatCurrency(monthlyReport.totalOccasionalExpense)}</TableCell></TableRow>
                                 {monthlyLoanReport.totalLoanGiven > 0 && (<TableRow className="font-medium text-red-600"><TableCell>Loan Given</TableCell><TableCell className="text-right">{formatCurrency(monthlyLoanReport.totalLoanGiven)}</TableCell></TableRow>)}
                                 {monthlyLoanReport.totalRepaymentMade > 0 && (<TableRow className="font-medium text-red-600"><TableCell>Repayment Made</TableCell><TableCell className="text-right">{formatCurrency(monthlyLoanReport.totalRepaymentMade)}</TableCell></TableRow>)}
-                                {(sbiOut > 0) && (<TableRow className="font-medium text-red-600"><TableCell>SBI Credit Card Repayment</TableCell><TableCell className="text-right">{formatCurrency(sbiOut)}</TableCell></TableRow>)}
-                                {monthlyLoanReport.totalSBICashback > 0 && (<TableRow className="font-medium text-red-600"><TableCell>SBI Credit Card Cashback</TableCell><TableCell className="text-right">{formatCurrency(monthlyLoanReport.totalSBICashback)}</TableCell></TableRow>)}
+                                {(sbiOut + monthlyLoanReport.totalSBICashback > 0) && (<TableRow className="font-medium text-red-600"><TableCell>SBI Credit Card Repayment</TableCell><TableCell className="text-right">{formatCurrency(sbiOut + monthlyLoanReport.totalSBICashback)}</TableCell></TableRow>)}
                                 {monthlyTransferSummary.total > 0 && (<TableRow className="font-medium text-red-600"><TableCell>Transfer Out</TableCell><TableCell className="text-right">{formatCurrency(monthlyTransferSummary.total)}</TableCell></TableRow>)}
                             </TableBody>
                             <TableFooter>
