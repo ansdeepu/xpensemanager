@@ -59,7 +59,8 @@ import {
     setYear, 
     isAfter, 
     startOfMonth,
-    startOfToday
+    startOfToday,
+    subMonths
 } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -110,36 +111,42 @@ function MonthSelector({ selectedMonths, onMonthToggle }: { selectedMonths: stri
 }
 
 const getNextPaymentDate = (bill: Bill) => {
-    if (bill.recurrence === 'occasional' || bill.type === 'special_day') return null;
+    if (bill.type === 'special_day') return null;
 
     let dueDate = parseISO(bill.dueDate);
-    const now = new Date();
+    const today = startOfToday();
 
     if (!isValid(dueDate)) return null;
 
-    while (isBefore(dueDate, now)) {
+    if (bill.recurrence === 'occasional' || bill.recurrence === 'none') {
+        return isBefore(dueDate, today) ? null : dueDate;
+    }
+
+    // For recurring bills, find the next occurrence starting from today
+    let nextDate = dueDate;
+    while (isBefore(nextDate, today)) {
          switch (bill.recurrence) {
             case 'monthly':
-                dueDate = addMonths(dueDate, 1);
+                nextDate = addMonths(nextDate, 1);
                 break;
             case 'quarterly':
-                dueDate = addQuarters(dueDate, 1);
+                nextDate = addQuarters(nextDate, 1);
                 break;
             case 'yearly':
-                dueDate = addYears(dueDate, 1);
+                nextDate = addYears(nextDate, 1);
                 break;
             default:
-                return null; 
+                return nextDate; 
         }
     }
-    return dueDate;
+    return nextDate;
 };
 
 const getCelebrationDate = (specialDay: Bill) => {
     const originalDate = parseISO(specialDay.dueDate);
     if (!isValid(originalDate)) return null;
 
-    const today = new Date();
+    const today = startOfToday();
     const currentYear = getYear(today);
     
     let celebrationDate = setYear(originalDate, currentYear);
@@ -332,7 +339,7 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
              determinedDueDate = new Date(dateValue);
              determinedDueDate = new Date(determinedDueDate.getTime() + determinedDueDate.getTimezoneOffset() * 60000);
         } else {
-            determinedDueDate = setDayOfMonth(new Date(), addDay);
+            determinedDueDate = setDayOfMonth(startOfToday(), addDay);
         }
         const categoryDoc = categories.find(c => c.id === addCategoryId);
         const newBill: Partial<Bill> & { userId: string } = {
@@ -576,12 +583,25 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                         </TableHeader>
                         <TableBody>
                             {sortedBills.map((bill, index) => {
-                                const dueDate = parseISO(bill.dueDate);
-                                const daysUntilDue = isValid(dueDate) ? differenceInDays(dueDate, new Date()) : 0;
+                                const nextPaymentDate = getNextPaymentDate(bill);
                                 const lastPaymentDate = getLastPaymentDate(bill);
                                 const isPaidThisMonth = lastPaymentDate && isAfter(lastPaymentDate, startOfMonth(new Date()));
-                                const isOverdue = bill.type === 'bill' && daysUntilDue < 0 && !isPaidThisMonth;
-                                const nextPaymentDate = getNextPaymentDate(bill);
+                                
+                                // Precise Overdue Check: Only overdue if the current cycle's date has passed and is not paid
+                                let isOverdue = false;
+                                let daysUntilDue = 0;
+                                if (bill.type === 'bill') {
+                                    if (bill.recurrence === 'monthly') {
+                                        const currentCycleDate = setDayOfMonth(startOfToday(), getDate(parseISO(bill.dueDate)));
+                                        isOverdue = isPast(currentCycleDate) && !isPaidThisMonth;
+                                        daysUntilDue = differenceInDays(nextPaymentDate || currentCycleDate, startOfToday());
+                                    } else {
+                                        const dueDate = parseISO(bill.dueDate);
+                                        isOverdue = isPast(dueDate) && !isPaidThisMonth;
+                                        daysUntilDue = isValid(dueDate) ? differenceInDays(dueDate, startOfToday()) : 0;
+                                    }
+                                }
+
                                 const celebrationDate = bill.type === 'special_day' ? getCelebrationDate(bill) : null;
                                 const missingPayments = getMissingPayments(bill, transactions);
                                 return (
@@ -623,7 +643,7 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                                         </>
                                     ) : (
                                         <>
-                                            <TableCell>{isValid(dueDate) ? format(dueDate, 'dd/MM/yyyy') : 'Invalid Date'}</TableCell>
+                                            <TableCell>{isValid(parseISO(bill.dueDate)) ? format(parseISO(bill.dueDate), 'dd/MM/yyyy') : 'Invalid Date'}</TableCell>
                                             <TableCell>{celebrationDate ? format(celebrationDate, 'dd/MM/yyyy') : '-'}</TableCell>
                                         </>
                                     )}
