@@ -423,7 +423,7 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                 return t.items.some(item => (item.categoryId === bill.categoryId || item.category === bill.category) && item.subcategory === bill.subcategory);
             }
             return false;
-        }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
         if (matchingTransactions.length > 0) {
             return parseISO(matchingTransactions[0].date);
         }
@@ -624,7 +624,12 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                                             <TableCell>
                                                 <div>{formatDueDate(bill)}</div>
                                                 <div className={cn("text-xs", isOverdue ? "text-red-500" : "text-muted-foreground")}>
-                                                    {isPaidThisMonth ? "Paid this month" : isOverdue ? "No. I want to check previous comment" : `Due in ${daysUntilDue} days`}
+                                                    {isPaidThisMonth 
+                                                        ? `Paid on ${format(lastPaymentDate!, 'MMMM')}` 
+                                                        : isOverdue 
+                                                            ? (lastPaymentDate ? `Paid on ${format(lastPaymentDate, 'MMMM')}` : "No. I want to check previous comment") 
+                                                            : `Due in ${daysUntilDue} days`
+                                                    }
                                                 </div>
                                             </TableCell>
                                             <TableCell>{lastPaymentDate ? format(lastPaymentDate, 'dd/MM/yyyy') : '-'}</TableCell>
