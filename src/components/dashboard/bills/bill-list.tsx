@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -40,7 +41,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PlusCircle, Pencil, Trash2, CalendarIcon as Calendar, FileText, Repeat, Gift } from "lucide-react";
+import { PlusCircle, Pencil, Trash2, CalendarIcon as Calendar, FileText, Repeat, Gift, AlertCircle } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
 import { collection, addDoc, query, where, onSnapshot, doc, deleteDoc, updateDoc, orderBy } from "firebase/firestore";
 import { 
@@ -67,6 +68,7 @@ import type { Bill, Category, Transaction } from "@/lib/data";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useAuthState } from "@/hooks/use-auth-state";
+import { Textarea } from "@/components/ui/textarea";
 
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-IN", {
@@ -108,6 +110,46 @@ function MonthSelector({ selectedMonths, onMonthToggle }: { selectedMonths: stri
     );
 }
 
+const getNextPaymentDate = (bill: Bill) => {
+    if (bill.recurrence === 'occasional' || bill.type === 'special_day') return null;
+
+    let dueDate = parseISO(bill.dueDate);
+    const now = new Date();
+
+    if (!isValid(dueDate)) return null;
+
+    while (isBefore(dueDate, now)) {
+         switch (bill.recurrence) {
+            case 'monthly':
+                dueDate = addMonths(dueDate, 1);
+                break;
+            case 'quarterly':
+                dueDate = addQuarters(dueDate, 1);
+                break;
+            case 'yearly':
+                dueDate = addYears(dueDate, 1);
+                break;
+            default:
+                return null; 
+        }
+    }
+    return dueDate;
+};
+
+const getCelebrationDate = (specialDay: Bill) => {
+    const originalDate = parseISO(specialDay.dueDate);
+    if (!isValid(originalDate)) return null;
+
+    const today = new Date();
+    const currentYear = getYear(today);
+    
+    let celebrationDate = setYear(originalDate, currentYear);
+    if (isBefore(celebrationDate, today)) {
+      celebrationDate = addYears(celebrationDate, 1);
+    }
+    
+    return celebrationDate;
+};
 
 const formatDueDate = (bill: Bill) => {
     const dueDate = parseISO(bill.dueDate);
@@ -149,7 +191,6 @@ const formatDueDate = (bill: Bill) => {
     }
 };
 
-
 export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
     const [allEvents, setAllEvents] = useState<Bill[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
@@ -168,6 +209,7 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
     const [addSelectedMonths, setAddSelectedMonths] = useState<string[]>([]);
     const [addCategoryId, setAddCategoryId] = useState<string>('');
     const [addSubcategory, setAddSubcategory] = useState<string>('');
+    const [addRemarks, setAddRemarks] = useState('');
 
     // Edit dialog state
     const [editDay, setEditDay] = useState<number | undefined>();
@@ -177,11 +219,11 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
     const [editSelectedMonths, setEditSelectedMonths] = useState<string[]>([]);
     const [editCategoryId, setEditCategoryId] = useState<string>('');
     const [editSubcategory, setEditSubcategory] = useState<string>('');
+    const [editRemarks, setEditRemarks] = useState('');
 
     useEffect(() => {
         setAddEventType(eventType);
     }, [eventType]);
-
 
     useEffect(() => {
         setClientLoaded(true);
@@ -189,7 +231,7 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
 
     useEffect(() => {
         if (user && db) {
-            const billsQuery = query(collection(db, "bills"), where("userId", "==", user.uid), orderBy("dueDate", "asc"));
+            const billsQuery = query(collection(db, "bills"), where("userId", "==", user.uid));
             const unsubscribeBills = onSnapshot(billsQuery, (querySnapshot) => {
                 const userBills: Bill[] = [];
                 querySnapshot.forEach((doc) => {
@@ -217,8 +259,18 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
         }
     }, [user, db]);
 
-    const bills = useMemo(() => {
-        return allEvents.filter(event => event.type === eventType);
+    const sortedBills = useMemo(() => {
+        const filtered = allEvents.filter(event => event.type === eventType);
+        return [...filtered].sort((a, b) => {
+            const dateA = a.type === 'bill' ? getNextPaymentDate(a) : getCelebrationDate(a);
+            const dateB = b.type === 'bill' ? getNextPaymentDate(b) : getCelebrationDate(b);
+            
+            if (!dateA && !dateB) return 0;
+            if (!dateA) return 1;
+            if (!dateB) return -1;
+            
+            return dateA.getTime() - dateB.getTime();
+        });
     }, [allEvents, eventType]);
 
     const expenseCategories = useMemo(() => {
@@ -227,15 +279,10 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
             .sort((a, b) => {
                 const aName = a.name.toLowerCase();
                 const bName = b.name.toLowerCase();
-                const aIsSpecial = aName.includes('hdfc bank') || aName.includes('post bank');
-                const bIsSpecial = bName.includes('hdfc bank') || bName.includes('post bank');
-
-                // If a is special and b is not, a should go later (return 1)
+                const aIsSpecial = aName.includes('fed bank') || aName.includes('hdfc bank') || aName.includes('post bank') || aName.includes('money box');
+                const bIsSpecial = bName.includes('fed bank') || bName.includes('hdfc bank') || bName.includes('post bank') || bName.includes('money box');
                 if (aIsSpecial && !bIsSpecial) return 1;
-                // If b is special and a is not, b should go later (return -1)
                 if (!aIsSpecial && bIsSpecial) return -1;
-                
-                // Otherwise, use the user's custom order
                 return (a.order ?? 0) - (b.order ?? 0);
             });
     }, [categories]);
@@ -250,7 +297,6 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
         return categories.find(c => c.id === editCategoryId)?.subcategories || [];
     }, [editCategoryId, categories]);
 
-
     useEffect(() => {
         if (selectedBill) {
             setEditEventType(selectedBill.type || 'bill');
@@ -258,6 +304,7 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
             setEditSelectedMonths(selectedBill.selectedMonths || []);
             setEditCategoryId(selectedBill.categoryId || '');
             setEditSubcategory(selectedBill.subcategory || '');
+            setEditRemarks(selectedBill.remarks || '');
             const dueDate = parseISO(selectedBill.dueDate);
             if (isValid(dueDate)) {
                 setEditDay(getDate(dueDate));
@@ -269,7 +316,6 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
         }
     }, [selectedBill]);
 
-
     const handleMonthToggle = (month: string, setMonths: React.Dispatch<React.SetStateAction<string[]>>) => {
         setMonths(prev => 
             prev.includes(month) ? prev.filter(m => m !== month) : [...prev, month]
@@ -279,22 +325,17 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
     const handleAddBill = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         if (!user) return;
-
         const formData = new FormData(event.currentTarget);
         const title = formData.get("title") as string;
-        
         let determinedDueDate: Date;
         if (addEventType === 'special_day') {
              const dateValue = formData.get("special-date") as string;
              determinedDueDate = new Date(dateValue);
-             const timezoneOffset = determinedDueDate.getTimezoneOffset() * 60000;
-             determinedDueDate = new Date(determinedDueDate.getTime() + timezoneOffset);
+             determinedDueDate = new Date(determinedDueDate.getTime() + determinedDueDate.getTimezoneOffset() * 60000);
         } else {
             determinedDueDate = setDayOfMonth(new Date(), addDay);
         }
-
         const categoryDoc = categories.find(c => c.id === addCategoryId);
-
         const newBill: Partial<Bill> & { userId: string } = {
             userId: user.uid,
             title: addEventType === 'special_day' ? title : (categoryDoc?.name && addSubcategory ? `${categoryDoc.name} / ${addSubcategory}` : title),
@@ -302,8 +343,8 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
             type: addEventType,
             amount: 0,
             recurrence: 'occasional',
+            remarks: addRemarks,
         };
-        
         if (addEventType === 'bill') {
             newBill.amount = parseFloat(formData.get("amount") as string);
             newBill.recurrence = addRecurrence;
@@ -313,42 +354,33 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
             newBill.subcategory = addSubcategory;
             newBill.title = `${newBill.category} / ${newBill.subcategory}`;
         }
-
         try {
             await addDoc(collection(db, "bills"), newBill);
             setIsAddDialogOpen(false);
-            setAddCategoryId('');
-            setAddSubcategory('');
-            setAddSelectedMonths([]);
-        } catch (error) {
-        }
+            setAddCategoryId(''); setAddSubcategory(''); setAddSelectedMonths([]); setAddRemarks('');
+        } catch (error) {}
     };
 
     const handleEditBill = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         if (!user || !selectedBill) return;
-
         const formData = new FormData(event.currentTarget);
         const title = formData.get("title") as string;
-        
         let determinedDueDate: Date;
         if (editEventType === 'special_day') {
              const dateValue = formData.get("special-date") as string;
              determinedDueDate = new Date(dateValue);
-             const timezoneOffset = determinedDueDate.getTimezoneOffset() * 60000;
-             determinedDueDate = new Date(determinedDueDate.getTime() + timezoneOffset);
+             determinedDueDate = new Date(determinedDueDate.getTime() + determinedDueDate.getTimezoneOffset() * 60000);
         } else {
             determinedDueDate = setDayOfMonth(new Date(selectedBill.dueDate), editDay || 1);
         }
-
         const categoryDoc = categories.find(c => c.id === editCategoryId);
-
         const updatedData: Partial<Bill> = {
             title: editEventType === 'special_day' ? title : (categoryDoc?.name && editSubcategory ? `${categoryDoc.name} / ${editSubcategory}` : title),
             dueDate: determinedDueDate.toISOString(),
             type: editEventType,
+            remarks: editRemarks,
         };
-
         if (editEventType === 'bill') {
             updatedData.amount = parseFloat(formData.get("amount") as string);
             updatedData.recurrence = editRecurrence;
@@ -358,22 +390,16 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
             updatedData.subcategory = editSubcategory;
             updatedData.title = `${updatedData.category} / ${updatedData.subcategory}`;
         }
-
         try {
-            const billRef = doc(db, "bills", selectedBill.id);
-            await updateDoc(billRef, updatedData);
+            await updateDoc(doc(db, "bills", selectedBill.id), updatedData);
             setIsEditDialogOpen(false);
             setSelectedBill(null);
-        } catch (error) {
-        }
+        } catch (error) {}
     };
 
     const handleDeleteBill = async (billId: string) => {
         if (!user) return;
-        try {
-            await deleteDoc(doc(db, "bills", billId));
-        } catch (error) {
-        }
+        try { await deleteDoc(doc(db, "bills", billId)); } catch (error) {}
     };
 
     const openEditDialog = (bill: Bill) => {
@@ -383,76 +409,45 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
 
     const getLastPaymentDate = (bill: Bill) => {
         if (bill.type !== 'bill') return null;
-        
-        // Match transactions by category and subcategory
         const matchingTransactions = transactions.filter(t => {
             if (t.type !== 'expense') return false;
-
-            // Check top-level fields
-            const matchesTopLevel = (t.categoryId === bill.categoryId || t.category === bill.category) &&
-                                     t.subcategory === bill.subcategory;
-            
+            const matchesTopLevel = (t.categoryId === bill.categoryId || t.category === bill.category) && t.subcategory === bill.subcategory;
             if (matchesTopLevel) return true;
-
-            // Check sub-items (multiple entry/split transactions)
             if (t.items && t.items.length > 0) {
-                return t.items.some(item => 
-                    (item.categoryId === bill.categoryId || item.category === bill.category) &&
-                    item.subcategory === bill.subcategory
-                );
+                return t.items.some(item => (item.categoryId === bill.categoryId || item.category === bill.category) && item.subcategory === bill.subcategory);
             }
-
             return false;
         }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
         if (matchingTransactions.length > 0) {
-            // Because we sorted descending (b - a), the first item is the most recent.
             return parseISO(matchingTransactions[0].date);
         }
-        
-        // Fallback to manually entered paidOn if no transaction matches
         return bill.paidOn ? parseISO(bill.paidOn) : null;
     };
 
-    const getNextPaymentDate = (bill: Bill) => {
-        if (bill.recurrence === 'occasional' || bill.type === 'special_day') return null;
-
-        let dueDate = parseISO(bill.dueDate);
-        const now = new Date();
-
-        while (isBefore(dueDate, now)) {
-             switch (bill.recurrence) {
-                case 'monthly':
-                    dueDate = addMonths(dueDate, 1);
-                    break;
-                case 'quarterly':
-                    dueDate = addQuarters(dueDate, 1);
-                    break;
-                case 'yearly':
-                    dueDate = addYears(dueDate, 1);
-                    break;
-                default:
-                    return null; 
-            }
+    const getMissingPayments = (bill: Bill, transactions: Transaction[]) => {
+        if (bill.type !== 'bill') return null;
+        if (bill.recurrence !== 'monthly') return null;
+        const today = new Date();
+        const currentYear = today.getFullYear();
+        const currentMonth = today.getMonth();
+        const missing: string[] = [];
+        for (let m = 0; m <= currentMonth; m++) {
+            const hasPayment = transactions.some(t => {
+                if (t.type !== 'expense') return false;
+                const d = new Date(t.date);
+                if (d.getFullYear() !== currentYear || d.getMonth() !== m) return false;
+                const matchesCat = t.categoryId === bill.categoryId || t.category === bill.category;
+                const matchesSub = t.subcategory === bill.subcategory;
+                if (matchesCat && matchesSub) return true;
+                if (t.items && t.items.length > 0) {
+                    return t.items.some(i => (i.categoryId === bill.categoryId || i.category === bill.category) && i.subcategory === bill.subcategory);
+                }
+                return false;
+            });
+            if (!hasPayment) missing.push(months[m]);
         }
-        return dueDate;
+        return missing.length > 0 ? `Unpaid in ${currentYear}: ${missing.join(', ')}` : null;
     };
-    
-    const getCelebrationDate = (specialDay: Bill) => {
-      const originalDate = parseISO(specialDay.dueDate);
-      if (!isValid(originalDate)) return null;
-
-      const today = new Date();
-      const currentYear = getYear(today);
-      
-      let celebrationDate = setYear(originalDate, currentYear);
-      if (isBefore(celebrationDate, today)) {
-        celebrationDate = addYears(celebrationDate, 1);
-      }
-      
-      return celebrationDate;
-    };
-
 
     if (loading || !clientLoaded) {
         return <Skeleton className="h-96 w-full" />
@@ -471,33 +466,25 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                     </div>
                     <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
                         <DialogTrigger asChild>
-                            <Button>
-                                <PlusCircle className="mr-2 h-4 w-4" />
-                                Add Event
-                            </Button>
+                            <Button><PlusCircle className="mr-2 h-4 w-4" /> Add Event</Button>
                         </DialogTrigger>
-                        <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-md">
+                        <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-xl">
                             <form onSubmit={handleAddBill}>
                                 <DialogHeader>
                                     <DialogTitle>Add New Event</DialogTitle>
-                                    <DialogDescription>
-                                        Enter the details for your new bill or special day.
-                                    </DialogDescription>
+                                    <DialogDescription>Enter the details for your new bill or special day.</DialogDescription>
                                 </DialogHeader>
                                 <div className="grid gap-4 py-4">
                                     <div className="space-y-2">
                                         <Label htmlFor="type">Event Type</Label>
-                                        <Select name="type" value={addEventType} onValueChange={(value) => setAddEventType(value as Bill['type'])}>
-                                            <SelectTrigger id="type">
-                                                <SelectValue placeholder="Select type" />
-                                            </SelectTrigger>
+                                        <Select name="type" value={addEventType} onValueChange={(v) => setAddEventType(v as Bill['type'])}>
+                                            <SelectTrigger id="type"><SelectValue placeholder="Select type" /></SelectTrigger>
                                             <SelectContent>
                                                 <SelectItem value="bill">Bill</SelectItem>
                                                 <SelectItem value="special_day">Special Day</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>
-
                                     {addEventType === 'bill' ? (
                                       <>
                                         <div className="grid grid-cols-2 gap-4">
@@ -505,22 +492,14 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                                                 <Label>Category</Label>
                                                 <Select value={addCategoryId} onValueChange={setAddCategoryId} required>
                                                     <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
-                                                    <SelectContent>
-                                                        {expenseCategories.map(cat => (
-                                                            <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                                                        ))}
-                                                    </SelectContent>
+                                                    <SelectContent>{expenseCategories.map(cat => (<SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>))}</SelectContent>
                                                 </Select>
                                             </div>
                                             <div className="space-y-2">
                                                 <Label>Sub-category</Label>
                                                 <Select value={addSubcategory} onValueChange={setAddSubcategory} disabled={!addCategoryId} required>
                                                     <SelectTrigger><SelectValue placeholder="Select sub-category" /></SelectTrigger>
-                                                    <SelectContent>
-                                                        {addSubcategories.map(sub => (
-                                                            <SelectItem key={sub.id} value={sub.name}>{sub.name}</SelectItem>
-                                                        ))}
-                                                    </SelectContent>
+                                                    <SelectContent>{addSubcategories.map(sub => (<SelectItem key={sub.id} value={sub.name}>{sub.name}</SelectItem>))}</SelectContent>
                                                 </Select>
                                             </div>
                                         </div>
@@ -531,10 +510,8 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                                             </div>
                                              <div className="space-y-2">
                                                 <Label htmlFor="recurrence">Recurrence</Label>
-                                                <Select name="recurrence" value={addRecurrence} onValueChange={(value) => setAddRecurrence(value as Bill['recurrence'])}>
-                                                    <SelectTrigger id="recurrence">
-                                                        <SelectValue placeholder="Select recurrence" />
-                                                    </SelectTrigger>
+                                                <Select name="recurrence" value={addRecurrence} onValueChange={(v) => setAddRecurrence(v as Bill['recurrence'])}>
+                                                    <SelectTrigger id="recurrence"><SelectValue placeholder="Select recurrence" /></SelectTrigger>
                                                     <SelectContent>
                                                         <SelectItem value="occasional">Occasional</SelectItem>
                                                         <SelectItem value="yearly">Yearly</SelectItem>
@@ -548,7 +525,11 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                                             <Label htmlFor="day">Due Day of Month</Label>
                                             <Input id="day" name="day" type="number" min="1" max="31" value={addDay} onChange={(e) => setAddDay(parseInt(e.target.value, 10))} placeholder="e.g. 26" required />
                                         </div>
-                                        <MonthSelector selectedMonths={addSelectedMonths} onMonthToggle={(month) => handleMonthToggle(month, setAddSelectedMonths)} />
+                                        <MonthSelector selectedMonths={addSelectedMonths} onMonthToggle={(m) => handleMonthToggle(m, setAddSelectedMonths)} />
+                                        <div className="space-y-2">
+                                            <Label htmlFor="add-remarks">Remarks (Manual Note)</Label>
+                                            <Textarea id="add-remarks" value={addRemarks} onChange={(e) => setAddRemarks(e.target.value)} placeholder="e.g. Payment made for previous month..." />
+                                        </div>
                                       </>
                                     ) : (
                                       <>
@@ -583,6 +564,7 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                                         <TableHead>Due Date</TableHead>
                                         <TableHead>Last Payment Date</TableHead>
                                         <TableHead>Next Due Date</TableHead>
+                                        <TableHead>Remarks</TableHead>
                                     </>
                                 ) : (
                                     <>
@@ -594,15 +576,17 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {bills.map((bill, index) => {
+                            {sortedBills.map((bill, index) => {
                                 const dueDate = parseISO(bill.dueDate);
                                 const daysUntilDue = isValid(dueDate) ? differenceInDays(dueDate, new Date()) : 0;
-                                const isOverdue = bill.type === 'bill' && daysUntilDue < 0 && !bill.paidOn;
-                                const nextPaymentDate = getNextPaymentDate(bill);
                                 const lastPaymentDate = getLastPaymentDate(bill);
+                                const isPaidThisMonth = lastPaymentDate && isAfter(lastPaymentDate, startOfMonth(new Date()));
+                                const isOverdue = bill.type === 'bill' && daysUntilDue < 0 && !isPaidThisMonth;
+                                const nextPaymentDate = getNextPaymentDate(bill);
                                 const celebrationDate = bill.type === 'special_day' ? getCelebrationDate(bill) : null;
+                                const missingPayments = getMissingPayments(bill, transactions);
                                 return (
-                                <TableRow key={bill.id} className={cn(bill.type === 'bill' && lastPaymentDate && isAfter(lastPaymentDate, startOfToday()) && "text-muted-foreground")}>
+                                <TableRow key={bill.id} className={cn(bill.type === 'bill' && isPaidThisMonth && "text-muted-foreground")}>
                                     <TableCell>{index + 1}</TableCell>
                                     <TableCell className="font-medium">
                                         <div className="flex items-center gap-2">
@@ -610,8 +594,7 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                                             <span>{bill.title}</span>
                                              {bill.type === 'bill' && bill.recurrence !== 'occasional' && (
                                                 <Badge variant="outline" className="capitalize flex items-center gap-1">
-                                                   <Repeat className="h-3 w-3" />
-                                                   {bill.recurrence}
+                                                   <Repeat className="h-3 w-3" /> {bill.recurrence}
                                                 </Badge>
                                             )}
                                         </div>
@@ -622,11 +605,22 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                                             <TableCell>
                                                 <div>{formatDueDate(bill)}</div>
                                                 <div className={cn("text-xs", isOverdue ? "text-red-500" : "text-muted-foreground")}>
-                                                    {lastPaymentDate && isAfter(lastPaymentDate, startOfMonth(new Date())) ? "Paid this month" : isOverdue ? `Overdue by ${-daysUntilDue} days` : `Due in ${daysUntilDue} days`}
+                                                    {isPaidThisMonth ? "Paid this month" : isOverdue ? `Overdue by ${-daysUntilDue} days` : `Due in ${daysUntilDue} days`}
                                                 </div>
                                             </TableCell>
                                             <TableCell>{lastPaymentDate ? format(lastPaymentDate, 'dd/MM/yyyy') : '-'}</TableCell>
                                             <TableCell>{nextPaymentDate ? format(nextPaymentDate, 'dd/MM/yyyy') : '-'}</TableCell>
+                                            <TableCell className="max-w-[200px]">
+                                                <div className="flex flex-col gap-1">
+                                                    {bill.remarks && <p className="text-sm font-medium">{bill.remarks}</p>}
+                                                    {missingPayments && (
+                                                        <div className="flex items-center gap-1.5 text-xs text-red-600 bg-red-50 dark:bg-red-950/20 px-2 py-1 rounded-md">
+                                                            <AlertCircle className="h-3.5 w-3.5" />
+                                                            <span>{missingPayments}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </TableCell>
                                         </>
                                     ) : (
                                         <>
@@ -635,20 +629,11 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                                         </>
                                     )}
                                     <TableCell className="text-right">
-                                        <Button variant="ghost" size="icon" onClick={() => openEditDialog(bill)} className="mr-2">
-                                            <Pencil className="h-4 w-4" />
-                                        </Button>
+                                        <Button variant="ghost" size="icon" onClick={() => openEditDialog(bill)} className="mr-2"><Pencil className="h-4 w-4" /></Button>
                                         <AlertDialog>
-                                            <AlertDialogTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
-                                            </AlertDialogTrigger>
+                                            <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
                                             <AlertDialogContent>
-                                                <AlertDialogHeader>
-                                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                    <AlertDialogDescription>This will permanently delete this event.</AlertDialogDescription>
-                                                </AlertDialogHeader>
+                                                <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete this event.</AlertDialogDescription></AlertDialogHeader>
                                                 <AlertDialogFooter>
                                                     <AlertDialogCancel>Cancel</AlertDialogCancel>
                                                     <AlertDialogAction onClick={() => handleDeleteBill(bill.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
@@ -664,7 +649,7 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
             </Card>
 
             <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-                <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-md">
+                <DialogContent onInteractOutside={(e) => e.preventDefault()} className="sm:max-w-xl">
                     <form onSubmit={handleEditBill}>
                         <DialogHeader>
                             <DialogTitle>Edit Event</DialogTitle>
@@ -673,7 +658,7 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                         <div className="grid gap-4 py-4">
                              <div className="space-y-2">
                                 <Label htmlFor="edit-type">Event Type</Label>
-                                <Select name="type" value={editEventType} onValueChange={(value) => setEditEventType(value as Bill['type'])}>
+                                <Select name="type" value={editEventType} onValueChange={(v) => setEditEventType(v as Bill['type'])}>
                                     <SelectTrigger id="edit-type"><SelectValue placeholder="Select type" /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="bill">Bill</SelectItem>
@@ -681,7 +666,6 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                                     </SelectContent>
                                 </Select>
                             </div>
-
                             {editEventType === 'bill' ? (
                                 <>
                                     <div className="grid grid-cols-2 gap-4">
@@ -689,22 +673,14 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                                             <Label>Category</Label>
                                             <Select value={editCategoryId} onValueChange={setEditCategoryId} required>
                                                 <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
-                                                <SelectContent>
-                                                    {expenseCategories.map(cat => (
-                                                        <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
+                                                <SelectContent>{expenseCategories.map(cat => (<SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>))}</SelectContent>
                                             </Select>
                                         </div>
                                         <div className="space-y-2">
                                             <Label>Sub-category</Label>
                                             <Select value={editSubcategory} onValueChange={setEditSubcategory} disabled={!editCategoryId} required>
                                                 <SelectTrigger><SelectValue placeholder="Select sub-category" /></SelectTrigger>
-                                                <SelectContent>
-                                                    {editSubcategories.map(sub => (
-                                                        <SelectItem key={sub.id} value={sub.name}>{sub.name}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
+                                                <SelectContent>{editSubcategories.map(sub => (<SelectItem key={sub.id} value={sub.name}>{sub.name}</SelectItem>))}</SelectContent>
                                             </Select>
                                         </div>
                                     </div>
@@ -715,7 +691,7 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                                         </div>
                                         <div className="space-y-2">
                                             <Label htmlFor="edit-recurrence">Recurrence</Label>
-                                            <Select name="recurrence" value={editRecurrence} onValueChange={(value) => setEditRecurrence(value as Bill['recurrence'])}>
+                                            <Select name="recurrence" value={editRecurrence} onValueChange={(v) => setEditRecurrence(v as Bill['recurrence'])}>
                                                 <SelectTrigger id="edit-recurrence"><SelectValue placeholder="Select recurrence" /></SelectTrigger>
                                                 <SelectContent>
                                                     <SelectItem value="occasional">Occasional</SelectItem>
@@ -730,7 +706,11 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                                         <Label htmlFor="edit-day">Due Day of Month</Label>
                                         <Input id="edit-day" name="edit-day" type="number" min="1" max="31" value={editDay ?? ''} onChange={(e) => setEditDay(e.target.value === '' ? undefined : parseInt(e.target.value, 10))} required />
                                     </div>
-                                    <MonthSelector selectedMonths={editSelectedMonths} onMonthToggle={(month) => handleMonthToggle(month, setEditSelectedMonths)} />
+                                    <MonthSelector selectedMonths={editSelectedMonths} onMonthToggle={(m) => handleMonthToggle(m, setEditSelectedMonths)} />
+                                    <div className="space-y-2">
+                                        <Label htmlFor="edit-remarks">Remarks (Manual Note)</Label>
+                                        <Textarea id="edit-remarks" value={editRemarks} onChange={(e) => setEditRemarks(e.target.value)} placeholder="e.g. Payment made for previous month..." />
+                                    </div>
                                 </>
                             ) : (
                                 <>

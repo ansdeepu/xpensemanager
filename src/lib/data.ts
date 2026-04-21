@@ -37,6 +37,7 @@ export type Bill = {
   categoryId?: string;
   category?: string;
   subcategory?: string;
+  remarks?: string;
 }
 
 export type Transaction = {
