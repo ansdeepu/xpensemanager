@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -605,7 +604,7 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                                             <TableCell>
                                                 <div>{formatDueDate(bill)}</div>
                                                 <div className={cn("text-xs", isOverdue ? "text-red-500" : "text-muted-foreground")}>
-                                                    {isPaidThisMonth ? "Paid this month" : isOverdue ? `Overdue by ${-daysUntilDue} days` : `Due in ${daysUntilDue} days`}
+                                                    {isPaidThisMonth ? "Paid this month" : isOverdue ? "please check this. this payment was done on 22/03/2026" : `Due in ${daysUntilDue} days`}
                                                 </div>
                                             </TableCell>
                                             <TableCell>{lastPaymentDate ? format(lastPaymentDate, 'dd/MM/yyyy') : '-'}</TableCell>
