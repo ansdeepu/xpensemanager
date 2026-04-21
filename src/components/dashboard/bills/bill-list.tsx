@@ -41,7 +41,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PlusCircle, Pencil, Trash2, CalendarIcon as Calendar, FileText, Repeat, Gift, AlertCircle } from "lucide-react";
-import { auth, db } from "@/lib/firebase";
+import { db } from "@/lib/firebase";
 import { collection, addDoc, query, where, onSnapshot, doc, deleteDoc, updateDoc, orderBy } from "firebase/firestore";
 import { 
     format, 
@@ -59,8 +59,7 @@ import {
     setYear, 
     isAfter, 
     startOfMonth,
-    startOfToday,
-    subMonths
+    startOfToday
 } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -122,7 +121,6 @@ const getNextPaymentDate = (bill: Bill) => {
         return isBefore(dueDate, today) ? null : dueDate;
     }
 
-    // For recurring bills, find the next occurrence starting from today
     let nextDate = dueDate;
     while (isBefore(nextDate, today)) {
          switch (bill.recurrence) {
@@ -207,7 +205,6 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
     const [user, loading] = useAuthState();
     const [clientLoaded, setClientLoaded] = useState(false);
     
-    // Add dialog state
     const [addEventType, setAddEventType] = useState<Bill['type']>(eventType);
     const [addDay, setAddDay] = useState<number>(getDate(new Date()));
     const [addDate, setAddDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
@@ -217,7 +214,6 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
     const [addSubcategory, setAddSubcategory] = useState<string>('');
     const [addRemarks, setAddRemarks] = useState('');
 
-    // Edit dialog state
     const [editDay, setEditDay] = useState<number | undefined>();
     const [editDate, setEditDate] = useState<string>('');
     const [editEventType, setEditEventType] = useState<Bill['type']>('bill');
@@ -263,7 +259,7 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                 unsubscribeTransactions();
             }
         }
-    }, [user, db]);
+    }, [user]);
 
     const sortedBills = useMemo(() => {
         const filtered = allEvents.filter(event => event.type === eventType);
@@ -423,7 +419,7 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                 return t.items.some(item => (item.categoryId === bill.categoryId || item.category === bill.category) && item.subcategory === bill.subcategory);
             }
             return false;
-        }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         if (matchingTransactions.length > 0) {
             return parseISO(matchingTransactions[0].date);
         }
@@ -534,7 +530,7 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                                         <MonthSelector selectedMonths={addSelectedMonths} onMonthToggle={(m) => handleMonthToggle(m, setAddSelectedMonths)} />
                                         <div className="space-y-2">
                                             <Label htmlFor="add-remarks">Remarks (Manual Note)</Label>
-                                            <Textarea id="add-remarks" value={addRemarks} onChange={(e) => setAddRemarks(e.target.value)} placeholder="e.g. Payment made for previous month..." />
+                                            <Textarea id="add-remarks" value={addRemarks} onChange={(e) => setAddRemarks(e.target.value)} placeholder="e.g. Payment details..." />
                                         </div>
                                       </>
                                     ) : (
@@ -587,7 +583,6 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                                 const lastPaymentDate = getLastPaymentDate(bill);
                                 const isPaidThisMonth = lastPaymentDate && isAfter(lastPaymentDate, startOfMonth(new Date()));
                                 
-                                // Precise Overdue Check: Only overdue if the current cycle's date has passed and is not paid
                                 let isOverdue = false;
                                 let daysUntilDue = 0;
                                 if (bill.type === 'bill') {
@@ -627,7 +622,7 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                                                     {isPaidThisMonth 
                                                         ? `Paid on ${format(lastPaymentDate!, 'MMMM')}` 
                                                         : isOverdue 
-                                                            ? (lastPaymentDate ? `Paid on ${format(lastPaymentDate, 'MMMM')}` : "No. I want to check previous comment") 
+                                                            ? "Overdue" 
                                                             : `Due in ${daysUntilDue} days`
                                                     }
                                                 </div>
@@ -733,7 +728,7 @@ export function BillList({ eventType }: { eventType: 'bill' | 'special_day' }) {
                                     <MonthSelector selectedMonths={editSelectedMonths} onMonthToggle={(m) => handleMonthToggle(m, setEditSelectedMonths)} />
                                     <div className="space-y-2">
                                         <Label htmlFor="edit-remarks">Remarks (Manual Note)</Label>
-                                        <Textarea id="edit-remarks" value={editRemarks} onChange={(e) => setEditRemarks(e.target.value)} placeholder="e.g. Payment made for previous month..." />
+                                        <Textarea id="edit-remarks" value={editRemarks} onChange={(e) => setEditRemarks(e.target.value)} placeholder="e.g. Note about previous payments..." />
                                     </div>
                                 </>
                             ) : (
