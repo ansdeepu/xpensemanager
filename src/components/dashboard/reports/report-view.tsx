@@ -162,6 +162,15 @@ export function ReportView({
         const accountSpecificTransactions = (l.transactions || []).filter(tx => tx.accountId === accountId || isMatchByName);
         if (accountSpecificTransactions.length === 0) return null;
         
+        const sortedTxs = [...accountSpecificTransactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        
+        let runningBalance = 0;
+        const txsWithRunningBalance = sortedTxs.map(tx => {
+            if (tx.type === 'loan') runningBalance += tx.amount;
+            else runningBalance -= tx.amount;
+            return { ...tx, currentBalance: runningBalance };
+        });
+
         const totalGiven = accountSpecificTransactions.filter(tx => tx.type === 'loan').reduce((sum, tx) => sum + tx.amount, 0);
         const totalRepayment = accountSpecificTransactions.filter(tx => tx.type === 'repayment').reduce((sum, tx) => sum + tx.amount, 0);
         
@@ -171,7 +180,7 @@ export function ReportView({
             totalGiven,
             totalRepayment,
             balance: totalGiven - totalRepayment,
-            transactions: accountSpecificTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+            transactions: txsWithRunningBalance.reverse()
         };
     }).filter(Boolean);
 
@@ -234,7 +243,7 @@ export function ReportView({
             <Card>
                 <CardHeader>
                     <CardTitle>Post Bank Category Breakdown (All Time)</CardTitle>
-                    <CardDescription>Pasbook status of all sub-funds and income streams within the Post Bank account.</CardDescription>
+                    <CardDescription>Passbook status of all sub-funds and income streams within the Post Bank account.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Accordion type="single" collapsible className="w-full">
@@ -320,13 +329,21 @@ export function ReportView({
                                     </AccordionTrigger>
                                     <AccordionContent>
                                         <Table className="text-[10px]">
-                                            <TableHeader><TableRow><TableHead>Date</TableHead><TableHead className="text-right">Loan</TableHead><TableHead className="text-right">Repayment</TableHead></TableRow></TableHeader>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>Date</TableHead>
+                                                    <TableHead className="text-right">Loan</TableHead>
+                                                    <TableHead className="text-right">Repayment</TableHead>
+                                                    <TableHead className="text-right">Balance</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
                                             <TableBody>
                                                 {loan!.transactions.map(tx => (
                                                     <TableRow key={tx.id}>
                                                         <TableCell>{format(parseISO(tx.date), 'dd/MM/yy')}</TableCell>
                                                         <TableCell className="text-right text-red-600">{tx.type === 'loan' ? formatCurrency(tx.amount) : ''}</TableCell>
                                                         <TableCell className="text-right text-green-600">{tx.type === 'repayment' ? formatCurrency(tx.amount) : ''}</TableCell>
+                                                        <TableCell className="text-right font-mono">{formatCurrency(tx.currentBalance)}</TableCell>
                                                     </TableRow>
                                                 ))}
                                             </TableBody>
@@ -335,6 +352,7 @@ export function ReportView({
                                                     <TableCell className="font-bold">Total</TableCell>
                                                     <TableCell className="text-right text-red-600 font-bold">{formatCurrency(loan!.totalGiven)}</TableCell>
                                                     <TableCell className="text-right text-green-600 font-bold">{formatCurrency(loan!.totalRepayment)}</TableCell>
+                                                    <TableCell className="text-right font-bold">{formatCurrency(loan!.balance)}</TableCell>
                                                 </TableRow>
                                             </TableFooter>
                                         </Table>
@@ -354,7 +372,7 @@ export function ReportView({
                             <TableHeader><TableRow><TableHead>Category</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
                             <TableBody>
                                 {Object.entries(allAccountExpenseDetails).sort(([,a],[,b]) => b - a).map(([name, amount]) => (
-                                    <TableRow key={name}><TableCell className="font-medium">{name}</TableCell><TableCell className="text-right text-green-600">{formatCurrency(amount)}</TableCell></TableRow>
+                                    <TableRow key={name}><TableCell className="font-medium">{name}</TableCell><TableCell className="text-right text-red-600">{formatCurrency(amount)}</TableCell></TableRow>
                                 ))}
                                 {Object.keys(allAccountExpenseDetails).length === 0 && <TableRow><TableCell colSpan={2} className="text-center py-4 text-muted-foreground text-xs italic">No expense records.</TableCell></TableRow>}
                             </TableBody>
@@ -869,7 +887,7 @@ export function ReportView({
                             </TableBody>
                             <TableFooter>
                                 <TableRow>
-                                    <TableCell className="font-bold">Total Transfer Out</TableCell>
+                                    <TableCell colSpan={2} className="font-bold">Total Transfer Out</TableCell>
                                     <TableCell className="text-right text-red-600 font-bold">{formatCurrency(monthlyTransferSummary.total)}</TableCell>
                                 </TableRow>
                             </TableFooter>
