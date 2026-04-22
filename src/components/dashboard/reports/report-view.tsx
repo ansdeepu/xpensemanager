@@ -101,7 +101,6 @@ export function ReportView({
   const creditCardIds = useMemo(() => new Set(accounts.filter(a => a.type === 'card').map(a => a.id)), [accounts]);
   const sbiCardId = useMemo(() => accounts.find(a => a.type === 'card' && a.name.toLowerCase().includes('sbi'))?.id, [accounts]);
 
-  // --- PASSBOOK SPECIFIC LOGIC (Individual Bank Tabs) ---
   if (!isOverallSummary && !isPrimaryReport && accountId) {
     const accountName = accounts.find(a => a.id === accountId)?.name || 'Account';
     const isPostBank = accountName.toLowerCase().includes('post bank');
@@ -181,7 +180,10 @@ export function ReportView({
         };
     }).filter(Boolean);
 
-    const postBankAccordionData = isPostBank ? postBankCategoryNames.map(cat => {
+    const incomeCategoryNames = categories.filter(c => c.type === 'income').map(c => c.name);
+    const combinedPostBankCategories = Array.from(new Set([...postBankCategoryNames, ...incomeCategoryNames]));
+
+    const postBankAccordionData = isPostBank ? combinedPostBankCategories.map(cat => {
         const filteredTxs = transactions.filter(t => 
             (t.accountId === accountId || t.fromAccountId === accountId || t.toAccountId === accountId) && 
             (t.subcategory === cat || t.category === cat || (t.description && t.description.toLowerCase().includes(cat.toLowerCase())))
@@ -200,7 +202,7 @@ export function ReportView({
             return { ...t, credit: credit || null, debit: debit || null, balance: runningBalance };
         });
         return { name: cat, totalCredit: creditTotal, totalDebit: debitTotal, balance: creditTotal - debitTotal, transactions: txsWithDetails.reverse() };
-    }) : [];
+    }).filter(cat => cat.transactions.length > 0 || postBankCategoryNames.includes(cat.name)) : [];
 
     return (
       <div className="space-y-6">
@@ -234,7 +236,7 @@ export function ReportView({
         {isPostBank ? (
             <>
                 <Card>
-                    <CardHeader><CardTitle>Post Bank Category Breakdown (All Time)</CardTitle><CardDescription>Status of sub-funds within the account.</CardDescription></CardHeader>
+                    <CardHeader><CardTitle>Post Bank Category Breakdown (All Time)</CardTitle><CardDescription>Status of sub-funds and income categories within the account.</CardDescription></CardHeader>
                     <CardContent>
                         <Accordion type="single" collapsible className="w-full">
                             {postBankAccordionData.map((cat, idx) => (
@@ -244,10 +246,6 @@ export function ReportView({
                                     </AccordionTrigger>
                                     <AccordionContent>
                                         <div className="p-4 bg-muted/30 rounded-lg">
-                                            <div className="flex gap-4 mb-4 text-xs font-semibold">
-                                                <span>Total Credit: <span className="text-green-600">{formatCurrency(cat.totalCredit)}</span></span>
-                                                <span>Total Debit: <span className="text-red-600">{formatCurrency(cat.totalDebit)}</span></span>
-                                            </div>
                                             <Table className="text-xs">
                                                 <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Description</TableHead><TableHead className="text-right">Credit</TableHead><TableHead className="text-right">Debit</TableHead><TableHead className="text-right">Balance</TableHead></TableRow></TableHeader>
                                                 <TableBody>
@@ -261,6 +259,14 @@ export function ReportView({
                                                         </TableRow>
                                                     ))}
                                                 </TableBody>
+                                                <TableFooter>
+                                                    <TableRow>
+                                                        <TableCell colSpan={2} className="font-bold">Total</TableCell>
+                                                        <TableCell className="text-right text-green-600 font-bold">{formatCurrency(cat.totalCredit)}</TableCell>
+                                                        <TableCell className="text-right text-red-600 font-bold">{formatCurrency(cat.totalDebit)}</TableCell>
+                                                        <TableCell className="text-right font-bold">{formatCurrency(cat.balance)}</TableCell>
+                                                    </TableRow>
+                                                </TableFooter>
                                             </Table>
                                         </div>
                                     </AccordionContent>
@@ -291,6 +297,13 @@ export function ReportView({
                                                         </TableRow>
                                                     ))}
                                                 </TableBody>
+                                                <TableFooter>
+                                                    <TableRow>
+                                                        <TableCell className="font-bold">Total</TableCell>
+                                                        <TableCell className="text-right text-red-600 font-bold">{formatCurrency(loan!.totalGiven)}</TableCell>
+                                                        <TableCell className="text-right text-green-600 font-bold">{formatCurrency(loan!.totalRepayment)}</TableCell>
+                                                    </TableRow>
+                                                </TableFooter>
                                             </Table>
                                         </AccordionContent>
                                     </AccordionItem>
@@ -301,11 +314,26 @@ export function ReportView({
                     </Card>
                     <Card>
                         <CardHeader><CardTitle>Transfer Details (All Time)</CardTitle></CardHeader>
-                        <CardContent><ScrollArea className="h-[300px]"><Table><TableBody>{allAccountTransferDetails.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(t => {
-                                const isOut = t.fromAccountId === accountId;
-                                const otherName = accounts.find(a => a.id === (isOut ? t.toAccountId : t.fromAccountId))?.name || 'Other';
-                                return <TableRow key={t.id}><TableCell className="text-xs">{format(new Date(t.date), 'dd/MM/yy')}</TableCell><TableCell className="text-xs">{isOut ? `➔ ${otherName}` : `← ${otherName}`}</TableCell><TableCell className={cn("text-right text-xs", isOut ? "text-red-600" : "text-green-600")}>{formatCurrency(t.amount)}</TableCell></TableRow>
-                            })}{allAccountTransferDetails.length === 0 && <TableRow><TableCell colSpan={3} className="text-center py-10 text-muted-foreground">No transfers recorded.</TableCell></TableRow>}</TableBody></Table></ScrollArea></CardContent>
+                        <CardContent>
+                            <ScrollArea className="h-[300px]">
+                                <Table>
+                                    <TableBody>
+                                        {allAccountTransferDetails.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(t => {
+                                            const isOut = t.fromAccountId === accountId;
+                                            const otherName = accounts.find(a => a.id === (isOut ? t.toAccountId : t.fromAccountId))?.name || 'Other';
+                                            return <TableRow key={t.id}><TableCell className="text-xs">{format(new Date(t.date), 'dd/MM/yy')}</TableCell><TableCell className="text-xs">{isOut ? `➔ ${otherName}` : `← ${otherName}`}</TableCell><TableCell className={cn("text-right text-xs", isOut ? "text-red-600" : "text-green-600")}>{formatCurrency(t.amount)}</TableCell></TableRow>
+                                        })}
+                                        {allAccountTransferDetails.length === 0 && <TableRow><TableCell colSpan={3} className="text-center py-10 text-muted-foreground">No transfers recorded.</TableCell></TableRow>}
+                                    </TableBody>
+                                    <TableFooter>
+                                        <TableRow>
+                                            <TableCell colSpan={2} className="font-bold">Summary</TableCell>
+                                            <TableCell className="text-right font-bold">{formatCurrency(allAccountTransferDetails.reduce((s, t) => s + t.amount, 0))}</TableCell>
+                                        </TableRow>
+                                    </TableFooter>
+                                </Table>
+                            </ScrollArea>
+                        </CardContent>
                     </Card>
                 </div>
             </>
@@ -314,31 +342,86 @@ export function ReportView({
                 <div className="space-y-6">
                     <Card>
                         <CardHeader><CardTitle>Income Details (All Time)</CardTitle></CardHeader>
-                        <CardContent><Table><TableHeader><TableRow><TableHead>Source</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader><TableBody>{Object.entries(allAccountIncomeDetails).sort(([,a],[,b]) => b - a).map(([name, amount]) => (
-                            <TableRow key={name}><TableCell className="font-medium">{name}</TableCell><TableCell className="text-right text-green-600">{formatCurrency(amount)}</TableCell></TableRow>
-                        ))}{Object.keys(allAccountIncomeDetails).length === 0 && <TableRow><TableCell colSpan={2} className="text-center py-4 text-muted-foreground text-xs italic">No income records.</TableCell></TableRow>}</TableBody></Table></CardContent>
+                        <CardContent>
+                            <Table>
+                                <TableHeader><TableRow><TableHead>Source</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+                                <TableBody>
+                                    {Object.entries(allAccountIncomeDetails).sort(([,a],[,b]) => b - a).map(([name, amount]) => (
+                                        <TableRow key={name}><TableCell className="font-medium">{name}</TableCell><TableCell className="text-right text-green-600">{formatCurrency(amount)}</TableCell></TableRow>
+                                    ))}
+                                    {Object.keys(allAccountIncomeDetails).length === 0 && <TableRow><TableCell colSpan={2} className="text-center py-4 text-muted-foreground text-xs italic">No income records.</TableCell></TableRow>}
+                                </TableBody>
+                                <TableFooter>
+                                    <TableRow>
+                                        <TableCell className="font-bold">Grand Total</TableCell>
+                                        <TableCell className="text-right text-green-600 font-bold">{formatCurrency(Object.values(allAccountIncomeDetails).reduce((s, a) => s + a, 0))}</TableCell>
+                                    </TableRow>
+                                </TableFooter>
+                            </Table>
+                        </CardContent>
                     </Card>
                     <Card>
                         <CardHeader><CardTitle>Loan Details (All Time)</CardTitle></CardHeader>
                         <CardContent><Accordion type="single" collapsible className="w-full">{allAccountLoanDetails.map(loan => (
-                            <AccordionItem key={loan!.id} value={loan!.id}><AccordionTrigger className="py-2 hover:no-underline"><div className="flex justify-between w-full pr-4 text-sm font-medium"><span>{loan!.personName}</span><Badge variant="outline">{formatCurrency(loan!.balance)}</Badge></div></AccordionTrigger><AccordionContent><Table className="text-[10px]"><TableHeader><TableRow><TableHead>Date</TableHead><TableHead className="text-right">Loan</TableHead><TableHead className="text-right">Repayment</TableHead></TableRow></TableHeader><TableBody>{loan!.transactions.map(tx => (<TableRow key={tx.id}><TableCell>{format(parseISO(tx.date), 'dd/MM/yy')}</TableCell><TableCell className="text-right text-red-600">{tx.type === 'loan' ? formatCurrency(tx.amount) : ''}</TableCell><TableCell className="text-right text-green-600">{tx.type === 'repayment' ? formatCurrency(tx.amount) : ''}</TableCell></TableRow>))}</TableBody></Table></AccordionContent></AccordionItem>
+                            <AccordionItem key={loan!.id} value={loan!.id}><AccordionTrigger className="py-2 hover:no-underline"><div className="flex justify-between w-full pr-4 text-sm font-medium"><span>{loan!.personName}</span><Badge variant="outline">{formatCurrency(loan!.balance)}</Badge></div></AccordionTrigger><AccordionContent>
+                                <Table className="text-[10px]">
+                                    <TableHeader><TableRow><TableHead>Date</TableHead><TableHead className="text-right">Loan</TableHead><TableHead className="text-right">Repayment</TableHead></TableRow></TableHeader>
+                                    <TableBody>{loan!.transactions.map(tx => (<TableRow key={tx.id}><TableCell>{format(parseISO(tx.date), 'dd/MM/yy')}</TableCell><TableCell className="text-right text-red-600">{tx.type === 'loan' ? formatCurrency(tx.amount) : ''}</TableCell><TableCell className="text-right text-green-600">{tx.type === 'repayment' ? formatCurrency(tx.amount) : ''}</TableCell></TableRow>))}</TableBody>
+                                    <TableFooter>
+                                        <TableRow>
+                                            <TableCell className="font-bold">Total</TableCell>
+                                            <TableCell className="text-right text-red-600 font-bold">{formatCurrency(loan!.totalGiven)}</TableCell>
+                                            <TableCell className="text-right text-green-600 font-bold">{formatCurrency(loan!.totalRepayment)}</TableCell>
+                                        </TableRow>
+                                    </TableFooter>
+                                </Table>
+                            </AccordionContent></AccordionItem>
                         ))}{allAccountLoanDetails.length === 0 && <div className="text-center py-10 text-muted-foreground text-xs italic">No loans found.</div>}</Accordion></CardContent>
                     </Card>
                 </div>
                 <div className="space-y-6">
                     <Card>
                         <CardHeader><CardTitle>Expense Details (All Time)</CardTitle></CardHeader>
-                        <CardContent><Table><TableHeader><TableRow><TableHead>Category</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader><TableBody>{Object.entries(allAccountExpenseDetails).sort(([,a],[,b]) => b - a).map(([name, amount]) => (
-                            <TableRow key={name}><TableCell className="font-medium">{name}</TableCell><TableCell className="text-right text-green-600">{formatCurrency(amount)}</TableCell></TableRow>
-                        ))}{Object.keys(allAccountExpenseDetails).length === 0 && <TableRow><TableCell colSpan={2} className="text-center py-4 text-muted-foreground text-xs italic">No expense records.</TableCell></TableRow>}</TableBody></Table></CardContent>
+                        <CardContent>
+                            <Table>
+                                <TableHeader><TableRow><TableHead>Category</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+                                <TableBody>
+                                    {Object.entries(allAccountExpenseDetails).sort(([,a],[,b]) => b - a).map(([name, amount]) => (
+                                        <TableRow key={name}><TableCell className="font-medium">{name}</TableCell><TableCell className="text-right text-green-600">{formatCurrency(amount)}</TableCell></TableRow>
+                                    ))}
+                                    {Object.keys(allAccountExpenseDetails).length === 0 && <TableRow><TableCell colSpan={2} className="text-center py-4 text-muted-foreground text-xs italic">No expense records.</TableCell></TableRow>}
+                                </TableBody>
+                                <TableFooter>
+                                    <TableRow>
+                                        <TableCell className="font-bold">Grand Total</TableCell>
+                                        <TableCell className="text-right text-red-600 font-bold">{formatCurrency(Object.values(allAccountExpenseDetails).reduce((s, a) => s + a, 0))}</TableCell>
+                                    </TableRow>
+                                </TableFooter>
+                            </Table>
+                        </CardContent>
                     </Card>
                     <Card>
                         <CardHeader><CardTitle>Transfer Details (All Time)</CardTitle></CardHeader>
-                        <CardContent><ScrollArea className="h-[300px]"><Table><TableBody>{allAccountTransferDetails.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(t => {
-                                const isOut = t.fromAccountId === accountId;
-                                const otherName = accounts.find(a => a.id === (isOut ? t.toAccountId : t.fromAccountId))?.name || 'Other';
-                                return <TableRow key={t.id}><TableCell className="text-xs">{format(new Date(t.date), 'dd/MM/yy')}</TableCell><TableCell className="text-xs">{isOut ? `➔ ${otherName}` : `← ${otherName}`}</TableCell><TableCell className={cn("text-right text-xs", isOut ? "text-red-600" : "text-green-600")}>{formatCurrency(t.amount)}</TableCell></TableRow>
-                            })}{allAccountTransferDetails.length === 0 && <TableRow><TableCell colSpan={3} className="text-center py-10 text-muted-foreground">No transfers recorded.</TableCell></TableRow>}</TableBody></Table></ScrollArea></CardContent>
+                        <CardContent>
+                            <ScrollArea className="h-[300px]">
+                                <Table>
+                                    <TableBody>
+                                        {allAccountTransferDetails.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(t => {
+                                            const isOut = t.fromAccountId === accountId;
+                                            const otherName = accounts.find(a => a.id === (isOut ? t.toAccountId : t.fromAccountId))?.name || 'Other';
+                                            return <TableRow key={t.id}><TableCell className="text-xs">{format(new Date(t.date), 'dd/MM/yy')}</TableCell><TableCell className="text-xs">{isOut ? `➔ ${otherName}` : `← ${otherName}`}</TableCell><TableCell className={cn("text-right text-xs", isOut ? "text-red-600" : "text-green-600")}>{formatCurrency(t.amount)}</TableCell></TableRow>
+                                        })}
+                                        {allAccountTransferDetails.length === 0 && <TableRow><TableCell colSpan={3} className="text-center py-10 text-muted-foreground">No transfers recorded.</TableCell></TableRow>}
+                                    </TableBody>
+                                    <TableFooter>
+                                        <TableRow>
+                                            <TableCell colSpan={2} className="font-bold">Summary</TableCell>
+                                            <TableCell className="text-right font-bold">{formatCurrency(allAccountTransferDetails.reduce((s, t) => s + t.amount, 0))}</TableCell>
+                                        </TableRow>
+                                    </TableFooter>
+                                </Table>
+                            </ScrollArea>
+                        </CardContent>
                     </Card>
                 </div>
             </div>
@@ -347,7 +430,6 @@ export function ReportView({
     );
   }
 
-  // --- MONTHLY SUMMARY LOGIC (PRIMARY & OVERALL) ---
   const monthlyTransactions = useMemo(() => {
     return transactions.filter(t => {
         const d = new Date(t.date);
@@ -547,7 +629,6 @@ export function ReportView({
         <FinancialAdvice totalIncome={grandTotalInflow} totalExpense={grandTotalOutflow} expenseByCategory={Object.fromEntries(Object.entries(monthlyReport.expenseByCategory).map(([k,v]) => [k, v.total]))} />
 
         <div className="grid gap-6 lg:grid-cols-2 items-start">
-            {/* LEFT COLUMN: INFLOWS */}
             <div className="space-y-6">
                 <Card>
                     <CardHeader><CardTitle>Income Details</CardTitle></CardHeader>
@@ -576,7 +657,6 @@ export function ReportView({
                     </CardContent>
                 </Card>
 
-                {/* DETAILED INCOME BREAKDOWN */}
                 <Card>
                     <CardHeader><CardTitle>Detailed Income Breakdown</CardTitle><CardDescription>Itemized sources for each income category.</CardDescription></CardHeader>
                     <CardContent>
@@ -602,7 +682,6 @@ export function ReportView({
                     </CardContent>
                 </Card>
 
-                {/* DETAILED SBI USAGE */}
                 <Card>
                     <CardHeader><CardTitle>SBI Credit Card Usage Details</CardTitle></CardHeader>
                     <CardContent>
@@ -622,7 +701,6 @@ export function ReportView({
                     </CardContent>
                 </Card>
 
-                {/* DETAILED SBI CASHBACK */}
                 <Card>
                     <CardHeader><CardTitle>SBI Credit Card Cashback Details</CardTitle></CardHeader>
                     <CardContent>
@@ -642,7 +720,6 @@ export function ReportView({
                     </CardContent>
                 </Card>
 
-                {/* LOAN TAKEN DETAILS */}
                 <Card>
                     <CardHeader><CardTitle>Loan Taken Details</CardTitle></CardHeader>
                     <CardContent>
@@ -662,7 +739,6 @@ export function ReportView({
                     </CardContent>
                 </Card>
 
-                {/* REPAYMENT RECEIVED DETAILS */}
                 <Card>
                     <CardHeader><CardTitle>Repayment Received Details</CardTitle></CardHeader>
                     <CardContent>
@@ -683,7 +759,6 @@ export function ReportView({
                 </Card>
             </div>
 
-            {/* RIGHT COLUMN: OUTFLOWS */}
             <div className="space-y-6">
                 <Card>
                     <CardHeader><CardTitle>Expense Details</CardTitle></CardHeader>
@@ -708,7 +783,6 @@ export function ReportView({
                     </CardContent>
                 </Card>
 
-                {/* DETAILED REGULAR EXPENSES */}
                 <Card>
                     <CardHeader><CardTitle>Detailed Regular Expenses</CardTitle><CardDescription>Breakdown by category and sub-category.</CardDescription></CardHeader>
                     <CardContent>
@@ -734,7 +808,6 @@ export function ReportView({
                     </CardContent>
                 </Card>
 
-                {/* DETAILED OCCASIONAL EXPENSES */}
                 <Card>
                     <CardHeader><CardTitle>Detailed Occasional Expenses</CardTitle><CardDescription>Non-recurring or special-month items.</CardDescription></CardHeader>
                     <CardContent>
@@ -760,7 +833,6 @@ export function ReportView({
                     </CardContent>
                 </Card>
 
-                {/* SBI CREDIT CARD REPAYMENT */}
                 <Card>
                     <CardHeader><CardTitle>SBI Credit Card Repayment</CardTitle></CardHeader>
                     <CardContent>
@@ -782,7 +854,6 @@ export function ReportView({
                     </CardContent>
                 </Card>
 
-                {/* LOAN GIVEN DETAILS */}
                 <Card>
                     <CardHeader><CardTitle>Loan Given Details</CardTitle></CardHeader>
                     <CardContent>
@@ -802,7 +873,6 @@ export function ReportView({
                     </CardContent>
                 </Card>
 
-                {/* REPAYMENT MADE DETAILS */}
                 <Card>
                     <CardHeader><CardTitle>Repayment Made Details</CardTitle></CardHeader>
                     <CardContent>
@@ -822,7 +892,6 @@ export function ReportView({
                     </CardContent>
                 </Card>
 
-                {/* EXTERNAL TRANSFERS DETAILS */}
                 <Card>
                     <CardHeader><CardTitle>External Transfer Details</CardTitle><CardDescription>Outflows to non-primary accounts.</CardDescription></CardHeader>
                     <CardContent>
