@@ -187,7 +187,9 @@ export function ReportView({
     const postBankCatDoc = categories.find(c => c.name.toLowerCase().includes('post bank'));
     const userDefinedSubFunds = postBankCatDoc ? postBankCatDoc.subcategories.map(s => s.name) : [];
     const incomeCategoryNames = categories.filter(c => c.type === 'income').map(c => c.name);
-    const combinedPostBankCategories = Array.from(new Set([...userDefinedSubFunds, ...incomeCategoryNames]));
+    // Filter out "POST Bank" itself to avoid redundant row as requested
+    const combinedPostBankCategories = Array.from(new Set([...userDefinedSubFunds, ...incomeCategoryNames]))
+        .filter(name => name.toLowerCase() !== 'post bank');
 
     const postBankAccordionData = isPostBank ? combinedPostBankCategories.map(cat => {
         const filteredTxs = transactions.filter(t => 
