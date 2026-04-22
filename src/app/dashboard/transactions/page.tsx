@@ -387,7 +387,6 @@ export default function TransactionsPage(props: {
     const isPrimaryView = activeTab === primaryAccount?.id;
     const creditCardIds = accounts.filter(acc => acc.type === 'card').map(acc => acc.id);
     
-    // 1. Get ALL transactions that affect the current view
     const viewTransactions = allTransactions.filter(t => {
         const fromAccountIsWallet = t.fromAccountId === 'cash-wallet' || t.fromAccountId === 'digital-wallet';
         const toAccountIsWallet = t.toAccountId === 'cash-wallet' || t.toAccountId === 'digital-wallet';
@@ -423,13 +422,11 @@ export default function TransactionsPage(props: {
       return b.amount - a.amount;
     });
 
-    // 2. Calculate running balances for constituents
     const balances = new Map<string, number>();
     const breakdowns = new Map<string, any>();
     
     const activeAccountInfo = accounts.find(a => a.id === activeTab);
 
-    // Initial running state (final state)
     let runningBank = accounts.find(a => a.id === primaryAccount?.id)?.balance ?? 0;
     let runningCash = cashWalletBalance;
     let runningDigital = digitalWalletBalance;
@@ -438,11 +435,16 @@ export default function TransactionsPage(props: {
         runningCards[a.id] = a.balance;
     });
 
+    let runningActiveBalance = 0;
+    if (activeTab === 'cash-wallet') runningActiveBalance = cashWalletBalance;
+    else if (activeTab === 'digital-wallet') runningActiveBalance = digitalWalletBalance;
+    else if (activeAccountInfo) {
+        runningActiveBalance = activeAccountInfo.type === 'card' ? runningCards[activeTab!] : activeAccountInfo.balance;
+    }
+
     for (const t of viewTransactions) {
-      // Ecosystem Total = Bank + Digital + Cash (Excludes Credit Card debt based on user request)
-      const currentEcosystemBalance = runningBank + runningCash + runningDigital;
-      
       if (isPrimaryView) {
+          const currentEcosystemBalance = runningBank + runningCash + runningDigital;
           balances.set(t.id, currentEcosystemBalance);
           breakdowns.set(t.id, {
               bank: runningBank,
@@ -451,11 +453,32 @@ export default function TransactionsPage(props: {
               cards: { ...runningCards },
               total: currentEcosystemBalance
           });
-      } else if (activeAccountInfo) {
-          balances.set(t.id, activeAccountInfo.type === 'card' ? runningCards[activeTab] : (activeTab === primaryAccount?.id ? runningBank : 0));
+      } else {
+          balances.set(t.id, runningActiveBalance);
       }
 
-      // UNDO the effect of t (moving backwards in time)
+      if (!isPrimaryView && activeTab) {
+          const isCard = activeAccountInfo?.type === 'card';
+          if (t.type === 'income' && t.accountId === activeTab) {
+              runningActiveBalance -= t.amount;
+          } else if (t.type === 'expense') {
+              if (t.accountId === activeTab) {
+                  runningActiveBalance += (isCard ? -t.amount : t.amount);
+              } else if (activeTab === 'cash-wallet' && t.paymentMethod === 'cash') {
+                  runningActiveBalance += t.amount;
+              } else if (activeTab === 'digital-wallet' && t.paymentMethod === 'digital') {
+                  runningActiveBalance += t.amount;
+              }
+          } else if (t.type === 'transfer') {
+              if (t.fromAccountId === activeTab) {
+                  runningActiveBalance += (isCard ? -t.amount : t.amount);
+              }
+              if (t.toAccountId === activeTab) {
+                  runningActiveBalance -= (isCard ? -t.amount : t.amount);
+              }
+          }
+      }
+
       if (t.type === 'income') {
           if (t.accountId === primaryAccount?.id) runningBank -= t.amount;
           else if (t.accountId === 'cash-wallet' || t.paymentMethod === 'cash') runningCash -= t.amount;
@@ -466,12 +489,10 @@ export default function TransactionsPage(props: {
           else if (t.accountId === 'digital-wallet' || t.paymentMethod === 'digital') runningDigital += t.amount;
           else if (t.accountId && runningCards[t.accountId] !== undefined) runningCards[t.accountId] -= t.amount;
       } else if (t.type === 'transfer') {
-          // From
           if (t.fromAccountId === primaryAccount?.id) runningBank += t.amount;
           else if (t.fromAccountId === 'cash-wallet') runningCash += t.amount;
           else if (t.fromAccountId === 'digital-wallet') runningDigital += t.amount;
           else if (t.fromAccountId && runningCards[t.fromAccountId] !== undefined) runningCards[t.fromAccountId] -= t.amount;
-          // To
           if (t.toAccountId === primaryAccount?.id) runningBank -= t.amount;
           else if (t.toAccountId === 'cash-wallet') runningCash -= t.amount;
           else if (t.toAccountId === 'digital-wallet') runningDigital -= t.amount;
