@@ -537,12 +537,19 @@ export function LoanList({
   const [transactionType, setTransactionType] = useState<'loan' | 'repayment'>('loan');
   const [activeAddTab, setActiveAddTab] = useState("loan");
 
+  // Deduplicate Loans: Remove entries that are actually credit cards which are handled separately
+  const filteredLoans = useMemo(() => {
+    if (!allLoans) return [];
+    const cardNames = new Set(creditCards?.map(c => c.name.toLowerCase()) || []);
+    return allLoans.filter(l => !cardNames.has(l.personName.toLowerCase()));
+  }, [allLoans, creditCards]);
+
   useEffect(() => {
     setClientLoaded(true);
-    if(allLoans) {
-        setLoans(allLoans);
+    if(filteredLoans) {
+        setLoans(filteredLoans);
     }
-  }, [allLoans]);
+  }, [filteredLoans]);
 
   useEffect(() => {
     if (user && db) {
