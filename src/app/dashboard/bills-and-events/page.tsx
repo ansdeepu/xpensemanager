@@ -1,10 +1,13 @@
 
-"use client";
-
 import { BillList } from "@/components/dashboard/bills/bill-list";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-export default function BillsPage() {
+export default async function BillsPage(props: {
+  params: Promise<any>;
+}) {
+  // Await params for Next.js 15 compatibility
+  await props.params;
+
   return (
     <div className="space-y-6">
       <Tabs defaultValue="bills" className="w-full">

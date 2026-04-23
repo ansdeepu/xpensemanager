@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useMemo, Fragment } from "react";
+import React, { useState, useMemo } from "react";
 import type { Transaction, Category, Account, Loan, LoanTransaction } from "@/lib/data";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { BookText, TrendingUp, TrendingDown, IndianRupee, ChevronDown, ChevronUp, Landmark } from "lucide-react";
@@ -94,7 +94,7 @@ export function ReportView({
 
   const primaryAccount = useMemo(() => accounts.find(a => a.isPrimary), [accounts]);
   const creditCardIds = useMemo(() => new Set(accounts.filter(a => a.type === 'card').map(a => a.id)), [accounts]);
-  const sbiCardId = useMemo(() => accounts.find(a => a.type === 'card' && a.name.toLowerCase().includes('sbi'))?.id, [accounts]);
+  const sbiCardId = useMemo(() => accounts.find(a => a.name?.toLowerCase().includes('sbi') && a.type === 'card')?.id, [accounts]);
 
   const accountInfo = useMemo(() => accounts.find(a => a.id === accountId), [accounts, accountId]);
   const accountName = accountInfo?.name || 'Account';
@@ -103,7 +103,7 @@ export function ReportView({
   // Common logic for All-Time Loan Details
   const allTimeLoanDetails = useMemo(() => {
     // Filter out SBI Credit Card as requested
-    const filteredLoans = loans.filter(l => !l.personName.toLowerCase().includes('sbi credit card'));
+    const filteredLoans = loans.filter(l => !l.personName?.toLowerCase().includes('sbi credit card'));
 
     return filteredLoans.map(l => {
         let accountSpecificTransactions: LoanTransaction[] = [];
@@ -112,7 +112,7 @@ export function ReportView({
             const ecosystemIds = new Set([primaryAccount?.id, 'cash-wallet', 'digital-wallet', ...Array.from(creditCardIds)]);
             accountSpecificTransactions = (l.transactions || []).filter(tx => ecosystemIds.has(tx.accountId));
         } else {
-            const isMatchByName = l.personName.toLowerCase() === accountName.toLowerCase();
+            const isMatchByName = l.personName?.toLowerCase() === accountName.toLowerCase();
             accountSpecificTransactions = (l.transactions || []).filter(tx => tx.accountId === accountId || isMatchByName);
         }
 
@@ -131,7 +131,7 @@ export function ReportView({
         const totalRepayment = accountSpecificTransactions.filter(tx => tx.type === 'repayment').reduce((sum, tx) => sum + tx.amount, 0);
         
         // Use "SBI Bank" if the party name matches the current tab's bank name in non-primary reports
-        const displayName = (!isPrimaryReport && l.personName.toLowerCase() === accountName.toLowerCase())
+        const displayName = (!isPrimaryReport && l.personName?.toLowerCase() === accountName.toLowerCase())
             ? "SBI Bank"
             : l.personName;
 
@@ -221,10 +221,10 @@ export function ReportView({
     }, 0);
     const monthClosingBalance = prevBal + currentInflow - currentOutflow;
 
-    const postBankCatDoc = categories.find(c => c.name.toLowerCase() === 'post bank');
+    const postBankCatDoc = categories.find(c => c.name?.toLowerCase() === 'post bank');
     const userDefinedSubFunds = postBankCatDoc ? postBankCatDoc.subcategories.map(s => s.name) : [];
     const combinedPostBankCategories = Array.from(new Set([...userDefinedSubFunds, ...categories.filter(c => c.type === 'income').map(c => c.name)]))
-        .filter(name => name.toLowerCase() !== 'post bank');
+        .filter(name => name?.toLowerCase() !== 'post bank');
 
     const postBankAccordionData = isPostBank ? combinedPostBankCategories.map(cat => {
         const filteredTxs = transactions.filter(t => 
@@ -542,7 +542,7 @@ export function ReportView({
     const isInEcosystem = (accId?: string) => accId === primaryAccount?.id || accId === 'cash-wallet' || accId === 'digital-wallet' || (accId && creditCardIds.has(accId));
 
     loans.forEach(loan => {
-        if (loan.personName.toLowerCase().includes('sbi')) return;
+        if (loan.personName?.toLowerCase().includes('sbi')) return;
         (loan.transactions || []).forEach(tx => {
             const d = new Date(tx.date);
             if (isValid(d) && isWithinInterval(d, { start: monthStart, end: monthEnd })) {
@@ -786,12 +786,12 @@ export function ReportView({
                         <Table className="text-xs">
                             <TableBody>
                                 {Object.entries(monthlyReport.incomeByCategory).map(([catName, data]) => (
-                                    <Fragment key={catName}>
+                                    <React.Fragment key={catName}>
                                         <TableRow className="bg-muted/50"><TableCell colSpan={2} className="font-bold text-primary">{catName}</TableCell></TableRow>
                                         {Object.entries(data.subcategories).sort(([,a],[,b]) => b - a).map(([sub, amt]) => (
                                             <TableRow key={sub} className="border-0"><TableCell className="pl-6">{sub}</TableCell><TableCell className="text-right font-mono text-green-600">{formatCurrency(amt)}</TableCell></TableRow>
                                         ))}
-                                    </Fragment>
+                                    </React.Fragment>
                                 ))}
                                 {Object.keys(monthlyReport.incomeByCategory).length === 0 && <TableRow><TableCell colSpan={2} className="text-center py-4 text-muted-foreground italic">No regular income categories.</TableCell></TableRow>}
                             </TableBody>
@@ -1008,12 +1008,12 @@ export function ReportView({
                         <Table className="text-xs">
                             <TableBody>
                                 {Object.entries(monthlyReport.regularExpenseByCategory).sort(([,a],[,b]) => b.total - a.total).map(([catName, data]) => (
-                                    <Fragment key={catName}>
+                                    <React.Fragment key={catName}>
                                         <TableRow className="bg-muted/50"><TableCell colSpan={2} className="font-bold text-red-600">{catName}</TableCell></TableRow>
                                         {Object.entries(data.subcategories).sort(([,a],[,b]) => b - a).map(([sub, amt]) => (
                                             <TableRow key={sub} className="border-0"><TableCell className="pl-6">{sub}</TableCell><TableCell className="text-right font-mono">{formatCurrency(amt)}</TableCell></TableRow>
                                         ))}
-                                    </Fragment>
+                                    </React.Fragment>
                                 ))}
                                 {Object.keys(monthlyReport.regularExpenseByCategory).length === 0 && <TableRow><TableCell colSpan={2} className="text-center py-4 text-muted-foreground italic">No regular expenses recorded.</TableCell></TableRow>}
                             </TableBody>
@@ -1033,12 +1033,12 @@ export function ReportView({
                         <Table className="text-xs">
                             <TableBody>
                                 {Object.entries(monthlyReport.occasionalExpenseByCategory).sort(([,a],[,b]) => b.total - a.total).map(([catName, data]) => (
-                                    <Fragment key={catName}>
+                                    <React.Fragment key={catName}>
                                         <TableRow className="bg-muted/50"><TableCell colSpan={2} className="font-bold text-red-600">{catName}</TableCell></TableRow>
                                         {Object.entries(data.subcategories).sort(([,a],[,b]) => b - a).map(([sub, amt]) => (
                                             <TableRow key={sub} className="border-0"><TableCell className="pl-6">{sub}</TableCell><TableCell className="text-right font-mono">{formatCurrency(amt)}</TableCell></TableRow>
                                         ))}
-                                    </Fragment>
+                                    </React.Fragment>
                                 ))}
                                 {Object.keys(monthlyReport.occasionalExpenseByCategory).length === 0 && <TableRow><TableCell colSpan={2} className="text-center py-4 text-muted-foreground italic">No occasional expenses.</TableCell></TableRow>}
                             </TableBody>
@@ -1144,3 +1144,4 @@ export function ReportView({
     </div>
   );
 }
+
