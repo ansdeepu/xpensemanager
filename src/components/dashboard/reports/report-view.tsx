@@ -266,7 +266,7 @@ export function ReportView({
                                     <TableCell className="font-medium">Transfer Credit</TableCell>
                                     <TableCell className="text-right font-mono text-green-600">
                                         {formatCurrency(totalTransferCredit)}
-                                        <span className="text-[10px] block font-normal text-muted-foreground italic">Loan credit is not consider</span>
+                                        <span className="text-[10px] block font-normal text-muted-foreground italic text-right">Loan credit is not consider</span>
                                     </TableCell>
                                 </TableRow>
                             )}
@@ -296,7 +296,7 @@ export function ReportView({
                                     <TableCell className="font-medium">Transfer Debit</TableCell>
                                     <TableCell className="text-right font-mono text-red-600">
                                         {formatCurrency(totalTransferDebit)}
-                                        <span className="text-[10px] block font-normal text-muted-foreground italic">Loan debit is not consider</span>
+                                        <span className="text-[10px] block font-normal text-muted-foreground italic text-right">Loan debit is not consider</span>
                                     </TableCell>
                                 </TableRow>
                             )}
@@ -484,6 +484,10 @@ export function ReportView({
 
     let totalTransferOut = 0;
     const transferOutMap: Record<string, number> = {};
+    
+    let totalTransferIn = 0;
+    const transferInMap: Record<string, number> = {};
+
     const isInEcosystem = (accId?: string) => accId === primaryAccount?.id || accId === 'cash-wallet' || accId === 'digital-wallet' || (accId && creditCardIds.has(accId));
 
     loans.forEach(loan => {
@@ -518,6 +522,7 @@ export function ReportView({
             else if (isSBICashback) { report.totalSBICashback += t.amount; report.sbiCashbackTransactions.push({ name: t.description || 'Cashback', amount: t.amount }); }
             else if (isSBICharge) { report.totalSBICharges += t.amount; report.sbiChargesTransactions.push({ name: t.description || 'Bank Charge', amount: t.amount }); }
         }
+        
         if (t.type === 'transfer' && isInEcosystem(t.fromAccountId) && !isInEcosystem(t.toAccountId) && !t.loanTransactionId) {
             const target = accounts.find(a => a.id === t.toAccountId);
             if (target) { 
@@ -525,12 +530,25 @@ export function ReportView({
                 transferOutMap[target.name] = (transferOutMap[target.name] || 0) + t.amount;
             }
         }
+        
+        if (t.type === 'transfer' && !isInEcosystem(t.fromAccountId) && isInEcosystem(t.toAccountId) && !t.loanTransactionId) {
+            const source = accounts.find(a => a.id === t.fromAccountId);
+            if (source) {
+                totalTransferIn += t.amount;
+                transferInMap[source.name] = (transferInMap[source.name] || 0) + t.amount;
+            }
+        }
     });
 
     const sortEntries = (map: Record<string, number>) => Object.entries(map).map(([name, amount]) => ({ name, amount })).sort((a, b) => b.amount - a.amount);
     return {
         monthlyLoanReport: { ...report, loanTakenTransactions: sortEntries(report.loanTakenMap), loanGivenTransactions: sortEntries(report.loanGivenMap), repaymentMadeTransactions: sortEntries(report.repaymentMadeMap), repaymentReceivedTransactions: sortEntries(report.repaymentReceivedMap) },
-        monthlyTransferSummary: { total: totalTransferOut, details: sortEntries(transferOutMap) }
+        monthlyTransferSummary: { 
+            total: totalTransferOut, 
+            details: sortEntries(transferOutMap),
+            totalIn: totalTransferIn,
+            detailsIn: sortEntries(transferInMap)
+        }
     };
   }, [loans, monthlyTransactions, isPrimaryReport, sbiCardId, creditCardIds, primaryAccount, monthStart, accounts]);
 
@@ -586,7 +604,7 @@ export function ReportView({
     return data;
   }, [monthlyTransactions, isPrimaryReport, accountId, creditCardIds, categories, currentMonthName]);
 
-  const grandTotalInflow = monthlyReport.totalIncome + monthlyLoanReport.totalLoanTaken + monthlyLoanReport.totalRepaymentReceived + monthlyLoanReport.totalSBILoan + monthlyLoanReport.totalSBICashback;
+  const grandTotalInflow = monthlyReport.totalIncome + monthlyLoanReport.totalLoanTaken + monthlyLoanReport.totalRepaymentReceived + monthlyLoanReport.totalSBILoan + monthlyLoanReport.totalSBICashback + monthlyTransferSummary.totalIn;
   const sbiOut = monthlyLoanReport.totalSBIRepayment + monthlyLoanReport.totalSBICharges;
   const grandTotalOutflow = monthlyReport.totalExpense + monthlyLoanReport.totalLoanGiven + monthlyLoanReport.totalRepaymentMade + sbiOut + monthlyTransferSummary.total + monthlyLoanReport.totalSBICashback;
   const netBalance = grandTotalInflow - grandTotalOutflow;
@@ -610,6 +628,7 @@ export function ReportView({
                       <div className="flex justify-between text-xs"><span>Income:</span><span className="font-mono">{formatCurrency(monthlyReport.totalIncome)}</span></div>
                       <div className="flex justify-between text-xs"><span>Loan Taken:</span><span className="font-mono">{formatCurrency(monthlyLoanReport.totalLoanTaken)}</span></div>
                       <div className="flex justify-between text-xs"><span>Repay. Received:</span><span className="font-mono">{formatCurrency(monthlyLoanReport.totalRepaymentReceived)}</span></div>
+                      <div className="flex justify-between text-xs"><span>Transfer In:</span><span className="font-mono">{formatCurrency(monthlyTransferSummary.totalIn)}</span></div>
                       <div className="flex justify-between text-xs"><span>SBI Usage:</span><span className="font-mono">{formatCurrency(monthlyLoanReport.totalSBILoan)}</span></div>
                       <div className="flex justify-between text-xs"><span>SBI Cashback:</span><span className="font-mono">{formatCurrency(monthlyLoanReport.totalSBICashback)}</span></div>
                     </CollapsibleContent>
@@ -680,6 +699,13 @@ export function ReportView({
                                 <TableRow className="font-medium text-green-600">
                                     <TableCell>Repayment Received</TableCell>
                                     <TableCell className="text-right font-mono">{formatCurrency(monthlyLoanReport.totalRepaymentReceived)}</TableCell>
+                                </TableRow>
+                                <TableRow className="font-medium text-green-600">
+                                    <TableCell>Transfer Credit</TableCell>
+                                    <TableCell className="text-right font-mono">
+                                        {formatCurrency(monthlyTransferSummary.totalIn)}
+                                        <span className="text-[10px] block font-normal text-muted-foreground italic text-right">Loan credit is not consider</span>
+                                    </TableCell>
                                 </TableRow>
                                 {monthlyLoanReport.totalLoanTaken > 0 && (<TableRow className="font-medium text-green-600"><TableCell>Loan Taken</TableCell><TableCell className="text-right font-mono">{formatCurrency(monthlyLoanReport.totalLoanTaken)}</TableCell></TableRow>)}
                                 {monthlyLoanReport.totalSBILoan > 0 && (<TableRow className="font-medium text-green-600"><TableCell>SBI Credit Card Usage</TableCell><TableCell className="text-right font-mono">{formatCurrency(monthlyLoanReport.totalSBILoan)}</TableCell></TableRow>)}
@@ -958,4 +984,3 @@ export function ReportView({
     </div>
   );
 }
-
