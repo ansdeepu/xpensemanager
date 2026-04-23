@@ -8,7 +8,7 @@ import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuthState } from "@/hooks/use-auth-state";
 import type { Loan, Account, Transaction } from "@/lib/data";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { startOfMonth, endOfMonth, format, isWithinInterval, parseISO, isValid, startOfDay, endOfDay } from "date-fns";
@@ -39,15 +39,10 @@ export default function LoansPage() {
         const userLoans = snapshot.docs.map((doc) => {
           const data = doc.data();
           const transactions = data.transactions || [];
-          const totalLoan = transactions.filter((t: any) => t.type === 'loan').reduce((sum: number, t: any) => sum + t.amount, 0);
-          const totalRepayment = transactions.filter((t: any) => t.type === 'repayment').reduce((sum: number, t: any) => sum + t.amount, 0);
           return {
             id: doc.id,
             ...data,
             transactions,
-            totalLoan,
-            totalRepayment,
-            balance: totalLoan - totalRepayment,
           } as Loan;
         });
         setAllLoans(userLoans);
@@ -123,63 +118,81 @@ export default function LoansPage() {
     }));
   }, [rawAccounts, allTransactions]);
 
+  const primaryAccount = useMemo(() => accountsWithBalance.find(a => a.isPrimary), [accountsWithBalance]);
   const creditCards = useMemo(() => accountsWithBalance.filter(acc => acc.type === 'card'), [accountsWithBalance]);
+  const sbiCard = useMemo(() => creditCards.find(c => c.name.toLowerCase().includes('sbi')), [creditCards]);
   
-  const {
-    totalLoanTakenForPeriod,
-    totalRepaymentForTakenForPeriod,
-    balanceLoanTaken,
-    totalLoanGivenForPeriod,
-    totalRepaymentForGivenForPeriod,
-    balanceLoanGiven,
-    totalCreditCardDebt
-  } = useMemo(() => {
+  const otherBanks = useMemo(() => accountsWithBalance.filter(a => 
+    !a.isPrimary && (
+        a.name.toLowerCase().includes('fed') || 
+        a.name.toLowerCase().includes('hdfc') || 
+        a.name.toLowerCase().includes('post') || 
+        a.name.toLowerCase().includes('money box')
+    )
+  ), [accountsWithBalance]);
+
+  const primaryEcosystemIds = useMemo(() => {
+    return [primaryAccount?.id, 'cash-wallet', 'digital-wallet', sbiCard?.id].filter(Boolean) as string[];
+  }, [primaryAccount, sbiCard]);
+
+  const otherBankIds = useMemo(() => otherBanks.map(b => b.id), [otherBanks]);
+
+  const stats = useMemo(() => {
     const interval = startDate && endDate ? { start: startOfDay(new Date(startDate)), end: endOfDay(new Date(endDate)) } : null;
 
-    let totalLoanTakenForPeriod = 0;
-    let totalRepaymentForTakenForPeriod = 0;
-    let totalLoanGivenForPeriod = 0;
-    let totalRepaymentForGivenForPeriod = 0;
+    let res = {
+      taken: { periodLoan: 0, periodRepay: 0, overallBal: 0 },
+      givenPrimary: { periodLoan: 0, periodRepay: 0, overallBal: 0 },
+      givenOther: { periodLoan: 0, periodRepay: 0, overallBal: 0 },
+      totalCreditCardDebt: creditCards.reduce((sum, card) => sum + card.balance, 0)
+    };
 
-    // Prevent double counting: filter out loan entries that actually represent bank accounts (credit cards)
     const creditCardNames = new Set(creditCards.map(c => c.name.toLowerCase()));
     const actualLoans = allLoans.filter(l => !creditCardNames.has(l.personName.toLowerCase()));
 
-    if (interval) {
-        actualLoans.forEach(loan => {
-            const filteredTransactions = (loan.transactions || []).filter(t => {
-                const transactionDate = parseISO(t.date);
-                return isValid(transactionDate) && isWithinInterval(transactionDate, interval);
-            });
+    actualLoans.forEach(loan => {
+        const txs = loan.transactions || [];
+        
+        // Helper to process transactions for a specific set of accounts
+        const process = (targetIds: string[]) => {
+            const filtered = txs.filter(t => targetIds.includes(t.accountId));
+            const totalLoan = filtered.filter(t => t.type === 'loan').reduce((s, t) => s + t.amount, 0);
+            const totalRepay = filtered.filter(t => t.type === 'repayment').reduce((s, t) => s + t.amount, 0);
             
-            const periodTotalLoan = filteredTransactions.filter(t => t.type === 'loan').reduce((sum, t) => sum + t.amount, 0);
-            const periodTotalRepayment = filteredTransactions.filter(t => t.type === 'repayment').reduce((sum, t) => sum + t.amount, 0);
-
-            if (loan.type === 'taken') {
-                totalLoanTakenForPeriod += periodTotalLoan;
-                totalRepaymentForTakenForPeriod += periodTotalRepayment;
-            } else { // given
-                totalLoanGivenForPeriod += periodTotalLoan;
-                totalRepaymentForGivenForPeriod += periodTotalRepayment;
+            let periodLoan = 0;
+            let periodRepay = 0;
+            if (interval) {
+                const inPeriod = filtered.filter(t => {
+                    const d = parseISO(t.date);
+                    return isValid(d) && isWithinInterval(d, interval);
+                });
+                periodLoan = inPeriod.filter(t => t.type === 'loan').reduce((s, t) => s + t.amount, 0);
+                periodRepay = inPeriod.filter(t => t.type === 'repayment').reduce((s, t) => s + t.amount, 0);
             }
-        });
-    }
+            
+            return { pLoan: periodLoan, pRepay: periodRepay, oBal: totalLoan - totalRepay };
+        };
 
-    const overallBalanceLoanTaken = actualLoans.filter((l) => l.type === 'taken').reduce((sum, l) => sum + l.balance, 0);
-    const overallBalanceLoanGiven = actualLoans.filter((l) => l.type === 'given').reduce((sum, l) => sum + l.balance, 0);
-    const totalCreditCardDebt = creditCards.reduce((sum, card) => sum + card.balance, 0);
+        if (loan.type === 'taken') {
+            const p = process(primaryEcosystemIds);
+            res.taken.periodLoan += p.pLoan;
+            res.taken.periodRepay += p.pRepay;
+            res.taken.overallBal += p.oBal;
+        } else {
+            const pPrimary = process(primaryEcosystemIds);
+            res.givenPrimary.periodLoan += pPrimary.pLoan;
+            res.givenPrimary.periodRepay += pPrimary.pRepay;
+            res.givenPrimary.overallBal += pPrimary.oBal;
 
-    return {
-      totalLoanTakenForPeriod,
-      totalRepaymentForTakenForPeriod,
-      balanceLoanTaken: overallBalanceLoanTaken,
-      totalLoanGivenForPeriod,
-      totalRepaymentForGivenForPeriod,
-      balanceLoanGiven: overallBalanceLoanGiven,
-      totalCreditCardDebt
-    };
-  }, [allLoans, creditCards, startDate, endDate]);
+            const pOther = process(otherBankIds);
+            res.givenOther.periodLoan += pOther.pLoan;
+            res.givenOther.periodRepay += pOther.pRepay;
+            res.givenOther.overallBal += pOther.oBal;
+        }
+    });
 
+    return res;
+  }, [allLoans, creditCards, startDate, endDate, primaryEcosystemIds, otherBankIds]);
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
@@ -198,51 +211,89 @@ export default function LoansPage() {
             </div>
           </CardContent>
         </Card>
+
       <Tabs defaultValue="taken" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 h-auto">
-          <TabsTrigger value="taken" className="flex flex-col h-auto p-2 items-start text-left">
+        <TabsList className="grid w-full grid-cols-3 h-auto gap-2 bg-transparent p-0">
+          <TabsTrigger value="taken" className="flex flex-col h-auto p-3 items-start text-left border rounded-lg data-[state=active]:shadow-md">
             <div className="w-full flex justify-between items-center">
-                <span className="font-semibold text-base">Loan Taken</span>
-                <span className="font-bold text-lg text-red-600">{!loading && formatCurrency(balanceLoanTaken + totalCreditCardDebt)}</span>
+                <span className="font-semibold text-sm">Loan Taken (Primary)</span>
+                <span className="font-bold text-base text-red-600">{!loading && formatCurrency(stats.taken.overallBal + stats.totalCreditCardDebt)}</span>
             </div>
-            <div className="w-full text-xs text-muted-foreground mt-1 space-y-1">
-                <div className="grid grid-cols-2 gap-2">
-                  <span>Loan taken (Period): {formatCurrency(totalLoanTakenForPeriod)}</span>
-                  <span>Repayment (Period): {formatCurrency(totalRepaymentForTakenForPeriod)}</span>
+            <div className="w-full text-[10px] text-muted-foreground mt-2 space-y-1 leading-tight">
+                <div className="flex justify-between">
+                  <span>Loan Taken (Period):</span> <span>{formatCurrency(stats.taken.periodLoan)}</span>
                 </div>
-                <div>
-                  <span>Credit Card Due (Total): {formatCurrency(totalCreditCardDebt)}</span>
+                <div className="flex justify-between">
+                  <span>Repayment (Period):</span> <span>{formatCurrency(stats.taken.periodRepay)}</span>
+                </div>
+                <div className="pt-1 mt-1 border-t flex justify-between font-medium">
+                  <span>Card Due (Total):</span> <span>{formatCurrency(stats.totalCreditCardDebt)}</span>
                 </div>
             </div>
           </TabsTrigger>
-          <TabsTrigger value="given" className="flex flex-col h-auto p-2 items-start text-left">
+
+          <TabsTrigger value="given" className="flex flex-col h-auto p-3 items-start text-left border rounded-lg data-[state=active]:shadow-md">
             <div className="w-full flex justify-between items-center">
-                <span className="font-semibold text-base">Loan Given</span>
-                <span className="font-bold text-lg text-green-600">{!loading && formatCurrency(balanceLoanGiven)}</span>
+                <span className="font-semibold text-sm">Loan Given (Primary)</span>
+                <span className="font-bold text-base text-green-600">{!loading && formatCurrency(stats.givenPrimary.overallBal)}</span>
             </div>
-             <div className="w-full text-xs text-muted-foreground mt-1 grid grid-cols-2 gap-2">
-                <span>Loan Given (Period): {formatCurrency(totalLoanGivenForPeriod)}</span>
-                <span>Repayment (Period): {formatCurrency(totalRepaymentForGivenForPeriod)}</span>
+             <div className="w-full text-[10px] text-muted-foreground mt-2 space-y-1 leading-tight">
+                <div className="flex justify-between">
+                  <span>Loan Given (Period):</span> <span>{formatCurrency(stats.givenPrimary.periodLoan)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Repayment (Period):</span> <span>{formatCurrency(stats.givenPrimary.periodRepay)}</span>
+                </div>
+            </div>
+          </TabsTrigger>
+
+          <TabsTrigger value="other" className="flex flex-col h-auto p-3 items-start text-left border rounded-lg data-[state=active]:shadow-md">
+            <div className="w-full flex justify-between items-center">
+                <span className="font-semibold text-sm">Loan Given (Other Banks)</span>
+                <span className="font-bold text-base text-blue-600">{!loading && formatCurrency(stats.givenOther.overallBal)}</span>
+            </div>
+             <div className="w-full text-[10px] text-muted-foreground mt-2 space-y-1 leading-tight">
+                <div className="flex justify-between">
+                  <span>Loan Given (Period):</span> <span>{formatCurrency(stats.givenOther.periodLoan)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Repayment (Period):</span> <span>{formatCurrency(stats.givenOther.periodRepay)}</span>
+                </div>
             </div>
           </TabsTrigger>
         </TabsList>
+
         <TabsContent value="taken" className="mt-6">
           <LoanList 
             loanType="taken" 
-            loans={allLoans.filter(l => l.type === 'taken')} 
+            loans={allLoans.filter(l => l.type === 'taken' && l.transactions.some(t => primaryEcosystemIds.includes(t.accountId)))} 
             creditCards={creditCards} 
             transactions={allTransactions} 
             startDate={startDate} 
             endDate={endDate}
+            allowedAccountIds={primaryEcosystemIds}
           />
         </TabsContent>
+
         <TabsContent value="given" className="mt-6">
           <LoanList 
             loanType="given" 
-            loans={allLoans.filter(l => l.type === 'given')}
+            loans={allLoans.filter(l => l.type === 'given' && l.transactions.some(t => primaryEcosystemIds.includes(t.accountId)))}
             transactions={allTransactions}
             startDate={startDate} 
             endDate={endDate}
+            allowedAccountIds={primaryEcosystemIds}
+          />
+        </TabsContent>
+
+        <TabsContent value="other" className="mt-6">
+          <LoanList 
+            loanType="given" 
+            loans={allLoans.filter(l => l.type === 'given' && l.transactions.some(t => otherBankIds.includes(t.accountId)))}
+            transactions={allTransactions}
+            startDate={startDate} 
+            endDate={endDate}
+            allowedAccountIds={otherBankIds}
           />
         </TabsContent>
       </Tabs>

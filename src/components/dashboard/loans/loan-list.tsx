@@ -107,6 +107,7 @@ function LoanAccordionItem({
     onEditLoanName,
     startDate,
     endDate,
+    allowedAccountIds
 }: { 
     loan: Loan;
     loanType: "taken" | "given";
@@ -117,6 +118,7 @@ function LoanAccordionItem({
     onEditLoanName: (loan: Loan) => void;
     startDate?: string;
     endDate?: string;
+    allowedAccountIds?: string[];
 }) {
     const getAccountName = (accId?: string) => {
         if (accId === 'cash-wallet') return "Cash Wallet";
@@ -126,8 +128,14 @@ function LoanAccordionItem({
         return account ? account.name : "N/A";
     };
 
-    const { transactionsForPeriod, periodTotals } = useMemo(() => {
-        const allTransactions = [...(loan.transactions || [])].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const { transactionsForPeriod, periodTotals, overallBalanceForTab } = useMemo(() => {
+        const rawTransactions = loan.transactions || [];
+        // Filter transactions strictly by the allowed accounts for this tab
+        const tabFilteredTransactions = allowedAccountIds 
+            ? rawTransactions.filter(t => allowedAccountIds.includes(t.accountId))
+            : rawTransactions;
+
+        const allTransactions = [...tabFilteredTransactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
         
         let runningBalance = 0;
         const processedTransactions = allTransactions.map(transaction => {
@@ -155,6 +163,8 @@ function LoanAccordionItem({
             return { ...transaction, credit, debit, runningBalance };
         });
 
+        const overallBalanceForTab = runningBalance;
+
         const interval = startDate && endDate ? { start: startOfDay(new Date(startDate)), end: endOfDay(new Date(endDate)) } : null;
         
         const filteredTransactions = processedTransactions.filter(t => {
@@ -168,9 +178,10 @@ function LoanAccordionItem({
 
         return {
             transactionsForPeriod: filteredTransactions,
-            periodTotals: { totalLoan, totalRepayment }
+            periodTotals: { totalLoan, totalRepayment },
+            overallBalanceForTab
         };
-    }, [loan, startDate, endDate]);
+    }, [loan, startDate, endDate, allowedAccountIds]);
 
     const getLoanTransactionDescription = (loan: Loan, transaction: LoanTransaction) => {
         if (transaction.description != null && transaction.description.trim() !== '') return transaction.description;
@@ -190,7 +201,7 @@ function LoanAccordionItem({
                         <span className="font-semibold text-base">{loan.personName}</span>
                     </div>
                     <div className="text-center">
-                        <Badge variant={loan.balance > 0 ? (loan.type === 'taken' ? 'destructive' : 'default') : 'outline'} className={cn("text-sm", loan.balance > 0 && loan.type === 'given' && "bg-green-600 hover:bg-green-700")}>{formatCurrency(loan.balance)}</Badge>
+                        <Badge variant={overallBalanceForTab > 0 ? (loan.type === 'taken' ? 'destructive' : 'default') : 'outline'} className={cn("text-sm", overallBalanceForTab > 0 && loan.type === 'given' && "bg-green-600 hover:bg-green-700")}>{formatCurrency(overallBalanceForTab)}</Badge>
                     </div>
                     <div></div>
                 </div>
@@ -483,7 +494,23 @@ function CardAccordionItem({
     );
 }
 
-export function LoanList({ loanType, loans: allLoans, creditCards, transactions: allTransactions, startDate, endDate }: { loanType: "taken" | "given", loans: Loan[], creditCards?: Account[], transactions?: Transaction[], startDate?: string, endDate?: string }) {
+export function LoanList({ 
+    loanType, 
+    loans: allLoans, 
+    creditCards, 
+    transactions: allTransactions, 
+    startDate, 
+    endDate,
+    allowedAccountIds
+}: { 
+    loanType: "taken" | "given", 
+    loans: Loan[], 
+    creditCards?: Account[], 
+    transactions?: Transaction[], 
+    startDate?: string, 
+    endDate?: string,
+    allowedAccountIds?: string[]
+}) {
   const [loans, setLoans] = useState<Loan[]>([]);
   const [accounts, setAccounts] = useState<Omit<Account, 'balance'>[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -513,11 +540,9 @@ export function LoanList({ loanType, loans: allLoans, creditCards, transactions:
   useEffect(() => {
     setClientLoaded(true);
     if(allLoans) {
-        const creditCardNames = new Set(creditCards?.map(c => c.name.toLowerCase()) || []);
-        const filteredLoans = allLoans.filter(l => !creditCardNames.has(l.personName.toLowerCase()));
-        setLoans(filteredLoans.sort((a, b) => b.balance - a.balance));
+        setLoans(allLoans);
     }
-  }, [allLoans, creditCards]);
+  }, [allLoans]);
 
   useEffect(() => {
     if (user && db) {
@@ -640,10 +665,11 @@ export function LoanList({ loanType, loans: allLoans, creditCards, transactions:
     
     const currentPrimaryCreditCard = accounts.find(acc => acc.type === 'card' && acc.name.toLowerCase().includes('sbi'));
     const currentOtherAccounts = accounts.filter(a => (!a.isPrimary && a.type !== 'card') || (currentPrimaryCreditCard && a.id === currentPrimaryCreditCard.id));
-    const currentFilteredLoans = loans.filter(l => !currentOtherAccounts.some(a => a.name.toLowerCase() === l.personName.toLowerCase()));
-
+    
+    // Simplified filtering: don't allow SBI cards in the dropdown if we're technically outside the primary tab? 
+    // Actually, the dialog handles all. We'll filter the parties list similarly to LoansPage.
     const allLoanParties: (Loan | Omit<Account, "balance">)[] = [
-      ...currentFilteredLoans,
+      ...loans,
       ...currentOtherAccounts
     ];
 
@@ -1186,7 +1212,7 @@ export function LoanList({ loanType, loans: allLoans, creditCards, transactions:
                 </div>
             ) : (
                 <Accordion type="single" collapsible className="w-full">
-                    {sbiCard && allTransactions && loanType === 'taken' && (
+                    {sbiCard && allTransactions && loanType === 'taken' && (allowedAccountIds?.includes(sbiCard.id)) && (
                         <CardAccordionItem
                             key={sbiCard.id}
                             card={sbiCard}
@@ -1210,19 +1236,22 @@ export function LoanList({ loanType, loans: allLoans, creditCards, transactions:
                         onEditLoanName={openEditLoanNameDialog}
                         startDate={startDate}
                         endDate={endDate}
+                        allowedAccountIds={allowedAccountIds}
                       />
                     ))}
                     {otherCards && allTransactions && loanType === 'taken' && otherCards.map(card => (
-                       <CardAccordionItem
-                            key={card.id}
-                            card={card}
-                            accounts={accounts}
-                            transactions={allTransactions}
-                            startDate={startDate}
-                            endDate={endDate}
-                            onEditTransaction={openEditCardTxDialog}
-                            onDeleteTransaction={handleDeleteCardTransaction}
-                        />
+                       (allowedAccountIds?.includes(card.id)) && (
+                         <CardAccordionItem
+                              key={card.id}
+                              card={card}
+                              accounts={accounts}
+                              transactions={allTransactions}
+                              startDate={startDate}
+                              endDate={endDate}
+                              onEditTransaction={openEditCardTxDialog}
+                              onDeleteTransaction={handleDeleteCardTransaction}
+                          />
+                       )
                     ))}
                 </Accordion>
             )}
