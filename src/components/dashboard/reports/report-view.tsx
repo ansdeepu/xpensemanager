@@ -251,6 +251,7 @@ export function ReportView({
           </CardContent>
         </Card>
 
+        {/* Details Section in 2 Columns */}
         <div className="grid gap-6 lg:grid-cols-2 items-start">
             <Card>
                 <CardHeader><CardTitle>Income Details (All Time)</CardTitle></CardHeader>
@@ -311,156 +312,157 @@ export function ReportView({
                     </Table>
                 </CardContent>
             </Card>
+        </div>
 
-            <Card className="border-primary border-2">
-                <CardHeader><CardTitle>Abstract</CardTitle><CardDescription>High-level financial summary of this account.</CardDescription></CardHeader>
+        {/* Abstract Section - Standalone */}
+        <Card className="border-primary border-2">
+            <CardHeader><CardTitle>Abstract</CardTitle><CardDescription>High-level financial summary of this account.</CardDescription></CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Description</TableHead>
+                            <TableHead className="text-right">Credit</TableHead>
+                            <TableHead className="text-right">Debit</TableHead>
+                            <TableHead className="text-right">Balance</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        <TableRow>
+                            <TableCell className="text-xs font-medium">Total Income Details (All Time)</TableCell>
+                            <TableCell className="text-right font-mono text-green-600">{formatCurrency(incomeSum)}</TableCell>
+                            <TableCell className="text-right font-mono">-</TableCell>
+                            <TableCell className="text-right font-mono">{formatCurrency(incomeSum)}</TableCell>
+                        </TableRow>
+                        <TableRow>
+                            <TableCell className="text-xs font-medium">Total Expense Details (All Time)</TableCell>
+                            <TableCell className="text-right font-mono">-</TableCell>
+                            <TableCell className="text-right font-mono text-red-600">{formatCurrency(expenseSum)}</TableCell>
+                            <TableCell className="text-right font-mono text-red-600">-{formatCurrency(expenseSum)}</TableCell>
+                        </TableRow>
+                        <TableRow>
+                            <TableCell className="text-xs font-medium">Total Loan Details (All Time)</TableCell>
+                            <TableCell className="text-right font-mono text-green-600">{formatCurrency(totalLoanInflow)}</TableCell>
+                            <TableCell className="text-right font-mono text-red-600">{formatCurrency(totalLoanOutflow)}</TableCell>
+                            <TableCell className={cn("text-right font-mono", (totalLoanInflow - totalLoanOutflow) < 0 && "text-red-600")}>{formatCurrency(totalLoanInflow - totalLoanOutflow)}</TableCell>
+                        </TableRow>
+                    </TableBody>
+                    <TableFooter>
+                        <TableRow>
+                            <TableCell className="font-bold">Total</TableCell>
+                            <TableCell className="text-right font-mono text-green-600 font-bold">{formatCurrency(allTimeInflow)}</TableCell>
+                            <TableCell className="text-right font-mono text-red-600 font-bold">{formatCurrency(allTimeOutflow)}</TableCell>
+                            <TableCell className={cn("text-right font-mono font-bold", closingBalance < 0 ? "text-red-600" : "text-primary")}>{formatCurrency(closingBalance)}</TableCell>
+                        </TableRow>
+                    </TableFooter>
+                </Table>
+            </CardContent>
+        </Card>
+
+        {/* Post Bank Specific Section - Standalone */}
+        {isPostBank && (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Post Bank Category Breakdown (All Time)</CardTitle>
+                    <CardDescription>Passbook status of all sub-funds and income streams within the Post Bank account.</CardDescription>
+                </CardHeader>
                 <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Description</TableHead>
-                                <TableHead className="text-right">Credit</TableHead>
-                                <TableHead className="text-right">Debit</TableHead>
-                                <TableHead className="text-right">Balance</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            <TableRow>
-                                <TableCell className="text-xs font-medium">Total Income Details (All Time)</TableCell>
-                                <TableCell className="text-right font-mono text-green-600">{formatCurrency(incomeSum)}</TableCell>
-                                <TableCell className="text-right font-mono">-</TableCell>
-                                <TableCell className="text-right font-mono">{formatCurrency(incomeSum)}</TableCell>
-                            </TableRow>
-                            <TableRow>
-                                <TableCell className="text-xs font-medium">Total Expense Details (All Time)</TableCell>
-                                <TableCell className="text-right font-mono">-</TableCell>
-                                <TableCell className="text-right font-mono text-red-600">{formatCurrency(expenseSum)}</TableCell>
-                                <TableCell className="text-right font-mono text-red-600">-{formatCurrency(expenseSum)}</TableCell>
-                            </TableRow>
-                            <TableRow>
-                                <TableCell className="text-xs font-medium">Total Loan Details (All Time)</TableCell>
-                                <TableCell className="text-right font-mono text-green-600">{formatCurrency(totalLoanInflow)}</TableCell>
-                                <TableCell className="text-right font-mono text-red-600">{formatCurrency(totalLoanOutflow)}</TableCell>
-                                <TableCell className={cn("text-right font-mono", (totalLoanInflow - totalLoanOutflow) < 0 && "text-red-600")}>{formatCurrency(totalLoanInflow - totalLoanOutflow)}</TableCell>
-                            </TableRow>
-                        </TableBody>
-                        <TableFooter>
-                            <TableRow>
-                                <TableCell className="font-bold">Total</TableCell>
-                                <TableCell className="text-right font-mono text-green-600 font-bold">{formatCurrency(allTimeInflow)}</TableCell>
-                                <TableCell className="text-right font-mono text-red-600 font-bold">{formatCurrency(allTimeOutflow)}</TableCell>
-                                <TableCell className={cn("text-right font-mono font-bold", closingBalance < 0 ? "text-red-600" : "text-primary")}>{formatCurrency(closingBalance)}</TableCell>
-                            </TableRow>
-                        </TableFooter>
-                    </Table>
-                </CardContent>
-            </Card>
-
-            {isPostBank && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Post Bank Category Breakdown (All Time)</CardTitle>
-                        <CardDescription>Passbook status of all sub-funds and income streams within the Post Bank account.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Accordion type="single" collapsible className="w-full">
-                            {postBankAccordionData.map((cat, idx) => (
-                                <AccordionItem key={idx} value={`post-${idx}`}>
-                                    <AccordionTrigger className="hover:no-underline">
-                                        <div className="flex justify-between w-full pr-4">
-                                            <span>{cat.name}</span>
-                                            <span className={cn("font-bold font-mono", cat.balance >= 0 ? "text-green-600" : "text-red-600")}>{formatCurrency(cat.balance)}</span>
-                                        </div>
-                                    </AccordionTrigger>
-                                    <AccordionContent>
-                                        <div className="p-4 bg-muted/30 rounded-lg">
-                                            <Table className="text-xs">
-                                                <TableHeader>
-                                                    <TableRow>
-                                                        <TableHead>Date</TableHead>
-                                                        <TableHead>Description</TableHead>
-                                                        <TableHead className="text-right">Credit</TableHead>
-                                                        <TableHead className="text-right">Debit</TableHead>
-                                                        <TableHead className="text-right">Balance</TableHead>
-                                                    </TableRow>
-                                                </TableHeader>
-                                                <TableBody>
-                                                    {cat.transactions.map((tx, i) => (
-                                                        <TableRow key={i}>
-                                                            <TableCell>{format(new Date(tx.date), 'dd/MM/yy')}</TableCell>
-                                                            <TableCell>{tx.description}</TableCell>
-                                                            <TableCell className="text-right font-mono text-green-600">{tx.credit ? formatCurrency(tx.credit) : ''}</TableCell>
-                                                            <TableCell className="text-right font-mono text-red-600">{tx.debit ? formatCurrency(tx.debit) : ''}</TableCell>
-                                                            <TableCell className="text-right font-mono">{formatCurrency(tx.balance)}</TableCell>
-                                                        </TableRow>
-                                                    ))}
-                                                </TableBody>
-                                                <TableFooter>
-                                                    <TableRow>
-                                                        <TableCell colSpan={2} className="font-bold">Total</TableCell>
-                                                        <TableCell className="text-right font-mono text-green-600 font-bold">{formatCurrency(cat.totalCredit)}</TableCell>
-                                                        <TableCell className="text-right font-mono text-red-600 font-bold">{formatCurrency(cat.totalDebit)}</TableCell>
-                                                        <TableCell className="text-right font-mono font-bold">{formatCurrency(cat.balance)}</TableCell>
-                                                    </TableRow>
-                                                </TableFooter>
-                                            </Table>
-                                        </div>
-                                    </AccordionContent>
-                                </AccordionItem>
-                            ))}
-                        </Accordion>
-                    </CardContent>
-                </Card>
-            )}
-
-            <div className={cn("space-y-6", isPostBank ? "lg:col-span-2" : "")}>
-                <Card>
-                    <CardHeader><CardTitle>Loan Details (All Time)</CardTitle></CardHeader>
-                    <CardContent>
-                        <Accordion type="single" collapsible className="w-full">
-                            {allAccountLoanDetails.map(loan => (
-                                <AccordionItem key={loan!.id} value={loan!.id}>
-                                    <AccordionTrigger className="py-2 hover:no-underline">
-                                        <div className="flex justify-between w-full pr-4 text-sm font-medium"><span>{loan!.personName}</span><Badge variant="outline" className="font-mono">{formatCurrency(loan!.balance)}</Badge></div>
-                                    </AccordionTrigger>
-                                    <AccordionContent>
-                                        <Table className="text-[10px]">
+                    <Accordion type="single" collapsible className="w-full">
+                        {postBankAccordionData.map((cat, idx) => (
+                            <AccordionItem key={idx} value={`post-${idx}`}>
+                                <AccordionTrigger className="hover:no-underline">
+                                    <div className="flex justify-between w-full pr-4">
+                                        <span>{cat.name}</span>
+                                        <span className={cn("font-bold font-mono", cat.balance >= 0 ? "text-green-600" : "text-red-600")}>{formatCurrency(cat.balance)}</span>
+                                    </div>
+                                </AccordionTrigger>
+                                <AccordionContent>
+                                    <div className="p-4 bg-muted/30 rounded-lg">
+                                        <Table className="text-xs">
                                             <TableHeader>
                                                 <TableRow>
                                                     <TableHead>Date</TableHead>
-                                                    <TableHead className="text-right">Loan</TableHead>
-                                                    <TableHead className="text-right">Repayment</TableHead>
+                                                    <TableHead>Description</TableHead>
+                                                    <TableHead className="text-right">Credit</TableHead>
+                                                    <TableHead className="text-right">Debit</TableHead>
                                                     <TableHead className="text-right">Balance</TableHead>
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
-                                                {loan!.transactions.map(tx => (
-                                                    <TableRow key={tx.id}>
-                                                        <TableCell>{format(parseISO(tx.date), 'dd/MM/yy')}</TableCell>
-                                                        <TableCell className="text-right font-mono text-red-600">{tx.type === 'loan' ? formatCurrency(tx.amount) : ''}</TableCell>
-                                                        <TableCell className="text-right font-mono text-green-600">{tx.type === 'repayment' ? formatCurrency(tx.amount) : ''}</TableCell>
-                                                        <TableCell className="text-right font-mono">{formatCurrency(tx.currentBalance)}</TableCell>
+                                                {cat.transactions.map((tx, i) => (
+                                                    <TableRow key={i}>
+                                                        <TableCell>{format(new Date(tx.date), 'dd/MM/yy')}</TableCell>
+                                                        <TableCell>{tx.description}</TableCell>
+                                                        <TableCell className="text-right font-mono text-green-600">{tx.credit ? formatCurrency(tx.credit) : ''}</TableCell>
+                                                        <TableCell className="text-right font-mono text-red-600">{tx.debit ? formatCurrency(tx.debit) : ''}</TableCell>
+                                                        <TableCell className="text-right font-mono">{formatCurrency(tx.balance)}</TableCell>
                                                     </TableRow>
                                                 ))}
                                             </TableBody>
                                             <TableFooter>
                                                 <TableRow>
-                                                    <TableCell className="font-bold">Total</TableCell>
-                                                    <TableCell className="text-right font-mono text-red-600 font-bold">{formatCurrency(loan!.totalGiven)}</TableCell>
-                                                    <TableCell className="text-right font-mono text-green-600 font-bold">{formatCurrency(loan!.totalRepayment)}</TableCell>
-                                                    <TableCell className="text-right font-mono font-bold">{formatCurrency(loan!.balance)}</TableCell>
+                                                    <TableCell colSpan={2} className="font-bold">Total</TableCell>
+                                                    <TableCell className="text-right font-mono text-green-600 font-bold">{formatCurrency(cat.totalCredit)}</TableCell>
+                                                    <TableCell className="text-right font-mono text-red-600 font-bold">{formatCurrency(cat.totalDebit)}</TableCell>
+                                                    <TableCell className="text-right font-mono font-bold">{formatCurrency(cat.balance)}</TableCell>
                                                 </TableRow>
                                             </TableFooter>
                                         </Table>
-                                    </AccordionContent>
-                                </AccordionItem>
-                            ))}
-                            {allAccountLoanDetails.length === 0 && <div className="text-center py-10 text-muted-foreground text-xs italic">No loans recorded.</div>}
-                        </Accordion>
-                    </CardContent>
-                </Card>
-            </div>
-        </div>
+                                    </div>
+                                </AccordionContent>
+                            </AccordionItem>
+                        ))}
+                    </Accordion>
+                </CardContent>
+            </Card>
+        )}
+
+        {/* Loan Details Section - Standalone */}
+        <Card>
+            <CardHeader><CardTitle>Loan Details (All Time)</CardTitle></CardHeader>
+            <CardContent>
+                <Accordion type="single" collapsible className="w-full">
+                    {allAccountLoanDetails.map(loan => (
+                        <AccordionItem key={loan!.id} value={loan!.id}>
+                            <AccordionTrigger className="py-2 hover:no-underline">
+                                <div className="flex justify-between w-full pr-4 text-sm font-medium"><span>{loan!.personName}</span><Badge variant="outline" className="font-mono">{formatCurrency(loan!.balance)}</Badge></div>
+                            </AccordionTrigger>
+                            <AccordionContent>
+                                <Table className="text-[10px]">
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Date</TableHead>
+                                            <TableHead className="text-right">Loan</TableHead>
+                                            <TableHead className="text-right">Repayment</TableHead>
+                                            <TableHead className="text-right">Balance</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {loan!.transactions.map(tx => (
+                                            <TableRow key={tx.id}>
+                                                <TableCell>{format(parseISO(tx.date), 'dd/MM/yy')}</TableCell>
+                                                <TableCell className="text-right font-mono text-red-600">{tx.type === 'loan' ? formatCurrency(tx.amount) : ''}</TableCell>
+                                                <TableCell className="text-right font-mono text-green-600">{tx.type === 'repayment' ? formatCurrency(tx.amount) : ''}</TableCell>
+                                                <TableCell className="text-right font-mono">{formatCurrency(tx.currentBalance)}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                    <TableFooter>
+                                        <TableRow>
+                                            <TableCell className="font-bold">Total</TableCell>
+                                            <TableCell className="text-right font-mono text-red-600 font-bold">{formatCurrency(loan!.totalGiven)}</TableCell>
+                                            <TableCell className="text-right font-mono text-green-600 font-bold">{formatCurrency(loan!.totalRepayment)}</TableCell>
+                                            <TableCell className="text-right font-mono font-bold">{formatCurrency(loan!.balance)}</TableCell>
+                                        </TableRow>
+                                    </TableFooter>
+                                </Table>
+                            </AccordionContent>
+                        </AccordionItem>
+                    ))}
+                    {allAccountLoanDetails.length === 0 && <div className="text-center py-10 text-muted-foreground text-xs italic">No loans recorded.</div>}
+                </Accordion>
+            </CardContent>
+        </Card>
       </div>
     );
   }
