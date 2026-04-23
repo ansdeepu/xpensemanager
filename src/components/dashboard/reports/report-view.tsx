@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useMemo, Fragment } from "react";
-import type { Transaction, Category, Account, Loan } from "@/lib/data";
+import type { Transaction, Category, Account, Loan, LoanTransaction } from "@/lib/data";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { BookText, TrendingUp, TrendingDown, IndianRupee, ChevronDown, ChevronUp, Landmark } from "lucide-react";
 import { format, startOfMonth, endOfMonth, isWithinInterval, isValid, isBefore, parseISO } from "date-fns";
@@ -445,7 +445,7 @@ export function ReportView({
     };
 
     let totalTransferOut = 0;
-    const transferOutDetails: AggregatedEntry[] = [];
+    const transferOutMap: Record<string, number> = {};
     const isInEcosystem = (accId?: string) => accId === primaryAccount?.id || accId === 'cash-wallet' || accId === 'digital-wallet' || (accId && creditCardIds.has(accId));
 
     loans.forEach(loan => {
@@ -482,14 +482,17 @@ export function ReportView({
         }
         if (t.type === 'transfer' && isInEcosystem(t.fromAccountId) && !isInEcosystem(t.toAccountId) && !t.loanTransactionId) {
             const target = accounts.find(a => a.id === t.toAccountId);
-            if (target) { totalTransferOut += t.amount; transferOutDetails.push({ name: target.name, amount: t.amount }); }
+            if (target) { 
+                totalTransferOut += t.amount; 
+                transferOutMap[target.name] = (transferOutMap[target.name] || 0) + t.amount;
+            }
         }
     });
 
     const sortEntries = (map: Record<string, number>) => Object.entries(map).map(([name, amount]) => ({ name, amount })).sort((a, b) => b.amount - a.amount);
     return {
         monthlyLoanReport: { ...report, loanTakenTransactions: sortEntries(report.loanTakenMap), loanGivenTransactions: sortEntries(report.loanGivenMap), repaymentMadeTransactions: sortEntries(report.repaymentMadeMap), repaymentReceivedTransactions: sortEntries(report.repaymentReceivedMap) },
-        monthlyTransferSummary: { total: totalTransferOut, details: transferOutDetails }
+        monthlyTransferSummary: { total: totalTransferOut, details: sortEntries(transferOutMap) }
     };
   }, [loans, monthlyTransactions, isPrimaryReport, sbiCardId, creditCardIds, primaryAccount, monthStart, accounts]);
 
@@ -895,12 +898,17 @@ export function ReportView({
                         <Table className="text-xs">
                             <TableHeader><TableRow><TableHead>Target Account</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
                             <TableBody>
-                                {monthlyTransferSummary.details.map((t, idx) => (<TableRow key={idx}><TableCell>{t.name}</TableCell><TableCell className="text-right font-mono text-red-600">{formatCurrency(t.amount)}</TableCell></TableRow>))}
+                                {monthlyTransferSummary.details.map((t, idx) => (
+                                    <TableRow key={idx}>
+                                        <TableCell>{t.name}</TableCell>
+                                        <TableCell className="text-right font-mono text-red-600">{formatCurrency(t.amount)}</TableCell>
+                                    </TableRow>
+                                ))}
                                 {monthlyTransferSummary.details.length === 0 && <TableRow><TableCell colSpan={2} className="text-center py-4 text-muted-foreground italic">No external transfers.</TableCell></TableRow>}
                             </TableBody>
                             <TableFooter>
                                 <TableRow>
-                                    <TableCell colSpan={2} className="font-bold">Total Transfer Out</TableCell>
+                                    <TableCell className="font-bold">Total Transfer Out</TableCell>
                                     <TableCell className="text-right font-mono text-red-600 font-bold">{formatCurrency(monthlyTransferSummary.total)}</TableCell>
                                 </TableRow>
                             </TableFooter>
