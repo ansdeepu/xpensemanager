@@ -424,29 +424,6 @@ export function ReportView({
                         </Table>
                     </CardContent>
                 </Card>
-                <Card>
-                    <CardHeader><CardTitle>Transfer Details (All Time)</CardTitle></CardHeader>
-                    <CardContent>
-                        <ScrollArea className="h-[300px]">
-                            <Table>
-                                <TableBody>
-                                    {allAccountTransferDetails.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(t => {
-                                        const isOut = t.fromAccountId === accountId;
-                                        const otherName = accounts.find(a => a.id === (isOut ? t.toAccountId : t.fromAccountId))?.name || 'Other';
-                                        return <TableRow key={t.id}><TableCell className="text-xs">{format(new Date(t.date), 'dd/MM/yy')}</TableCell><TableCell className="text-xs">{isOut ? `➔ ${otherName}` : `← ${otherName}`}</TableCell><TableCell className={cn("text-right font-mono text-xs", isOut ? "text-red-600" : "text-green-600")}>{formatCurrency(t.amount)}</TableCell></TableRow>
-                                    })}
-                                    {allAccountTransferDetails.length === 0 && <TableRow><TableCell colSpan={3} className="text-center py-10 text-muted-foreground">No transfers recorded.</TableCell></TableRow>}
-                                </TableBody>
-                                <TableFooter>
-                                    <TableRow>
-                                        <TableCell colSpan={2} className="font-bold">Summary</TableCell>
-                                        <TableCell className="text-right font-mono font-bold">{formatCurrency(allAccountTransferDetails.reduce((s, t) => s + t.amount, 0))}</TableCell>
-                                    </TableRow>
-                                </TableFooter>
-                            </Table>
-                        </ScrollArea>
-                    </CardContent>
-                </Card>
             </div>
         </div>
       </div>
@@ -686,12 +663,12 @@ export function ReportView({
                         <Table className="text-xs">
                             <TableBody>
                                 {Object.entries(monthlyReport.incomeByCategory).map(([catName, data]) => (
-                                    <React.Fragment key={catName}>
+                                    <Fragment key={catName}>
                                         <TableRow className="bg-muted/50"><TableCell colSpan={2} className="font-bold text-primary">{catName}</TableCell></TableRow>
                                         {Object.entries(data.subcategories).sort(([,a],[,b]) => b - a).map(([sub, amt]) => (
                                             <TableRow key={sub} className="border-0"><TableCell className="pl-6">{sub}</TableCell><TableCell className="text-right font-mono text-green-600">{formatCurrency(amt)}</TableCell></TableRow>
                                         ))}
-                                    </React.Fragment>
+                                    </Fragment>
                                 ))}
                                 {Object.keys(monthlyReport.incomeByCategory).length === 0 && <TableRow><TableCell colSpan={2} className="text-center py-4 text-muted-foreground italic">No regular income categories.</TableCell></TableRow>}
                             </TableBody>
@@ -812,12 +789,12 @@ export function ReportView({
                         <Table className="text-xs">
                             <TableBody>
                                 {Object.entries(monthlyReport.regularExpenseByCategory).sort(([,a],[,b]) => b.total - a.total).map(([catName, data]) => (
-                                    <React.Fragment key={catName}>
+                                    <Fragment key={catName}>
                                         <TableRow className="bg-muted/50"><TableCell colSpan={2} className="font-bold text-red-600">{catName}</TableCell></TableRow>
                                         {Object.entries(data.subcategories).sort(([,a],[,b]) => b - a).map(([sub, amt]) => (
                                             <TableRow key={sub} className="border-0"><TableCell className="pl-6">{sub}</TableCell><TableCell className="text-right font-mono">{formatCurrency(amt)}</TableCell></TableRow>
                                         ))}
-                                    </React.Fragment>
+                                    </Fragment>
                                 ))}
                                 {Object.keys(monthlyReport.regularExpenseByCategory).length === 0 && <TableRow><TableCell colSpan={2} className="text-center py-4 text-muted-foreground italic">No regular expenses recorded.</TableCell></TableRow>}
                             </TableBody>
@@ -837,12 +814,12 @@ export function ReportView({
                         <Table className="text-xs">
                             <TableBody>
                                 {Object.entries(monthlyReport.occasionalExpenseByCategory).sort(([,a],[,b]) => b.total - a.total).map(([catName, data]) => (
-                                    <React.Fragment key={catName}>
+                                    <Fragment key={catName}>
                                         <TableRow className="bg-muted/50"><TableCell colSpan={2} className="font-bold text-red-600">{catName}</TableCell></TableRow>
                                         {Object.entries(data.subcategories).sort(([,a],[,b]) => b - a).map(([sub, amt]) => (
                                             <TableRow key={sub} className="border-0"><TableCell className="pl-6">{sub}</TableCell><TableCell className="text-right font-mono">{formatCurrency(amt)}</TableCell></TableRow>
                                         ))}
-                                    </React.Fragment>
+                                    </Fragment>
                                 ))}
                                 {Object.keys(monthlyReport.occasionalExpenseByCategory).length === 0 && <TableRow><TableCell colSpan={2} className="text-center py-4 text-muted-foreground italic">No occasional expenses.</TableCell></TableRow>}
                             </TableBody>
@@ -938,4 +915,3 @@ export function ReportView({
     </div>
   );
 }
-
