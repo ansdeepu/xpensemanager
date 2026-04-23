@@ -231,6 +231,10 @@ export function ReportView({
         return { name: cat, totalCredit: creditTotal, totalDebit: debitTotal, balance: creditTotal - debitTotal, transactions: txsWithDetails.reverse() };
     }).filter(cat => cat.transactions.length > 0 || userDefinedSubFunds.includes(cat.name)) : [];
 
+    const totalPostBankCredit = postBankAccordionData.reduce((sum, cat) => sum + cat.totalCredit, 0);
+    const totalPostBankDebit = postBankAccordionData.reduce((sum, cat) => sum + cat.totalDebit, 0);
+    const totalPostBankBalance = totalPostBankCredit - totalPostBankDebit;
+
     return (
       <div className="space-y-6">
         <Card className="bg-muted/10 border-l-4 border-l-blue-600">
@@ -373,6 +377,18 @@ export function ReportView({
                     <CardDescription>Passbook status of all sub-funds and income streams within the Post Bank account.</CardDescription>
                 </CardHeader>
                 <CardContent>
+                    <div className="mb-6 p-4 border-2 border-primary/20 rounded-lg bg-muted/10">
+                        <Table>
+                            <TableFooter>
+                                <TableRow className="bg-transparent border-0">
+                                    <TableCell className="font-bold text-base">SECTION TOTAL (ALL CATEGORIES)</TableCell>
+                                    <TableCell className="text-right font-mono text-green-600 font-bold text-base">{formatCurrency(totalPostBankCredit)}</TableCell>
+                                    <TableCell className="text-right font-mono text-red-600 font-bold text-base">{formatCurrency(totalPostBankDebit)}</TableCell>
+                                    <TableCell className={cn("text-right font-mono font-bold text-base", totalPostBankBalance < 0 ? "text-red-600" : "text-primary")}>{formatCurrency(totalPostBankBalance)}</TableCell>
+                                </TableRow>
+                            </TableFooter>
+                        </Table>
+                    </div>
                     <Accordion type="single" collapsible className="w-full">
                         {postBankAccordionData.map((cat, idx) => (
                             <AccordionItem key={idx} value={`post-${idx}`}>
@@ -548,13 +564,21 @@ export function ReportView({
     });
 
     const sortEntries = (map: Record<string, number>) => Object.entries(map).map(([name, amount]) => ({ name, amount })).sort((a, b) => b.amount - a.amount);
+    const aggregateDetails = (map: Record<string, number>) => {
+        const aggregated: Record<string, number> = {};
+        Object.entries(map).forEach(([name, amount]) => {
+            aggregated[name] = (aggregated[name] || 0) + amount;
+        });
+        return Object.entries(aggregated).map(([name, amount]) => ({ name, amount })).sort((a, b) => b.amount - a.amount);
+    };
+
     return {
         monthlyLoanReport: { ...report, loanTakenTransactions: sortEntries(report.loanTakenMap), loanGivenTransactions: sortEntries(report.loanGivenMap), repaymentMadeTransactions: sortEntries(report.repaymentMadeMap), repaymentReceivedTransactions: sortEntries(report.repaymentReceivedMap) },
         monthlyTransferSummary: { 
             total: totalTransferOut, 
-            details: sortEntries(transferOutMap),
+            details: aggregateDetails(transferOutMap),
             totalIn: totalTransferIn,
-            detailsIn: sortEntries(transferInMap)
+            detailsIn: aggregateDetails(transferInMap)
         }
     };
   }, [loans, monthlyTransactions, isPrimaryReport, sbiCardId, creditCardIds, primaryAccount, accounts, monthStart, monthEnd]);
@@ -829,7 +853,6 @@ export function ReportView({
                     </CardContent>
                 </Card>
 
-                {/* New Section: Transfer Credit Details for Primary (SBI) */}
                 <Card>
                     <CardHeader>
                         <CardTitle>Transfer Credit Details</CardTitle>
@@ -862,7 +885,6 @@ export function ReportView({
                     </CardContent>
                 </Card>
 
-                {/* New Section: Loan Details (All Time) for Primary (SBI) */}
                 <Card>
                     <CardHeader>
                         <CardTitle>Loan Details (All Time)</CardTitle>
