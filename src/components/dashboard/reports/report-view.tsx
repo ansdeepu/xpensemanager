@@ -251,125 +251,169 @@ export function ReportView({
           </CardContent>
         </Card>
 
-        <div className="grid gap-6 lg:grid-cols-12 items-start">
-            <div className="lg:col-span-8 space-y-6">
-                <Card>
-                    <CardHeader><CardTitle>Income Details (All Time)</CardTitle></CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader><TableRow><TableHead>Source</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
-                            <TableBody>
-                                {Object.entries(allAccountIncomeDetails).sort(([,a],[,b]) => b - a).map(([name, amount]) => (
-                                    <TableRow key={name}><TableCell className="font-medium">{name}</TableCell><TableCell className="text-right font-mono text-green-600">{formatCurrency(amount)}</TableCell></TableRow>
-                                ))}
-                                {totalTransferCredit > 0 && (
-                                    <TableRow>
-                                        <TableCell className="font-medium">Transfer Credit</TableCell>
-                                        <TableCell className="text-right font-mono text-green-600">
-                                            {formatCurrency(totalTransferCredit)}
-                                            <span className="text-[10px] block font-normal text-muted-foreground italic">Loan credit is not consider</span>
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                                {Object.keys(allAccountIncomeDetails).length === 0 && totalTransferCredit === 0 && <TableRow><TableCell colSpan={2} className="text-center py-4 text-muted-foreground text-xs italic">No income records.</TableCell></TableRow>}
-                            </TableBody>
-                            <TableFooter>
+        <div className="grid gap-6 lg:grid-cols-2 items-start">
+            <Card>
+                <CardHeader><CardTitle>Income Details (All Time)</CardTitle></CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader><TableRow><TableHead>Source</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+                        <TableBody>
+                            {Object.entries(allAccountIncomeDetails).sort(([,a],[,b]) => b - a).map(([name, amount]) => (
+                                <TableRow key={name}><TableCell className="font-medium">{name}</TableCell><TableCell className="text-right font-mono text-green-600">{formatCurrency(amount)}</TableCell></TableRow>
+                            ))}
+                            {totalTransferCredit > 0 && (
                                 <TableRow>
-                                    <TableCell className="font-bold">Grand Total</TableCell>
-                                    <TableCell className="text-right font-mono text-green-600 font-bold">{formatCurrency(incomeSum)}</TableCell>
+                                    <TableCell className="font-medium">Transfer Credit</TableCell>
+                                    <TableCell className="text-right font-mono text-green-600">
+                                        {formatCurrency(totalTransferCredit)}
+                                        <span className="text-[10px] block font-normal text-muted-foreground italic">Loan credit is not consider</span>
+                                    </TableCell>
                                 </TableRow>
-                            </TableFooter>
-                        </Table>
+                            )}
+                            {Object.keys(allAccountIncomeDetails).length === 0 && totalTransferCredit === 0 && <TableRow><TableCell colSpan={2} className="text-center py-4 text-muted-foreground text-xs italic">No income records.</TableCell></TableRow>}
+                        </TableBody>
+                        <TableFooter>
+                            <TableRow>
+                                <TableCell className="font-bold">Grand Total</TableCell>
+                                <TableCell className="text-right font-mono text-green-600 font-bold">{formatCurrency(incomeSum)}</TableCell>
+                            </TableRow>
+                        </TableFooter>
+                    </Table>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader><CardTitle>Expense Details (All Time)</CardTitle></CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader><TableRow><TableHead>Category</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+                        <TableBody>
+                            {Object.entries(allAccountExpenseDetails).sort(([,a],[,b]) => b - a).map(([name, amount]) => (
+                                <TableRow key={name}><TableCell className="font-medium">{name}</TableCell><TableCell className="text-right font-mono text-red-600">{formatCurrency(amount)}</TableCell></TableRow>
+                            ))}
+                            {totalTransferDebit > 0 && (
+                                <TableRow>
+                                    <TableCell className="font-medium">Transfer Debit</TableCell>
+                                    <TableCell className="text-right font-mono text-red-600">
+                                        {formatCurrency(totalTransferDebit)}
+                                        <span className="text-[10px] block font-normal text-muted-foreground italic">Loan debit is not consider</span>
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                            {Object.keys(allAccountExpenseDetails).length === 0 && totalTransferDebit === 0 && <TableRow><TableCell colSpan={2} className="text-center py-4 text-muted-foreground text-xs italic">No expense records.</TableCell></TableRow>}
+                        </TableBody>
+                        <TableFooter>
+                            <TableRow>
+                                <TableCell className="font-bold">Grand Total</TableCell>
+                                <TableCell className="text-right font-mono text-red-600 font-bold">{formatCurrency(expenseSum)}</TableCell>
+                            </TableRow>
+                        </TableFooter>
+                    </Table>
+                </CardContent>
+            </Card>
+
+            <Card className="border-primary border-2">
+                <CardHeader><CardTitle>Abstract</CardTitle><CardDescription>High-level financial summary of this account.</CardDescription></CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Description</TableHead>
+                                <TableHead className="text-right">Credit</TableHead>
+                                <TableHead className="text-right">Debit</TableHead>
+                                <TableHead className="text-right">Balance</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            <TableRow>
+                                <TableCell className="text-xs font-medium">Total Income Details (All Time)</TableCell>
+                                <TableCell className="text-right font-mono text-green-600">{formatCurrency(incomeSum)}</TableCell>
+                                <TableCell className="text-right font-mono">-</TableCell>
+                                <TableCell className="text-right font-mono">{formatCurrency(incomeSum)}</TableCell>
+                            </TableRow>
+                            <TableRow>
+                                <TableCell className="text-xs font-medium">Total Expense Details (All Time)</TableCell>
+                                <TableCell className="text-right font-mono">-</TableCell>
+                                <TableCell className="text-right font-mono text-red-600">{formatCurrency(expenseSum)}</TableCell>
+                                <TableCell className="text-right font-mono text-red-600">-{formatCurrency(expenseSum)}</TableCell>
+                            </TableRow>
+                            <TableRow>
+                                <TableCell className="text-xs font-medium">Total Loan Details (All Time)</TableCell>
+                                <TableCell className="text-right font-mono text-green-600">{formatCurrency(totalLoanInflow)}</TableCell>
+                                <TableCell className="text-right font-mono text-red-600">{formatCurrency(totalLoanOutflow)}</TableCell>
+                                <TableCell className={cn("text-right font-mono", (totalLoanInflow - totalLoanOutflow) < 0 && "text-red-600")}>{formatCurrency(totalLoanInflow - totalLoanOutflow)}</TableCell>
+                            </TableRow>
+                        </TableBody>
+                        <TableFooter>
+                            <TableRow>
+                                <TableCell className="font-bold">Total</TableCell>
+                                <TableCell className="text-right font-mono text-green-600 font-bold">{formatCurrency(allTimeInflow)}</TableCell>
+                                <TableCell className="text-right font-mono text-red-600 font-bold">{formatCurrency(allTimeOutflow)}</TableCell>
+                                <TableCell className={cn("text-right font-mono font-bold", closingBalance < 0 ? "text-red-600" : "text-primary")}>{formatCurrency(closingBalance)}</TableCell>
+                            </TableRow>
+                        </TableFooter>
+                    </Table>
+                </CardContent>
+            </Card>
+
+            {isPostBank && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Post Bank Category Breakdown (All Time)</CardTitle>
+                        <CardDescription>Passbook status of all sub-funds and income streams within the Post Bank account.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Accordion type="single" collapsible className="w-full">
+                            {postBankAccordionData.map((cat, idx) => (
+                                <AccordionItem key={idx} value={`post-${idx}`}>
+                                    <AccordionTrigger className="hover:no-underline">
+                                        <div className="flex justify-between w-full pr-4">
+                                            <span>{cat.name}</span>
+                                            <span className={cn("font-bold font-mono", cat.balance >= 0 ? "text-green-600" : "text-red-600")}>{formatCurrency(cat.balance)}</span>
+                                        </div>
+                                    </AccordionTrigger>
+                                    <AccordionContent>
+                                        <div className="p-4 bg-muted/30 rounded-lg">
+                                            <Table className="text-xs">
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead>Date</TableHead>
+                                                        <TableHead>Description</TableHead>
+                                                        <TableHead className="text-right">Credit</TableHead>
+                                                        <TableHead className="text-right">Debit</TableHead>
+                                                        <TableHead className="text-right">Balance</TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {cat.transactions.map((tx, i) => (
+                                                        <TableRow key={i}>
+                                                            <TableCell>{format(new Date(tx.date), 'dd/MM/yy')}</TableCell>
+                                                            <TableCell>{tx.description}</TableCell>
+                                                            <TableCell className="text-right font-mono text-green-600">{tx.credit ? formatCurrency(tx.credit) : ''}</TableCell>
+                                                            <TableCell className="text-right font-mono text-red-600">{tx.debit ? formatCurrency(tx.debit) : ''}</TableCell>
+                                                            <TableCell className="text-right font-mono">{formatCurrency(tx.balance)}</TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                                <TableFooter>
+                                                    <TableRow>
+                                                        <TableCell colSpan={2} className="font-bold">Total</TableCell>
+                                                        <TableCell className="text-right font-mono text-green-600 font-bold">{formatCurrency(cat.totalCredit)}</TableCell>
+                                                        <TableCell className="text-right font-mono text-red-600 font-bold">{formatCurrency(cat.totalDebit)}</TableCell>
+                                                        <TableCell className="text-right font-mono font-bold">{formatCurrency(cat.balance)}</TableCell>
+                                                    </TableRow>
+                                                </TableFooter>
+                                            </Table>
+                                        </div>
+                                    </AccordionContent>
+                                </AccordionItem>
+                            ))}
+                        </Accordion>
                     </CardContent>
                 </Card>
+            )}
 
-                <Card>
-                    <CardHeader><CardTitle>Expense Details (All Time)</CardTitle></CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader><TableRow><TableHead>Category</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
-                            <TableBody>
-                                {Object.entries(allAccountExpenseDetails).sort(([,a],[,b]) => b - a).map(([name, amount]) => (
-                                    <TableRow key={name}><TableCell className="font-medium">{name}</TableCell><TableCell className="text-right font-mono text-red-600">{formatCurrency(amount)}</TableCell></TableRow>
-                                ))}
-                                {totalTransferDebit > 0 && (
-                                    <TableRow>
-                                        <TableCell className="font-medium">Transfer Debit</TableCell>
-                                        <TableCell className="text-right font-mono text-red-600">
-                                            {formatCurrency(totalTransferDebit)}
-                                            <span className="text-[10px] block font-normal text-muted-foreground italic">Loan debit is not consider</span>
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                                {Object.keys(allAccountExpenseDetails).length === 0 && totalTransferDebit === 0 && <TableRow><TableCell colSpan={2} className="text-center py-4 text-muted-foreground text-xs italic">No expense records.</TableCell></TableRow>}
-                            </TableBody>
-                            <TableFooter>
-                                <TableRow>
-                                    <TableCell className="font-bold">Grand Total</TableCell>
-                                    <TableCell className="text-right font-mono text-red-600 font-bold">{formatCurrency(expenseSum)}</TableCell>
-                                </TableRow>
-                            </TableFooter>
-                        </Table>
-                    </CardContent>
-                </Card>
-
-                {isPostBank && (
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Post Bank Category Breakdown (All Time)</CardTitle>
-                            <CardDescription>Passbook status of all sub-funds and income streams within the Post Bank account.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <Accordion type="single" collapsible className="w-full">
-                                {postBankAccordionData.map((cat, idx) => (
-                                    <AccordionItem key={idx} value={`post-${idx}`}>
-                                        <AccordionTrigger className="hover:no-underline">
-                                            <div className="flex justify-between w-full pr-4">
-                                                <span>{cat.name}</span>
-                                                <span className={cn("font-bold font-mono", cat.balance >= 0 ? "text-green-600" : "text-red-600")}>{formatCurrency(cat.balance)}</span>
-                                            </div>
-                                        </AccordionTrigger>
-                                        <AccordionContent>
-                                            <div className="p-4 bg-muted/30 rounded-lg">
-                                                <Table className="text-xs">
-                                                    <TableHeader>
-                                                        <TableRow>
-                                                            <TableHead>Date</TableHead>
-                                                            <TableHead>Description</TableHead>
-                                                            <TableHead className="text-right">Credit</TableHead>
-                                                            <TableHead className="text-right">Debit</TableHead>
-                                                            <TableHead className="text-right">Balance</TableHead>
-                                                        </TableRow>
-                                                    </TableHeader>
-                                                    <TableBody>
-                                                        {cat.transactions.map((tx, i) => (
-                                                            <TableRow key={i}>
-                                                                <TableCell>{format(new Date(tx.date), 'dd/MM/yy')}</TableCell>
-                                                                <TableCell>{tx.description}</TableCell>
-                                                                <TableCell className="text-right font-mono text-green-600">{tx.credit ? formatCurrency(tx.credit) : ''}</TableCell>
-                                                                <TableCell className="text-right font-mono text-red-600">{tx.debit ? formatCurrency(tx.debit) : ''}</TableCell>
-                                                                <TableCell className="text-right font-mono">{formatCurrency(tx.balance)}</TableCell>
-                                                            </TableRow>
-                                                        ))}
-                                                    </TableBody>
-                                                    <TableFooter>
-                                                        <TableRow>
-                                                            <TableCell colSpan={2} className="font-bold">Total</TableCell>
-                                                            <TableCell className="text-right font-mono text-green-600 font-bold">{formatCurrency(cat.totalCredit)}</TableCell>
-                                                            <TableCell className="text-right font-mono text-red-600 font-bold">{formatCurrency(cat.totalDebit)}</TableCell>
-                                                            <TableCell className="text-right font-mono font-bold">{formatCurrency(cat.balance)}</TableCell>
-                                                        </TableRow>
-                                                    </TableFooter>
-                                                </Table>
-                                            </div>
-                                        </AccordionContent>
-                                    </AccordionItem>
-                                ))}
-                            </Accordion>
-                        </CardContent>
-                    </Card>
-                )}
-
+            <div className={cn("space-y-6", isPostBank ? "lg:col-span-2" : "")}>
                 <Card>
                     <CardHeader><CardTitle>Loan Details (All Time)</CardTitle></CardHeader>
                     <CardContent>
@@ -413,52 +457,6 @@ export function ReportView({
                             ))}
                             {allAccountLoanDetails.length === 0 && <div className="text-center py-10 text-muted-foreground text-xs italic">No loans recorded.</div>}
                         </Accordion>
-                    </CardContent>
-                </Card>
-            </div>
-
-            <div className="lg:col-span-4 space-y-6">
-                <Card className="border-primary border-2">
-                    <CardHeader><CardTitle>Abstract</CardTitle><CardDescription>High-level financial summary of this account.</CardDescription></CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Description</TableHead>
-                                    <TableHead className="text-right">Credit</TableHead>
-                                    <TableHead className="text-right">Debit</TableHead>
-                                    <TableHead className="text-right">Balance</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                <TableRow>
-                                    <TableCell className="text-xs font-medium">Total Income Details (All Time)</TableCell>
-                                    <TableCell className="text-right font-mono text-green-600">{formatCurrency(incomeSum)}</TableCell>
-                                    <TableCell className="text-right font-mono">-</TableCell>
-                                    <TableCell className="text-right font-mono">{formatCurrency(incomeSum)}</TableCell>
-                                </TableRow>
-                                <TableRow>
-                                    <TableCell className="text-xs font-medium">Total Expense Details (All Time)</TableCell>
-                                    <TableCell className="text-right font-mono">-</TableCell>
-                                    <TableCell className="text-right font-mono text-red-600">{formatCurrency(expenseSum)}</TableCell>
-                                    <TableCell className="text-right font-mono text-red-600">-{formatCurrency(expenseSum)}</TableCell>
-                                </TableRow>
-                                <TableRow>
-                                    <TableCell className="text-xs font-medium">Total Loan Details (All Time)</TableCell>
-                                    <TableCell className="text-right font-mono text-green-600">{formatCurrency(totalLoanInflow)}</TableCell>
-                                    <TableCell className="text-right font-mono text-red-600">{formatCurrency(totalLoanOutflow)}</TableCell>
-                                    <TableCell className={cn("text-right font-mono", (totalLoanInflow - totalLoanOutflow) < 0 && "text-red-600")}>{formatCurrency(totalLoanInflow - totalLoanOutflow)}</TableCell>
-                                </TableRow>
-                            </TableBody>
-                            <TableFooter>
-                                <TableRow>
-                                    <TableCell className="font-bold">Total</TableCell>
-                                    <TableCell className="text-right font-mono text-green-600 font-bold">{formatCurrency(allTimeInflow)}</TableCell>
-                                    <TableCell className="text-right font-mono text-red-600 font-bold">{formatCurrency(allTimeOutflow)}</TableCell>
-                                    <TableCell className={cn("text-right font-mono font-bold", closingBalance < 0 ? "text-red-600" : "text-primary")}>{formatCurrency(closingBalance)}</TableCell>
-                                </TableRow>
-                            </TableFooter>
-                        </Table>
                     </CardContent>
                 </Card>
             </div>
@@ -960,3 +958,4 @@ export function ReportView({
     </div>
   );
 }
+
