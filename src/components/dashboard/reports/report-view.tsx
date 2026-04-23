@@ -130,9 +130,14 @@ export function ReportView({
         const totalGiven = accountSpecificTransactions.filter(tx => tx.type === 'loan').reduce((sum, tx) => sum + tx.amount, 0);
         const totalRepayment = accountSpecificTransactions.filter(tx => tx.type === 'repayment').reduce((sum, tx) => sum + tx.amount, 0);
         
+        // Use "SBI Bank" if the party name matches the current tab's bank name in non-primary reports
+        const displayName = (!isPrimaryReport && l.personName.toLowerCase() === accountName.toLowerCase())
+            ? "SBI Bank"
+            : l.personName;
+
         return {
             id: l.id,
-            personName: l.personName,
+            personName: displayName,
             totalGiven,
             totalRepayment,
             balance: totalGiven - totalRepayment,
