@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -537,19 +536,46 @@ export function LoanList({
   const [transactionType, setTransactionType] = useState<'loan' | 'repayment'>('loan');
   const [activeAddTab, setActiveAddTab] = useState("loan");
 
-  // Deduplicate Loans: Remove entries that are actually credit cards which are handled separately
-  const filteredLoans = useMemo(() => {
-    if (!allLoans) return [];
+  // Filter and SORT Loans/Cards in descending order
+  const { sortedLoans, sortedCards } = useMemo(() => {
+    if (!allLoans) return { sortedLoans: [], sortedCards: [] };
+    
     const cardNames = new Set(creditCards?.map(c => c.name.toLowerCase()) || []);
-    return allLoans.filter(l => !cardNames.has(l.personName.toLowerCase()));
-  }, [allLoans, creditCards]);
+    const filtered = allLoans.filter(l => !cardNames.has(l.personName.toLowerCase()));
+
+    // Calculate tab-specific balance for sorting
+    const loansWithTabBalance = filtered.map(l => {
+        const rawTransactions = l.transactions || [];
+        const tabFilteredTransactions = allowedAccountIds 
+            ? rawTransactions.filter(t => allowedAccountIds.includes(t.accountId))
+            : rawTransactions;
+        
+        let tabBalance = 0;
+        tabFilteredTransactions.forEach(t => {
+            if (l.type === 'taken') {
+                tabBalance += (t.type === 'loan' ? t.amount : -t.amount);
+            } else {
+                tabBalance += (t.type === 'loan' ? t.amount : -t.amount);
+            }
+        });
+        return { ...l, tabBalance };
+    });
+
+    // Sort Loans by tabBalance descending
+    const sortedLoans = loansWithTabBalance.sort((a, b) => b.tabBalance - a.tabBalance);
+
+    // Sort Cards by balance descending
+    const sortedCards = creditCards ? [...creditCards].sort((a, b) => b.balance - a.balance) : [];
+
+    return { sortedLoans, sortedCards };
+  }, [allLoans, creditCards, allowedAccountIds]);
 
   useEffect(() => {
     setClientLoaded(true);
-    if(filteredLoans) {
-        setLoans(filteredLoans);
+    if(sortedLoans) {
+        setLoans(sortedLoans);
     }
-  }, [filteredLoans]);
+  }, [sortedLoans]);
 
   useEffect(() => {
     if (user && db) {
@@ -673,8 +699,6 @@ export function LoanList({
     const currentPrimaryCreditCard = accounts.find(acc => acc.type === 'card' && acc.name.toLowerCase().includes('sbi'));
     const currentOtherAccounts = accounts.filter(a => (!a.isPrimary && a.type !== 'card') || (currentPrimaryCreditCard && a.id === currentPrimaryCreditCard.id));
     
-    // Simplified filtering: don't allow SBI cards in the dropdown if we're technically outside the primary tab? 
-    // Actually, the dialog handles all. We'll filter the parties list similarly to LoansPage.
     const allLoanParties: (Loan | Omit<Account, "balance">)[] = [
       ...loans,
       ...currentOtherAccounts
@@ -1023,8 +1047,8 @@ export function LoanList({
     return loans.filter(l => !accountNames.has(l.personName.toLowerCase()));
   }, [loans, otherAccountsForSelect]);
 
-  const sbiCard = useMemo(() => creditCards?.find(c => c.name.toLowerCase().includes('sbi')), [creditCards]);
-  const otherCards = useMemo(() => creditCards?.filter(c => c.name.toLowerCase().includes('sbi') === false), [creditCards]);
+  const sbiCard = useMemo(() => sortedCards.find(c => c.name.toLowerCase().includes('sbi')), [sortedCards]);
+  const otherCards = useMemo(() => sortedCards.filter(c => !c.name.toLowerCase().includes('sbi')), [sortedCards]);
 
   if (loading || !clientLoaded) {
     return <Skeleton className="h-96 w-full" />;
@@ -1219,7 +1243,8 @@ export function LoanList({
                 </div>
             ) : (
                 <Accordion type="single" collapsible className="w-full">
-                    {sbiCard && allTransactions && loanType === 'taken' && (allowedAccountIds?.includes(sbiCard.id)) && (
+                    {/* Render Credit Cards in descending order if in Taken tab */}
+                    {loanType === 'taken' && sbiCard && allTransactions && (allowedAccountIds?.includes(sbiCard.id)) && (
                         <CardAccordionItem
                             key={sbiCard.id}
                             card={sbiCard}
@@ -1231,6 +1256,22 @@ export function LoanList({
                             onDeleteTransaction={handleDeleteCardTransaction}
                         />
                     )}
+                    {/* Other Credit Cards sorted by balance */}
+                    {loanType === 'taken' && otherCards && allTransactions && otherCards.map(card => (
+                       (allowedAccountIds?.includes(card.id)) && (
+                         <CardAccordionItem
+                              key={card.id}
+                              card={card}
+                              accounts={accounts}
+                              transactions={allTransactions}
+                              startDate={startDate}
+                              endDate={endDate}
+                              onEditTransaction={openEditCardTxDialog}
+                              onDeleteTransaction={handleDeleteCardTransaction}
+                          />
+                       )
+                    ))}
+                    {/* Loans sorted by tab balance */}
                     {loans.map(loan => (
                       <LoanAccordionItem 
                         key={loan.id}
@@ -1245,20 +1286,6 @@ export function LoanList({
                         endDate={endDate}
                         allowedAccountIds={allowedAccountIds}
                       />
-                    ))}
-                    {otherCards && allTransactions && loanType === 'taken' && otherCards.map(card => (
-                       (allowedAccountIds?.includes(card.id)) && (
-                         <CardAccordionItem
-                              key={card.id}
-                              card={card}
-                              accounts={accounts}
-                              transactions={allTransactions}
-                              startDate={startDate}
-                              endDate={endDate}
-                              onEditTransaction={openEditCardTxDialog}
-                              onDeleteTransaction={handleDeleteCardTransaction}
-                          />
-                       )
                     ))}
                 </Accordion>
             )}
