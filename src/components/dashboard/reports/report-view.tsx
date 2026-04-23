@@ -38,6 +38,8 @@ const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(val);
 };
 
@@ -225,9 +227,9 @@ export function ReportView({
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div><p className="text-xs text-muted-foreground uppercase font-semibold text-green-600">Total All-Time Inflow</p><p className="text-xl font-bold text-green-600">{formatCurrency(allTimeInflow)}</p></div>
-              <div><p className="text-xs text-muted-foreground uppercase font-semibold text-red-600">Total All-Time Outflow</p><p className="text-xl font-bold text-red-600">-{formatCurrency(allTimeOutflow)}</p></div>
-              <div><p className="text-xs text-muted-foreground uppercase font-semibold">Current Account Balance</p><p className={cn("text-xl font-bold", closingBalance >= 0 ? "text-primary" : "text-red-600")}>{formatCurrency(closingBalance)}</p></div>
+              <div><p className="text-xs text-muted-foreground uppercase font-semibold text-green-600">Total All-Time Inflow</p><p className="text-xl font-bold font-mono text-green-600">{formatCurrency(allTimeInflow)}</p></div>
+              <div><p className="text-xs text-muted-foreground uppercase font-semibold text-red-600">Total All-Time Outflow</p><p className="text-xl font-bold font-mono text-red-600">-{formatCurrency(allTimeOutflow)}</p></div>
+              <div><p className="text-xs text-muted-foreground uppercase font-semibold">Current Account Balance</p><p className={cn("text-xl font-bold font-mono", closingBalance >= 0 ? "text-primary" : "text-red-600")}>{formatCurrency(closingBalance)}</p></div>
             </div>
           </CardContent>
         </Card>
@@ -238,10 +240,10 @@ export function ReportView({
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div><p className="text-xs text-muted-foreground uppercase">Previous Balance</p><p className="text-xl font-bold">{formatCurrency(prevBal)}</p></div>
-              <div><p className="text-xs text-muted-foreground uppercase font-semibold text-green-600">Monthly Inflow</p><p className="text-xl font-bold text-green-600">+{formatCurrency(currentInflow)}</p></div>
-              <div><p className="text-xs text-muted-foreground uppercase font-semibold text-red-600">Monthly Outflow</p><p className="text-xl font-bold text-red-600">-{formatCurrency(currentOutflow)}</p></div>
-              <div><p className="text-xs text-muted-foreground uppercase font-semibold">Closing Balance</p><p className={cn("text-xl font-bold", monthClosingBalance >= 0 ? "text-primary" : "text-red-600")}>{formatCurrency(monthClosingBalance)}</p></div>
+              <div><p className="text-xs text-muted-foreground uppercase">Previous Balance</p><p className="text-xl font-bold font-mono">{formatCurrency(prevBal)}</p></div>
+              <div><p className="text-xs text-muted-foreground uppercase font-semibold text-green-600">Monthly Inflow</p><p className="text-xl font-bold font-mono text-green-600">+{formatCurrency(currentInflow)}</p></div>
+              <div><p className="text-xs text-muted-foreground uppercase font-semibold text-red-600">Monthly Outflow</p><p className="text-xl font-bold font-mono text-red-600">-{formatCurrency(currentOutflow)}</p></div>
+              <div><p className="text-xs text-muted-foreground uppercase font-semibold">Closing Balance</p><p className={cn("text-xl font-bold font-mono", monthClosingBalance >= 0 ? "text-primary" : "text-red-600")}>{formatCurrency(monthClosingBalance)}</p></div>
             </div>
           </CardContent>
         </Card>
@@ -259,7 +261,7 @@ export function ReportView({
                                 <AccordionTrigger className="hover:no-underline">
                                     <div className="flex justify-between w-full pr-4">
                                         <span>{cat.name}</span>
-                                        <span className={cn("font-bold", cat.balance >= 0 ? "text-green-600" : "text-red-600")}>{formatCurrency(cat.balance)}</span>
+                                        <span className={cn("font-bold font-mono", cat.balance >= 0 ? "text-green-600" : "text-red-600")}>{formatCurrency(cat.balance)}</span>
                                     </div>
                                 </AccordionTrigger>
                                 <AccordionContent>
@@ -279,8 +281,8 @@ export function ReportView({
                                                     <TableRow key={i}>
                                                         <TableCell>{format(new Date(tx.date), 'dd/MM/yy')}</TableCell>
                                                         <TableCell>{tx.description}</TableCell>
-                                                        <TableCell className="text-right text-green-600">{tx.credit ? formatCurrency(tx.credit) : ''}</TableCell>
-                                                        <TableCell className="text-right text-red-600">{tx.debit ? formatCurrency(tx.debit) : ''}</TableCell>
+                                                        <TableCell className="text-right font-mono text-green-600">{tx.credit ? formatCurrency(tx.credit) : ''}</TableCell>
+                                                        <TableCell className="text-right font-mono text-red-600">{tx.debit ? formatCurrency(tx.debit) : ''}</TableCell>
                                                         <TableCell className="text-right font-mono">{formatCurrency(tx.balance)}</TableCell>
                                                     </TableRow>
                                                 ))}
@@ -288,9 +290,9 @@ export function ReportView({
                                             <TableFooter>
                                                 <TableRow>
                                                     <TableCell colSpan={2} className="font-bold">Total</TableCell>
-                                                    <TableCell className="text-right text-green-600 font-bold">{formatCurrency(cat.totalCredit)}</TableCell>
-                                                    <TableCell className="text-right text-red-600 font-bold">{formatCurrency(cat.totalDebit)}</TableCell>
-                                                    <TableCell className="text-right font-bold">{formatCurrency(cat.balance)}</TableCell>
+                                                    <TableCell className="text-right font-mono text-green-600 font-bold">{formatCurrency(cat.totalCredit)}</TableCell>
+                                                    <TableCell className="text-right font-mono text-red-600 font-bold">{formatCurrency(cat.totalDebit)}</TableCell>
+                                                    <TableCell className="text-right font-mono font-bold">{formatCurrency(cat.balance)}</TableCell>
                                                 </TableRow>
                                             </TableFooter>
                                         </Table>
@@ -312,12 +314,12 @@ export function ReportView({
                             <TableHeader><TableRow><TableHead>Source</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
                             <TableBody>
                                 {Object.entries(allAccountIncomeDetails).sort(([,a],[,b]) => b - a).map(([name, amount]) => (
-                                    <TableRow key={name}><TableCell className="font-medium">{name}</TableCell><TableCell className="text-right text-green-600">{formatCurrency(amount)}</TableCell></TableRow>
+                                    <TableRow key={name}><TableCell className="font-medium">{name}</TableCell><TableCell className="text-right font-mono text-green-600">{formatCurrency(amount)}</TableCell></TableRow>
                                 ))}
                                 {totalTransferCredit > 0 && (
                                     <TableRow>
                                         <TableCell className="font-medium">Transfer Credit</TableCell>
-                                        <TableCell className="text-right text-green-600">
+                                        <TableCell className="text-right font-mono text-green-600">
                                             {formatCurrency(totalTransferCredit)}
                                             <span className="text-[10px] block font-normal text-muted-foreground italic">Loan credit is not consider</span>
                                         </TableCell>
@@ -326,7 +328,7 @@ export function ReportView({
                                 {totalLoanInflow > 0 && (
                                     <TableRow>
                                         <TableCell className="font-medium">Loan Inflow</TableCell>
-                                        <TableCell className="text-right text-green-600">{formatCurrency(totalLoanInflow)}</TableCell>
+                                        <TableCell className="text-right font-mono text-green-600">{formatCurrency(totalLoanInflow)}</TableCell>
                                     </TableRow>
                                 )}
                                 {Object.keys(allAccountIncomeDetails).length === 0 && totalTransferCredit === 0 && totalLoanInflow === 0 && <TableRow><TableCell colSpan={2} className="text-center py-4 text-muted-foreground text-xs italic">No income records.</TableCell></TableRow>}
@@ -334,7 +336,7 @@ export function ReportView({
                             <TableFooter>
                                 <TableRow>
                                     <TableCell className="font-bold">Grand Total</TableCell>
-                                    <TableCell className="text-right text-green-600 font-bold">{formatCurrency(allTimeInflow)}</TableCell>
+                                    <TableCell className="text-right font-mono text-green-600 font-bold">{formatCurrency(allTimeInflow)}</TableCell>
                                 </TableRow>
                             </TableFooter>
                         </Table>
@@ -347,7 +349,7 @@ export function ReportView({
                             {allAccountLoanDetails.map(loan => (
                                 <AccordionItem key={loan!.id} value={loan!.id}>
                                     <AccordionTrigger className="py-2 hover:no-underline">
-                                        <div className="flex justify-between w-full pr-4 text-sm font-medium"><span>{loan!.personName}</span><Badge variant="outline">{formatCurrency(loan!.balance)}</Badge></div>
+                                        <div className="flex justify-between w-full pr-4 text-sm font-medium"><span>{loan!.personName}</span><Badge variant="outline" className="font-mono">{formatCurrency(loan!.balance)}</Badge></div>
                                     </AccordionTrigger>
                                     <AccordionContent>
                                         <Table className="text-[10px]">
@@ -363,8 +365,8 @@ export function ReportView({
                                                 {loan!.transactions.map(tx => (
                                                     <TableRow key={tx.id}>
                                                         <TableCell>{format(parseISO(tx.date), 'dd/MM/yy')}</TableCell>
-                                                        <TableCell className="text-right text-red-600">{tx.type === 'loan' ? formatCurrency(tx.amount) : ''}</TableCell>
-                                                        <TableCell className="text-right text-green-600">{tx.type === 'repayment' ? formatCurrency(tx.amount) : ''}</TableCell>
+                                                        <TableCell className="text-right font-mono text-red-600">{tx.type === 'loan' ? formatCurrency(tx.amount) : ''}</TableCell>
+                                                        <TableCell className="text-right font-mono text-green-600">{tx.type === 'repayment' ? formatCurrency(tx.amount) : ''}</TableCell>
                                                         <TableCell className="text-right font-mono">{formatCurrency(tx.currentBalance)}</TableCell>
                                                     </TableRow>
                                                 ))}
@@ -372,9 +374,9 @@ export function ReportView({
                                             <TableFooter>
                                                 <TableRow>
                                                     <TableCell className="font-bold">Total</TableCell>
-                                                    <TableCell className="text-right text-red-600 font-bold">{formatCurrency(loan!.totalGiven)}</TableCell>
-                                                    <TableCell className="text-right text-green-600 font-bold">{formatCurrency(loan!.totalRepayment)}</TableCell>
-                                                    <TableCell className="text-right font-bold">{formatCurrency(loan!.balance)}</TableCell>
+                                                    <TableCell className="text-right font-mono text-red-600 font-bold">{formatCurrency(loan!.totalGiven)}</TableCell>
+                                                    <TableCell className="text-right font-mono text-green-600 font-bold">{formatCurrency(loan!.totalRepayment)}</TableCell>
+                                                    <TableCell className="text-right font-mono font-bold">{formatCurrency(loan!.balance)}</TableCell>
                                                 </TableRow>
                                             </TableFooter>
                                         </Table>
@@ -394,12 +396,12 @@ export function ReportView({
                             <TableHeader><TableRow><TableHead>Category</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
                             <TableBody>
                                 {Object.entries(allAccountExpenseDetails).sort(([,a],[,b]) => b - a).map(([name, amount]) => (
-                                    <TableRow key={name}><TableCell className="font-medium">{name}</TableCell><TableCell className="text-right text-red-600">{formatCurrency(amount)}</TableCell></TableRow>
+                                    <TableRow key={name}><TableCell className="font-medium">{name}</TableCell><TableCell className="text-right font-mono text-red-600">{formatCurrency(amount)}</TableCell></TableRow>
                                 ))}
                                 {totalTransferDebit > 0 && (
                                     <TableRow>
                                         <TableCell className="font-medium">Transfer Debit</TableCell>
-                                        <TableCell className="text-right text-red-600">
+                                        <TableCell className="text-right font-mono text-red-600">
                                             {formatCurrency(totalTransferDebit)}
                                             <span className="text-[10px] block font-normal text-muted-foreground italic">Loan debit is not consider</span>
                                         </TableCell>
@@ -408,7 +410,7 @@ export function ReportView({
                                 {totalLoanOutflow > 0 && (
                                     <TableRow>
                                         <TableCell className="font-medium">Loan Outflow</TableCell>
-                                        <TableCell className="text-right text-red-600">{formatCurrency(totalLoanOutflow)}</TableCell>
+                                        <TableCell className="text-right font-mono text-red-600">{formatCurrency(totalLoanOutflow)}</TableCell>
                                     </TableRow>
                                 )}
                                 {Object.keys(allAccountExpenseDetails).length === 0 && totalTransferDebit === 0 && totalLoanOutflow === 0 && <TableRow><TableCell colSpan={2} className="text-center py-4 text-muted-foreground text-xs italic">No expense records.</TableCell></TableRow>}
@@ -416,7 +418,7 @@ export function ReportView({
                             <TableFooter>
                                 <TableRow>
                                     <TableCell className="font-bold">Grand Total</TableCell>
-                                    <TableCell className="text-right text-red-600 font-bold">{formatCurrency(allTimeOutflow)}</TableCell>
+                                    <TableCell className="text-right font-mono text-red-600 font-bold">{formatCurrency(allTimeOutflow)}</TableCell>
                                 </TableRow>
                             </TableFooter>
                         </Table>
@@ -431,14 +433,14 @@ export function ReportView({
                                     {allAccountTransferDetails.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(t => {
                                         const isOut = t.fromAccountId === accountId;
                                         const otherName = accounts.find(a => a.id === (isOut ? t.toAccountId : t.fromAccountId))?.name || 'Other';
-                                        return <TableRow key={t.id}><TableCell className="text-xs">{format(new Date(t.date), 'dd/MM/yy')}</TableCell><TableCell className="text-xs">{isOut ? `➔ ${otherName}` : `← ${otherName}`}</TableCell><TableCell className={cn("text-right text-xs", isOut ? "text-red-600" : "text-green-600")}>{formatCurrency(t.amount)}</TableCell></TableRow>
+                                        return <TableRow key={t.id}><TableCell className="text-xs">{format(new Date(t.date), 'dd/MM/yy')}</TableCell><TableCell className="text-xs">{isOut ? `➔ ${otherName}` : `← ${otherName}`}</TableCell><TableCell className={cn("text-right font-mono text-xs", isOut ? "text-red-600" : "text-green-600")}>{formatCurrency(t.amount)}</TableCell></TableRow>
                                     })}
                                     {allAccountTransferDetails.length === 0 && <TableRow><TableCell colSpan={3} className="text-center py-10 text-muted-foreground">No transfers recorded.</TableCell></TableRow>}
                                 </TableBody>
                                 <TableFooter>
                                     <TableRow>
                                         <TableCell colSpan={2} className="font-bold">Summary</TableCell>
-                                        <TableCell className="text-right font-bold">{formatCurrency(allAccountTransferDetails.reduce((s, t) => s + t.amount, 0))}</TableCell>
+                                        <TableCell className="text-right font-mono font-bold">{formatCurrency(allAccountTransferDetails.reduce((s, t) => s + t.amount, 0))}</TableCell>
                                     </TableRow>
                                 </TableFooter>
                             </Table>
@@ -588,13 +590,13 @@ export function ReportView({
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-green-600">{formatCurrency(grandTotalInflow)}</div>
+                    <div className="text-2xl font-bold font-mono text-green-600">{formatCurrency(grandTotalInflow)}</div>
                     <CollapsibleContent className="mt-4 pt-4 border-t space-y-2">
-                      <div className="flex justify-between text-xs"><span>Income:</span><span>{formatCurrency(monthlyReport.totalIncome)}</span></div>
-                      <div className="flex justify-between text-xs"><span>Loan Taken:</span><span>{formatCurrency(monthlyLoanReport.totalLoanTaken)}</span></div>
-                      <div className="flex justify-between text-xs"><span>Repay. Received:</span><span>{formatCurrency(monthlyLoanReport.totalRepaymentReceived)}</span></div>
-                      <div className="flex justify-between text-xs"><span>SBI Usage:</span><span>{formatCurrency(monthlyLoanReport.totalSBILoan)}</span></div>
-                      <div className="flex justify-between text-xs"><span>SBI Cashback:</span><span>{formatCurrency(monthlyLoanReport.totalSBICashback)}</span></div>
+                      <div className="flex justify-between text-xs"><span>Income:</span><span className="font-mono">{formatCurrency(monthlyReport.totalIncome)}</span></div>
+                      <div className="flex justify-between text-xs"><span>Loan Taken:</span><span className="font-mono">{formatCurrency(monthlyLoanReport.totalLoanTaken)}</span></div>
+                      <div className="flex justify-between text-xs"><span>Repay. Received:</span><span className="font-mono">{formatCurrency(monthlyLoanReport.totalRepaymentReceived)}</span></div>
+                      <div className="flex justify-between text-xs"><span>SBI Usage:</span><span className="font-mono">{formatCurrency(monthlyLoanReport.totalSBILoan)}</span></div>
+                      <div className="flex justify-between text-xs"><span>SBI Cashback:</span><span className="font-mono">{formatCurrency(monthlyLoanReport.totalSBICashback)}</span></div>
                     </CollapsibleContent>
                   </CardContent>
                 </Card>
@@ -612,13 +614,13 @@ export function ReportView({
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-red-600">{formatCurrency(grandTotalOutflow)}</div>
+                    <div className="text-2xl font-bold font-mono text-red-600">{formatCurrency(grandTotalOutflow)}</div>
                     <CollapsibleContent className="mt-4 pt-4 border-t space-y-2">
-                      <div className="flex justify-between text-xs"><span>Expenses:</span><span>{formatCurrency(monthlyReport.totalExpense)}</span></div>
-                      <div className="flex justify-between text-xs"><span>Loan Given:</span><span>{formatCurrency(monthlyLoanReport.totalLoanGiven)}</span></div>
-                      <div className="flex justify-between text-xs"><span>Repay. Made:</span><span>{formatCurrency(monthlyLoanReport.totalRepaymentMade)}</span></div>
-                      <div className="flex justify-between text-xs"><span>SBI Card Repay & Adj:</span><span>{formatCurrency(sbiOut + monthlyLoanReport.totalSBICashback)}</span></div>
-                      <div className="flex justify-between text-xs"><span>Transfer Out:</span><span>{formatCurrency(monthlyTransferSummary.total)}</span></div>
+                      <div className="flex justify-between text-xs"><span>Expenses:</span><span className="font-mono">{formatCurrency(monthlyReport.totalExpense)}</span></div>
+                      <div className="flex justify-between text-xs"><span>Loan Given:</span><span className="font-mono">{formatCurrency(monthlyLoanReport.totalLoanGiven)}</span></div>
+                      <div className="flex justify-between text-xs"><span>Repay. Made:</span><span className="font-mono">{formatCurrency(monthlyLoanReport.totalRepaymentMade)}</span></div>
+                      <div className="flex justify-between text-xs"><span>SBI Card Repay & Adj:</span><span className="font-mono">{formatCurrency(sbiOut + monthlyLoanReport.totalSBICashback)}</span></div>
+                      <div className="flex justify-between text-xs"><span>Transfer Out:</span><span className="font-mono">{formatCurrency(monthlyTransferSummary.total)}</span></div>
                     </CollapsibleContent>
                   </CardContent>
                 </Card>
@@ -636,10 +638,10 @@ export function ReportView({
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className={cn("text-2xl font-bold", netBalance >= 0 ? 'text-foreground' : 'text-red-600')}>{formatCurrency(netBalance)}</div>
+                    <div className={cn("text-2xl font-bold font-mono", netBalance >= 0 ? 'text-foreground' : 'text-red-600')}>{formatCurrency(netBalance)}</div>
                     <CollapsibleContent className="mt-4 pt-4 border-t space-y-2">
-                      <div className="flex justify-between text-xs"><span>Inflow:</span><span className="text-green-600">{formatCurrency(grandTotalInflow)}</span></div>
-                      <div className="flex justify-between text-xs"><span>Outflow:</span><span className="text-red-600">{formatCurrency(grandTotalOutflow)}</span></div>
+                      <div className="flex justify-between text-xs"><span>Inflow:</span><span className="text-green-600 font-mono">{formatCurrency(grandTotalInflow)}</span></div>
+                      <div className="flex justify-between text-xs"><span>Outflow:</span><span className="text-red-600 font-mono">{formatCurrency(grandTotalOutflow)}</span></div>
                     </CollapsibleContent>
                   </CardContent>
                 </Card>
@@ -658,15 +660,15 @@ export function ReportView({
                             <TableHeader><TableRow><TableHead>Source</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
                             <TableBody>
                                 {Object.entries(monthlyReport.incomeByCategory).map(([cat, { total }]) => (
-                                    <TableRow key={cat}><TableCell className="font-medium">{cat}</TableCell><TableCell className="text-right text-green-600">{formatCurrency(total)}</TableCell></TableRow>
+                                    <TableRow key={cat}><TableCell className="font-medium">{cat}</TableCell><TableCell className="text-right font-mono text-green-600">{formatCurrency(total)}</TableCell></TableRow>
                                 ))}
                                 <TableRow className="font-medium text-green-600">
                                     <TableCell>Repayment Received</TableCell>
-                                    <TableCell className="text-right">{formatCurrency(monthlyLoanReport.totalRepaymentReceived)}</TableCell>
+                                    <TableCell className="text-right font-mono">{formatCurrency(monthlyLoanReport.totalRepaymentReceived)}</TableCell>
                                 </TableRow>
-                                {monthlyLoanReport.totalLoanTaken > 0 && (<TableRow className="font-medium text-green-600"><TableCell>Loan Taken</TableCell><TableCell className="text-right">{formatCurrency(monthlyLoanReport.totalLoanTaken)}</TableCell></TableRow>)}
-                                {monthlyLoanReport.totalSBILoan > 0 && (<TableRow className="font-medium text-green-600"><TableCell>SBI Credit Card Usage</TableCell><TableCell className="text-right">{formatCurrency(monthlyLoanReport.totalSBILoan)}</TableCell></TableRow>)}
-                                {monthlyLoanReport.totalSBICashback > 0 && (<TableRow className="font-medium text-green-600"><TableCell>SBI Credit Card Cashback</TableCell><TableCell className="text-right">{formatCurrency(monthlyLoanReport.totalSBICashback)}</TableCell></TableRow>)}
+                                {monthlyLoanReport.totalLoanTaken > 0 && (<TableRow className="font-medium text-green-600"><TableCell>Loan Taken</TableCell><TableCell className="text-right font-mono">{formatCurrency(monthlyLoanReport.totalLoanTaken)}</TableCell></TableRow>)}
+                                {monthlyLoanReport.totalSBILoan > 0 && (<TableRow className="font-medium text-green-600"><TableCell>SBI Credit Card Usage</TableCell><TableCell className="text-right font-mono">{formatCurrency(monthlyLoanReport.totalSBILoan)}</TableCell></TableRow>)}
+                                {monthlyLoanReport.totalSBICashback > 0 && (<TableRow className="font-medium text-green-600"><TableCell>SBI Credit Card Cashback</TableCell><TableCell className="text-right font-mono">{formatCurrency(monthlyLoanReport.totalSBICashback)}</TableCell></TableRow>)}
                             </TableBody>
                             <TableFooter>
                                 <TableRow>
@@ -709,13 +711,13 @@ export function ReportView({
                         <Table className="text-xs">
                             <TableHeader><TableRow><TableHead>Description</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
                             <TableBody>
-                                {monthlyLoanReport.sbiLoanTransactions.map((tx, idx) => (<TableRow key={idx}><TableCell>{tx.name}</TableCell><TableCell className="text-right text-green-600">{formatCurrency(tx.amount)}</TableCell></TableRow>))}
+                                {monthlyLoanReport.sbiLoanTransactions.map((tx, idx) => (<TableRow key={idx}><TableCell>{tx.name}</TableCell><TableCell className="text-right font-mono text-green-600">{formatCurrency(tx.amount)}</TableCell></TableRow>))}
                                 {monthlyLoanReport.sbiLoanTransactions.length === 0 && <TableRow><TableCell colSpan={2} className="text-center py-4 text-muted-foreground italic">No usage recorded.</TableCell></TableRow>}
                             </TableBody>
                             <TableFooter>
                                 <TableRow>
                                     <TableCell className="font-bold">Total Usage</TableCell>
-                                    <TableCell className="text-right text-green-600 font-bold">{formatCurrency(monthlyLoanReport.totalSBILoan)}</TableCell>
+                                    <TableCell className="text-right font-mono text-green-600 font-bold">{formatCurrency(monthlyLoanReport.totalSBILoan)}</TableCell>
                                 </TableRow>
                             </TableFooter>
                         </Table>
@@ -728,13 +730,13 @@ export function ReportView({
                         <Table className="text-xs">
                             <TableHeader><TableRow><TableHead>Description</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
                             <TableBody>
-                                {monthlyLoanReport.sbiCashbackTransactions.map((tx, idx) => (<TableRow key={idx}><TableCell>{tx.name}</TableCell><TableCell className="text-right text-green-600">{formatCurrency(tx.amount)}</TableCell></TableRow>))}
+                                {monthlyLoanReport.sbiCashbackTransactions.map((tx, idx) => (<TableRow key={idx}><TableCell>{tx.name}</TableCell><TableCell className="text-right font-mono text-green-600">{formatCurrency(tx.amount)}</TableCell></TableRow>))}
                                 {monthlyLoanReport.sbiCashbackTransactions.length === 0 && <TableRow><TableCell colSpan={2} className="text-center py-4 text-muted-foreground italic">No cashback recorded.</TableCell></TableRow>}
                             </TableBody>
                             <TableFooter>
                                 <TableRow>
                                     <TableCell className="font-bold">Total Cashback</TableCell>
-                                    <TableCell className="text-right text-green-600 font-bold">{formatCurrency(monthlyLoanReport.totalSBICashback)}</TableCell>
+                                    <TableCell className="text-right font-mono text-green-600 font-bold">{formatCurrency(monthlyLoanReport.totalSBICashback)}</TableCell>
                                 </TableRow>
                             </TableFooter>
                         </Table>
@@ -747,13 +749,13 @@ export function ReportView({
                         <Table className="text-xs">
                             <TableHeader><TableRow><TableHead>From</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
                             <TableBody>
-                                {monthlyLoanReport.loanTakenTransactions.map(tx => (<TableRow key={tx.name}><TableCell>{tx.name}</TableCell><TableCell className="text-right text-green-600">{formatCurrency(tx.amount)}</TableCell></TableRow>))}
+                                {monthlyLoanReport.loanTakenTransactions.map(tx => (<TableRow key={tx.name}><TableCell>{tx.name}</TableCell><TableCell className="text-right font-mono text-green-600">{formatCurrency(tx.amount)}</TableCell></TableRow>))}
                                 {monthlyLoanReport.loanTakenTransactions.length === 0 && <TableRow><TableCell colSpan={2} className="text-center py-4 text-muted-foreground italic">No loans taken.</TableCell></TableRow>}
                             </TableBody>
                             <TableFooter>
                                 <TableRow>
                                     <TableCell className="font-bold">Total Taken</TableCell>
-                                    <TableCell className="text-right text-green-600 font-bold">{formatCurrency(monthlyLoanReport.totalLoanTaken)}</TableCell>
+                                    <TableCell className="text-right font-mono text-green-600 font-bold">{formatCurrency(monthlyLoanReport.totalLoanTaken)}</TableCell>
                                 </TableRow>
                             </TableFooter>
                         </Table>
@@ -766,13 +768,13 @@ export function ReportView({
                         <Table className="text-xs">
                             <TableHeader><TableRow><TableHead>From Person</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
                             <TableBody>
-                                {monthlyLoanReport.repaymentReceivedTransactions.map(tx => (<TableRow key={tx.name}><TableCell>{tx.name}</TableCell><TableCell className="text-right text-green-600">{formatCurrency(tx.amount)}</TableCell></TableRow>))}
+                                {monthlyLoanReport.repaymentReceivedTransactions.map(tx => (<TableRow key={tx.name}><TableCell>{tx.name}</TableCell><TableCell className="text-right font-mono text-green-600">{formatCurrency(tx.amount)}</TableCell></TableRow>))}
                                 {monthlyLoanReport.repaymentReceivedTransactions.length === 0 && <TableRow><TableCell colSpan={2} className="text-center py-4 text-muted-foreground italic">No repayments received.</TableCell></TableRow>}
                             </TableBody>
                             <TableFooter>
                                 <TableRow>
                                     <TableCell className="font-bold">Total Received</TableCell>
-                                    <TableCell className="text-right text-green-600 font-bold">{formatCurrency(monthlyLoanReport.totalRepaymentReceived)}</TableCell>
+                                    <TableCell className="text-right font-mono text-green-600 font-bold">{formatCurrency(monthlyLoanReport.totalRepaymentReceived)}</TableCell>
                                 </TableRow>
                             </TableFooter>
                         </Table>
@@ -787,12 +789,12 @@ export function ReportView({
                         <Table>
                             <TableHeader><TableRow><TableHead>Outflow Type</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
                             <TableBody>
-                                <TableRow><TableCell>Regular Expenses</TableCell><TableCell className="text-right text-red-600">{formatCurrency(monthlyReport.totalRegularExpense)}</TableCell></TableRow>
-                                <TableRow><TableCell>Occasional Expenses</TableCell><TableCell className="text-right text-red-600">{formatCurrency(monthlyReport.totalOccasionalExpense)}</TableCell></TableRow>
-                                {monthlyLoanReport.totalLoanGiven > 0 && (<TableRow className="font-medium text-red-600"><TableCell>Loan Given</TableCell><TableCell className="text-right">{formatCurrency(monthlyLoanReport.totalLoanGiven)}</TableCell></TableRow>)}
-                                {monthlyLoanReport.totalRepaymentMade > 0 && (<TableRow className="font-medium text-red-600"><TableCell>Repayment Made</TableCell><TableCell className="text-right">{formatCurrency(monthlyLoanReport.totalRepaymentMade)}</TableCell></TableRow>)}
-                                {(sbiOut + monthlyLoanReport.totalSBICashback > 0) && (<TableRow className="font-medium text-red-600"><TableCell>SBI Credit Card Repayment</TableCell><TableCell className="text-right">{formatCurrency(sbiOut + monthlyLoanReport.totalSBICashback)}</TableCell></TableRow>)}
-                                {monthlyTransferSummary.total > 0 && (<TableRow className="font-medium text-red-600"><TableCell>Transfer Out</TableCell><TableCell className="text-right">{formatCurrency(monthlyTransferSummary.total)}</TableCell></TableRow>)}
+                                <TableRow><TableCell>Regular Expenses</TableCell><TableCell className="text-right font-mono text-red-600">{formatCurrency(monthlyReport.totalRegularExpense)}</TableCell></TableRow>
+                                <TableRow><TableCell>Occasional Expenses</TableCell><TableCell className="text-right font-mono text-red-600">{formatCurrency(monthlyReport.totalOccasionalExpense)}</TableCell></TableRow>
+                                {monthlyLoanReport.totalLoanGiven > 0 && (<TableRow className="font-medium text-red-600"><TableCell>Loan Given</TableCell><TableCell className="text-right font-mono">{formatCurrency(monthlyLoanReport.totalLoanGiven)}</TableCell></TableRow>)}
+                                {monthlyLoanReport.totalRepaymentMade > 0 && (<TableRow className="font-medium text-red-600"><TableCell>Repayment Made</TableCell><TableCell className="text-right font-mono">{formatCurrency(monthlyLoanReport.totalRepaymentMade)}</TableCell></TableRow>)}
+                                {(sbiOut + monthlyLoanReport.totalSBICashback > 0) && (<TableRow className="font-medium text-red-600"><TableCell>SBI Credit Card Repayment</TableCell><TableCell className="text-right font-mono">{formatCurrency(sbiOut + monthlyLoanReport.totalSBICashback)}</TableCell></TableRow>)}
+                                {monthlyTransferSummary.total > 0 && (<TableRow className="font-medium text-red-600"><TableCell>Transfer Out</TableCell><TableCell className="text-right font-mono">{formatCurrency(monthlyTransferSummary.total)}</TableCell></TableRow>)}
                             </TableBody>
                             <TableFooter>
                                 <TableRow>
@@ -860,15 +862,15 @@ export function ReportView({
                         <Table className="text-xs">
                             <TableHeader><TableRow><TableHead>Description</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
                             <TableBody>
-                                {monthlyLoanReport.sbiRepaymentTransactions.map((tx, idx) => (<TableRow key={`rep-${idx}`}><TableCell>{tx.name}</TableCell><TableCell className="text-right text-red-600">{formatCurrency(tx.amount)}</TableCell></TableRow>))}
-                                {monthlyLoanReport.sbiChargesTransactions.map((tx, idx) => (<TableRow key={`chg-${idx}`}><TableCell>{tx.name}</TableCell><TableCell className="text-right text-red-600">{formatCurrency(tx.amount)}</TableCell></TableRow>))}
-                                {monthlyLoanReport.sbiCashbackTransactions.map((tx, idx) => (<TableRow key={`cb-out-${idx}`}><TableCell>{tx.name} (Cashback)</TableCell><TableCell className="text-right text-red-600">{formatCurrency(tx.amount)}</TableCell></TableRow>))}
+                                {monthlyLoanReport.sbiRepaymentTransactions.map((tx, idx) => (<TableRow key={`rep-${idx}`}><TableCell>{tx.name}</TableCell><TableCell className="text-right font-mono text-red-600">{formatCurrency(tx.amount)}</TableCell></TableRow>))}
+                                {monthlyLoanReport.sbiChargesTransactions.map((tx, idx) => (<TableRow key={`chg-${idx}`}><TableCell>{tx.name}</TableCell><TableCell className="text-right font-mono text-red-600">{formatCurrency(tx.amount)}</TableCell></TableRow>))}
+                                {monthlyLoanReport.sbiCashbackTransactions.map((tx, idx) => (<TableRow key={`cb-out-${idx}`}><TableCell>{tx.name} (Cashback)</TableCell><TableCell className="text-right font-mono text-red-600">{formatCurrency(tx.amount)}</TableCell></TableRow>))}
                                 {(monthlyLoanReport.sbiRepaymentTransactions.length === 0 && monthlyLoanReport.sbiChargesTransactions.length === 0 && monthlyLoanReport.sbiCashbackTransactions.length === 0) && <TableRow><TableCell colSpan={2} className="text-center py-4 text-muted-foreground italic">No repayment activities recorded.</TableCell></TableRow>}
                             </TableBody>
                             <TableFooter>
                                 <TableRow>
                                     <TableCell className="font-bold">Total Repayment & Adj.</TableCell>
-                                    <TableCell className="text-right text-red-600 font-bold">{formatCurrency(sbiOut + monthlyLoanReport.totalSBICashback)}</TableCell>
+                                    <TableCell className="text-right font-mono text-red-600 font-bold">{formatCurrency(sbiOut + monthlyLoanReport.totalSBICashback)}</TableCell>
                                 </TableRow>
                             </TableFooter>
                         </Table>
@@ -881,13 +883,13 @@ export function ReportView({
                         <Table className="text-xs">
                             <TableHeader><TableRow><TableHead>To Person</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
                             <TableBody>
-                                {monthlyLoanReport.loanGivenTransactions.map(tx => (<TableRow key={tx.name}><TableCell>{tx.name}</TableCell><TableCell className="text-right text-red-600">{formatCurrency(tx.amount)}</TableCell></TableRow>))}
+                                {monthlyLoanReport.loanGivenTransactions.map(tx => (<TableRow key={tx.name}><TableCell>{tx.name}</TableCell><TableCell className="text-right font-mono text-red-600">{formatCurrency(tx.amount)}</TableCell></TableRow>))}
                                 {monthlyLoanReport.loanGivenTransactions.length === 0 && <TableRow><TableCell colSpan={2} className="text-center py-4 text-muted-foreground italic">No loans given.</TableCell></TableRow>}
                             </TableBody>
                             <TableFooter>
                                 <TableRow>
                                     <TableCell className="font-bold">Total Given</TableCell>
-                                    <TableCell className="text-right text-red-600 font-bold">{formatCurrency(monthlyLoanReport.totalLoanGiven)}</TableCell>
+                                    <TableCell className="text-right font-mono text-red-600 font-bold">{formatCurrency(monthlyLoanReport.totalLoanGiven)}</TableCell>
                                 </TableRow>
                             </TableFooter>
                         </Table>
@@ -900,13 +902,13 @@ export function ReportView({
                         <Table className="text-xs">
                             <TableHeader><TableRow><TableHead>To Person</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
                             <TableBody>
-                                {monthlyLoanReport.repaymentMadeTransactions.map(tx => (<TableRow key={tx.name}><TableCell>{tx.name}</TableCell><TableCell className="text-right text-red-600">{formatCurrency(tx.amount)}</TableCell></TableRow>))}
+                                {monthlyLoanReport.repaymentMadeTransactions.map(tx => (<TableRow key={tx.name}><TableCell>{tx.name}</TableCell><TableCell className="text-right font-mono text-red-600">{formatCurrency(tx.amount)}</TableCell></TableRow>))}
                                 {monthlyLoanReport.repaymentMadeTransactions.length === 0 && <TableRow><TableCell colSpan={2} className="text-center py-4 text-muted-foreground italic">No repayments made.</TableCell></TableRow>}
                             </TableBody>
                             <TableFooter>
                                 <TableRow>
                                     <TableCell className="font-bold">Total Made</TableCell>
-                                    <TableCell className="text-right text-red-600 font-bold">{formatCurrency(monthlyLoanReport.totalRepaymentMade)}</TableCell>
+                                    <TableCell className="text-right font-mono text-red-600 font-bold">{formatCurrency(monthlyLoanReport.totalRepaymentMade)}</TableCell>
                                 </TableRow>
                             </TableFooter>
                         </Table>
@@ -919,13 +921,13 @@ export function ReportView({
                         <Table className="text-xs">
                             <TableHeader><TableRow><TableHead>Target Account</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
                             <TableBody>
-                                {monthlyTransferSummary.details.map((t, idx) => (<TableRow key={idx}><TableCell>{t.name}</TableCell><TableCell className="text-right text-red-600">{formatCurrency(t.amount)}</TableCell></TableRow>))}
+                                {monthlyTransferSummary.details.map((t, idx) => (<TableRow key={idx}><TableCell>{t.name}</TableCell><TableCell className="text-right font-mono text-red-600">{formatCurrency(t.amount)}</TableCell></TableRow>))}
                                 {monthlyTransferSummary.details.length === 0 && <TableRow><TableCell colSpan={2} className="text-center py-4 text-muted-foreground italic">No external transfers.</TableCell></TableRow>}
                             </TableBody>
                             <TableFooter>
                                 <TableRow>
                                     <TableCell colSpan={2} className="font-bold">Total Transfer Out</TableCell>
-                                    <TableCell className="text-right text-red-600 font-bold">{formatCurrency(monthlyTransferSummary.total)}</TableCell>
+                                    <TableCell className="text-right font-mono text-red-600 font-bold">{formatCurrency(monthlyTransferSummary.total)}</TableCell>
                                 </TableRow>
                             </TableFooter>
                         </Table>
@@ -936,3 +938,4 @@ export function ReportView({
     </div>
   );
 }
+
