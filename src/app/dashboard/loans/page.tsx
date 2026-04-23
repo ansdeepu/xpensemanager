@@ -85,7 +85,9 @@ export default function LoansPage() {
     allTransactions.forEach(t => {
         if (t.type === 'income' && t.accountId && balances[t.accountId] !== undefined) {
             const account = accountMap.get(t.accountId);
-            if(account?.type !== 'card') {
+            if(account?.type === 'card') {
+                balances[t.accountId] -= t.amount; // Income to card decreases debt
+            } else {
                 balances[t.accountId] += t.amount;
             }
         } else if (t.type === 'expense' && t.accountId && t.paymentMethod === 'online' && balances[t.accountId] !== undefined) {
@@ -139,8 +141,12 @@ export default function LoansPage() {
     let totalLoanGivenForPeriod = 0;
     let totalRepaymentForGivenForPeriod = 0;
 
+    // Prevent double counting: filter out loan entries that actually represent bank accounts (credit cards)
+    const creditCardNames = new Set(creditCards.map(c => c.name.toLowerCase()));
+    const actualLoans = allLoans.filter(l => !creditCardNames.has(l.personName.toLowerCase()));
+
     if (interval) {
-        allLoans.forEach(loan => {
+        actualLoans.forEach(loan => {
             const filteredTransactions = (loan.transactions || []).filter(t => {
                 const transactionDate = parseISO(t.date);
                 return isValid(transactionDate) && isWithinInterval(transactionDate, interval);
@@ -159,8 +165,8 @@ export default function LoansPage() {
         });
     }
 
-    const overallBalanceLoanTaken = allLoans.filter((l) => l.type === 'taken').reduce((sum, l) => sum + l.balance, 0);
-    const overallBalanceLoanGiven = allLoans.filter((l) => l.type === 'given').reduce((sum, l) => sum + l.balance, 0);
+    const overallBalanceLoanTaken = actualLoans.filter((l) => l.type === 'taken').reduce((sum, l) => sum + l.balance, 0);
+    const overallBalanceLoanGiven = actualLoans.filter((l) => l.type === 'given').reduce((sum, l) => sum + l.balance, 0);
     const totalCreditCardDebt = creditCards.reduce((sum, card) => sum + card.balance, 0);
 
     return {
