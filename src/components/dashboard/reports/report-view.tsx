@@ -102,7 +102,10 @@ export function ReportView({
 
   // Common logic for All-Time Loan Details
   const allTimeLoanDetails = useMemo(() => {
-    return loans.map(l => {
+    // Filter out SBI Credit Card as requested
+    const filteredLoans = loans.filter(l => !l.personName.toLowerCase().includes('sbi credit card'));
+
+    return filteredLoans.map(l => {
         let accountSpecificTransactions: LoanTransaction[] = [];
         
         if (isPrimaryReport) {
@@ -137,6 +140,14 @@ export function ReportView({
         };
     }).filter(Boolean);
   }, [loans, isPrimaryReport, primaryAccount, creditCardIds, accountId, accountName]);
+
+  const loanDetailsTotal = useMemo(() => {
+    return allTimeLoanDetails.reduce((acc, l) => ({
+        totalLoan: acc.totalLoan + (l?.totalGiven || 0),
+        totalRepayment: acc.totalRepayment + (l?.totalRepayment || 0),
+        balance: acc.balance + (l?.balance || 0)
+    }), { totalLoan: 0, totalRepayment: 0, balance: 0 });
+  }, [allTimeLoanDetails]);
 
   if (!isPrimaryReport && accountId) {
     let allTimeInflow = 0;
@@ -442,6 +453,18 @@ export function ReportView({
         <Card>
             <CardHeader><CardTitle>Loan Details (All Time)</CardTitle></CardHeader>
             <CardContent>
+                <div className="mb-6 p-4 border-2 border-primary/20 rounded-lg bg-muted/10">
+                    <Table>
+                        <TableFooter>
+                            <TableRow className="bg-transparent border-0 text-xs">
+                                <TableCell className="font-bold">SECTION TOTAL (ALL LOANS)</TableCell>
+                                <TableCell className="text-right font-mono text-red-600 font-bold">{formatCurrency(loanDetailsTotal.totalLoan)}</TableCell>
+                                <TableCell className="text-right font-mono text-green-600 font-bold">{formatCurrency(loanDetailsTotal.totalRepayment)}</TableCell>
+                                <TableCell className={cn("text-right font-mono font-bold", loanDetailsTotal.balance < 0 ? "text-green-600" : "text-red-600")}>{formatCurrency(loanDetailsTotal.balance)}</TableCell>
+                            </TableRow>
+                        </TableFooter>
+                    </Table>
+                </div>
                 <Accordion type="single" collapsible className="w-full">
                     {allTimeLoanDetails.map(loan => (
                         <AccordionItem key={loan!.id} value={loan!.id}>
@@ -891,6 +914,18 @@ export function ReportView({
                         <CardDescription>Comprehensive history of all loans linked to your Primary Ecosystem.</CardDescription>
                     </CardHeader>
                     <CardContent>
+                        <div className="mb-6 p-4 border-2 border-primary/20 rounded-lg bg-muted/10">
+                            <Table>
+                                <TableFooter>
+                                    <TableRow className="bg-transparent border-0 text-xs">
+                                        <TableCell className="font-bold">SECTION TOTAL (ALL LOANS)</TableCell>
+                                        <TableCell className="text-right font-mono text-red-600 font-bold">{formatCurrency(loanDetailsTotal.totalLoan)}</TableCell>
+                                        <TableCell className="text-right font-mono text-green-600 font-bold">{formatCurrency(loanDetailsTotal.totalRepayment)}</TableCell>
+                                        <TableCell className={cn("text-right font-mono font-bold", loanDetailsTotal.balance < 0 ? "text-green-600" : "text-red-600")}>{formatCurrency(loanDetailsTotal.balance)}</TableCell>
+                                    </TableRow>
+                                </TableFooter>
+                            </Table>
+                        </div>
                         <Accordion type="single" collapsible className="w-full">
                             {allTimeLoanDetails.map(loan => (
                                 <AccordionItem key={loan!.id} value={loan!.id}>
