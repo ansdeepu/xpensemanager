@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, Fragment } from "react";
 import type { Transaction, Category, Account, Loan } from "@/lib/data";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { BookText, TrendingUp, TrendingDown, IndianRupee, ChevronDown, ChevronUp, Landmark } from "lucide-react";
@@ -106,7 +106,6 @@ export function ReportView({
     let allTimeOutflow = 0;
     const allAccountIncomeDetails: Record<string, number> = {};
     const allAccountExpenseDetails: Record<string, number> = {};
-    const allAccountTransferDetails: Transaction[] = [];
 
     transactions.forEach(t => {
         if (t.accountId === accountId) {
@@ -122,11 +121,9 @@ export function ReportView({
         if (t.type === 'transfer') {
             if (t.fromAccountId === accountId) {
                 allTimeOutflow += t.amount;
-                allAccountTransferDetails.push(t);
             }
             if (t.toAccountId === accountId) {
                 allTimeInflow += t.amount;
-                allAccountTransferDetails.push(t);
             }
         }
     });
@@ -159,11 +156,11 @@ export function ReportView({
     }, 0);
     const monthClosingBalance = prevBal + currentInflow - currentOutflow;
 
-    const totalTransferCredit = allAccountTransferDetails.filter(t => t.toAccountId === accountId && !t.loanTransactionId).reduce((s, t) => s + t.amount, 0);
-    const totalTransferDebit = allAccountTransferDetails.filter(t => t.fromAccountId === accountId && !t.loanTransactionId).reduce((s, t) => s + t.amount, 0);
+    const totalTransferCredit = transactions.filter(t => t.toAccountId === accountId && t.type === 'transfer' && !t.loanTransactionId).reduce((s, t) => s + t.amount, 0);
+    const totalTransferDebit = transactions.filter(t => t.fromAccountId === accountId && t.type === 'transfer' && !t.loanTransactionId).reduce((s, t) => s + t.amount, 0);
     
-    const totalLoanInflow = allAccountTransferDetails.filter(t => t.toAccountId === accountId && !!t.loanTransactionId).reduce((s, t) => s + t.amount, 0);
-    const totalLoanOutflow = allAccountTransferDetails.filter(t => t.fromAccountId === accountId && !!t.loanTransactionId).reduce((s, t) => s + t.amount, 0);
+    const totalLoanInflow = transactions.filter(t => t.toAccountId === accountId && t.type === 'transfer' && !!t.loanTransactionId).reduce((s, t) => s + t.amount, 0);
+    const totalLoanOutflow = transactions.filter(t => t.fromAccountId === accountId && t.type === 'transfer' && !!t.loanTransactionId).reduce((s, t) => s + t.amount, 0);
 
     const allAccountLoanDetails = loans.map(l => {
         const isMatchByName = l.personName.toLowerCase() === accountName.toLowerCase();
@@ -494,7 +491,7 @@ export function ReportView({
         monthlyLoanReport: { ...report, loanTakenTransactions: sortEntries(report.loanTakenMap), loanGivenTransactions: sortEntries(report.loanGivenMap), repaymentMadeTransactions: sortEntries(report.repaymentMadeMap), repaymentReceivedTransactions: sortEntries(report.repaymentReceivedMap) },
         monthlyTransferSummary: { total: totalTransferOut, details: transferOutDetails }
     };
-  }, [loans, monthlyTransactions, isPrimaryReport, sbiCardId, creditCardIds, primaryAccount, monthStart, endOfMonth, accounts]);
+  }, [loans, monthlyTransactions, isPrimaryReport, sbiCardId, creditCardIds, primaryAccount, monthStart, accounts]);
 
   const monthlyReport = useMemo(() => {
     const data: ReportData = { totalIncome: 0, totalExpense: 0, incomeByCategory: {}, expenseByCategory: {}, regularExpenseByCategory: {}, occasionalExpenseByCategory: {}, totalRegularExpense: 0, totalOccasionalExpense: 0, totalIncomeBudget: 0, totalExpenseBudget: 0, totalRegularBudget: 0, totalOccasionalBudget: 0 };
