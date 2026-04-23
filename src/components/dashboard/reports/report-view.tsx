@@ -157,8 +157,11 @@ export function ReportView({
     }, 0);
     const monthClosingBalance = prevBal + currentInflow - currentOutflow;
 
-    const totalTransferCredit = allAccountTransferDetails.filter(t => t.toAccountId === accountId).reduce((s, t) => s + t.amount, 0);
-    const totalTransferDebit = allAccountTransferDetails.filter(t => t.fromAccountId === accountId).reduce((s, t) => s + t.amount, 0);
+    const totalTransferCredit = allAccountTransferDetails.filter(t => t.toAccountId === accountId && !t.loanTransactionId).reduce((s, t) => s + t.amount, 0);
+    const totalTransferDebit = allAccountTransferDetails.filter(t => t.fromAccountId === accountId && !t.loanTransactionId).reduce((s, t) => s + t.amount, 0);
+    
+    const totalLoanInflow = allAccountTransferDetails.filter(t => t.toAccountId === accountId && !!t.loanTransactionId).reduce((s, t) => s + t.amount, 0);
+    const totalLoanOutflow = allAccountTransferDetails.filter(t => t.fromAccountId === accountId && !!t.loanTransactionId).reduce((s, t) => s + t.amount, 0);
 
     const allAccountLoanDetails = loans.map(l => {
         const isMatchByName = l.personName.toLowerCase() === accountName.toLowerCase();
@@ -314,10 +317,19 @@ export function ReportView({
                                 {totalTransferCredit > 0 && (
                                     <TableRow>
                                         <TableCell className="font-medium">Transfer Credit</TableCell>
-                                        <TableCell className="text-right text-green-600">{formatCurrency(totalTransferCredit)}</TableCell>
+                                        <TableCell className="text-right text-green-600">
+                                            {formatCurrency(totalTransferCredit)}
+                                            <span className="text-[10px] block font-normal text-muted-foreground italic">Loan credit is not consider</span>
+                                        </TableCell>
                                     </TableRow>
                                 )}
-                                {Object.keys(allAccountIncomeDetails).length === 0 && totalTransferCredit === 0 && <TableRow><TableCell colSpan={2} className="text-center py-4 text-muted-foreground text-xs italic">No income records.</TableCell></TableRow>}
+                                {totalLoanInflow > 0 && (
+                                    <TableRow>
+                                        <TableCell className="font-medium">Loan Inflow</TableCell>
+                                        <TableCell className="text-right text-green-600">{formatCurrency(totalLoanInflow)}</TableCell>
+                                    </TableRow>
+                                )}
+                                {Object.keys(allAccountIncomeDetails).length === 0 && totalTransferCredit === 0 && totalLoanInflow === 0 && <TableRow><TableCell colSpan={2} className="text-center py-4 text-muted-foreground text-xs italic">No income records.</TableCell></TableRow>}
                             </TableBody>
                             <TableFooter>
                                 <TableRow>
@@ -387,10 +399,19 @@ export function ReportView({
                                 {totalTransferDebit > 0 && (
                                     <TableRow>
                                         <TableCell className="font-medium">Transfer Debit</TableCell>
-                                        <TableCell className="text-right text-red-600">{formatCurrency(totalTransferDebit)}</TableCell>
+                                        <TableCell className="text-right text-red-600">
+                                            {formatCurrency(totalTransferDebit)}
+                                            <span className="text-[10px] block font-normal text-muted-foreground italic">Loan debit is not consider</span>
+                                        </TableCell>
                                     </TableRow>
                                 )}
-                                {Object.keys(allAccountExpenseDetails).length === 0 && totalTransferDebit === 0 && <TableRow><TableCell colSpan={2} className="text-center py-4 text-muted-foreground text-xs italic">No expense records.</TableCell></TableRow>}
+                                {totalLoanOutflow > 0 && (
+                                    <TableRow>
+                                        <TableCell className="font-medium">Loan Outflow</TableCell>
+                                        <TableCell className="text-right text-red-600">{formatCurrency(totalLoanOutflow)}</TableCell>
+                                    </TableRow>
+                                )}
+                                {Object.keys(allAccountExpenseDetails).length === 0 && totalTransferDebit === 0 && totalLoanOutflow === 0 && <TableRow><TableCell colSpan={2} className="text-center py-4 text-muted-foreground text-xs italic">No expense records.</TableCell></TableRow>}
                             </TableBody>
                             <TableFooter>
                                 <TableRow>
