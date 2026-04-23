@@ -26,7 +26,6 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useReportDate } from "@/context/report-date-context";
 import { FinancialAdvice } from "./financial-advice";
 import { cn } from "@/lib/utils";
@@ -101,6 +100,44 @@ export function ReportView({
   const accountName = accountInfo?.name || 'Account';
   const isPostBank = accountName.toLowerCase().includes('post bank');
 
+  // Common logic for All-Time Loan Details
+  const allTimeLoanDetails = useMemo(() => {
+    return loans.map(l => {
+        let accountSpecificTransactions: LoanTransaction[] = [];
+        
+        if (isPrimaryReport) {
+            const ecosystemIds = new Set([primaryAccount?.id, 'cash-wallet', 'digital-wallet', ...Array.from(creditCardIds)]);
+            accountSpecificTransactions = (l.transactions || []).filter(tx => ecosystemIds.has(tx.accountId));
+        } else {
+            const isMatchByName = l.personName.toLowerCase() === accountName.toLowerCase();
+            accountSpecificTransactions = (l.transactions || []).filter(tx => tx.accountId === accountId || isMatchByName);
+        }
+
+        if (accountSpecificTransactions.length === 0) return null;
+        
+        const sortedTxs = [...accountSpecificTransactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        
+        let runningBalance = 0;
+        const txsWithRunningBalance = sortedTxs.map(tx => {
+            if (tx.type === 'loan') runningBalance += tx.amount;
+            else runningBalance -= tx.amount;
+            return { ...tx, currentBalance: runningBalance };
+        });
+
+        const totalGiven = accountSpecificTransactions.filter(tx => tx.type === 'loan').reduce((sum, tx) => sum + tx.amount, 0);
+        const totalRepayment = accountSpecificTransactions.filter(tx => tx.type === 'repayment').reduce((sum, tx) => sum + tx.amount, 0);
+        
+        return {
+            id: l.id,
+            personName: l.personName,
+            totalGiven,
+            totalRepayment,
+            balance: totalGiven - totalRepayment,
+            transactions: txsWithRunningBalance.reverse()
+        };
+    }).filter(Boolean);
+  }, [loans, isPrimaryReport, primaryAccount, creditCardIds, accountId, accountName]);
+
   if (!isPrimaryReport && accountId) {
     let allTimeInflow = 0;
     let allTimeOutflow = 0;
@@ -168,37 +205,9 @@ export function ReportView({
     }, 0);
     const monthClosingBalance = prevBal + currentInflow - currentOutflow;
 
-    const allAccountLoanDetails = loans.map(l => {
-        const isMatchByName = l.personName.toLowerCase() === accountName.toLowerCase();
-        const accountSpecificTransactions = (l.transactions || []).filter(tx => tx.accountId === accountId || isMatchByName);
-        if (accountSpecificTransactions.length === 0) return null;
-        
-        const sortedTxs = [...accountSpecificTransactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-        
-        let runningBalance = 0;
-        const txsWithRunningBalance = sortedTxs.map(tx => {
-            if (tx.type === 'loan') runningBalance += tx.amount;
-            else runningBalance -= tx.amount;
-            return { ...tx, currentBalance: runningBalance };
-        });
-
-        const totalGiven = accountSpecificTransactions.filter(tx => tx.type === 'loan').reduce((sum, tx) => sum + tx.amount, 0);
-        const totalRepayment = accountSpecificTransactions.filter(tx => tx.type === 'repayment').reduce((sum, tx) => sum + tx.amount, 0);
-        
-        return {
-            id: l.id,
-            personName: isMatchByName ? "SBI Bank" : l.personName,
-            totalGiven,
-            totalRepayment,
-            balance: totalGiven - totalRepayment,
-            transactions: txsWithRunningBalance.reverse()
-        };
-    }).filter(Boolean);
-
     const postBankCatDoc = categories.find(c => c.name.toLowerCase() === 'post bank');
     const userDefinedSubFunds = postBankCatDoc ? postBankCatDoc.subcategories.map(s => s.name) : [];
-    const incomeCategoryNames = categories.filter(c => c.type === 'income').map(c => c.name);
-    const combinedPostBankCategories = Array.from(new Set([...userDefinedSubFunds, ...incomeCategoryNames]))
+    const combinedPostBankCategories = Array.from(new Set([...userDefinedSubFunds, ...categories.filter(c => c.type === 'income').map(c => c.name)]))
         .filter(name => name.toLowerCase() !== 'post bank');
 
     const postBankAccordionData = isPostBank ? combinedPostBankCategories.map(cat => {
@@ -251,7 +260,6 @@ export function ReportView({
           </CardContent>
         </Card>
 
-        {/* Details Section in 2 Columns */}
         <div className="grid gap-6 lg:grid-cols-2 items-start">
             <Card>
                 <CardHeader><CardTitle>Income Details (All Time)</CardTitle></CardHeader>
@@ -314,7 +322,6 @@ export function ReportView({
             </Card>
         </div>
 
-        {/* Abstract Section - Standalone */}
         <Card className="border-primary border-2">
             <CardHeader><CardTitle>Abstract</CardTitle><CardDescription>High-level financial summary of this account.</CardDescription></CardHeader>
             <CardContent>
@@ -359,8 +366,7 @@ export function ReportView({
             </CardContent>
         </Card>
 
-        {/* Post Bank Specific Section - Standalone */}
-        {isPostBank && (
+        {isPostBank && postBankAccordionData.length > 0 && (
             <Card>
                 <CardHeader>
                     <CardTitle>Post Bank Category Breakdown (All Time)</CardTitle>
@@ -417,12 +423,11 @@ export function ReportView({
             </Card>
         )}
 
-        {/* Loan Details Section - Standalone */}
         <Card>
             <CardHeader><CardTitle>Loan Details (All Time)</CardTitle></CardHeader>
             <CardContent>
                 <Accordion type="single" collapsible className="w-full">
-                    {allAccountLoanDetails.map(loan => (
+                    {allTimeLoanDetails.map(loan => (
                         <AccordionItem key={loan!.id} value={loan!.id}>
                             <AccordionTrigger className="py-2 hover:no-underline">
                                 <div className="flex justify-between w-full pr-4 text-sm font-medium"><span>{loan!.personName}</span><Badge variant="outline" className="font-mono">{formatCurrency(loan!.balance)}</Badge></div>
@@ -459,7 +464,7 @@ export function ReportView({
                             </AccordionContent>
                         </AccordionItem>
                     ))}
-                    {allAccountLoanDetails.length === 0 && <div className="text-center py-10 text-muted-foreground text-xs italic">No loans recorded.</div>}
+                    {allTimeLoanDetails.length === 0 && <div className="text-center py-10 text-muted-foreground text-xs italic">No loans recorded.</div>}
                 </Accordion>
             </CardContent>
         </Card>
@@ -552,7 +557,7 @@ export function ReportView({
             detailsIn: sortEntries(transferInMap)
         }
     };
-  }, [loans, monthlyTransactions, isPrimaryReport, sbiCardId, creditCardIds, primaryAccount, monthStart, accounts]);
+  }, [loans, monthlyTransactions, isPrimaryReport, sbiCardId, creditCardIds, primaryAccount, accounts, monthStart, monthEnd]);
 
   const monthlyReport = useMemo(() => {
     const data: ReportData = { totalIncome: 0, totalExpense: 0, incomeByCategory: {}, expenseByCategory: {}, regularExpenseByCategory: {}, occasionalExpenseByCategory: {}, totalRegularExpense: 0, totalOccasionalExpense: 0, totalIncomeBudget: 0, totalExpenseBudget: 0, totalRegularBudget: 0, totalOccasionalBudget: 0 };
@@ -823,6 +828,92 @@ export function ReportView({
                         </Table>
                     </CardContent>
                 </Card>
+
+                {/* New Section: Transfer Credit Details for Primary (SBI) */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Transfer Credit Details</CardTitle>
+                        <CardDescription>Itemized inflows from external accounts into the Primary Ecosystem.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Table className="text-xs">
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Source Account</TableHead>
+                                    <TableHead className="text-right">Amount</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {monthlyTransferSummary.detailsIn.map(tx => (
+                                    <TableRow key={tx.name}>
+                                        <TableCell>{tx.name}</TableCell>
+                                        <TableCell className="text-right font-mono text-green-600">{formatCurrency(tx.amount)}</TableCell>
+                                    </TableRow>
+                                ))}
+                                {monthlyTransferSummary.detailsIn.length === 0 && <TableRow><TableCell colSpan={2} className="text-center py-4 text-muted-foreground italic">No external transfer credits.</TableCell></TableRow>}
+                            </TableBody>
+                            <TableFooter>
+                                <TableRow>
+                                    <TableCell className="font-bold">Total Transfer In</TableCell>
+                                    <TableCell className="text-right font-mono text-green-600 font-bold">{formatCurrency(monthlyTransferSummary.totalIn)}</TableCell>
+                                </TableRow>
+                            </TableFooter>
+                        </Table>
+                    </CardContent>
+                </Card>
+
+                {/* New Section: Loan Details (All Time) for Primary (SBI) */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Loan Details (All Time)</CardTitle>
+                        <CardDescription>Comprehensive history of all loans linked to your Primary Ecosystem.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Accordion type="single" collapsible className="w-full">
+                            {allTimeLoanDetails.map(loan => (
+                                <AccordionItem key={loan!.id} value={loan!.id}>
+                                    <AccordionTrigger className="py-2 hover:no-underline">
+                                        <div className="flex justify-between w-full pr-4 text-sm font-medium">
+                                            <span>{loan!.personName}</span>
+                                            <Badge variant="outline" className="font-mono">{formatCurrency(loan!.balance)}</Badge>
+                                        </div>
+                                    </AccordionTrigger>
+                                    <AccordionContent>
+                                        <Table className="text-[10px]">
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>Date</TableHead>
+                                                    <TableHead className="text-right">Loan</TableHead>
+                                                    <TableHead className="text-right">Repayment</TableHead>
+                                                    <TableHead className="text-right">Balance</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {loan!.transactions.map(tx => (
+                                                    <TableRow key={tx.id}>
+                                                        <TableCell>{format(parseISO(tx.date), 'dd/MM/yy')}</TableCell>
+                                                        <TableCell className="text-right font-mono text-red-600">{tx.type === 'loan' ? formatCurrency(tx.amount) : ''}</TableCell>
+                                                        <TableCell className="text-right font-mono text-green-600">{tx.type === 'repayment' ? formatCurrency(tx.amount) : ''}</TableCell>
+                                                        <TableCell className="text-right font-mono">{formatCurrency(tx.currentBalance)}</TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                            <TableFooter>
+                                                <TableRow>
+                                                    <TableCell className="font-bold">Total</TableCell>
+                                                    <TableCell className="text-right font-mono text-red-600 font-bold">{formatCurrency(loan!.totalGiven)}</TableCell>
+                                                    <TableCell className="text-right font-mono text-green-600 font-bold">{formatCurrency(loan!.totalRepayment)}</TableCell>
+                                                    <TableCell className="text-right font-mono font-bold">{formatCurrency(loan!.balance)}</TableCell>
+                                                </TableRow>
+                                            </TableFooter>
+                                        </Table>
+                                    </AccordionContent>
+                                </AccordionItem>
+                            ))}
+                            {allTimeLoanDetails.length === 0 && <div className="text-center py-10 text-muted-foreground text-xs italic">No loans recorded.</div>}
+                        </Accordion>
+                    </CardContent>
+                </Card>
             </div>
 
             <div className="space-y-6">
@@ -959,10 +1050,15 @@ export function ReportView({
                 </Card>
 
                 <Card>
-                    <CardHeader><CardTitle>External Transfer Details</CardTitle><CardDescription>Outflows to non-primary accounts.</CardDescription></CardHeader>
+                    <CardHeader><CardTitle>External Transfer Details</CardTitle><CardDescription>Outflows from the Primary Ecosystem to external bank accounts.</CardDescription></CardHeader>
                     <CardContent>
                         <Table className="text-xs">
-                            <TableHeader><TableRow><TableHead>Target Account</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Target Account</TableHead>
+                                    <TableHead className="text-right">Amount</TableHead>
+                                </TableRow>
+                            </TableHeader>
                             <TableBody>
                                 {monthlyTransferSummary.details.map((t, idx) => (
                                     <TableRow key={idx}>
