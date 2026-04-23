@@ -157,6 +157,9 @@ export function ReportView({
     }, 0);
     const monthClosingBalance = prevBal + currentInflow - currentOutflow;
 
+    const totalTransferCredit = allAccountTransferDetails.filter(t => t.toAccountId === accountId).reduce((s, t) => s + t.amount, 0);
+    const totalTransferDebit = allAccountTransferDetails.filter(t => t.fromAccountId === accountId).reduce((s, t) => s + t.amount, 0);
+
     const allAccountLoanDetails = loans.map(l => {
         const isMatchByName = l.personName.toLowerCase() === accountName.toLowerCase();
         const accountSpecificTransactions = (l.transactions || []).filter(tx => tx.accountId === accountId || isMatchByName);
@@ -187,7 +190,6 @@ export function ReportView({
     const postBankCatDoc = categories.find(c => c.name.toLowerCase().includes('post bank'));
     const userDefinedSubFunds = postBankCatDoc ? postBankCatDoc.subcategories.map(s => s.name) : [];
     const incomeCategoryNames = categories.filter(c => c.type === 'income').map(c => c.name);
-    // Filter out "POST Bank" itself to avoid redundant row as requested
     const combinedPostBankCategories = Array.from(new Set([...userDefinedSubFunds, ...incomeCategoryNames]))
         .filter(name => name.toLowerCase() !== 'post bank');
 
@@ -309,12 +311,18 @@ export function ReportView({
                                 {Object.entries(allAccountIncomeDetails).sort(([,a],[,b]) => b - a).map(([name, amount]) => (
                                     <TableRow key={name}><TableCell className="font-medium">{name}</TableCell><TableCell className="text-right text-green-600">{formatCurrency(amount)}</TableCell></TableRow>
                                 ))}
-                                {Object.keys(allAccountIncomeDetails).length === 0 && <TableRow><TableCell colSpan={2} className="text-center py-4 text-muted-foreground text-xs italic">No income records.</TableCell></TableRow>}
+                                {totalTransferCredit > 0 && (
+                                    <TableRow>
+                                        <TableCell className="font-medium">Transfer Credit</TableCell>
+                                        <TableCell className="text-right text-green-600">{formatCurrency(totalTransferCredit)}</TableCell>
+                                    </TableRow>
+                                )}
+                                {Object.keys(allAccountIncomeDetails).length === 0 && totalTransferCredit === 0 && <TableRow><TableCell colSpan={2} className="text-center py-4 text-muted-foreground text-xs italic">No income records.</TableCell></TableRow>}
                             </TableBody>
                             <TableFooter>
                                 <TableRow>
                                     <TableCell className="font-bold">Grand Total</TableCell>
-                                    <TableCell className="text-right text-green-600 font-bold">{formatCurrency(Object.values(allAccountIncomeDetails).reduce((s, a) => s + a, 0))}</TableCell>
+                                    <TableCell className="text-right text-green-600 font-bold">{formatCurrency(allTimeInflow)}</TableCell>
                                 </TableRow>
                             </TableFooter>
                         </Table>
@@ -376,12 +384,18 @@ export function ReportView({
                                 {Object.entries(allAccountExpenseDetails).sort(([,a],[,b]) => b - a).map(([name, amount]) => (
                                     <TableRow key={name}><TableCell className="font-medium">{name}</TableCell><TableCell className="text-right text-red-600">{formatCurrency(amount)}</TableCell></TableRow>
                                 ))}
-                                {Object.keys(allAccountExpenseDetails).length === 0 && <TableRow><TableCell colSpan={2} className="text-center py-4 text-muted-foreground text-xs italic">No expense records.</TableCell></TableRow>}
+                                {totalTransferDebit > 0 && (
+                                    <TableRow>
+                                        <TableCell className="font-medium">Transfer Debit</TableCell>
+                                        <TableCell className="text-right text-red-600">{formatCurrency(totalTransferDebit)}</TableCell>
+                                    </TableRow>
+                                )}
+                                {Object.keys(allAccountExpenseDetails).length === 0 && totalTransferDebit === 0 && <TableRow><TableCell colSpan={2} className="text-center py-4 text-muted-foreground text-xs italic">No expense records.</TableCell></TableRow>}
                             </TableBody>
                             <TableFooter>
                                 <TableRow>
                                     <TableCell className="font-bold">Grand Total</TableCell>
-                                    <TableCell className="text-right text-red-600 font-bold">{formatCurrency(Object.values(allAccountExpenseDetails).reduce((s, a) => s + a, 0))}</TableCell>
+                                    <TableCell className="text-right text-red-600 font-bold">{formatCurrency(allTimeOutflow)}</TableCell>
                                 </TableRow>
                             </TableFooter>
                         </Table>
@@ -480,7 +494,7 @@ export function ReportView({
         monthlyLoanReport: { ...report, loanTakenTransactions: sortEntries(report.loanTakenMap), loanGivenTransactions: sortEntries(report.loanGivenMap), repaymentMadeTransactions: sortEntries(report.repaymentMadeMap), repaymentReceivedTransactions: sortEntries(report.repaymentReceivedMap) },
         monthlyTransferSummary: { total: totalTransferOut, details: transferOutDetails }
     };
-  }, [loans, monthlyTransactions, isPrimaryReport, sbiCardId, creditCardIds, primaryAccount, monthStart, monthEnd, accounts]);
+  }, [loans, monthlyTransactions, isPrimaryReport, sbiCardId, creditCardIds, primaryAccount, monthStart, endOfMonth, accounts]);
 
   const monthlyReport = useMemo(() => {
     const data: ReportData = { totalIncome: 0, totalExpense: 0, incomeByCategory: {}, expenseByCategory: {}, regularExpenseByCategory: {}, occasionalExpenseByCategory: {}, totalRegularExpense: 0, totalOccasionalExpense: 0, totalIncomeBudget: 0, totalExpenseBudget: 0, totalRegularBudget: 0, totalOccasionalBudget: 0 };
