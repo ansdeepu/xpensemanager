@@ -138,6 +138,7 @@ export function ReportView({
         return {
             id: l.id,
             personName: displayName,
+            type: l.type,
             totalGiven,
             totalRepayment,
             balance: totalGiven - totalRepayment,
@@ -146,13 +147,24 @@ export function ReportView({
     }).filter(Boolean);
   }, [loans, isPrimaryReport, primaryAccount, creditCardIds, accountId, accountName]);
 
-  const loanDetailsTotal = useMemo(() => {
-    return allTimeLoanDetails.reduce((acc, l) => ({
+  const loanTakenDetails = useMemo(() => allTimeLoanDetails.filter(l => l?.type === 'taken'), [allTimeLoanDetails]);
+  const loanGivenDetails = useMemo(() => allTimeLoanDetails.filter(l => l?.type === 'given'), [allTimeLoanDetails]);
+
+  const loanTakenTotal = useMemo(() => {
+    return loanTakenDetails.reduce((acc, l) => ({
         totalLoan: acc.totalLoan + (l?.totalGiven || 0),
         totalRepayment: acc.totalRepayment + (l?.totalRepayment || 0),
         balance: acc.balance + (l?.balance || 0)
     }), { totalLoan: 0, totalRepayment: 0, balance: 0 });
-  }, [allTimeLoanDetails]);
+  }, [loanTakenDetails]);
+
+  const loanGivenTotal = useMemo(() => {
+    return loanGivenDetails.reduce((acc, l) => ({
+        totalLoan: acc.totalLoan + (l?.totalGiven || 0),
+        totalRepayment: acc.totalRepayment + (l?.totalRepayment || 0),
+        balance: acc.balance + (l?.balance || 0)
+    }), { totalLoan: 0, totalRepayment: 0, balance: 0 });
+  }, [loanGivenDetails]);
 
   if (!isPrimaryReport && accountId) {
     let allTimeInflow = 0;
@@ -457,59 +469,120 @@ export function ReportView({
 
         <Card>
             <CardHeader><CardTitle>Loan Details (All Time)</CardTitle></CardHeader>
-            <CardContent>
-                <div className="mb-6 p-4 border-2 border-primary/20 rounded-lg bg-muted/10">
-                    <Table>
-                        <TableFooter>
-                            <TableRow className="bg-transparent border-0 text-xs">
-                                <TableCell className="font-bold">SECTION TOTAL (ALL LOANS)</TableCell>
-                                <TableCell className="text-right font-mono text-red-600 font-bold">{formatCurrency(loanDetailsTotal.totalLoan)}</TableCell>
-                                <TableCell className="text-right font-mono text-green-600 font-bold">{formatCurrency(loanDetailsTotal.totalRepayment)}</TableCell>
-                                <TableCell className={cn("text-right font-mono font-bold", loanDetailsTotal.balance < 0 ? "text-green-600" : "text-red-600")}>{formatCurrency(loanDetailsTotal.balance)}</TableCell>
-                            </TableRow>
-                        </TableFooter>
-                    </Table>
-                </div>
-                <Accordion type="single" collapsible className="w-full">
-                    {allTimeLoanDetails.map(loan => (
-                        <AccordionItem key={loan!.id} value={loan!.id}>
-                            <AccordionTrigger className="py-2 hover:no-underline">
-                                <div className="flex justify-between w-full pr-4 text-sm font-medium"><span>{loan!.personName}</span><Badge variant="outline" className="font-mono">{formatCurrency(loan!.balance)}</Badge></div>
-                            </AccordionTrigger>
-                            <AccordionContent>
-                                <Table className="text-[10px]">
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Date</TableHead>
-                                            <TableHead className="text-right">Loan</TableHead>
-                                            <TableHead className="text-right">Repayment</TableHead>
-                                            <TableHead className="text-right">Balance</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {loan!.transactions.map(tx => (
-                                            <TableRow key={tx.id}>
-                                                <TableCell>{format(parseISO(tx.date), 'dd/MM/yy')}</TableCell>
-                                                <TableCell className="text-right font-mono text-red-600">{tx.type === 'loan' ? formatCurrency(tx.amount) : ''}</TableCell>
-                                                <TableCell className="text-right font-mono text-green-600">{tx.type === 'repayment' ? formatCurrency(tx.amount) : ''}</TableCell>
-                                                <TableCell className="text-right font-mono">{formatCurrency(tx.currentBalance)}</TableCell>
+            <CardContent className="space-y-8">
+                {/* Loan Taken Sub-section */}
+                <div>
+                    <h3 className="text-sm font-bold uppercase mb-4 text-red-600 border-b pb-2">Loan Taken</h3>
+                    <div className="mb-4 p-4 border-2 border-primary/20 rounded-lg bg-muted/10">
+                        <Table>
+                            <TableFooter>
+                                <TableRow className="bg-transparent border-0 text-xs">
+                                    <TableCell className="font-bold">SECTION TOTAL (LOAN TAKEN)</TableCell>
+                                    <TableCell className="text-right font-mono text-red-600 font-bold">{formatCurrency(loanTakenTotal.totalLoan)}</TableCell>
+                                    <TableCell className="text-right font-mono text-green-600 font-bold">{formatCurrency(loanTakenTotal.totalRepayment)}</TableCell>
+                                    <TableCell className={cn("text-right font-mono font-bold", loanTakenTotal.balance < 0 ? "text-green-600" : "text-red-600")}>{formatCurrency(loanTakenTotal.balance)}</TableCell>
+                                </TableRow>
+                            </TableFooter>
+                        </Table>
+                    </div>
+                    <Accordion type="single" collapsible className="w-full">
+                        {loanTakenDetails.map(loan => (
+                            <AccordionItem key={loan!.id} value={loan!.id}>
+                                <AccordionTrigger className="py-2 hover:no-underline">
+                                    <div className="flex justify-between w-full pr-4 text-sm font-medium"><span>{loan!.personName}</span><Badge variant="outline" className="font-mono">{formatCurrency(loan!.balance)}</Badge></div>
+                                </AccordionTrigger>
+                                <AccordionContent>
+                                    <Table className="text-[10px]">
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Date</TableHead>
+                                                <TableHead className="text-right">Loan</TableHead>
+                                                <TableHead className="text-right">Repayment</TableHead>
+                                                <TableHead className="text-right">Balance</TableHead>
                                             </TableRow>
-                                        ))}
-                                    </TableBody>
-                                    <TableFooter>
-                                        <TableRow>
-                                            <TableCell className="font-bold">Total</TableCell>
-                                            <TableCell className="text-right font-mono text-red-600 font-bold">{formatCurrency(loan!.totalGiven)}</TableCell>
-                                            <TableCell className="text-right font-mono text-green-600 font-bold">{formatCurrency(loan!.totalRepayment)}</TableCell>
-                                            <TableCell className="text-right font-mono font-bold">{formatCurrency(loan!.balance)}</TableCell>
-                                        </TableRow>
-                                    </TableFooter>
-                                </Table>
-                            </AccordionContent>
-                        </AccordionItem>
-                    ))}
-                    {allTimeLoanDetails.length === 0 && <div className="text-center py-10 text-muted-foreground text-xs italic">No loans recorded.</div>}
-                </Accordion>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {loan!.transactions.map(tx => (
+                                                <TableRow key={tx.id}>
+                                                    <TableCell>{format(parseISO(tx.date), 'dd/MM/yy')}</TableCell>
+                                                    <TableCell className="text-right font-mono text-red-600">{tx.type === 'loan' ? formatCurrency(tx.amount) : ''}</TableCell>
+                                                    <TableCell className="text-right font-mono text-green-600">{tx.type === 'repayment' ? formatCurrency(tx.amount) : ''}</TableCell>
+                                                    <TableCell className="text-right font-mono">{formatCurrency(tx.currentBalance)}</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                        <TableFooter>
+                                            <TableRow>
+                                                <TableCell className="font-bold">Total</TableCell>
+                                                <TableCell className="text-right font-mono text-red-600 font-bold">{formatCurrency(loan!.totalGiven)}</TableCell>
+                                                <TableCell className="text-right font-mono text-green-600 font-bold">{formatCurrency(loan!.totalRepayment)}</TableCell>
+                                                <TableCell className="text-right font-mono font-bold">{formatCurrency(loan!.balance)}</TableCell>
+                                            </TableRow>
+                                        </TableFooter>
+                                    </Table>
+                                </AccordionContent>
+                            </AccordionItem>
+                        ))}
+                        {loanTakenDetails.length === 0 && <div className="text-center py-4 text-muted-foreground text-xs italic">No loans taken recorded.</div>}
+                    </Accordion>
+                </div>
+
+                {/* Loan Given Sub-section */}
+                <div>
+                    <h3 className="text-sm font-bold uppercase mb-4 text-green-600 border-b pb-2">Loan Given</h3>
+                    <div className="mb-4 p-4 border-2 border-primary/20 rounded-lg bg-muted/10">
+                        <Table>
+                            <TableFooter>
+                                <TableRow className="bg-transparent border-0 text-xs">
+                                    <TableCell className="font-bold">SECTION TOTAL (LOAN GIVEN)</TableCell>
+                                    <TableCell className="text-right font-mono text-red-600 font-bold">{formatCurrency(loanGivenTotal.totalLoan)}</TableCell>
+                                    <TableCell className="text-right font-mono text-green-600 font-bold">{formatCurrency(loanGivenTotal.totalRepayment)}</TableCell>
+                                    <TableCell className={cn("text-right font-mono font-bold", loanGivenTotal.balance < 0 ? "text-green-600" : "text-red-600")}>{formatCurrency(loanGivenTotal.balance)}</TableCell>
+                                </TableRow>
+                            </TableFooter>
+                        </Table>
+                    </div>
+                    <Accordion type="single" collapsible className="w-full">
+                        {loanGivenDetails.map(loan => (
+                            <AccordionItem key={loan!.id} value={loan!.id}>
+                                <AccordionTrigger className="py-2 hover:no-underline">
+                                    <div className="flex justify-between w-full pr-4 text-sm font-medium"><span>{loan!.personName}</span><Badge variant="outline" className="font-mono">{formatCurrency(loan!.balance)}</Badge></div>
+                                </AccordionTrigger>
+                                <AccordionContent>
+                                    <Table className="text-[10px]">
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Date</TableHead>
+                                                <TableHead className="text-right">Loan</TableHead>
+                                                <TableHead className="text-right">Repayment</TableHead>
+                                                <TableHead className="text-right">Balance</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {loan!.transactions.map(tx => (
+                                                <TableRow key={tx.id}>
+                                                    <TableCell>{format(parseISO(tx.date), 'dd/MM/yy')}</TableCell>
+                                                    <TableCell className="text-right font-mono text-red-600">{tx.type === 'loan' ? formatCurrency(tx.amount) : ''}</TableCell>
+                                                    <TableCell className="text-right font-mono text-green-600">{tx.type === 'repayment' ? formatCurrency(tx.amount) : ''}</TableCell>
+                                                    <TableCell className="text-right font-mono">{formatCurrency(tx.currentBalance)}</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                        <TableFooter>
+                                            <TableRow>
+                                                <TableCell className="font-bold">Total</TableCell>
+                                                <TableCell className="text-right font-mono text-red-600 font-bold">{formatCurrency(loan!.totalGiven)}</TableCell>
+                                                <TableCell className="text-right font-mono text-green-600 font-bold">{formatCurrency(loan!.totalRepayment)}</TableCell>
+                                                <TableCell className="text-right font-mono font-bold">{formatCurrency(loan!.balance)}</TableCell>
+                                            </TableRow>
+                                        </TableFooter>
+                                    </Table>
+                                </AccordionContent>
+                            </AccordionItem>
+                        ))}
+                        {loanGivenDetails.length === 0 && <div className="text-center py-4 text-muted-foreground text-xs italic">No loans given recorded.</div>}
+                    </Accordion>
+                </div>
             </CardContent>
         </Card>
       </div>
@@ -918,62 +991,126 @@ export function ReportView({
                         <CardTitle>Loan Details (All Time)</CardTitle>
                         <CardDescription>Comprehensive history of all loans linked to your Primary Ecosystem.</CardDescription>
                     </CardHeader>
-                    <CardContent>
-                        <div className="mb-6 p-4 border-2 border-primary/20 rounded-lg bg-muted/10">
-                            <Table>
-                                <TableFooter>
-                                    <TableRow className="bg-transparent border-0 text-xs">
-                                        <TableCell className="font-bold">SECTION TOTAL (ALL LOANS)</TableCell>
-                                        <TableCell className="text-right font-mono text-red-600 font-bold">{formatCurrency(loanDetailsTotal.totalLoan)}</TableCell>
-                                        <TableCell className="text-right font-mono text-green-600 font-bold">{formatCurrency(loanDetailsTotal.totalRepayment)}</TableCell>
-                                        <TableCell className={cn("text-right font-mono font-bold", loanDetailsTotal.balance < 0 ? "text-green-600" : "text-red-600")}>{formatCurrency(loanDetailsTotal.balance)}</TableCell>
-                                    </TableRow>
-                                </TableFooter>
-                            </Table>
-                        </div>
-                        <Accordion type="single" collapsible className="w-full">
-                            {allTimeLoanDetails.map(loan => (
-                                <AccordionItem key={loan!.id} value={loan!.id}>
-                                    <AccordionTrigger className="py-2 hover:no-underline">
-                                        <div className="flex justify-between w-full pr-4 text-sm font-medium">
-                                            <span>{loan!.personName}</span>
-                                            <Badge variant="outline" className="font-mono">{formatCurrency(loan!.balance)}</Badge>
-                                        </div>
-                                    </AccordionTrigger>
-                                    <AccordionContent>
-                                        <Table className="text-[10px]">
-                                            <TableHeader>
-                                                <TableRow>
-                                                    <TableHead>Date</TableHead>
-                                                    <TableHead className="text-right">Loan</TableHead>
-                                                    <TableHead className="text-right">Repayment</TableHead>
-                                                    <TableHead className="text-right">Balance</TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {loan!.transactions.map(tx => (
-                                                    <TableRow key={tx.id}>
-                                                        <TableCell>{format(parseISO(tx.date), 'dd/MM/yy')}</TableCell>
-                                                        <TableCell className="text-right font-mono text-red-600">{tx.type === 'loan' ? formatCurrency(tx.amount) : ''}</TableCell>
-                                                        <TableCell className="text-right font-mono text-green-600">{tx.type === 'repayment' ? formatCurrency(tx.amount) : ''}</TableCell>
-                                                        <TableCell className="text-right font-mono">{formatCurrency(tx.currentBalance)}</TableCell>
+                    <CardContent className="space-y-8">
+                        {/* Loan Taken Sub-section */}
+                        <div>
+                            <h3 className="text-sm font-bold uppercase mb-4 text-red-600 border-b pb-2">Loan Taken</h3>
+                            <div className="mb-4 p-4 border-2 border-primary/20 rounded-lg bg-muted/10">
+                                <Table>
+                                    <TableFooter>
+                                        <TableRow className="bg-transparent border-0 text-xs">
+                                            <TableCell className="font-bold">SECTION TOTAL (LOAN TAKEN)</TableCell>
+                                            <TableCell className="text-right font-mono text-red-600 font-bold">{formatCurrency(loanTakenTotal.totalLoan)}</TableCell>
+                                            <TableCell className="text-right font-mono text-green-600 font-bold">{formatCurrency(loanTakenTotal.totalRepayment)}</TableCell>
+                                            <TableCell className={cn("text-right font-mono font-bold", loanTakenTotal.balance < 0 ? "text-green-600" : "text-red-600")}>{formatCurrency(loanTakenTotal.balance)}</TableCell>
+                                        </TableRow>
+                                    </TableFooter>
+                                </Table>
+                            </div>
+                            <Accordion type="single" collapsible className="w-full">
+                                {loanTakenDetails.map(loan => (
+                                    <AccordionItem key={loan!.id} value={loan!.id}>
+                                        <AccordionTrigger className="py-2 hover:no-underline">
+                                            <div className="flex justify-between w-full pr-4 text-sm font-medium">
+                                                <span>{loan!.personName}</span>
+                                                <Badge variant="outline" className="font-mono">{formatCurrency(loan!.balance)}</Badge>
+                                            </div>
+                                        </AccordionTrigger>
+                                        <AccordionContent>
+                                            <Table className="text-[10px]">
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead>Date</TableHead>
+                                                        <TableHead className="text-right">Loan</TableHead>
+                                                        <TableHead className="text-right">Repayment</TableHead>
+                                                        <TableHead className="text-right">Balance</TableHead>
                                                     </TableRow>
-                                                ))}
-                                            </TableBody>
-                                            <TableFooter>
-                                                <TableRow>
-                                                    <TableCell className="font-bold">Total</TableCell>
-                                                    <TableCell className="text-right font-mono text-red-600 font-bold">{formatCurrency(loan!.totalGiven)}</TableCell>
-                                                    <TableCell className="text-right font-mono text-green-600 font-bold">{formatCurrency(loan!.totalRepayment)}</TableCell>
-                                                    <TableCell className="text-right font-mono font-bold">{formatCurrency(loan!.balance)}</TableCell>
-                                                </TableRow>
-                                            </TableFooter>
-                                        </Table>
-                                    </AccordionContent>
-                                </AccordionItem>
-                            ))}
-                            {allTimeLoanDetails.length === 0 && <div className="text-center py-10 text-muted-foreground text-xs italic">No loans recorded.</div>}
-                        </Accordion>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {loan!.transactions.map(tx => (
+                                                        <TableRow key={tx.id}>
+                                                            <TableCell>{format(parseISO(tx.date), 'dd/MM/yy')}</TableCell>
+                                                            <TableCell className="text-right font-mono text-red-600">{tx.type === 'loan' ? formatCurrency(tx.amount) : ''}</TableCell>
+                                                            <TableCell className="text-right font-mono text-green-600">{tx.type === 'repayment' ? formatCurrency(tx.amount) : ''}</TableCell>
+                                                            <TableCell className="text-right font-mono">{formatCurrency(tx.currentBalance)}</TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                                <TableFooter>
+                                                    <TableRow>
+                                                        <TableCell className="font-bold">Total</TableCell>
+                                                        <TableCell className="text-right font-mono text-red-600 font-bold">{formatCurrency(loan!.totalGiven)}</TableCell>
+                                                        <TableCell className="text-right font-mono text-green-600 font-bold">{formatCurrency(loan!.totalRepayment)}</TableCell>
+                                                        <TableCell className="text-right font-mono font-bold">{formatCurrency(loan!.balance)}</TableCell>
+                                                    </TableRow>
+                                                </TableFooter>
+                                            </Table>
+                                        </AccordionContent>
+                                    </AccordionItem>
+                                ))}
+                                {loanTakenDetails.length === 0 && <div className="text-center py-4 text-muted-foreground text-xs italic">No loans taken recorded.</div>}
+                            </Accordion>
+                        </div>
+
+                        {/* Loan Given Sub-section */}
+                        <div>
+                            <h3 className="text-sm font-bold uppercase mb-4 text-green-600 border-b pb-2">Loan Given</h3>
+                            <div className="mb-4 p-4 border-2 border-primary/20 rounded-lg bg-muted/10">
+                                <Table>
+                                    <TableFooter>
+                                        <TableRow className="bg-transparent border-0 text-xs">
+                                            <TableCell className="font-bold">SECTION TOTAL (LOAN GIVEN)</TableCell>
+                                            <TableCell className="text-right font-mono text-red-600 font-bold">{formatCurrency(loanGivenTotal.totalLoan)}</TableCell>
+                                            <TableCell className="text-right font-mono text-green-600 font-bold">{formatCurrency(loanGivenTotal.totalRepayment)}</TableCell>
+                                            <TableCell className={cn("text-right font-mono font-bold", loanGivenTotal.balance < 0 ? "text-green-600" : "text-red-600")}>{formatCurrency(loanGivenTotal.balance)}</TableCell>
+                                        </TableRow>
+                                    </TableFooter>
+                                </Table>
+                            </div>
+                            <Accordion type="single" collapsible className="w-full">
+                                {loanGivenDetails.map(loan => (
+                                    <AccordionItem key={loan!.id} value={loan!.id}>
+                                        <AccordionTrigger className="py-2 hover:no-underline">
+                                            <div className="flex justify-between w-full pr-4 text-sm font-medium">
+                                                <span>{loan!.personName}</span>
+                                                <Badge variant="outline" className="font-mono">{formatCurrency(loan!.balance)}</Badge>
+                                            </div>
+                                        </AccordionTrigger>
+                                        <AccordionContent>
+                                            <Table className="text-[10px]">
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead>Date</TableHead>
+                                                        <TableHead className="text-right">Loan</TableHead>
+                                                        <TableHead className="text-right">Repayment</TableHead>
+                                                        <TableHead className="text-right">Balance</TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {loan!.transactions.map(tx => (
+                                                        <TableRow key={tx.id}>
+                                                            <TableCell>{format(parseISO(tx.date), 'dd/MM/yy')}</TableCell>
+                                                            <TableCell className="text-right font-mono text-red-600">{tx.type === 'loan' ? formatCurrency(tx.amount) : ''}</TableCell>
+                                                            <TableCell className="text-right font-mono text-green-600">{tx.type === 'repayment' ? formatCurrency(tx.amount) : ''}</TableCell>
+                                                            <TableCell className="text-right font-mono">{formatCurrency(tx.currentBalance)}</TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                                <TableFooter>
+                                                    <TableRow>
+                                                        <TableCell className="font-bold">Total</TableCell>
+                                                        <TableCell className="text-right font-mono text-red-600 font-bold">{formatCurrency(loan!.totalGiven)}</TableCell>
+                                                        <TableCell className="text-right font-mono text-green-600 font-bold">{formatCurrency(loan!.totalRepayment)}</TableCell>
+                                                        <TableCell className="text-right font-mono font-bold">{formatCurrency(loan!.balance)}</TableCell>
+                                                    </TableRow>
+                                                </TableFooter>
+                                            </Table>
+                                        </AccordionContent>
+                                    </AccordionItem>
+                                ))}
+                                {loanGivenDetails.length === 0 && <div className="text-center py-4 text-muted-foreground text-xs italic">No loans given recorded.</div>}
+                            </Accordion>
+                        </div>
                     </CardContent>
                 </Card>
             </div>
@@ -1144,4 +1281,3 @@ export function ReportView({
     </div>
   );
 }
-
