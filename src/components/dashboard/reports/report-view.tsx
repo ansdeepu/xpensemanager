@@ -130,15 +130,14 @@ export function ReportView({
         const totalGiven = accountSpecificTransactions.filter(tx => tx.type === 'loan').reduce((sum, tx) => sum + tx.amount, 0);
         const totalRepayment = accountSpecificTransactions.filter(tx => tx.type === 'repayment').reduce((sum, tx) => sum + tx.amount, 0);
         
-        // Use "SBI Bank" if the party name matches the current tab's bank name in non-primary reports
-        const displayName = (!isPrimaryReport && l.personName?.toLowerCase() === accountName.toLowerCase())
-            ? "SBI Bank"
-            : l.personName;
+        const isSelfInteraction = (!isPrimaryReport && l.personName?.toLowerCase() === accountName.toLowerCase());
+        const displayName = isSelfInteraction ? "SBI Bank" : l.personName;
 
         return {
             id: l.id,
             personName: displayName,
             type: l.type,
+            isSelfInteraction,
             totalGiven,
             totalRepayment,
             balance: totalGiven - totalRepayment,
@@ -147,8 +146,27 @@ export function ReportView({
     }).filter(Boolean);
   }, [loans, isPrimaryReport, primaryAccount, creditCardIds, accountId, accountName]);
 
-  const loanTakenDetails = useMemo(() => allTimeLoanDetails.filter(l => l?.type === 'taken'), [allTimeLoanDetails]);
-  const loanGivenDetails = useMemo(() => allTimeLoanDetails.filter(l => l?.type === 'given'), [allTimeLoanDetails]);
+  const loanTakenDetails = useMemo(() => {
+    return allTimeLoanDetails.filter(l => {
+      if (!l) return false;
+      // In non-primary reports, an interaction with "Self" (SBI Bank) that is marked as 'given' in the DB
+      // means SBI gave to this Bank, which from this Bank's perspective is a 'taken' loan.
+      if (!isPrimaryReport && l.isSelfInteraction) {
+        return l.type === 'given';
+      }
+      return l.type === 'taken';
+    });
+  }, [allTimeLoanDetails, isPrimaryReport]);
+
+  const loanGivenDetails = useMemo(() => {
+    return allTimeLoanDetails.filter(l => {
+      if (!l) return false;
+      if (!isPrimaryReport && l.isSelfInteraction) {
+        return l.type === 'taken';
+      }
+      return l.type === 'given';
+    });
+  }, [allTimeLoanDetails, isPrimaryReport]);
 
   const loanTakenTotal = useMemo(() => {
     return loanTakenDetails.reduce((acc, l) => ({
