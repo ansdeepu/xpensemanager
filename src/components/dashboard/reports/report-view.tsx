@@ -33,7 +33,7 @@ import { Badge } from "@/components/ui/badge";
 
 const formatCurrency = (amount: number) => {
   let val = amount;
-  if (Object.is(val, -0)) val = 0;
+  if (Object.is(val, -0) || isNaN(val)) val = 0;
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
@@ -67,18 +67,18 @@ type AggregatedEntry = {
 };
 
 export function ReportView({ 
-  transactions, 
-  categories, 
-  accounts, 
-  loans, 
+  transactions = [], 
+  categories = [], 
+  accounts = [], 
+  loans = [], 
   accountId, 
   isPrimaryReport 
  }: { 
-  transactions: Transaction[], 
-  categories: Category[], 
-  accounts: Account[], 
-  loans: Loan[], 
-  isOverallSummary: boolean, 
+  transactions?: Transaction[], 
+  categories?: Category[], 
+  accounts?: Account[], 
+  loans?: Loan[], 
+  isOverallSummary?: boolean, 
   accountId?: string, 
   isPrimaryReport?: boolean 
  }) {
@@ -100,10 +100,8 @@ export function ReportView({
   const accountName = accountInfo?.name || 'Account';
   const isPostBank = accountName.toLowerCase().includes('post bank');
 
-  // Common logic for All-Time Loan Details
   const allTimeLoanDetails = useMemo(() => {
-    // Filter out SBI Credit Card as requested
-    const filteredLoans = loans.filter(l => !l.personName?.toLowerCase().includes('sbi credit card'));
+    const filteredLoans = loans.filter(l => l.personName && !l.personName.toLowerCase().includes('sbi credit card'));
 
     return filteredLoans.map(l => {
         let accountSpecificTransactions: LoanTransaction[] = [];
@@ -118,7 +116,11 @@ export function ReportView({
 
         if (accountSpecificTransactions.length === 0) return null;
         
-        const sortedTxs = [...accountSpecificTransactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        const sortedTxs = [...accountSpecificTransactions].sort((a, b) => {
+            const dateA = a.date ? new Date(a.date).getTime() : 0;
+            const dateB = b.date ? new Date(b.date).getTime() : 0;
+            return dateA - dateB;
+        });
         
         let runningBalance = 0;
         const txsWithRunningBalance = sortedTxs.map(tx => {
@@ -149,10 +151,8 @@ export function ReportView({
   const loanTakenDetails = useMemo(() => {
     return allTimeLoanDetails.filter(l => {
       if (!l) return false;
-      // In non-primary reports, an interaction with "Self" (SBI Bank) that is marked as 'given' in the DB
-      // means SBI gave to this Bank, which from this Bank's perspective is a 'taken' loan.
       if (!isPrimaryReport && l.isSelfInteraction) {
-        return l.type === 'given';
+        return l.type === 'given'; // Swapped per request
       }
       return l.type === 'taken';
     });
@@ -162,7 +162,7 @@ export function ReportView({
     return allTimeLoanDetails.filter(l => {
       if (!l) return false;
       if (!isPrimaryReport && l.isSelfInteraction) {
-        return l.type === 'taken';
+        return l.type === 'taken'; // Swapped per request
       }
       return l.type === 'given';
     });
@@ -227,6 +227,7 @@ export function ReportView({
 
     let prevBal = 0;
     transactions.forEach(t => {
+      if (!t.date) return;
       const d = new Date(t.date);
       if (!isValid(d) || !isBefore(d, monthStart)) return;
       if (t.accountId === accountId) {
@@ -240,27 +241,33 @@ export function ReportView({
     });
 
     const currentInflow = transactions.reduce((sum, t) => {
+        if (!t.date) return sum;
         const d = new Date(t.date);
-        if (!isWithinInterval(d, { start: monthStart, end: monthEnd })) return sum;
+        if (!isValid(d) || !isWithinInterval(d, { start: monthStart, end: monthEnd })) return sum;
         return (t.accountId === accountId && t.type === 'income') || (t.toAccountId === accountId && t.type === 'transfer') ? sum + t.amount : sum;
     }, 0);
     const currentOutflow = transactions.reduce((sum, t) => {
+        if (!t.date) return sum;
         const d = new Date(t.date);
-        if (!isWithinInterval(d, { start: monthStart, end: monthEnd })) return sum;
+        if (!isValid(d) || !isWithinInterval(d, { start: monthStart, end: monthEnd })) return sum;
         return (t.accountId === accountId && t.type === 'expense') || (t.fromAccountId === accountId && t.type === 'transfer') ? sum + t.amount : sum;
     }, 0);
     const monthClosingBalance = prevBal + currentInflow - currentOutflow;
 
-    const postBankCatDoc = categories.find(c => c.name?.toLowerCase() === 'post bank');
-    const userDefinedSubFunds = postBankCatDoc ? postBankCatDoc.subcategories.map(s => s.name) : [];
-    const combinedPostBankCategories = Array.from(new Set([...userDefinedSubFunds, ...categories.filter(c => c.type === 'income').map(c => c.name)]))
-        .filter(name => name?.toLowerCase() !== 'post bank');
+    const combinedPostBankCategories = Array.from(new Set([
+        ...categories.filter(c => c.type === 'bank-expense').map(c => c.name), 
+        ...categories.filter(c => c.type === 'income').map(c => c.name)
+    ])).filter(name => name && name.toLowerCase() !== 'post bank');
 
     const postBankAccordionData = isPostBank ? combinedPostBankCategories.map(cat => {
         const filteredTxs = transactions.filter(t => 
             (t.accountId === accountId || t.fromAccountId === accountId || t.toAccountId === accountId) && 
             (t.subcategory === cat || t.category === cat || (t.description && t.description.toLowerCase().includes(cat.toLowerCase())))
-        ).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        ).sort((a, b) => {
+            const dateA = a.date ? new Date(a.date).getTime() : 0;
+            const dateB = b.date ? new Date(b.date).getTime() : 0;
+            return dateA - dateB;
+        });
 
         let runningBalance = 0, creditTotal = 0, debitTotal = 0;
         const txsWithDetails = filteredTxs.map(t => {
@@ -275,7 +282,7 @@ export function ReportView({
             return { ...t, credit: credit || null, debit: debit || null, balance: runningBalance };
         });
         return { name: cat, totalCredit: creditTotal, totalDebit: debitTotal, balance: creditTotal - debitTotal, transactions: txsWithDetails.reverse() };
-    }).filter(cat => cat.transactions.length > 0 || userDefinedSubFunds.includes(cat.name)) : [];
+    }).filter(cat => cat.transactions.length > 0) : [];
 
     const totalPostBankCredit = postBankAccordionData.reduce((sum, cat) => sum + cat.totalCredit, 0);
     const totalPostBankDebit = postBankAccordionData.reduce((sum, cat) => sum + cat.totalDebit, 0);
@@ -459,8 +466,8 @@ export function ReportView({
                                             <TableBody>
                                                 {cat.transactions.map((tx, i) => (
                                                     <TableRow key={i}>
-                                                        <TableCell>{format(new Date(tx.date), 'dd/MM/yy')}</TableCell>
-                                                        <TableCell>{tx.description}</TableCell>
+                                                        <TableCell>{tx.date ? format(new Date(tx.date), 'dd/MM/yy') : ''}</TableCell>
+                                                        <TableCell>{tx.description || ''}</TableCell>
                                                         <TableCell className="text-right font-mono text-green-600">{tx.credit ? formatCurrency(tx.credit) : ''}</TableCell>
                                                         <TableCell className="text-right font-mono text-red-600">{tx.debit ? formatCurrency(tx.debit) : ''}</TableCell>
                                                         <TableCell className="text-right font-mono">{formatCurrency(tx.balance)}</TableCell>
@@ -522,7 +529,7 @@ export function ReportView({
                                         <TableBody>
                                             {loan!.transactions.map(tx => (
                                                 <TableRow key={tx.id}>
-                                                    <TableCell>{format(parseISO(tx.date), 'dd/MM/yy')}</TableCell>
+                                                    <TableCell>{tx.date ? format(parseISO(tx.date), 'dd/MM/yy') : ''}</TableCell>
                                                     <TableCell className="text-right font-mono text-red-600">{tx.type === 'loan' ? formatCurrency(tx.amount) : ''}</TableCell>
                                                     <TableCell className="text-right font-mono text-green-600">{tx.type === 'repayment' ? formatCurrency(tx.amount) : ''}</TableCell>
                                                     <TableCell className="text-right font-mono">{formatCurrency(tx.currentBalance)}</TableCell>
@@ -579,7 +586,7 @@ export function ReportView({
                                         <TableBody>
                                             {loan!.transactions.map(tx => (
                                                 <TableRow key={tx.id}>
-                                                    <TableCell>{format(parseISO(tx.date), 'dd/MM/yy')}</TableCell>
+                                                    <TableCell>{tx.date ? format(parseISO(tx.date), 'dd/MM/yy') : ''}</TableCell>
                                                     <TableCell className="text-right font-mono text-red-600">{tx.type === 'loan' ? formatCurrency(tx.amount) : ''}</TableCell>
                                                     <TableCell className="text-right font-mono text-green-600">{tx.type === 'repayment' ? formatCurrency(tx.amount) : ''}</TableCell>
                                                     <TableCell className="text-right font-mono">{formatCurrency(tx.currentBalance)}</TableCell>
@@ -609,6 +616,7 @@ export function ReportView({
 
   const monthlyTransactions = useMemo(() => {
     return transactions.filter(t => {
+        if (!t.date) return false;
         const d = new Date(t.date);
         return isValid(d) && isWithinInterval(d, { start: monthStart, end: monthEnd });
     });
@@ -633,8 +641,9 @@ export function ReportView({
     const isInEcosystem = (accId?: string) => accId === primaryAccount?.id || accId === 'cash-wallet' || accId === 'digital-wallet' || (accId && creditCardIds.has(accId));
 
     loans.forEach(loan => {
-        if (loan.personName?.toLowerCase().includes('sbi')) return;
+        if (!loan.personName || loan.personName.toLowerCase().includes('sbi')) return;
         (loan.transactions || []).forEach(tx => {
+            if (!tx.date) return;
             const d = new Date(tx.date);
             if (isValid(d) && isWithinInterval(d, { start: monthStart, end: monthEnd })) {
                 let include = (isPrimaryReport && isInEcosystem(tx.accountId));
@@ -1045,9 +1054,9 @@ export function ReportView({
                                                     </TableRow>
                                                 </TableHeader>
                                                 <TableBody>
-                                                    {loan!.transactions.map(tx => (
+                                                    {(loan!.transactions || []).map(tx => (
                                                         <TableRow key={tx.id}>
-                                                            <TableCell>{format(parseISO(tx.date), 'dd/MM/yy')}</TableCell>
+                                                            <TableCell>{tx.date ? format(parseISO(tx.date), 'dd/MM/yy') : ''}</TableCell>
                                                             <TableCell className="text-right font-mono text-red-600">{tx.type === 'loan' ? formatCurrency(tx.amount) : ''}</TableCell>
                                                             <TableCell className="text-right font-mono text-green-600">{tx.type === 'repayment' ? formatCurrency(tx.amount) : ''}</TableCell>
                                                             <TableCell className="text-right font-mono">{formatCurrency(tx.currentBalance)}</TableCell>
@@ -1105,9 +1114,9 @@ export function ReportView({
                                                     </TableRow>
                                                 </TableHeader>
                                                 <TableBody>
-                                                    {loan!.transactions.map(tx => (
+                                                    {(loan!.transactions || []).map(tx => (
                                                         <TableRow key={tx.id}>
-                                                            <TableCell>{format(parseISO(tx.date), 'dd/MM/yy')}</TableCell>
+                                                            <TableCell>{tx.date ? format(parseISO(tx.date), 'dd/MM/yy') : ''}</TableCell>
                                                             <TableCell className="text-right font-mono text-red-600">{tx.type === 'loan' ? formatCurrency(tx.amount) : ''}</TableCell>
                                                             <TableCell className="text-right font-mono text-green-600">{tx.type === 'repayment' ? formatCurrency(tx.amount) : ''}</TableCell>
                                                             <TableCell className="text-right font-mono">{formatCurrency(tx.currentBalance)}</TableCell>
