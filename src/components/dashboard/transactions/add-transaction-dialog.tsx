@@ -246,28 +246,43 @@ export function AddTransactionDialog({
     const bankExpenseCats = categories.filter(c => c.type === 'bank-expense');
     const isPostBankSelected = expensePaymentMethod === postBankAccount?.id;
 
-    let allCats;
+    let combined: Category[];
     if (isPostBankSelected) {
         const incomeCats = categories.filter(c => c.type === 'income');
-        const combined = [...incomeCats, ...expenseCats, ...bankExpenseCats];
-        allCats = Array.from(new Map(combined.map(item => [item.id, item])).values());
+        combined = [...incomeCats, ...expenseCats, ...bankExpenseCats];
     } else {
-        allCats = [...expenseCats, ...bankExpenseCats];
+        combined = [...expenseCats, ...bankExpenseCats];
     }
+
+    // Deduplicate by name and choose best type priority to prevent "more than one POST/HDFC Bank"
+    const nameMap = new Map<string, Category>();
+    combined.forEach(cat => {
+      const name = cat.name.trim();
+      const existing = nameMap.get(name);
+      if (!existing) {
+        nameMap.set(name, cat);
+      } else {
+        // Priority: bank-expense (3) > expense (2) > income (1)
+        const getPriority = (type: string) => type === 'bank-expense' ? 3 : type === 'expense' ? 2 : 1;
+        if (getPriority(cat.type) > getPriority(existing.type)) {
+          nameMap.set(name, cat);
+        }
+      }
+    });
+
+    const allCats = Array.from(nameMap.values());
+    const bankNames = ['hdfc bank', 'post bank', 'fed bank', 'money box'];
     
     return allCats.sort((a, b) => {
         const aName = a.name.toLowerCase();
         const bName = b.name.toLowerCase();
-        const aIsSpecial = aName.includes('hdfc bank') || aName.includes('post bank');
-        const bIsSpecial = bName.includes('hdfc bank') || bName.includes('post bank');
+        
+        const aIsBank = bankNames.some(bn => aName.includes(bn));
+        const bIsBank = bankNames.some(bn => bName.includes(bn));
 
-        if (aIsSpecial && !bIsSpecial) {
-            return 1; // a goes after b
-        }
-        if (!aIsSpecial && bIsSpecial) {
-            return -1; // a goes before b
-        }
-        // If both are special or both are not, sort by original order
+        if (aIsBank && !bIsBank) return 1; // Bank categories go to the bottom
+        if (!aIsBank && bIsBank) return -1;
+        
         return (a.order || 0) - (b.order || 0);
     });
   }, [categories, expensePaymentMethod, postBankAccount]);
