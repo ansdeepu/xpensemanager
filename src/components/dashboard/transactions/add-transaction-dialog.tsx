@@ -242,19 +242,12 @@ export function AddTransactionDialog({
   };
 
   const expenseCategoriesForDropdown = useMemo(() => {
-    const expenseCats = categories.filter(c => c.type === 'expense');
-    const bankExpenseCats = categories.filter(c => c.type === 'bank-expense');
-    const isPostBankSelected = expensePaymentMethod === postBankAccount?.id;
+    // Only include expense and bank-expense types. 
+    // We no longer include income categories regardless of payment method, 
+    // to strictly follow the Categories page tabs.
+    const combined = categories.filter(c => c.type === 'expense' || c.type === 'bank-expense');
 
-    let combined: Category[];
-    if (isPostBankSelected) {
-        const incomeCats = categories.filter(c => c.type === 'income');
-        combined = [...incomeCats, ...expenseCats, ...bankExpenseCats];
-    } else {
-        combined = [...expenseCats, ...bankExpenseCats];
-    }
-
-    // Deduplicate by name and choose best type priority to prevent "more than one POST/HDFC Bank"
+    // Deduplicate by name and choose best type priority
     const nameMap = new Map<string, Category>();
     combined.forEach(cat => {
       const name = cat.name.trim();
@@ -262,8 +255,8 @@ export function AddTransactionDialog({
       if (!existing) {
         nameMap.set(name, cat);
       } else {
-        // Priority: bank-expense (3) > expense (2) > income (1)
-        const getPriority = (type: string) => type === 'bank-expense' ? 3 : type === 'expense' ? 2 : 1;
+        // Priority: bank-expense (2) > expense (1)
+        const getPriority = (type: string) => type === 'bank-expense' ? 2 : 1;
         if (getPriority(cat.type) > getPriority(existing.type)) {
           nameMap.set(name, cat);
         }
@@ -285,7 +278,7 @@ export function AddTransactionDialog({
         
         return (a.order || 0) - (b.order || 0);
     });
-  }, [categories, expensePaymentMethod, postBankAccount]);
+  }, [categories]);
 
   // --- Income Form Handlers ---
   const incomeSubcategories = useMemo(() => {
@@ -314,7 +307,7 @@ export function AddTransactionDialog({
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!user) return;
-    setIsSubmitting(true);
+    setIsSubmitting(false); // Reset in catch if fails
 
     const transactionDate = date ? new Date(date) : new Date();
     const timezoneOffset = transactionDate.getTimezoneOffset() * 60000;
