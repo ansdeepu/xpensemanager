@@ -8,7 +8,7 @@ import { Bell, FileText, BadgeCheck, Gift, Calendar as CalendarIcon, AlertCircle
 import { db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
 import type { Bill, Transaction } from "@/lib/data";
-import { formatDistanceToNow, startOfToday, addDays, parseISO, isValid, isBefore, addMonths, addQuarters, addYears, getYear, setYear, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
+import { formatDistanceToNow, startOfToday, addDays, parseISO, isValid, isBefore, addMonths, addQuarters, addYears, getYear, setYear, startOfMonth, endOfMonth, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -25,6 +25,11 @@ export function NoticeBoard() {
   const [user] = useAuthState();
   const [allEvents, setAllEvents] = useState<Bill[]>([]);
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
+  const [clientDate, setClientDate] = useState<Date>(new Date());
+
+  useEffect(() => {
+    setClientDate(new Date());
+  }, []);
 
   useEffect(() => {
     if (user && db) {
@@ -56,7 +61,7 @@ export function NoticeBoard() {
   }, [user]);
 
   const { upcomingBills, specialEvents } = useMemo(() => {
-    const today = startOfToday();
+    const today = startOfDay(clientDate);
     const monthStart = startOfMonth(today);
     const monthEnd = endOfMonth(today);
     const fiveDaysFromNow = addDays(today, 5);
@@ -85,6 +90,7 @@ export function NoticeBoard() {
         if (isPaidThisMonth) return;
 
         let nextDueDate = originalDueDate;
+        // Logic: Find the specific occurrence of this bill that falls within the current month
         if (event.recurrence && event.recurrence !== 'none' && event.recurrence !== 'occasional') {
             while (isBefore(nextDueDate, monthStart)) {
                 switch(event.recurrence) {
@@ -96,6 +102,7 @@ export function NoticeBoard() {
             }
         }
 
+        // Strictly bound the display to the current month ONLY
         if (isWithinInterval(nextDueDate, { start: monthStart, end: monthEnd })) {
             upcoming.push({ 
                 event, 
@@ -119,7 +126,7 @@ export function NoticeBoard() {
     special.sort((a,b) => a.celebrationDate.getTime() - b.celebrationDate.getTime());
 
     return { upcomingBills: upcoming, specialEvents: special };
-  }, [allEvents, allTransactions]);
+  }, [allEvents, allTransactions, clientDate]);
 
 
   return (

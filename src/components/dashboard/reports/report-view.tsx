@@ -100,8 +100,6 @@ export function ReportView({
   const accountName = accountInfo?.name || 'Account';
   const isPostBank = accountName.toLowerCase().includes('post bank');
 
-  // --- TOP LEVEL HOOKS (All calculation hooks must be before any early returns) ---
-
   const allTimeLoanDetails = useMemo(() => {
     if (!loans) return [];
     const filteredLoans = loans.filter(l => l && l.personName && !l.personName.toLowerCase().includes('sbi credit card'));
@@ -139,7 +137,6 @@ export function ReportView({
         const displayName = isSelfInteraction ? "SBI Bank" : l.personName;
 
         let effectiveType = l.type;
-        // Swap perspective for SBI interactions in secondary tabs
         if (isSelfInteraction) {
             effectiveType = l.type === 'given' ? 'taken' : 'given';
         }
@@ -181,7 +178,6 @@ export function ReportView({
     }), { totalLoan: 0, totalRepayment: 0, balance: 0 });
   }, [loanGivenDetails]);
 
-  // Secondary account state logic extracted to top level
   const secondaryAccountSummary = useMemo(() => {
     if (isPrimaryReport || !accountId) return null;
 
@@ -446,8 +442,6 @@ export function ReportView({
     });
     return data;
   }, [monthlyTransactions, isPrimaryReport, accountId, creditCardIds, categories, currentMonthName]);
-
-  // --- RENDERING ---
 
   if (!isPrimaryReport && accountId && secondaryAccountSummary) {
     const s = secondaryAccountSummary;

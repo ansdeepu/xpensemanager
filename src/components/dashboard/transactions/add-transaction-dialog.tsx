@@ -34,7 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { Account, Category, Transaction, Loan } from "@/lib/data";
+import type { Account, Category, Transaction, Loan, SubCategory } from "@/lib/data";
 import { auth, db } from "@/lib/firebase";
 import { collection, addDoc, query, where, onSnapshot, orderBy, writeBatch, doc, updateDoc, deleteField, getDocs } from "firebase/firestore";
 import { format } from "date-fns";
@@ -224,9 +224,12 @@ export function AddTransactionDialog({
   };
 
   const expenseCategoriesForDropdown = useMemo(() => {
-    const combined = categories.filter(c => c && (c.type === 'expense' || c.type === 'bank-expense'));
+    // Strictly only include Expense or Bank-Expense types
+    const filtered = categories.filter(c => c && (c.type === 'expense' || c.type === 'bank-expense'));
+    
+    // Deduplicate by name and prioritize Bank-Expense version
     const nameMap = new Map<string, Category>();
-    combined.forEach(cat => {
+    filtered.forEach(cat => {
       const name = cat.name.trim();
       const existing = nameMap.get(name);
       if (!existing) {
@@ -240,13 +243,15 @@ export function AddTransactionDialog({
     });
 
     const allCats = Array.from(nameMap.values());
-    const bankNames = ['hdfc bank', 'post bank', 'fed bank', 'money box'];
+    const specialBankNames = ['hdfc bank', 'post bank', 'fed bank', 'money box', 'sbi bank'];
     
+    // Sort logic: Normal categories by order, Special bank categories to the bottom
     return allCats.sort((a, b) => {
         const aName = a.name.toLowerCase();
         const bName = b.name.toLowerCase();
-        const aIsBank = bankNames.some(bn => aName.includes(bn));
-        const bIsBank = bankNames.some(bn => bName.includes(bn));
+        const aIsBank = specialBankNames.some(bn => aName.includes(bn));
+        const bIsBank = specialBankNames.some(bn => bName.includes(bn));
+        
         if (aIsBank && !bIsBank) return 1;
         if (!aIsBank && bIsBank) return -1;
         return (a.order || 0) - (b.order || 0);
@@ -459,66 +464,68 @@ export function AddTransactionDialog({
 
                   <div className="max-h-[20rem] overflow-y-auto pr-2 space-y-3 -mr-2">
                     {expenseItems.map((item, index) => (
-                        <div key={item.id} className="relative p-2 border-b">
-                            <div className="grid grid-cols-12 gap-x-3 gap-y-2 items-end">
-                                <div className="col-span-12 sm:col-span-4 md:col-span-3 space-y-1">
-                                    <Label htmlFor={`description-expense-${index}`} className="text-xs font-medium">Description</Label>
-                                    <Textarea rows={1} id={`description-expense-${index}`} value={item.description} onChange={(e) => handleExpenseItemChange(index, 'description', e.target.value)} placeholder="e.g. Milk" required className="text-sm bg-white dark:bg-input"/>
-                                </div>
-                                <div className="col-span-6 sm:col-span-3 md:col-span-2 space-y-1">
-                                    <Label htmlFor={`amount-expense-${index}`} className="text-xs font-medium">Amount</Label>
-                                    <Input id={`amount-expense-${index}`} value={item.amount} onChange={(e) => handleExpenseItemChange(index, 'amount', e.target.value)} onBlur={() => handleExpenseAmountBlur(index)} placeholder="e.g. 50" required className="hide-number-arrows text-sm bg-white dark:bg-input"/>
-                                </div>
-                                <div className="col-span-6 sm:col-span-5 md:col-span-3 space-y-1">
-                                    <Label htmlFor={`category-expense-${index}`} className="text-xs font-medium">Category</Label>
-                                    <Select value={item.categoryId} onValueChange={(value) => handleExpenseItemChange(index, 'categoryId', value)}>
-                                        <SelectTrigger id={`category-expense-${index}`} className="text-sm bg-white dark:bg-input"><SelectValue placeholder="Select" /></SelectTrigger>
-                                        <SelectContent>
-                                            {expenseCategoriesForDropdown.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="col-span-10 sm:col-span-11 md:col-span-3 space-y-1">
-                                    <Label htmlFor={`subcategory-expense-${index}`} className="text-xs font-medium">Sub-category</Label>
-                                    <Select value={item.subcategory} onValueChange={(value) => handleExpenseItemChange(index, 'subcategory', value)} disabled={!item.categoryId || expenseSubcategories(item.categoryId).length === 0}>
-                                        <SelectTrigger id={`subcategory-expense-${index}`} className="text-sm bg-white dark:bg-input"><SelectValue placeholder="Select" /></SelectTrigger>
-                                        <SelectContent>
-                                            {expenseSubcategories(item.categoryId).map(sub => <SelectItem key={sub.id} value={sub.name}>{sub.name}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="col-span-2 sm:col-span-1 flex items-center justify-end gap-1">
-                                    {expenseItems.length > 1 && (
-                                        <AlertDialog>
-                                            <AlertDialogTrigger asChild>
-                                                <Button type="button" variant="ghost" size="icon" className="h-9 w-9">
-                                                    <Trash2 className="h-4 w-4 text-destructive" />
-                                                </Button>
-                                            </AlertDialogTrigger>
-                                            <AlertDialogContent className="z-[110]">
-                                                <AlertDialogHeader>
-                                                    <AlertDialogTitle>Remove Item?</AlertDialogTitle>
-                                                    <AlertDialogDescription>
-                                                        Are you sure you want to remove "{item.description || 'this item'}" from the transaction?
-                                                    </AlertDialogDescription>
-                                                </AlertDialogHeader>
-                                                <AlertDialogFooter>
-                                                    <AlertDialogCancel type="button">Cancel</AlertDialogCancel>
-                                                    <AlertDialogAction type="button" onClick={() => removeExpenseItem(index)} className="bg-destructive hover:bg-destructive/90">
-                                                        Remove
-                                                    </AlertDialogAction>
-                                                </AlertDialogFooter>
-                                            </AlertDialogContent>
-                                        </AlertDialog>
-                                    )}
-                                    {index === expenseItems.length - 1 && (
-                                      <Button type="button" variant="ghost" size="icon" onClick={addExpenseItem} className="h-9 w-9">
-                                          <Plus className="h-4 w-4" />
-                                      </Button>
-                                    )}
+                        <React.Fragment key={item.id}>
+                            <div className="relative p-2 border-b">
+                                <div className="grid grid-cols-12 gap-x-3 gap-y-2 items-end">
+                                    <div className="col-span-12 sm:col-span-4 md:col-span-3 space-y-1">
+                                        <Label htmlFor={`description-expense-${index}`} className="text-xs font-medium">Description</Label>
+                                        <Textarea rows={1} id={`description-expense-${index}`} value={item.description} onChange={(e) => handleExpenseItemChange(index, 'description', e.target.value)} placeholder="e.g. Milk" required className="text-sm bg-white dark:bg-input"/>
+                                    </div>
+                                    <div className="col-span-6 sm:col-span-3 md:col-span-2 space-y-1">
+                                        <Label htmlFor={`amount-expense-${index}`} className="text-xs font-medium">Amount</Label>
+                                        <Input id={`amount-expense-${index}`} value={item.amount} onChange={(e) => handleExpenseItemChange(index, 'amount', e.target.value)} onBlur={() => handleExpenseAmountBlur(index)} placeholder="e.g. 50" required className="hide-number-arrows text-sm bg-white dark:bg-input"/>
+                                    </div>
+                                    <div className="col-span-6 sm:col-span-5 md:col-span-3 space-y-1">
+                                        <Label htmlFor={`category-expense-${index}`} className="text-xs font-medium">Category</Label>
+                                        <Select value={item.categoryId} onValueChange={(value) => handleExpenseItemChange(index, 'categoryId', value)}>
+                                            <SelectTrigger id={`category-expense-${index}`} className="text-sm bg-white dark:bg-input"><SelectValue placeholder="Select" /></SelectTrigger>
+                                            <SelectContent>
+                                                {expenseCategoriesForDropdown.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="col-span-10 sm:col-span-11 md:col-span-3 space-y-1">
+                                        <Label htmlFor={`subcategory-expense-${index}`} className="text-xs font-medium">Sub-category</Label>
+                                        <Select value={item.subcategory} onValueChange={(value) => handleExpenseItemChange(index, 'subcategory', value)} disabled={!item.categoryId || expenseSubcategories(item.categoryId).length === 0}>
+                                            <SelectTrigger id={`subcategory-expense-${index}`} className="text-sm bg-white dark:bg-input"><SelectValue placeholder="Select" /></SelectTrigger>
+                                            <SelectContent>
+                                                {expenseSubcategories(item.categoryId).map(sub => <SelectItem key={sub.id} value={sub.name}>{sub.name}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="col-span-2 sm:col-span-1 flex items-center justify-end gap-1">
+                                        {expenseItems.length > 1 && (
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button type="button" variant="ghost" size="icon" className="h-9 w-9">
+                                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                                    </Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent className="z-[110]">
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>Remove Item?</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                            Are you sure you want to remove "{item.description || 'this item'}" from the transaction?
+                                                        </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel type="button">Cancel</AlertDialogCancel>
+                                                        <AlertDialogAction type="button" onClick={() => removeExpenseItem(index)} className="bg-destructive hover:bg-destructive/90">
+                                                            Remove
+                                                        </AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        )}
+                                        {index === expenseItems.length - 1 && (
+                                          <Button type="button" variant="ghost" size="icon" onClick={addExpenseItem} className="h-9 w-9">
+                                              <Plus className="h-4 w-4" />
+                                          </Button>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                        </React.Fragment>
                     ))}
                   </div>
 
