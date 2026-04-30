@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState, useEffect, useMemo, Fragment } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -44,14 +44,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// Function to safely evaluate math expressions
 const evaluateMath = (expression: string): number | null => {
   try {
-    // Basic validation: only allow numbers, operators, and parentheses
     if (/[^0-9+\-*/.() ]/.test(expression)) {
       return null;
     }
-    // eslint-disable-next-line no-eval
     const result = eval(expression);
     if (typeof result === 'number' && isFinite(result)) {
       return result;
@@ -96,31 +93,25 @@ export function AddTransactionDialog({
   const { toast } = useToast();
   const isEditMode = !!transactionToEdit;
 
-  // Common state
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Expense State
   const initialExpenseItem = { id: Date.now(), description: '', amount: '', categoryId: '', subcategory: '' };
   const [expenseItems, setExpenseItems] = useState<ExpenseItem[]>([initialExpenseItem]);
   const primaryAccount = accountData.find(acc => 'isPrimary' in acc && (acc as Account).isPrimary);
-  const postBankAccount = useMemo(() => accountData.find(acc => 'name' in acc && acc.name.toLowerCase().includes('post bank')), [accountData]);
   const [expensePaymentMethod, setExpensePaymentMethod] = useState<string | undefined>(primaryAccount?.id);
   const [expenseFrequency, setExpenseFrequency] = useState<'regular' | 'occasional'>('regular');
   
-  // Income State
   const [incomeAmount, setIncomeAmount] = useState("");
   const [incomeDescription, setIncomeDescription] = useState("");
   const [incomeCategory, setIncomeCategory] = useState<string | undefined>();
   const [incomeSubcategory, setIncomeSubcategory] = useState<string | undefined>();
   const [incomeAccountId, setIncomeAccountId] = useState<string | undefined>(primaryAccount?.id);
 
-  // Transfer State
   const [transferAmount, setTransferAmount] = useState("");
   const [transferDescription, setTransferDescription] = useState("");
   const [fromAccountId, setFromAccountId] = useState<string | undefined>();
   const [toAccountId, setToAccountId] = useState<string | undefined>();
-
 
   useEffect(() => {
     if (user && db) {
@@ -133,23 +124,16 @@ export function AddTransactionDialog({
   }, [user, db]);
 
   const resetForms = () => {
-      // Reset common state
       setDate(format(new Date(), 'yyyy-MM-dd'));
       setTransactionType('expense');
-
-      // Reset expense state
       setExpenseItems([initialExpenseItem]);
       setExpensePaymentMethod(primaryAccount?.id);
       setExpenseFrequency('regular');
-      
-      // Reset income state
       setIncomeAmount("");
       setIncomeDescription("");
       setIncomeCategory(undefined);
       setIncomeSubcategory(undefined);
       setIncomeAccountId(primaryAccount?.id);
-
-      // Reset transfer state
       setTransferAmount("");
       setTransferDescription("");
       setFromAccountId(undefined);
@@ -199,13 +183,11 @@ export function AddTransactionDialog({
     }
   }, [isOpen, transactionToEdit, categories, primaryAccount]);
 
-
-  // --- Expense Form Handlers ---
   const handleExpenseItemChange = (index: number, field: keyof ExpenseItem, value: string) => {
     const newItems = [...expenseItems];
     newItems[index] = { ...newItems[index], [field]: value };
     if (field === 'categoryId') {
-        newItems[index].subcategory = ''; // Reset subcategory when category changes
+        newItems[index].subcategory = '';
     }
     setExpenseItems(newItems);
   };
@@ -242,12 +224,7 @@ export function AddTransactionDialog({
   };
 
   const expenseCategoriesForDropdown = useMemo(() => {
-    // Only include expense and bank-expense types. 
-    // We no longer include income categories regardless of payment method, 
-    // to strictly follow the Categories page tabs.
-    const combined = categories.filter(c => c.type === 'expense' || c.type === 'bank-expense');
-
-    // Deduplicate by name and choose best type priority
+    const combined = categories.filter(c => c && (c.type === 'expense' || c.type === 'bank-expense'));
     const nameMap = new Map<string, Category>();
     combined.forEach(cat => {
       const name = cat.name.trim();
@@ -255,7 +232,6 @@ export function AddTransactionDialog({
       if (!existing) {
         nameMap.set(name, cat);
       } else {
-        // Priority: bank-expense (2) > expense (1)
         const getPriority = (type: string) => type === 'bank-expense' ? 2 : 1;
         if (getPriority(cat.type) > getPriority(existing.type)) {
           nameMap.set(name, cat);
@@ -269,25 +245,21 @@ export function AddTransactionDialog({
     return allCats.sort((a, b) => {
         const aName = a.name.toLowerCase();
         const bName = b.name.toLowerCase();
-        
         const aIsBank = bankNames.some(bn => aName.includes(bn));
         const bIsBank = bankNames.some(bn => bName.includes(bn));
-
-        if (aIsBank && !bIsBank) return 1; // Bank categories go to the bottom
+        if (aIsBank && !bIsBank) return 1;
         if (!aIsBank && bIsBank) return -1;
-        
         return (a.order || 0) - (b.order || 0);
     });
   }, [categories]);
 
-  // --- Income Form Handlers ---
   const incomeSubcategories = useMemo(() => {
     if (!incomeCategory) return [];
     return categories.find(c => c.id === incomeCategory)?.subcategories || [];
   }, [incomeCategory, categories]);
 
   const incomeDropdownCategories = useMemo(() => {
-    return categories.filter(c => c.type === 'income');
+    return categories.filter(c => c && c.type === 'income');
   }, [categories]);
   
   const handleIncomeAmountBlur = () => {
@@ -296,18 +268,16 @@ export function AddTransactionDialog({
     if (result !== null) setIncomeAmount(String(result));
   };
 
-  // --- Transfer Form Handlers ---
   const handleTransferAmountBlur = () => {
     if (transferAmount.trim() === "") return;
     const result = evaluateMath(transferAmount);
     if (result !== null) setTransferAmount(String(result));
   };
   
-  // --- SUBMIT ---
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!user) return;
-    setIsSubmitting(false); // Reset in catch if fails
+    setIsSubmitting(true);
 
     const transactionDate = date ? new Date(date) : new Date();
     const timezoneOffset = transactionDate.getTimezoneOffset() * 60000;
@@ -397,18 +367,13 @@ export function AddTransactionDialog({
 
         if(isEditMode) {
             const txRef = doc(db, "transactions", transactionToEdit.id);
-            
-            // Clean up old fields if switching payment methods
             if (transactionType === 'expense' && (expensePaymentMethod === 'cash-wallet' || expensePaymentMethod === 'digital-wallet')) {
                 finalTransactionData.accountId = deleteField();
             }
             if (transactionType === 'expense' && expenseItems.length <= 1) {
                 finalTransactionData.items = deleteField();
             }
-
             await updateDoc(txRef, finalTransactionData);
-
-            // SYNC TO LOANS: If this transaction is linked to a loan, update the loan record too
             if (transactionToEdit.loanTransactionId) {
                 const loansQuery = query(collection(db, "loans"), where("userId", "==", user.uid));
                 const loansSnapshot = await getDocs(loansQuery);
@@ -437,9 +402,7 @@ export function AddTransactionDialog({
             await addDoc(collection(db, "transactions"), finalTransactionData);
             toast({ title: `${transactionType.charAt(0).toUpperCase() + transactionType.slice(1)} added.` });
         }
-
         onOpenChange(false);
-
     } catch (error: any) {
         toast({ variant: "destructive", title: "Submission Failed", description: error.message });
     } finally {
@@ -600,7 +563,7 @@ export function AddTransactionDialog({
                           <Select value={incomeCategory} onValueChange={setIncomeCategory}>
                               <SelectTrigger id="category-income" className="bg-white dark:bg-input"><SelectValue placeholder="Select category" /></SelectTrigger>
                               <SelectContent>
-                                  {incomeDropdownCategories.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
+                                  {incomeDropdownCategories.map(cat => cat && <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
                               </SelectContent>
                           </Select>
                       </div>

@@ -1,14 +1,14 @@
 
 "use client";
 
+import React, { useState, useEffect, useMemo } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Bell, FileText, BadgeCheck, Gift, Calendar as CalendarIcon, AlertCircle } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
 import type { Bill, Transaction } from "@/lib/data";
-import { useState, useEffect, useMemo } from "react";
-import { formatDistanceToNow, isAfter, subDays, isWithinInterval, startOfToday, endOfDay, addDays, parseISO, isValid, isBefore, addMonths, addQuarters, addYears, getYear, setYear, startOfMonth, endOfMonth } from "date-fns";
+import { formatDistanceToNow, startOfToday, addDays, parseISO, isValid, isBefore, addMonths, addQuarters, addYears, getYear, setYear, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -19,8 +19,7 @@ const formatCurrency = (amount: number) => {
       style: "currency",
       currency: "INR",
     }).format(amount);
-  };
-
+};
 
 export function NoticeBoard() {
   const [user] = useAuthState();
@@ -54,7 +53,7 @@ export function NoticeBoard() {
           unsubscribeTx();
       };
     }
-  }, [user, db]);
+  }, [user]);
 
   const { upcomingBills, specialEvents } = useMemo(() => {
     const today = startOfToday();
@@ -70,7 +69,6 @@ export function NoticeBoard() {
       if (!isValid(originalDueDate)) return;
 
       if (event.type === 'bill') {
-        // Smart matching logic to check if paid this month
         const isPaidThisMonth = allTransactions.some(t => {
             if (t.type !== 'expense') return false;
             const d = new Date(t.date);
@@ -88,7 +86,6 @@ export function NoticeBoard() {
 
         let nextDueDate = originalDueDate;
         if (event.recurrence && event.recurrence !== 'none' && event.recurrence !== 'occasional') {
-            // Find the occurrence in the current month
             while (isBefore(nextDueDate, monthStart)) {
                 switch(event.recurrence) {
                     case 'monthly': nextDueDate = addMonths(nextDueDate, 1); break;
@@ -99,7 +96,6 @@ export function NoticeBoard() {
             }
         }
 
-        // Only show bills due in the current month, from the 1st day as requested
         if (isWithinInterval(nextDueDate, { start: monthStart, end: monthEnd })) {
             upcoming.push({ 
                 event, 
@@ -136,7 +132,6 @@ export function NoticeBoard() {
         <CardDescription>A feed of your upcoming bills and special events for this month.</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 min-h-0 flex flex-col lg:flex-row gap-6">
-        {/* Upcoming Bills Section */}
         <div className="lg:w-1/2 flex flex-col">
             <h3 className="text-lg font-semibold flex items-center gap-2 mb-2"><FileText className="h-5 w-5 text-primary" />Upcoming Bills</h3>
             <Separator />
@@ -175,7 +170,6 @@ export function NoticeBoard() {
         <Separator orientation="vertical" className="hidden lg:block mx-3" />
         <Separator className="lg:hidden" />
 
-        {/* Special Events Section */}
         <div className="lg:w-1/2 flex flex-col">
             <h3 className="text-lg font-semibold flex items-center gap-2 mb-2"><Gift className="h-5 w-5 text-amber-500" />Upcoming Special Events</h3>
             <Separator />
@@ -209,4 +203,3 @@ export function NoticeBoard() {
     </Card>
   );
 }
-
