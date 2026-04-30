@@ -3,12 +3,12 @@
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Bell, FileText, BadgeCheck, Gift, Calendar as CalendarIcon } from "lucide-react";
+import { Bell, FileText, BadgeCheck, Gift, Calendar as CalendarIcon, AlertCircle } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
-import type { Bill } from "@/lib/data";
+import type { Bill, Transaction } from "@/lib/data";
 import { useState, useEffect, useMemo } from "react";
-import { formatDistanceToNow, isAfter, subDays, isWithinInterval, startOfToday, endOfDay, addDays, parseISO, isValid, isBefore, addMonths, addQuarters, addYears, getYear, setYear } from "date-fns";
+import { formatDistanceToNow, isAfter, subDays, isWithinInterval, startOfToday, endOfDay, addDays, parseISO, isValid, isBefore, addMonths, addQuarters, addYears, getYear, setYear, startOfMonth, endOfMonth } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -25,7 +25,7 @@ const formatCurrency = (amount: number) => {
 export function NoticeBoard() {
   const [user] = useAuthState();
   const [allEvents, setAllEvents] = useState<Bill[]>([]);
-  const [isHovered, setIsHovered] = useState(false);
+  const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
 
   useEffect(() => {
     if (user && db) {
@@ -39,39 +39,73 @@ export function NoticeBoard() {
         const events = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Bill));
         setAllEvents(events);
       });
-      return () => unsubscribe();
+
+      const txQuery = query(
+        collection(db, "transactions"),
+        where("userId", "==", user.uid)
+      );
+      const unsubscribeTx = onSnapshot(txQuery, (snapshot) => {
+        const txs = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Transaction));
+        setAllTransactions(txs);
+      });
+
+      return () => {
+          unsubscribe();
+          unsubscribeTx();
+      };
     }
   }, [user, db]);
 
   const { upcomingBills, specialEvents } = useMemo(() => {
     const today = startOfToday();
-    const tenDaysFromNow = addDays(today, 10);
+    const monthStart = startOfMonth(today);
+    const monthEnd = endOfMonth(today);
     const fiveDaysFromNow = addDays(today, 5);
 
-    const upcomingBills: { event: Bill, nextDueDate: Date }[] = [];
-    const specialEvents: { event: Bill, celebrationDate: Date }[] = [];
+    const upcoming: { event: Bill, nextDueDate: Date, isOverdue: boolean }[] = [];
+    const special: { event: Bill, celebrationDate: Date }[] = [];
 
     allEvents.forEach(event => {
       const originalDueDate = parseISO(event.dueDate);
       if (!isValid(originalDueDate)) return;
 
       if (event.type === 'bill') {
-        if (event.recurrence === 'occasional' || event.recurrence === 'none' || !event.recurrence) {
-            if (!event.paidOn && isWithinInterval(originalDueDate, { start: today, end: tenDaysFromNow })) {
-                upcomingBills.push({ event, nextDueDate: originalDueDate });
+        // Smart matching logic to check if paid this month
+        const isPaidThisMonth = allTransactions.some(t => {
+            if (t.type !== 'expense') return false;
+            const d = new Date(t.date);
+            if (!isValid(d) || !isWithinInterval(d, { start: monthStart, end: monthEnd })) return false;
+            
+            const matchesTopLevel = (t.categoryId === event.categoryId || t.category === event.category) && t.subcategory === event.subcategory;
+            if (matchesTopLevel) return true;
+            if (t.items && t.items.length > 0) {
+                return t.items.some(item => (item.categoryId === event.categoryId || item.category === event.category) && item.subcategory === event.subcategory);
             }
-        } else { // Recurring bills
-            let nextDueDate = originalDueDate;
-            while (isBefore(nextDueDate, today)) {
+            return false;
+        });
+
+        if (isPaidThisMonth) return;
+
+        let nextDueDate = originalDueDate;
+        if (event.recurrence && event.recurrence !== 'none' && event.recurrence !== 'occasional') {
+            // Find the occurrence in the current month
+            while (isBefore(nextDueDate, monthStart)) {
                 switch(event.recurrence) {
                     case 'monthly': nextDueDate = addMonths(nextDueDate, 1); break;
                     case 'quarterly': nextDueDate = addQuarters(nextDueDate, 1); break;
                     case 'yearly': nextDueDate = addYears(nextDueDate, 1); break;
+                    default: nextDueDate = addMonths(nextDueDate, 1);
                 }
             }
-            if (isWithinInterval(nextDueDate, { start: today, end: tenDaysFromNow })) {
-                upcomingBills.push({ event, nextDueDate });
-            }
+        }
+
+        // Only show bills due in the current month, from the 1st day as requested
+        if (isWithinInterval(nextDueDate, { start: monthStart, end: monthEnd })) {
+            upcoming.push({ 
+                event, 
+                nextDueDate, 
+                isOverdue: isBefore(nextDueDate, today) 
+            });
         }
       } else if (event.type === 'special_day') {
           const currentYear = getYear(today);
@@ -80,16 +114,16 @@ export function NoticeBoard() {
               celebrationDate = addYears(celebrationDate, 1);
           }
           if (isWithinInterval(celebrationDate, { start: today, end: fiveDaysFromNow })) {
-              specialEvents.push({ event, celebrationDate });
+              special.push({ event, celebrationDate });
           }
       }
     });
     
-    upcomingBills.sort((a,b) => a.nextDueDate.getTime() - b.nextDueDate.getTime());
-    specialEvents.sort((a,b) => a.celebrationDate.getTime() - b.celebrationDate.getTime());
+    upcoming.sort((a,b) => a.nextDueDate.getTime() - b.nextDueDate.getTime());
+    special.sort((a,b) => a.celebrationDate.getTime() - b.celebrationDate.getTime());
 
-    return { upcomingBills, specialEvents };
-  }, [allEvents]);
+    return { upcomingBills: upcoming, specialEvents: special };
+  }, [allEvents, allTransactions]);
 
 
   return (
@@ -99,7 +133,7 @@ export function NoticeBoard() {
           <Bell className="h-6 w-6" />
           <span>Notice Board</span>
         </CardTitle>
-        <CardDescription>A feed of your upcoming bills and special events.</CardDescription>
+        <CardDescription>A feed of your upcoming bills and special events for this month.</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 min-h-0 flex flex-col lg:flex-row gap-6">
         {/* Upcoming Bills Section */}
@@ -110,17 +144,20 @@ export function NoticeBoard() {
                 {upcomingBills.length > 0 ? (
                     <ScrollArea className="h-full pr-4">
                         <div className="space-y-4">
-                          {upcomingBills.map(({ event, nextDueDate }) => (
-                            <Alert key={event.id} className="border-l-primary border-l-4">
-                              <FileText className="h-4 w-4" />
-                              <AlertTitle className="flex justify-between">
-                                <span>{event.title}</span>
-                                <span className="text-muted-foreground font-normal">
-                                  {formatDistanceToNow(nextDueDate, { addSuffix: true })}
+                          {upcomingBills.map(({ event, nextDueDate, isOverdue }) => (
+                            <Alert key={event.id} className={cn("border-l-4", isOverdue ? "border-l-destructive bg-destructive/5" : "border-l-primary")}>
+                              {isOverdue ? <AlertCircle className="h-4 w-4 text-destructive" /> : <FileText className="h-4 w-4" />}
+                              <AlertTitle className="flex justify-between items-start gap-2">
+                                <span className={cn("font-bold", isOverdue && "text-destructive")}>{event.title}</span>
+                                <span className={cn("text-[10px] whitespace-nowrap px-1.5 py-0.5 rounded-full", isOverdue ? "bg-destructive text-destructive-foreground" : "bg-muted text-muted-foreground")}>
+                                  {isOverdue ? "Overdue" : formatDistanceToNow(nextDueDate, { addSuffix: true })}
                                 </span>
                               </AlertTitle>
-                              <AlertDescription>
-                                 Your payment of {formatCurrency(event.amount)} is due soon.
+                              <AlertDescription className="mt-1">
+                                 <div className="flex justify-between items-center">
+                                     <span className="text-sm">Payment of <span className="font-bold">{formatCurrency(event.amount)}</span></span>
+                                     <span className="text-[10px] opacity-70">Due: {nextDueDate.getDate()} {nextDueDate.toLocaleString('default', { month: 'short' })}</span>
+                                 </div>
                               </AlertDescription>
                             </Alert>
                           ))}
@@ -129,7 +166,7 @@ export function NoticeBoard() {
                 ) : (
                     <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-full">
                         <BadgeCheck className="h-8 w-8 mb-2 text-green-500" />
-                        <p>No upcoming bills in the next 10 days. You're all caught up!</p>
+                        <p>No upcoming bills for the remainder of this month.</p>
                     </div>
                 )}
             </div>
@@ -172,3 +209,4 @@ export function NoticeBoard() {
     </Card>
   );
 }
+
